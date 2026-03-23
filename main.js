@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const subserviceGroup = document.getElementById('subservice-group');
   const subserviceSelect = document.getElementById('subservice');
   const serviceAlert = document.getElementById('service-alert');
+  const colorHint = document.getElementById('color-hint');
 
   // Handle service change
   serviceSelect.addEventListener('change', (e) => {
@@ -103,10 +104,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset secondary states
     subserviceGroup.style.display = 'none';
     serviceAlert.style.display = 'none';
+    colorHint.style.display = 'none';
     subserviceSelect.disabled = true;
     subserviceSelect.removeAttribute('required');
     btnSubmit.disabled = false;
     btnSubmit.style.opacity = '1';
+
+    // Show color specific hint
+    if (selectedService === 'color') {
+      colorHint.style.display = 'block';
+    }
 
     if (selectedService === 'mechas') {
       // Show alert for "Mechas" and disable submit
@@ -157,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Esconder secundarios tras éxito
         subserviceGroup.style.display = 'none';
         serviceAlert.style.display = 'none';
+        colorHint.style.display = 'none';
         subserviceSelect.disabled = true;
       }, 1500);
     });
