@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pedir Cita - Super Pelu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  
+  <style>
+    /* VARIABLES Y RESET (Resumen para este componente) */
+    :root {
+      --cream: #faf8f4;
+      --dark: #1a1410;
+      --dark-mid: #2d2520;
+      --text: #3a322a;
+      --text-muted: #7a6d62;
+      --gold: #c5a05a;
+      --gold-light: #d4b47a;
+      --gold-dark: #a07840;
+      --white: #ffffff;
+      
+      --font-serif: 'Cormorant Garamond', Georgia, serif;
+      --font-sans: 'Inter', system-ui, sans-serif;
+      
+      --radius-sm: 8px;
+      --ease: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+    
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); color: var(--text); line-height: 1.6; }
+    a { text-decoration: none; color: inherit; }
+
+    /* BOTONES */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 32px;
+      border-radius: 9999px;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.3s var(--ease);
+    }
+    .btn--primary { background: var(--gold); color: var(--dark); border-color: var(--gold); }
+    .btn--primary:hover {
+      background: var(--gold-dark);
+      border-color: var(--gold-dark);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(197, 160, 90, 0.35);
+    }
+    .btn--full { width: 100%; }
+
+    /* TEXTOS */
+    .section-eyebrow {
+      font-family: var(--font-sans);
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold-light);
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: var(--font-serif);
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 300;
+      line-height: 1.2;
+      color: var(--white);
+      margin-bottom: 24px;
+    }
+    .section-title em { font-style: italic; color: var(--gold-light); }
+
+    /* LAYOUT DEL COMPONENTE CITA */
+    .booking { background: linear-gradient(135deg, var(--dark) 0%, var(--dark-mid) 100%); }
+    .booking__split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: 100vh;
+    }
+    
+    /* PANEL IZQUIERDO (Información) */
+    .booking__info { padding: 100px 64px; display: flex; flex-direction: column; justify-content: center; }
+    .booking__info-text { color: rgba(255,255,255,0.6); line-height: 1.8; margin-bottom: 48px; }
+    
+    .booking__contact-items { display: flex; flex-direction: column; gap: 28px; }
+    .booking__contact-item { display: flex; align-items: flex-start; gap: 16px; }
+    .booking__contact-icon {
+      font-size: 1.4rem;
+      width: 48px;
+      height: 48px;
+      background: rgba(197,160,90,0.12);
+      border-radius: var(--radius-sm);
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .booking__contact-label {
+      display: block; font-size: 0.7rem; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--gold-light); margin-bottom: 4px;
+    }
+    .booking__contact-item a,
+    .booking__contact-item span:last-child {
+      color: rgba(255,255,255,0.75); font-size: 0.9rem; transition: color 0.2s; line-height: 1.5; text-decoration: none;
+    }
+    .booking__contact-item a:hover { color: var(--gold-light); }
+
+    /* PANEL DERECHO (Formulario) */
+    .booking__form-wrap {
+      background: var(--cream);
+      padding: 80px 64px;
+      display: flex;
+      align-items: center;
+    }
+    .booking__form { width: 100%; max-width: 500px; margin: 0 auto; }
+    .booking__form-title {
+      font-family: var(--font-serif);
+      font-size: 2rem;
+      font-weight: 400;
+      color: var(--dark);
+      margin-bottom: 36px;
+    }
+    
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .form-group label {
+      font-size: 0.8rem; font-weight: 500; letter-spacing: 0.05em; color: var(--text);
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%; padding: 14px 18px;
+      background: var(--white);
+      border: 1.5px solid rgba(197,160,90,0.2);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-sans);
+      font-size: 0.9rem; color: var(--text);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      appearance: none; -webkit-appearance: none;
+    }
+    .form-group select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23c5a05a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 44px;
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(197,160,90,0.12);
+    }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+    .form-group input::placeholder,
+    .form-group textarea::placeholder { color: var(--text-muted); }
+
+    .booking__form-note {
+      text-align: center; margin-top: 16px; font-size: 0.8rem; color: var(--text-muted);
+    }
+    .booking__form-note a { color: var(--gold-dark); text-decoration: underline; }
+
+    /* ESTADOS DE ÉXITO */
+    .booking__success { width: 100%; text-align: center; padding: 60px 20px; display: none; }
+    .booking__success-icon {
+      width: 72px; height: 72px; background: var(--gold); color: var(--dark);
+      border-radius: 50%; font-size: 2rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; animation: successPop 0.5s var(--ease);
+    }
+    @keyframes successPop {
+      from { transform: scale(0.5); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .booking__success h3 {
+      font-family: var(--font-serif); font-size: 2rem; color: var(--dark); margin-bottom: 12px;
+    }
+    .booking__success p { color: var(--text-muted); margin-bottom: 32px; }
+
+    /* RESPONSIVE */
+    @media (max-width: 1024px) {
+      .booking__info { padding: 80px 40px; }
+      .booking__form-wrap { padding: 60px 40px; }
+    }
+    @media (max-width: 768px) {
+      .booking__split { grid-template-columns: 1fr; }
+      .booking__info { padding: 80px 24px 40px; }
+      .booking__form-wrap { padding: 40px 24px 80px; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- CITA COMPONENTE -->
+  <section class="booking" id="cita">
+    <div class="booking__split">
+      <!-- Info y Contacto -->
+      <div class="booking__info">
+        <p class="section-eyebrow">Reserva online</p>
+        <h2 class="section-title">Pide tu cita<br /><em>en segundos</em></h2>
+        <p class="booking__info-text">Elige el servicio, el día y la hora que mejor te venga. Te confirmaremos tu cita a la mayor brevedad posible.</p>
+        
+        <div class="booking__contact-items">
+          <div class="booking__contact-item">
+            <span class="booking__contact-icon">📞</span>
+            <div>
+              <span class="booking__contact-label">Teléfono</span>
+              <a href="tel:952443686">952 443 686</a>
+            </div>
+          </div>
+          <div class="booking__contact-item">
+            <span class="booking__contact-icon">💬</span>
+            <div>
+              <span class="booking__contact-label">WhatsApp</span>
+              <a href="https://wa.me/34604808312" target="_blank" rel="noopener">604 808 312</a>
+            </div>
+          </div>
+          <div class="booking__contact-item">
+            <span class="booking__contact-icon">📍</span>
+            <div>
+              <span class="booking__contact-label">Dirección</span>
+              <a href="https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA" target="_blank" rel="noopener">Av. las Palmeras, 8 · Local 18<br/>29630 Benalmádena, Málaga</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario -->
+      <div class="booking__form-wrap">
+        <form class="booking__form" id="booking-form" novalidate>
+          <h3 class="booking__form-title">Reserva tu cita</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Nombre completo</label>
+              <input type="text" id="name" name="name" placeholder="Tu nombre" required />
+            </div>
+            <div class="form-group">
+              <label for="phone">Teléfono</label>
+              <input type="tel" id="phone" name="phone" placeholder="600 000 000" required />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="service">Servicio requerido</label>
+            <select id="service" name="service" required>
+              <option value="" disabled selected>Selecciona un servicio</option>
+              <option value="corte">Corte personalizado</option>
+              <option value="color">Coloración / Tintes</option>
+              <option value="balayage">Balayage / Mechas</option>
+              <option value="tratamiento">Tratamiento capilar</option>
+              <option value="peinado">Peinado y styling</option>
+              <option value="estetica">Estética facial/corporal</option>
+              <option value="otro">Otro / Consulta</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fecha">Fecha preferida</label>
+              <input type="date" id="fecha" name="fecha" required />
+            </div>
+            <div class="form-group">
+              <label for="hora">Hora preferida</label>
+              <select id="hora" name="hora" required>
+                <option value="" disabled selected>Elige hora</option>
+                <option>Mañana (09:00 - 14:00)</option>
+                <option>Tarde (16:00 - 20:00)</option>
+                <option>Lo antes posible</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="notas">Notas adicionales (Opcional)</label>
+            <textarea id="notas" name="notas" rows="3" placeholder="Cuéntanos más sobre lo que necesitas..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--full" id="submit-btn" style="margin-top: 10px;">
+            <span id="btn-text">Solicitar reserva</span>
+          </button>
+
+          <p class="booking__form-note">
+            ¿Prefieres reservar directamente? Hazlo en <a href="https://buk.es/superpelu" target="_blank" rel="noopener">buk.es/superpelu</a>
+          </p>
+        </form>
+
+        <!-- Mensaje de éxito (Oculto por defecto) -->
+        <div class="booking__success" id="booking-success">
+          <div class="booking__success-icon">✓</div>
+          <h3>¡Solicitud enviada!</h3>
+          <p>Hemos recibido tu petición. Nos pondremos en contacto contigo pronto para confirmar tu cita.</p>
+          <button type="button" class="btn btn--primary" onclick="resetForm()">Reservar otra cita</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCRIPT PARA EL FORMULARIO -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('booking-form');
+      const successDiv = document.getElementById('booking-success');
+      const submitBtn = document.getElementById('submit-btn');
+      const btnText = document.getElementById('btn-text');
+
+      if (form) {
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          
+          // Validación básica (comprobar que los required esten llenos)
+          if(!form.checkValidity()) {
+            form.reportValidity();
+            return;
+          }
+
+          // Simulación de envío
+          btnText.textContent = 'Enviando...';
+          submitBtn.style.opacity = '0.7';
+          submitBtn.style.pointerEvents = 'none';
+
+          setTimeout(() => {
+            form.style.display = 'none';
+            successDiv.style.display = 'block';
+            
+            // Restaurar botón para futuras reservas
+            btnText.textContent = 'Solicitar reserva';
+            submitBtn.style.opacity = '1';
+            submitBtn.style.pointerEvents = 'auto';
+          }, 1500);
+        });
+      }
+    });
+
+    function resetForm() {
+      const form = document.getElementById('booking-form');
+      const successDiv = document.getElementById('booking-success');
+      form.reset();
+      form.style.display = 'block';
+      successDiv.style.display = 'none';
+    }
+  </script>
+
+</body>
+</html>
