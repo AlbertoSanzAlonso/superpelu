@@ -3,389 +3,138 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Super Pelu Benalmádena | Peluquería especialista en color y estética</title>
-  <meta name="description" content="Peluquería en Benalmádena especializada en color, balayage, mechas, tratamientos capilares y estética. Reserva tu cita online en Super Pelu Hair Studio." />
+  <title>Reserva tu Cita - Super Pelu</title>
+  <meta name="description" content="Reserva ahora tu cita en Super Pelu Benalmádena. Especialistas en color, balayage y tratamientos capilares." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav class="nav" id="navbar">
-    <div class="nav__inner">
-      <a href="#inicio" class="nav__logo">
-        <span class="nav__logo-super">Super</span><span class="nav__logo-pelu">Pelu</span>
-        <span class="nav__logo-sub">Benalmádena</span>
-      </a>
-      <ul class="nav__links" id="nav-links">
-        <li><a href="#inicio">Inicio</a></li>
-        <li><a href="#servicios">Servicios</a></li>
-        <li><a href="#nosotros">Nosotros</a></li>
-        <li><a href="#galeria">Galería</a></li>
-        <li><a href="#opiniones">Opiniones</a></li>
-        <li><a href="#cita" class="nav__cta">Pedir Cita</a></li>
-      </ul>
-      <button class="nav__burger" id="burger" aria-label="Abrir menú">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </nav>
-
-  <!-- HERO -->
-  <section class="hero" id="inicio">
-    <div class="hero__bg">
-      <img src="img/salon_hero.jpg" alt="Interior de Super Pelu Benalmádena" class="hero__img" />
-      <div class="hero__overlay"></div>
-    </div>
-    <div class="hero__content">
-      <p class="hero__eyebrow">Hair Studio · Benalmádena</p>
-      <h1 class="hero__title">Tu belleza,<br /><em>tu esencia.</em></h1>
-      <p class="hero__subtitle">Especialistas en coloración, balayage y tratamientos capilares en Arroyo de la Miel.</p>
-      <div class="hero__actions">
-        <a href="#cita" class="btn btn--primary">Reservar cita</a>
-        <a href="#servicios" class="btn btn--ghost">Ver servicios</a>
-      </div>
-    </div>
-    <div class="hero__scroll">
-      <span>Desliza</span>
-      <div class="hero__scroll-line"></div>
-    </div>
-  </section>
-
-  <!-- SERVICIOS -->
-  <section class="services" id="servicios">
-    <div class="container">
-      <div class="section-header">
-        <p class="section-eyebrow">Nuestros tratamientos</p>
-        <h2 class="section-title">Servicios premium<br />para tu cabello</h2>
-      </div>
-      <div class="services__grid">
-        <div class="service-card" id="service-corte">
-          <div class="service-card__icon">✂️</div>
-          <h3>Corte personalizado</h3>
-          <p>Análisis de tu rostro y estructura capilar para el corte que mejor te favorece.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
+  <main class="booking-portal">
+    
+    <!-- LADO IZQUIERDO: DECORACIÓN Y MARCA -->
+    <div class="booking-portal__brand">
+      <div class="brand-bg"></div>
+      <div class="brand-content">
+        <a href="https://superpelubenalmadena.es/" class="logo">
+          <span>Super</span>Pelu
+        </a>
+        
+        <div class="brand-text">
+          <h1>Tu momento.<br><em>Tu estilo.</em></h1>
+          <p>Experimenta el cuidado premium que tu cabello merece. Reserva tu experiencia con nuestros expertos coloristas.</p>
         </div>
-        <div class="service-card service-card--featured" id="service-color">
-          <div class="service-card__badge">Más popular</div>
-          <div class="service-card__icon">🎨</div>
-          <h3>Coloración profesional</h3>
-          <p>Balayage, mechas, corrección de color y tintes con productos de alta calidad.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
-        </div>
-        <div class="service-card" id="service-tratamiento">
-          <div class="service-card__icon">💆</div>
-          <h3>Tratamientos capilares</h3>
-          <p>Hidratación, keratina, botox capilar y reparación profunda adaptados a tu cabello.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
-        </div>
-        <div class="service-card" id="service-peinado">
-          <div class="service-card__icon">💫</div>
-          <h3>Peinados y styling</h3>
-          <p>Recogidos, ondas, alisados y acabados para cualquier ocasión especial.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
-        </div>
-        <div class="service-card" id="service-estetica">
-          <div class="service-card__icon">✨</div>
-          <h3>Estética</h3>
-          <p>Tratamientos faciales y corporales para un cuidado integral de tu imagen.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
-        </div>
-        <div class="service-card" id="service-novias">
-          <div class="service-card__icon">👰</div>
-          <h3>Novias & eventos</h3>
-          <p>Maquillaje, peinado y asesoramiento completo para tu día más especial.</p>
-          <a href="#cita" class="service-card__link">Reservar →</a>
+        
+        <div class="brand-footer">
+          <div class="contact-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <span>Av. las Palmeras, 8, Local 18, Benalmádena</span>
+          </div>
+          <div class="contact-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"></path></svg>
+            <span>952 443 686</span>
+          </div>
         </div>
       </div>
     </div>
-  </section>
 
-  <!-- ABOUT -->
-  <section class="about" id="nosotros">
-    <div class="container about__inner">
-      <div class="about__image-wrap">
-        <img src="img/salon_balayage.jpg" alt="Especialistas en balayage en Super Pelu" class="about__img" />
-        <div class="about__badge">
-          <span class="about__badge-num">+10</span>
-          <span class="about__badge-txt">años de<br/>experiencia</span>
+    <!-- LADO DERECHO: FORMULARIO -->
+    <div class="booking-portal__form">
+      <div class="form-container">
+        
+        <div class="form-header">
+          <span class="badge">Reserva Online</span>
+          <h2>Solicitar cita</h2>
+          <p>Indica tus preferencias y te confirmaremos enseguida por WhatsApp o email.</p>
         </div>
-      </div>
-      <div class="about__content">
-        <p class="section-eyebrow">Sobre nosotros</p>
-        <h2 class="section-title">Pasión por el<br />cabello desde siempre</h2>
-        <p class="about__text">En Super Pelu Benalmádena somos un equipo de profesionales apasionados por la peluquería y la estética. Nos especializamos en técnicas de coloración avanzadas y tratamientos personalizados que realzan tu belleza natural.</p>
-        <p class="about__text">Nos formamos constantemente para traerte las últimas tendencias y técnicas del sector, usando siempre productos de la más alta calidad.</p>
-        <ul class="about__features">
-          <li><span class="about__check">✓</span> Especialistas en coloración y balayage</li>
-          <li><span class="about__check">✓</span> Productos profesionales de alta gama</li>
-          <li><span class="about__check">✓</span> Atención personalizada y asesoramiento</li>
-          <li><span class="about__check">✓</span> Ambiente cómodo y acogedor</li>
-        </ul>
-        <a href="#cita" class="btn btn--primary">Reserva tu cita hoy</a>
-      </div>
-    </div>
-  </section>
 
-  <!-- GALERÍA -->
-  <section class="gallery" id="galeria">
-    <div class="container">
-      <div class="section-header">
-        <p class="section-eyebrow">Nuestro trabajo</p>
-        <h2 class="section-title">Resultados que<br />hablan por sí solos</h2>
-      </div>
-      <div class="gallery__grid">
-        <div class="gallery__item gallery__item--large">
-          <img src="img/salon_hero.jpg" alt="Interior Super Pelu" />
-          <div class="gallery__item-overlay"><span>Nuestro salón</span></div>
-        </div>
-        <div class="gallery__item">
-          <img src="img/salon_balayage.jpg" alt="Tratamiento balayage" />
-          <div class="gallery__item-overlay"><span>Balayage</span></div>
-        </div>
-        <div class="gallery__item">
-          <img src="img/salon_result.jpg" alt="Resultado final" />
-          <div class="gallery__item-overlay"><span>Resultado final</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- OPINIONES -->
-  <section class="reviews" id="opiniones">
-    <div class="container">
-      <div class="section-header">
-        <p class="section-eyebrow">Testimonios</p>
-        <h2 class="section-title">Lo que dicen<br />nuestras clientas</h2>
-      </div>
-      <div class="reviews__grid">
-        <article class="review-card" id="review-1">
-          <div class="review-card__stars">★★★★★</div>
-          <p class="review-card__text">"El mejor salón de Benalmádena sin duda. Me hicieron un balayage increíble y quedé enamorada del resultado. El trato es súper cercano y profesional."</p>
-          <div class="review-card__author">
-            <div class="review-card__avatar">M</div>
-            <div>
-              <strong>María García</strong>
-              <span>Clienta habitual</span>
+        <form id="appointment-form" novalidate>
+          
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="name">Nombre y Apellidos</label>
+              <input type="text" id="name" placeholder="Ej. Ana García" required />
             </div>
-          </div>
-        </article>
-        <article class="review-card" id="review-2">
-          <div class="review-card__stars">★★★★★</div>
-          <p class="review-card__text">"Llevo años viniendo y siempre salgo feliz. Saben perfectamente qué le va bien a tu cabello y te asesoran genial. Totalmente recomendable."</p>
-          <div class="review-card__author">
-            <div class="review-card__avatar">L</div>
-            <div>
-              <strong>Laura Martínez</strong>
-              <span>Clienta fiel</span>
-            </div>
-          </div>
-        </article>
-        <article class="review-card" id="review-3">
-          <div class="review-card__stars">★★★★★</div>
-          <p class="review-card__text">"Vine para hacerme unas mechas y me quedé flipando con el resultado. Un ambiente muy agradable y un equipo que realmente se preocupa por ti."</p>
-          <div class="review-card__author">
-            <div class="review-card__avatar">S</div>
-            <div>
-              <strong>Sara López</strong>
-              <span>Nueva clienta</span>
-            </div>
-          </div>
-        </article>
-      </div>
-      <div class="reviews__cta">
-        <p>Más de <strong>200 reseñas 5 estrellas</strong> en Google</p>
-        <a href="https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA" target="_blank" rel="noopener" class="btn btn--outline">Ver reseñas en Google</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- CITA -->
-  <section class="booking" id="cita">
-    <div class="booking__split">
-      <div class="booking__info">
-        <p class="section-eyebrow" style="color: var(--gold-light)">Reserva online</p>
-        <h2 class="section-title" style="color: #fff">Pide tu cita<br /><em>en segundos</em></h2>
-        <p class="booking__info-text">Elige el servicio, el día y la hora que mejor te venga. Confirmamos tu cita de inmediato.</p>
-        <div class="booking__contact-items">
-          <div class="booking__contact-item">
-            <span class="booking__contact-icon">📞</span>
-            <div>
-              <span class="booking__contact-label">Teléfono</span>
-              <a href="tel:952443686">952 443 686</a>
-            </div>
-          </div>
-          <div class="booking__contact-item">
-            <span class="booking__contact-icon">💬</span>
-            <div>
-              <span class="booking__contact-label">WhatsApp</span>
-              <a href="https://wa.me/34604808312?text=Hola,+quiero+reservar+una+cita+en+SuperPelu+Benalm%C3%A1dena" target="_blank" rel="noopener">604 808 312</a>
-            </div>
-          </div>
-          <div class="booking__contact-item">
-            <span class="booking__contact-icon">📍</span>
-            <div>
-              <span class="booking__contact-label">Dirección</span>
-              <a href="https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA" target="_blank" rel="noopener">Av. las Palmeras, 8 · Local 18<br/>29630 Benalmádena, Málaga</a>
-            </div>
-          </div>
-          <div class="booking__contact-item">
-            <span class="booking__contact-icon">🕐</span>
-            <div>
-              <span class="booking__contact-label">Horario</span>
-              <span>Lun–Sáb: 9:00–20:00</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="booking__form-wrap">
-        <form class="booking__form" id="booking-form" novalidate>
-          <h3 class="booking__form-title">Reserva tu cita</h3>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="name">Nombre completo</label>
-              <input type="text" id="name" name="name" placeholder="Tu nombre" required />
-            </div>
-            <div class="form-group">
-              <label for="phone">Teléfono</label>
-              <input type="tel" id="phone" name="phone" placeholder="600 000 000" required />
+            
+            <div class="input-group">
+              <label for="phone">Teléfono (Móvil)</label>
+              <input type="tel" id="phone" placeholder="Ej. 600 000 000" required />
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" placeholder="tu@email.com" />
-          </div>
-
-          <div class="form-group">
-            <label for="service">Servicio</label>
-            <select id="service" name="service" required>
-              <option value="" disabled selected>Selecciona un servicio</option>
-              <option value="corte">Corte personalizado</option>
-              <option value="color">Coloración profesional</option>
-              <option value="balayage">Balayage / Mechas</option>
-              <option value="tratamiento">Tratamiento capilar</option>
-              <option value="peinado">Peinado y styling</option>
-              <option value="estetica">Estética</option>
-              <option value="novias">Novias y eventos</option>
-              <option value="otro">Otro / Consulta</option>
-            </select>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="fecha">Fecha preferida</label>
-              <input type="date" id="fecha" name="fecha" required />
-            </div>
-            <div class="form-group">
-              <label for="hora">Hora preferida</label>
-              <select id="hora" name="hora" required>
-                <option value="" disabled selected>Elige hora</option>
-                <option>09:00</option>
-                <option>09:30</option>
-                <option>10:00</option>
-                <option>10:30</option>
-                <option>11:00</option>
-                <option>11:30</option>
-                <option>12:00</option>
-                <option>12:30</option>
-                <option>13:00</option>
-                <option>16:00</option>
-                <option>16:30</option>
-                <option>17:00</option>
-                <option>17:30</option>
-                <option>18:00</option>
-                <option>18:30</option>
-                <option>19:00</option>
-                <option>19:30</option>
+          <div class="input-group">
+            <label for="service">¿Qué servicio necesitas?</label>
+            <div class="select-wrapper">
+              <select id="service" required>
+                <option value="" disabled selected>Selecciona un servicio</option>
+                <option value="corte_caballero">CORTE DE CABALLERO - GENTLEMAN HAIRCUT</option>
+                <option value="color">COLOR *</option>
+                <option value="mechas">MECHAS - HIGHLIGHTS</option>
+                <option value="decoloracion">DECOLORACION - BLEACHING</option>
+                <option value="corte_peinado">CORTE Y PEINADO - HAIRCUT & BLOWDRY / BRUSHING</option>
+                <option value="corte">CORTE - HAIRCUT</option>
+                <option value="peinado">PEINADO - BLOWDRY / BRUSHING</option>
+                <option value="permanente">PERMANENTE - PERM</option>
+                <option value="keratina">ALISADO DE KERATINA - KERATIN TREATMENT</option>
+                <option value="tratamientos">TRATAMIENTOS CAPILARES - HAIR TREATMENTS</option>
+                <option value="estetica_manos_pies">ESTETICA "CUIDADO DE MANOS Y PIES" - BEAUTY "HANDS AND FEET CARE"</option>
+                <option value="estetica_facial">ESTETICA "FACIAL" - BEAUTY "FACIAL"</option>
               </select>
             </div>
+            <small class="hint-text">* COLOR: Imprecindible 2 citas (1 para color y 1 para lavar / Two appointments required)</small>
           </div>
 
-          <div class="form-group">
-            <label for="notas">Notas adicionales</label>
-            <textarea id="notas" name="notas" rows="3" placeholder="Cuéntanos más sobre lo que necesitas..."></textarea>
+          <div class="input-grid">
+            <div class="input-group">
+              <label for="date_pref">Día preferido</label>
+              <input type="date" id="date_pref" required />
+            </div>
+            
+            <div class="input-group">
+              <label for="time_pref">Franja horaria</label>
+              <div class="select-wrapper">
+                <select id="time_pref" required>
+                  <option value="" disabled selected>Elige un margen</option>
+                  <option value="morning">Mañana (09:00 - 14:00)</option>
+                  <option value="afternoon">Tarde (16:00 - 20:00)</option>
+                  <option value="any">Me es indiferente</option>
+                </select>
+              </div>
+            </div>
           </div>
 
-          <button type="submit" class="btn btn--primary btn--full" id="submit-btn">
-            <span id="btn-text">Confirmar reserva</span>
-            <span id="btn-loading" style="display:none">Enviando...</span>
+          <div class="input-group">
+            <label for="notes">Comentarios adicionales</label>
+            <textarea id="notes" placeholder="¿Algo específico que debamos saber sobre tu cabello o el tratamiento que buscas?" rows="3"></textarea>
+          </div>
+
+          <button type="submit" class="btn-submit" id="btn-submit">
+            <span class="btn-text">Confirmar Solicitud</span>
+            <span class="btn-icon">→</span>
           </button>
+          
+          <div class="form-footer">
+            <p>Al reservar, aceptas nuestra <a href="#">política de privacidad</a>. Si tienes urgencia, también puedes reservar por <a href="https://wa.me/34604808312" target="_blank" class="whatsapp-link">WhatsApp</a> o a través de <a href="https://buk.es/superpelu" target="_blank">buk.es</a>.</p>
+          </div>
 
-          <p class="booking__form-note">También puedes reservar directamente en <a href="https://buk.es/superpelu" target="_blank" rel="noopener">buk.es/superpelu</a></p>
         </form>
 
-        <!-- Confirmación -->
-        <div class="booking__success" id="booking-success" style="display:none">
-          <div class="booking__success-icon">✓</div>
-          <h3>¡Solicitud recibida!</h3>
-          <p>Nos pondremos en contacto contigo pronto para confirmar tu cita. ¡Hasta pronto!</p>
-          <a href="#inicio" class="btn btn--primary">Volver al inicio</a>
+        <!-- PANTALLA DE ÉXITO -->
+        <div class="success-screen" id="success-screen">
+          <div class="check-circle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          </div>
+          <h3>¡Solicitud Recibida!</h3>
+          <p>Hemos procesado tu petición correctamente. Nuestro equipo revisará la disponibilidad y contactará contigo en breve para confirmar el día y hora exactos.</p>
+          <button class="btn-outline" onclick="location.reload()">Hacer otra reserva</button>
         </div>
-      </div>
-    </div>
-  </section>
 
-  <!-- FOOTER -->
-  <footer class="footer">
-    <div class="container footer__inner">
-      <div class="footer__brand">
-        <span class="nav__logo-super">Super</span><span class="nav__logo-pelu">Pelu</span>
-        <p>Peluquería y estética en Benalmádena.<br />Especialistas en color, balayage y tratamientos capilares.</p>
-        <div class="footer__social">
-          <a href="https://wa.me/34604808312" target="_blank" rel="noopener" aria-label="WhatsApp" class="footer__social-link">💬</a>
-          <a href="tel:952443686" aria-label="Teléfono" class="footer__social-link">📞</a>
-          <a href="mailto:info@superpelubenalmadena.com" aria-label="Email" class="footer__social-link">✉️</a>
-        </div>
-      </div>
-      <div class="footer__col">
-        <h4>Servicios</h4>
-        <ul>
-          <li><a href="#servicios">Corte personalizado</a></li>
-          <li><a href="#servicios">Coloración & Mechas</a></li>
-          <li><a href="#servicios">Balayage</a></li>
-          <li><a href="#servicios">Tratamientos capilares</a></li>
-          <li><a href="#servicios">Estética</a></li>
-        </ul>
-      </div>
-      <div class="footer__col">
-        <h4>Contacto</h4>
-        <ul>
-          <li><a href="tel:952443686">952 443 686</a></li>
-          <li><a href="https://wa.me/34604808312">WhatsApp: 604 808 312</a></li>
-          <li><a href="mailto:info@superpelubenalmadena.com">info@superpelubenalmadena.com</a></li>
-          <li><a href="https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA" target="_blank" rel="noopener">Av. las Palmeras, 8 · Local 18<br/>29630 Benalmádena</a></li>
-        </ul>
-      </div>
-      <div class="footer__col">
-        <h4>Horario</h4>
-        <ul class="footer__hours">
-          <li><span>Lunes</span><span>9:00 – 20:00</span></li>
-          <li><span>Martes</span><span>9:00 – 20:00</span></li>
-          <li><span>Miércoles</span><span>9:00 – 20:00</span></li>
-          <li><span>Jueves</span><span>9:00 – 20:00</span></li>
-          <li><span>Viernes</span><span>9:00 – 20:00</span></li>
-          <li><span>Sábado</span><span>9:00 – 14:00</span></li>
-          <li><span>Domingo</span><span>Cerrado</span></li>
-        </ul>
       </div>
     </div>
-    <div class="footer__bottom">
-      <p>© 2025 Super Pelu Benalmádena. Todos los derechos reservados.</p>
-    </div>
-  </footer>
-
-  <!-- WhatsApp FAB -->
-  <a href="https://wa.me/34604808312?text=Hola,+quiero+reservar+una+cita+en+SuperPelu+Benalm%C3%A1dena" 
-     target="_blank" rel="noopener" class="whatsapp-fab" id="whatsapp-fab" aria-label="Contactar por WhatsApp">
-    <svg viewBox="0 0 24 24" fill="currentColor" width="28" height="28">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-    </svg>
-  </a>
+    
+  </main>
 
   <script src="main.js"></script>
 </body>
