@@ -1,9 +1,9 @@
 /* CSS MODERN BOOKING PORTAL - SUPER PELU */
 
 :root {
-  --brand-primary: #00b090;   /* Esmeralda / Turquesa de logo */
-  --brand-dark: #073B2F;      /* Variante super oscura del primario */
-  --brand-gold: #fea419;      /* Dorado secundario */
+  --brand-primary: #5025d1;   /* Violeta corporativo */
+  --brand-dark: #1F1346;      /* Indigo oscuro del tema */
+  --brand-gold: #fc5185;      /* Rosa acento */
   
   --bg-color: #f8faf9;
   --white: #ffffff;
@@ -158,7 +158,7 @@ a {
 /* HEADER */
 .badge {
   display: inline-block;
-  background: rgba(0, 176, 144, 0.1);
+  background: rgba(80, 37, 209, 0.1);
   color: var(--brand-primary);
   font-size: 0.75rem;
   font-weight: 600;
@@ -250,7 +250,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-primary);
   background-color: var(--white);
-  box-shadow: 0 0 0 4px rgba(0, 176, 144, 0.1);
+  box-shadow: 0 0 0 4px rgba(80, 37, 209, 0.1);
 }
 
 textarea {
@@ -278,9 +278,9 @@ textarea {
 }
 
 .btn-submit:hover {
-  background-color: #009a7b;
+  background-color: #673de6;
   transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(0, 176, 144, 0.3);
+  box-shadow: 0 10px 24px rgba(80, 37, 209, 0.3);
 }
 
 .btn-icon {
@@ -339,7 +339,7 @@ textarea {
 .check-circle {
   width: 80px;
   height: 80px;
-  background: rgba(0, 176, 144, 0.1);
+  background: rgba(80, 37, 209, 0.1);
   color: var(--brand-primary);
   border-radius: 50%;
   display: flex;
