@@ -96,6 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const subserviceSelect = document.getElementById('subservice');
   const serviceAlert = document.getElementById('service-alert');
   const colorHint = document.getElementById('color-hint');
+  
+  const dateInput = document.getElementById('date_pref');
+  const timeSelect = document.getElementById('time_pref');
 
   // Handle service change
   serviceSelect.addEventListener('change', (e) => {
@@ -136,6 +139,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Handle date change for mocked times
+  dateInput.addEventListener('change', (e) => {
+    const selectedDate = e.target.value;
+    if (!selectedDate) {
+      timeSelect.innerHTML = '<option value="" disabled selected>Primero elige un día</option>';
+      timeSelect.disabled = true;
+      return;
+    }
+
+    // Activar selector y simular carga rapida
+    timeSelect.disabled = false;
+    timeSelect.innerHTML = '<option value="" disabled selected>Buscando huecos libres...</option>';
+    
+    setTimeout(() => {
+      // Possible times (09:00 to 19:30 every 30 mins)
+      const times = [
+        "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30", "14:00", 
+        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30"
+      ];
+      
+      timeSelect.innerHTML = '<option value="" disabled selected>Elige hora (Sujeto a confirmación)</option>';
+      
+      // Pseudo random seed based on date so it's consistent for the same day
+      const dateNum = new Date(selectedDate).getDate() || 1;
+      
+      times.forEach((time, index) => {
+        const option = document.createElement('option');
+        option.value = time;
+        
+        // Mock unavailability logic - mix of math and date
+        // Makes approx 40% of the times unavailable
+        const isOccupied = ((dateNum + index * 13) % 10) < 4;
+        
+        if (isOccupied) {
+          option.textContent = `${time} -  Ocupado`;
+          option.disabled = true;
+        } else {
+          option.textContent = time;
+        }
+        
+        timeSelect.appendChild(option);
+      });
+    }, 400); // Small artificial delay
+  });
+
   if (form) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -166,6 +214,10 @@ document.addEventListener('DOMContentLoaded', () => {
         serviceAlert.style.display = 'none';
         colorHint.style.display = 'none';
         subserviceSelect.disabled = true;
+        
+        // Reset Time select
+        timeSelect.innerHTML = '<option value="" disabled selected>Primero elige un día</option>';
+        timeSelect.disabled = true;
       }, 1500);
     });
   }
