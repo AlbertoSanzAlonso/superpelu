@@ -247,6 +247,20 @@ input, select, textarea {
   pointer-events: none;
 }
 
+.alert-box {
+  background: rgba(252, 81, 133, 0.08); /* brand gold/pink transparency */
+  border: 1px solid rgba(252, 81, 133, 0.3);
+  padding: 16px 20px;
+  border-radius: 12px;
+  color: #c90e4f;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-top: -10px;
+}
+.alert-box strong { font-weight: 600; }
+.alert-box em { font-size: 0.8rem; opacity: 0.8; }
+
+
 input:focus, select:focus, textarea:focus {
   border-color: var(--brand-primary);
   background-color: var(--white);

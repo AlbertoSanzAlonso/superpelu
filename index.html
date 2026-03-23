@@ -86,6 +86,24 @@
             <small class="hint-text">* COLOR: Imprecindible 2 citas (1 para color y 1 para lavar / Two appointments required)</small>
           </div>
 
+          <!-- SUBSERVICE DYNAMIC GROUP -->
+          <div class="input-group" id="subservice-group" style="display: none;">
+            <label for="subservice">Opción específica</label>
+            <div class="select-wrapper">
+              <select id="subservice" disabled>
+                <option value="" disabled selected>Primero selecciona un servicio arriba</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- ALERT MESSAGE FOR MECHAS -->
+          <div id="service-alert" class="alert-box" style="display: none;">
+            <strong>¡Atención! Reservas solo por Teléfono o WhatsApp</strong><br>
+            <em>Reservations only by phone or WhatsApp</em><br><br>
+            📞 +34 952 44 36 86<br>
+            💬 +34 604 80 83 12
+          </div>
+
           <div class="input-grid">
             <div class="input-group">
               <label for="date_pref">Día preferido</label>
