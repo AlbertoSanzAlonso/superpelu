@@ -1,0 +1,50 @@
+@import "tailwindcss";
+@import "./theme.css";
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-cream font-sans text-charcoal antialiased;
+  }
+
+  ::selection {
+    @apply bg-gold/20 text-charcoal;
+  }
+}
+
+@layer components {
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-gold-light via-gold to-gold-dark bg-clip-text text-transparent;
+  }
+
+  .border-gold-thin {
+    @apply border border-gold/40;
+  }
+
+  .section-padding {
+    @apply px-6 py-20 md:px-10 md:py-28 lg:px-16;
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.8s var(--ease-premium) forwards;
+  }
+
+  .animate-fade-up-delay {
+    animation: fadeUp 0.8s var(--ease-premium) 0.15s forwards;
+    opacity: 0;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

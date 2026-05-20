@@ -1,0 +1,20 @@
+@theme {
+  /* Paleta Superpelu — extraída de la identidad visual */
+  --color-cream: #faf9f6;
+  --color-cream-dark: #f3efe8;
+  --color-gold: #b89146;
+  --color-gold-light: #d4af37;
+  --color-gold-dark: #8c6d31;
+  --color-charcoal: #2c2825;
+  --color-charcoal-muted: #5c554c;
+  --color-rose: #e8d5cf;
+
+  --font-serif: "Cinzel", "Playfair Display", Georgia, serif;
+  --font-script: "Great Vibes", cursive;
+  --font-sans: "Montserrat", system-ui, sans-serif;
+
+  --tracking-brand: 0.2em;
+  --tracking-wide: 0.35em;
+
+  --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
+}
