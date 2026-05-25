@@ -13,7 +13,7 @@ import {
 } from './appointments.js'
 
 const app = new Hono()
-const adminSecret = process.env.ADMIN_SECRET ?? 'superpelu-dev-admin'
+const adminSecret = (process.env.ADMIN_SECRET ?? 'superpelu-dev-admin').trim()
 const port = Number(process.env.PORT ?? 3001)
 
 app.use(
@@ -29,7 +29,8 @@ app.use(
 )
 
 function requireAdmin(authorization: string | undefined): boolean {
-  return authorization === `Bearer ${adminSecret}`
+  const token = authorization?.startsWith('Bearer ') ? authorization.slice(7).trim() : ''
+  return token.length > 0 && token === adminSecret
 }
 
 app.get('/api/health', (c) => c.json({ ok: true }))

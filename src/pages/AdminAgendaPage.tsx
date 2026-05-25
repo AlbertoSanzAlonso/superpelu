@@ -13,6 +13,7 @@ export function AdminAgendaPage() {
   const [token, setToken] = useState(() => sessionStorage.getItem(STORAGE_KEY) ?? '')
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
+  const [loggingIn, setLoggingIn] = useState(false)
   const [selectedDate, setSelectedDate] = useState(toDateString(new Date()))
   const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(false)
@@ -26,7 +27,7 @@ export function AdminAgendaPage() {
       const res = await fetchAppointments(selectedDate, selectedDate, token)
       setAppointments(res.appointments.filter((a) => a.status !== 'cancelled'))
     } catch {
-      setError('No se pudo cargar la agenda. Comprueba la clave de acceso.')
+      setError('Sesión expirada o clave incorrecta.')
       sessionStorage.removeItem(STORAGE_KEY)
       setToken('')
     } finally {
@@ -38,18 +39,39 @@ export function AdminAgendaPage() {
     loadAppointments()
   }, [loadAppointments])
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
-    sessionStorage.setItem(STORAGE_KEY, password)
-    setToken(password)
+    const key = password.trim()
+    if (!key) {
+      setLoginError('Introduce la clave de acceso.')
+      return
+    }
+
+    setLoggingIn(true)
     setLoginError('')
-    setPassword('')
+
+    try {
+      const today = toDateString(new Date())
+      await fetchAppointments(today, today, key)
+      sessionStorage.setItem(STORAGE_KEY, key)
+      setToken(key)
+      setPassword('')
+    } catch {
+      sessionStorage.removeItem(STORAGE_KEY)
+      setToken('')
+      setLoginError(
+        'Clave incorrecta. Debe coincidir exactamente con ADMIN_SECRET en Coolify (sin espacios extra).',
+      )
+    } finally {
+      setLoggingIn(false)
+    }
   }
 
   function handleLogout() {
     sessionStorage.removeItem(STORAGE_KEY)
     setToken('')
     setAppointments([])
+    setError('')
   }
 
   async function handleCancel(id: string) {
@@ -85,11 +107,17 @@ export function AdminAgendaPage() {
               {loginError}
             </p>
           )}
-          <Button type="submit" variant="solid" size="md" className="w-full">
-            Entrar
+          <Button
+            type="submit"
+            variant="solid"
+            size="md"
+            className="w-full"
+            disabled={loggingIn}
+          >
+            {loggingIn ? 'Comprobando…' : 'Entrar'}
           </Button>
           <p className={`${typography.caption} text-center`}>
-            La clave se configura con la variable <code className="text-xs">ADMIN_SECRET</code> en el servidor.
+            La clave es la variable <code className="text-xs">ADMIN_SECRET</code> del servidor.
           </p>
         </form>
       </PageShell>
