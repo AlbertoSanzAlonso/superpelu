@@ -1,4 +1,4 @@
-import { brand } from '@/data/content'
+import { brand, hero } from '@/data/content'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
@@ -25,19 +25,24 @@ export function Hero() {
           Tu belleza, nuestro arte
         </p>
 
-        <h1 className={`${typography.display} animate-fade-up-delay mb-6`}>
+        <h1 className={`${typography.display} animate-fade-up-delay mb-4`}>
           Superpelu
           <br />
           <span className="text-gradient-gold">Hair Studio</span>
         </h1>
 
-        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-lg`}>
-          Color, corte y tratamientos de autor en un espacio íntimo donde cada detalle
-          está pensado para ti.
+        <p className={`${typography.label} animate-fade-up-delay mb-4`}>{brand.location}</p>
+
+        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-4 max-w-2xl font-medium text-charcoal`}>
+          {hero.lead}
+        </p>
+
+        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl`}>
+          {hero.body}
         </p>
 
         <div className="animate-fade-up-delay flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button href={brand.whatsapp} variant="solid" size="lg">
+          <Button href={brand.bookingOnline} variant="solid" size="lg">
             Reservar cita
           </Button>
           <Button href="#servicios" variant="outline" size="lg">

@@ -9,7 +9,7 @@ export function Header() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-gold/10 bg-cream/90 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-10">
-        <a href="#inicio" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
+        <a href="/#inicio" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
           <Logo size="sm" />
         </a>
 
@@ -26,7 +26,7 @@ export function Header() {
         </nav>
 
         <div className="hidden md:block">
-          <Button href={brand.whatsapp} variant="outline" size="sm">
+          <Button href={brand.bookingOnline} variant="outline" size="sm">
             Reservar
           </Button>
         </div>
@@ -62,8 +62,8 @@ export function Header() {
               </li>
             ))}
             <li>
-              <Button href={brand.whatsapp} variant="solid" size="md">
-                Reservar por WhatsApp
+              <Button href={brand.bookingOnline} variant="solid" size="md">
+                Reservar cita
               </Button>
             </li>
           </ul>

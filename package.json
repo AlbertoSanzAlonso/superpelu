@@ -4,21 +4,31 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n web,api -c blue,magenta \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "vite",
+    "dev:api": "tsx watch server/index.ts",
     "build": "tsc -b && vite build",
+    "start": "tsx server/index.ts",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hono/node-server": "^2.0.4",
+    "better-sqlite3": "^12.10.0",
+    "hono": "^4.12.23",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.15.1"
   },
   "devDependencies": {
-    "@types/node": "^22.15.21",
     "@tailwindcss/vite": "^4.1.8",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.15.21",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.2.1",
     "tailwindcss": "^4.1.8",
+    "tsx": "^4.22.3",
     "typescript": "~5.8.3",
     "vite": "^6.3.5"
   }

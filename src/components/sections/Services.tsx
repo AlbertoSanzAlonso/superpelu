@@ -1,4 +1,4 @@
-import { services } from '@/data/content'
+import { services, servicesSection } from '@/data/content'
 import { Section } from '@/components/ui/Section'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
 import { typography } from '@/styles/typography'
@@ -7,10 +7,10 @@ export function Services() {
   return (
     <Section
       id="servicios"
-      eyebrow="Lo que hacemos"
-      scriptAccent="Servicios"
-      title="Arte capilar a tu medida"
-      subtitle="Técnicas actuales y productos de alta gama para un resultado impecable y luminoso."
+      eyebrow={servicesSection.eyebrow}
+      scriptAccent={servicesSection.scriptAccent}
+      title={servicesSection.title}
+      subtitle={servicesSection.subtitle}
     >
       <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
         {services.map((service, index) => (

@@ -1,19 +1,20 @@
+import { gallerySection } from '@/data/content'
 import { Section } from '@/components/ui/Section'
 
 const galleryImages = [
   {
     src: '/images/hero-salon.jpeg',
-    alt: 'Trabajo de coloración y mechas en tonos cálidos',
+    alt: 'Coloración y mechas en Superpelu Benalmádena',
     span: 'lg:col-span-2 lg:row-span-2',
   },
   {
     src: '/images/brand-identity.jpeg',
-    alt: 'Logo Superpelu Hair Studio',
+    alt: 'Superpelu Hair Studio Benalmádena',
     span: '',
   },
   {
     src: '/images/hero-salon.jpeg',
-    alt: 'Detalle de peinado premium',
+    alt: 'Tratamiento capilar y cuidado del cabello',
     span: '',
   },
 ]
@@ -22,10 +23,10 @@ export function Gallery() {
   return (
     <Section
       id="galeria"
-      eyebrow="Inspiración"
-      scriptAccent="Galería"
-      title="Resultados que hablan"
-      subtitle="Tonos miel, rubios luminosos y acabados impecables. La estética que nos define."
+      eyebrow={gallerySection.eyebrow}
+      scriptAccent={gallerySection.scriptAccent}
+      title={gallerySection.title}
+      subtitle={gallerySection.subtitle}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:grid-rows-2">
         {galleryImages.map((image, index) => (

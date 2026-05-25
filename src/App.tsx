@@ -1,23 +1,17 @@
-import { Header } from '@/components/layout/Header'
-import { Footer } from '@/components/layout/Footer'
-import { Hero } from '@/components/sections/Hero'
-import { Services } from '@/components/sections/Services'
-import { Studio } from '@/components/sections/Studio'
-import { Gallery } from '@/components/sections/Gallery'
-import { Contact } from '@/components/sections/Contact'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HomePage } from '@/pages/HomePage'
+import { BookingPage } from '@/pages/BookingPage'
+import { AdminAgendaPage } from '@/pages/AdminAgendaPage'
 
 export default function App() {
   return (
-    <>
-      <Header />
-      <main>
-        <Hero />
-        <Services />
-        <Studio />
-        <Gallery />
-        <Contact />
-      </main>
-      <Footer />
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/reservar" element={<BookingPage />} />
+        <Route path="/agenda" element={<AdminAgendaPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }

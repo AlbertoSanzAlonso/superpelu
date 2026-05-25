@@ -1,0 +1,5 @@
+# Sustituye por tu dominio real
+{$DOMAIN:localhost} {
+	encode gzip
+	reverse_proxy superpelu:3001
+}

@@ -1,0 +1,51 @@
+services:
+  superpelu:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PORT: 3001
+      DATABASE_PATH: /app/data/appointments.sqlite
+    volumes:
+      - superpelu-data:/app/data
+    networks:
+      - web
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - superpelu
+    networks:
+      - web
+
+  # OpenWA — perfil opcional: docker compose --profile openwa up -d
+  # Requiere clonar https://github.com/rmyndharis/OpenWA en ./openwa
+  openwa:
+    profiles: ['openwa']
+    build: ./openwa
+    restart: unless-stopped
+    volumes:
+      - openwa-data:/app/data
+    networks:
+      - web
+    # Solo red interna; no exponer 2785/2886 a internet
+
+volumes:
+  superpelu-data:
+  caddy-data:
+  caddy-config:
+  openwa-data:
+
+networks:
+  web:
+    driver: bridge
