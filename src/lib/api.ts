@@ -18,12 +18,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export function fetchServices() {
-  return request<{ services: BookableService[] }>('/services')
+  return request<{ services?: BookableService[] }>('/services').then((res) => ({
+    services: Array.isArray(res.services) ? res.services : [],
+  }))
 }
 
 export function fetchSlots(date: string, serviceId: string) {
   const params = new URLSearchParams({ date, serviceId })
-  return request<{ slots: string[] }>(`/slots?${params}`)
+  return request<{ slots?: string[] }>(`/slots?${params}`).then((res) => ({
+    slots: Array.isArray(res.slots) ? res.slots : [],
+  }))
 }
 
 export function createAppointment(payload: CreateAppointmentPayload) {

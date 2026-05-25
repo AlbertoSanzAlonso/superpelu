@@ -150,6 +150,9 @@ function resolveDistFile(urlPath: string): string | null {
 
 if (hasDist) {
   app.get('*', (c) => {
+    if (c.req.path.startsWith('/api/')) {
+      return c.json({ error: 'Ruta API no encontrada' }, 404)
+    }
     const filePath = resolveDistFile(c.req.path)
     if (filePath) {
       const ext = path.extname(filePath).toLowerCase()

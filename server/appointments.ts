@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db, type AppointmentRow } from './db.js'
-import { getService, schedule, type ServiceId } from './config.js'
+import { getService, schedule } from './config.js'
+import type { BookableServiceId } from '../src/data/bookableServices.ts'
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
@@ -88,7 +89,7 @@ export function getAvailableSlots(date: string, serviceId: string): string[] {
 }
 
 export type CreateAppointmentInput = {
-  serviceId: ServiceId
+  serviceId: BookableServiceId
   date: string
   startTime: string
   customerName: string

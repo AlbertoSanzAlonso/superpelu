@@ -4,6 +4,7 @@ import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { createAppointment, fetchServices, fetchSlots } from '@/lib/api'
+import { bookableServices as fallbackServices } from '@/data/bookableServices'
 import { formatDisplayDate, formatTimeRange, getBookableDates } from '@/lib/dates'
 import type { Appointment, BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -11,8 +12,8 @@ import { typography } from '@/styles/typography'
 const bookableDates = getBookableDates(35)
 
 export function BookingPage() {
-  const [services, setServices] = useState<BookableService[]>([])
-  const [serviceId, setServiceId] = useState('')
+  const [services, setServices] = useState<BookableService[]>(() => [...fallbackServices])
+  const [serviceId, setServiceId] = useState<string>(fallbackServices[0]?.id ?? '')
   const [date, setDate] = useState('')
   const [startTime, setStartTime] = useState('')
   const [slots, setSlots] = useState<string[]>([])
@@ -30,10 +31,14 @@ export function BookingPage() {
   useEffect(() => {
     fetchServices()
       .then((res) => {
-        setServices(res.services)
-        if (res.services[0]) setServiceId(res.services[0].id)
+        const list = res.services.length > 0 ? res.services : [...fallbackServices]
+        setServices(list)
+        if (!serviceId && list[0]) setServiceId(list[0].id)
       })
-      .catch(() => setError('No se pudo cargar los servicios. ¿Está el servidor en marcha?'))
+      .catch(() => {
+        setServices([...fallbackServices])
+        setError('No se pudo contactar con el servidor. Mostrando servicios en modo offline.')
+      })
   }, [])
 
   useEffect(() => {
