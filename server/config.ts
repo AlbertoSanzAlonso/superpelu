@@ -1,16 +1,6 @@
-import { bookableServices } from '../src/data/bookableServices.ts'
+import { salonSchedule } from '../src/data/schedule.ts'
 
-export { bookableServices }
+export { listActiveServices as bookableServices } from './services.js'
+export { getService } from './services.js'
 
-export const schedule = {
-  slotMinutes: 30,
-  /** 0 = domingo … 6 = sábado */
-  openDays: [2, 3, 4, 5, 6],
-  openTime: '10:00',
-  closeTime: '20:00',
-  maxDaysAhead: 60,
-} as const
-
-export function getService(id: string) {
-  return bookableServices.find((s) => s.id === id)
-}
+export const schedule = salonSchedule

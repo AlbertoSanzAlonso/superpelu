@@ -1,9 +1,55 @@
-/** Fecha local YYYY-MM-DD */
+import { salonSchedule } from '../data/schedule'
+
+/** Fecha local YYYY-MM-DD a partir de un Date */
 export function toDateString(date: Date): string {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
   const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+/** Hoy según la zona horaria del salón (Benalmádena) */
+export function todaySalon(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: salonSchedule.timezone,
+  }).format(new Date())
+}
+
+export function addDaysToDateString(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const next = new Date(y, m - 1, d)
+  next.setDate(next.getDate() + days)
+  return toDateString(next)
+}
+
+/** Día de la semana (0–6) para una fecha YYYY-MM-DD */
+export function dayOfWeekFromDateString(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).getDay()
+}
+
+export function isSalonOpenDay(dateStr: string): boolean {
+  return (salonSchedule.openDays as readonly number[]).includes(dayOfWeekFromDateString(dateStr))
+}
+
+export function isWithinSalonBookingWindow(dateStr: string): boolean {
+  const today = todaySalon()
+  const maxDate = addDaysToDateString(today, salonSchedule.maxDaysAhead)
+  return dateStr >= today && dateStr <= maxDate
+}
+
+/** Minutos desde medianoche en la zona horaria del salón */
+export function nowSalonMinutes(): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: salonSchedule.timezone,
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date())
+
+  const hour = Number(parts.find((p) => p.type === 'hour')?.value ?? 0)
+  const minute = Number(parts.find((p) => p.type === 'minute')?.value ?? 0)
+  return hour * 60 + minute
 }
 
 export function formatDisplayDate(dateStr: string): string {
@@ -23,18 +69,16 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /** Próximos N días laborables del salón (mar–sáb) */
-export function getBookableDates(count = 28): string[] {
-  const openDays = new Set([2, 3, 4, 5, 6])
+export function getBookableDates(count = 35): string[] {
   const dates: string[] = []
-  let cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
+  let cursor = todaySalon()
+  const lastDate = addDaysToDateString(cursor, salonSchedule.maxDaysAhead)
 
-  while (dates.length < count) {
-    if (openDays.has(cursor.getDay())) {
-      dates.push(toDateString(cursor))
+  while (dates.length < count && cursor <= lastDate) {
+    if ((salonSchedule.openDays as readonly number[]).includes(dayOfWeekFromDateString(cursor))) {
+      dates.push(cursor)
     }
-    cursor = addDays(cursor, 1)
-    if (dates.length === 0 && cursor.getTime() - Date.now() > 90 * 24 * 60 * 60 * 1000) break
+    cursor = addDaysToDateString(cursor, 1)
   }
 
   return dates

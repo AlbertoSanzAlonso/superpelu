@@ -1,4 +1,4 @@
-# Superpelu — imagen para Oracle Cloud ARM (Ampere) y otros VPS
+# Superpelu — imagen para VPS
 FROM node:22-bookworm-slim
 
 WORKDIR /app
@@ -17,6 +17,7 @@ RUN npm run build
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV DATABASE_PATH=/app/data/appointments.sqlite
+ENV TZ=Europe/Madrid
 
 EXPOSE 3001
 

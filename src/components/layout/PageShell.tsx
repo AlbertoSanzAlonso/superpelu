@@ -7,14 +7,17 @@ import { typography } from '@/styles/typography'
 type PageShellProps = {
   title: string
   subtitle?: string
+  wide?: boolean
   children: ReactNode
 }
 
-export function PageShell({ title, subtitle, children }: PageShellProps) {
+export function PageShell({ title, subtitle, wide = false, children }: PageShellProps) {
+  const contentMax = wide ? 'max-w-[min(100%,90rem)]' : 'max-w-4xl'
+
   return (
     <div className="min-h-screen bg-cream">
       <header className="border-b border-gold/10 bg-cream/95 backdrop-blur-md">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5 md:px-10">
+        <div className={`mx-auto flex ${contentMax} items-center justify-between px-6 py-5 md:px-10`}>
           <Link to="/" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
             <Logo size="sm" />
           </Link>
@@ -27,7 +30,7 @@ export function PageShell({ title, subtitle, children }: PageShellProps) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-6 py-12 md:px-10 md:py-16">
+      <main className={`mx-auto ${contentMax} px-6 py-12 md:px-10 md:py-16`}>
         <header className="mb-10 text-center">
           <p className={`${typography.script} mb-2 text-gold`}>Agenda</p>
           <h1 className={typography.h1}>{title}</h1>

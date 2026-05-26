@@ -1,20 +1,63 @@
-import type { Appointment, BookableService, CreateAppointmentPayload } from '@/types/booking'
+import type {
+  Appointment,
+  BookableService,
+  CreateAppointmentPayload,
+  ServiceCategory,
+  StaffDaySchedule,
+  StaffMember,
+} from '@/types/booking'
+import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 
 const API_BASE = '/api'
 
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+      ...init,
+    })
+  } catch {
+    throw new ApiError(
+      'No se pudo conectar con el servidor. Comprueba que la app esté desplegada y en marcha.',
+    )
+  }
+
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    throw new ApiError(
+      res.ok
+        ? 'El servidor devolvió una respuesta inválida (¿la API está activa?). Abre /api/health en el navegador.'
+        : `Error del servidor (${res.status}). Abre /api/health para comprobar la API.`,
+      res.status,
+    )
+  }
+
+  const data = await res.json().catch(() => {
+    throw new ApiError('Respuesta JSON inválida del servidor.', res.status)
   })
 
-  const data = await res.json().catch(() => ({}))
-
   if (!res.ok) {
-    throw new Error((data as { error?: string }).error ?? 'Error en la solicitud')
+    throw new ApiError((data as { error?: string }).error ?? 'Error en la solicitud', res.status)
   }
 
   return data as T
+}
+
+export function verifyAdminToken(adminToken: string) {
+  return request<{ ok: true }>('/auth/verify', {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  })
 }
 
 export function fetchServices() {
@@ -23,8 +66,21 @@ export function fetchServices() {
   }))
 }
 
-export function fetchSlots(date: string, serviceId: string) {
-  const params = new URLSearchParams({ date, serviceId })
+export function fetchServiceCategories() {
+  return request<{ categories?: ServiceCategory[] }>('/service-categories').then((res) => ({
+    categories: Array.isArray(res.categories) ? res.categories : [],
+  }))
+}
+
+export function fetchStaffForService(serviceId: string) {
+  const params = new URLSearchParams({ serviceId })
+  return request<{ staff?: StaffMember[] }>(`/staff?${params}`).then((res) => ({
+    staff: Array.isArray(res.staff) ? res.staff : [],
+  }))
+}
+
+export function fetchSlots(date: string, serviceId: string, staffId: string) {
+  const params = new URLSearchParams({ date, serviceId, staffId })
   return request<{ slots?: string[] }>(`/slots?${params}`).then((res) => ({
     slots: Array.isArray(res.slots) ? res.slots : [],
   }))
@@ -37,16 +93,121 @@ export function createAppointment(payload: CreateAppointmentPayload) {
   })
 }
 
+export function fetchDaySchedule(date: string, adminToken: string) {
+  const params = new URLSearchParams({ date })
+  return request<{ date: string; schedules?: StaffDaySchedule[] }>(`/schedule/day?${params}`, {
+    headers: { Authorization: `Bearer ${adminToken}` },
+  }).then((res) => ({
+    date: res.date,
+    schedules: Array.isArray(res.schedules) ? res.schedules : [],
+  }))
+}
+
 export function fetchAppointments(from: string, to: string, adminToken: string) {
   const params = new URLSearchParams({ from, to })
-  return request<{ appointments: Appointment[] }>(`/appointments?${params}`, {
+  return request<{ appointments?: Appointment[] }>(`/appointments?${params}`, {
     headers: { Authorization: `Bearer ${adminToken}` },
-  })
+  }).then((res) => ({
+    appointments: Array.isArray(res.appointments) ? res.appointments : [],
+  }))
 }
 
 export function cancelAppointment(id: string, adminToken: string) {
   return request<{ appointment: Appointment }>(`/appointments/${id}/cancel`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${adminToken}` },
+  })
+}
+
+function adminHeaders(adminToken: string) {
+  return { Authorization: `Bearer ${adminToken}` }
+}
+
+export function fetchStaffServicesForAdmin(staffId: string, adminToken: string) {
+  const params = new URLSearchParams({ staffId })
+  return request<{ services?: BookableService[] }>(`/schedule/services?${params}`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => ({ services: res.services ?? [] }))
+}
+
+export function fetchAdminSlots(
+  date: string,
+  serviceId: string,
+  staffId: string,
+  adminToken: string,
+  excludeAppointmentId?: string,
+) {
+  const params = new URLSearchParams({ date, serviceId, staffId })
+  if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
+  return request<{ slots?: string[] }>(`/schedule/slots?${params}`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => ({ slots: res.slots ?? [] }))
+}
+
+export type AdminAppointmentPayload = {
+  staffId: string
+  serviceId: string
+  date: string
+  startTime: string
+  customerName: string
+  customerPhone: string
+  customerEmail?: string
+  notes?: string
+}
+
+export function createAdminAppointment(payload: AdminAppointmentPayload, adminToken: string) {
+  return request<{ appointment: Appointment }>('/schedule/appointments', {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function updateAdminAppointment(
+  id: string,
+  adminToken: string,
+  patch: Partial<Omit<AdminAppointmentPayload, 'staffId'>>,
+) {
+  return request<{ appointment: Appointment }>(`/schedule/appointments/${id}`, {
+    method: 'PATCH',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(patch),
+  })
+}
+
+export function fetchAdminBlockSeries(adminToken: string, blockId: string) {
+  return request<{ series: BlockSeriesMeta }>(`/schedule/blocks/${blockId}/series`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => res.series)
+}
+
+export function createAdminBlock(
+  adminToken: string,
+  payload: {
+    staffId: string
+    date: string
+    startTime: string
+    endTime: string
+    note?: string
+    scope?: BlockScope
+    endDate?: string
+  },
+) {
+  return request<{ block: { id: string }; series?: BlockSeriesMeta }>('/schedule/blocks', {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteAdminBlock(
+  id: string,
+  adminToken: string,
+  mode: 'single' | 'series' = 'single',
+) {
+  const params = new URLSearchParams({ mode })
+  return request<{ ok: true }>(`/schedule/blocks/${id}?${params}`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
   })
 }
