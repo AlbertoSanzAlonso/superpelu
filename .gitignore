@@ -6,6 +6,10 @@ dist-ssr
 /data/
 .env
 
-# Guía para agentes Cursor (solo local, no en GitHub)
-.cursor/
+# Cursor local (skills del proyecto sí van al repo)
+.cursor/*
+!.cursor/skills/
+!.cursor/skills/**
+
+# Guía corta para el IDE (solo local)
 AGENTS.md

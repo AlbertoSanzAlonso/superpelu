@@ -201,11 +201,7 @@ export function AdminAgendaPage() {
 
   if (isStaff && staffUser) {
     return (
-      <PageShell title="Mi agenda" subtitle="Gestiona tus citas y bloquea horarios">
-        <div className="mx-auto max-w-2xl">
-          <StaffAgendaPanel token={staffToken} staff={staffUser} onLogout={handleStaffLogout} />
-        </div>
-      </PageShell>
+      <StaffAgendaPanel token={staffToken} staff={staffUser} onLogout={handleStaffLogout} />
     )
   }
 

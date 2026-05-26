@@ -1,10 +1,5 @@
 import { useMemo } from 'react'
-import {
-  buildStaffDayGrid,
-  summarizeGridSelection,
-  type TimeGridCell,
-} from '@/lib/timeGrid'
-import { StaffGridSelectionBar } from '@/components/agenda/staff/StaffGridSelectionBar'
+import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
 import {
   agendaColorLegend,
   agendaColorLegendSwatch,
@@ -21,11 +16,6 @@ type Props = {
   formSlotTime: string | null
   onToggleSlot: (time: string) => void
   onSelectAppointment: (apt: DayScheduleAppointment) => void
-  onBlockSelection: () => void
-  onUnblockSelection: () => void
-  onClearSelection: () => void
-  onCreateAppointmentFromSelection: () => void
-  actionsBusy?: boolean
 }
 
 const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, string> = {
@@ -49,18 +39,8 @@ export function StaffTimeGrid({
   formSlotTime,
   onToggleSlot,
   onSelectAppointment,
-  onBlockSelection,
-  onUnblockSelection,
-  onClearSelection,
-  onCreateAppointmentFromSelection,
-  actionsBusy = false,
 }: Props) {
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
-  const selectionSummary = useMemo(
-    () => summarizeGridSelection(selectedTimes, cells),
-    [selectedTimes, cells],
-  )
-
   function handleCellClick(cell: TimeGridCell) {
     if (cell.status === 'past') return
 
@@ -101,18 +81,6 @@ export function StaffTimeGrid({
           Selección
         </span>
       </div>
-
-      {selectedTimes.size > 0 && (
-        <StaffGridSelectionBar
-          count={selectedTimes.size}
-          summary={selectionSummary}
-          onBlock={onBlockSelection}
-          onUnblock={onUnblockSelection}
-          onClear={onClearSelection}
-          onCreateAppointment={onCreateAppointmentFromSelection}
-          busy={actionsBusy}
-        />
-      )}
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {cells.map((cell) => {

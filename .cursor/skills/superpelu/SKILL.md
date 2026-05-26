@@ -1,0 +1,172 @@
+---
+name: superpelu
+description: >-
+  Superpelu Hair Studio — React + Hono + SQLite. Reservas (/reservar), agenda
+  admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
+  Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
+  colores agenda, bloqueos con alcance, o API que devuelve HTML.
+---
+
+# Superpelu
+
+## Arquitectura
+
+- **Un proceso Node** (`npm start` → `server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
+- **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
+- **SQLite:** `DATABASE_PATH` (prod: `/app/data/appointments.sqlite` + volumen en `/app/data`).
+- **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
+- **Horario salón:** mar–sáb 10:00–20:00, slots cada 30 min (`salonSchedule.slotMinutes`).
+
+Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal y enlaces `staff_services` (todo el personal ↔ todos los servicios activos).
+
+## Datos maestros (fuente de verdad en código)
+
+| Archivo | Contenido |
+|---------|-----------|
+| `src/data/serviceCategories.ts` | 12 categorías (ES + EN), precios «desde» |
+| `src/data/salonServices.ts` | ~70 servicios: `categoryId`, duración, `bookableOnline` |
+| `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga + contraseñas iniciales |
+| `src/data/schedule.ts` | Horario y timezone del salón |
+| `src/data/content.ts` | Textos de marca (landing) |
+
+**Mechas (`highlights`):** servicios con `bookableOnline: false` — reserva online solo teléfono/WhatsApp; admin/profesional sí pueden citar.
+
+**Coloración (reserva de franjas):** servicios `svc-root-color`, `svc-complete-color`, `svc-all-over-color`, `svc-color-block` usan patrón **30 min ocupado + 30 min pausa (libre en agenda) + 30 min lavado/acabado** — ver `src/lib/bookingOccupancy.ts` (`COLOR_SPLIT_SERVICE_IDS`). Duración en catálogo: 90 min. Una sola cita, no dos reservas separadas.
+
+**Lavar color** (`svc-wash-color`): cita normal de 20 min (verde agua en agenda).
+
+## Base de datos (SQLite)
+
+Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+
+`staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
+
+Migraciones en `server/db.ts` (`columnExists` + `ALTER`).
+
+## Rutas web
+
+| Ruta | Uso |
+|------|-----|
+| `/` | Landing |
+| `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`) |
+| `/agenda` | Login dual: **profesional** o **administración** |
+
+### UI de agenda — shell común
+
+Ambos modos usan `AgendaWorkspaceShell` (pantalla completa, **sin** logo ni `PageShell` de marca).
+
+### Profesional (`StaffAgendaPanel`)
+
+- Login → `POST /api/auth/staff/login` → `/api/me/*` (`staffApi.ts`, `server/me.ts`).
+- **Barra:** `StaffAgendaControlBar` — saludo, navegación de día, contador de citas, **+ Cita**, acciones de selección en grilla, Salir.
+- **Grilla:** `StaffTimeGrid` — huecos 30 min, colores BUK, selección múltiple para bloquear/desbloquear/crear cita.
+- **Citas:** modal `StaffAppointmentFormModal` (igual patrón que admin; **no** desplegable).
+- **Lista:** `StaffAppointmentList` (desplegable «Mis citas»).
+- Hook: `useStaffAgenda`.
+
+### Administración (`AdminAgendaPage`)
+
+- Bearer `ADMIN_SECRET` → calendario día (`AdminSalonDayCalendar`), columnas por profesional.
+- **Barra:** `AdminAgendaControlBar` — fecha, profesional activo, + Cita, selección, Salir.
+- Bloqueos con alcance: `BlockScopeModal`, `UnblockScopeModal` (`server/staffBlocks.ts`).
+- Cita: `StaffAppointmentFormModal`.
+- `GET /api/schedule/day?date=` → `listStaffDaySchedules` (citas con `occupiedSlots` para coloración partida).
+
+## Colores en agenda (BUK)
+
+`src/lib/serviceCategoryColors.ts` — `appointmentEventClass(categoryId, serviceId)`:
+
+| Color | Categorías / servicios |
+|-------|-------------------------|
+| Azul | Cortes (`gentleman-haircut`, `haircut`, `haircut-blowdry`) |
+| Rojo | Color, decoloración |
+| Verde agua | Peinado, manos/pies, `svc-wash-color`, `svc-toner` |
+| Morado | Mechas, keratina, permanente, maquillaje, micro |
+| Marrón | Tratamientos capilares, facial |
+
+Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
+
+## API
+
+### Pública
+
+| Método | Ruta | Notas |
+|--------|------|-------|
+| GET | `/api/health` | `{"ok":true}` |
+| GET | `/api/services` | Solo `bookable_online = 1` |
+| GET | `/api/service-categories` | Con precios |
+| GET | `/api/staff?serviceId=` | Profesionales del servicio |
+| GET | `/api/slots?date=&serviceId=&staffId=` | Respeta tramos de coloración |
+| POST | `/api/appointments` | Crear cita |
+
+### Admin (`Authorization: Bearer ADMIN_SECRET`)
+
+| Método | Ruta |
+|--------|------|
+| GET | `/api/auth/verify` |
+| GET | `/api/schedule/day?date=` |
+| GET | `/api/schedule/slots?date=&serviceId=&staffId=` |
+| GET/PATCH/POST | `/api/appointments`, bloqueos `/api/schedule/blocks` |
+| GET | `/api/schedule/blocks/:id/series` |
+| DELETE | `/api/schedule/blocks/:id?mode=single\|series` |
+
+### Profesional (`server/me.ts` bajo `/api`)
+
+Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
+
+| Método | Ruta |
+|--------|------|
+| POST | `/api/auth/staff/login` |
+| GET | `/api/me/schedule`, `/api/me/services`, `/api/me/slots` |
+| CRUD | `/api/me/appointments`, `/api/me/blocks` |
+
+## Módulos clave
+
+| Archivo | Rol |
+|---------|-----|
+| `server/appointments.ts` | Slots, citas; usa `bookingOccupancy` |
+| `server/staffSchedule.ts` | Día por profesional, `occupiedSlots` |
+| `server/staffBlocks.ts` | Series de bloqueos |
+| `src/lib/bookingOccupancy.ts` | Tramos coloración, solapes, formato horario |
+| `src/lib/timeGrid.ts` | Grilla staff (segmentos ocupados) |
+| `src/lib/servicePicker.ts` | Labels especialidad/tratamiento |
+| `src/components/shared/ServiceCategoryPicker.tsx` | Staff/admin — estado local de categoría |
+| `src/hooks/useAdminAgenda.ts` | Lógica agenda admin |
+
+**Importante:** código importado desde `server/` debe usar rutas relativas en utilidades compartidas (sin alias `@/`), p. ej. `../src/lib/dates.ts`.
+
+## Selector especialidad / tratamiento
+
+Al cambiar especialidad se limpia el tratamiento pero la categoría elegida se guarda en estado local (`pickedCategoryId`). Sin esto el `<select>` volvía a la primera categoría.
+
+## Desarrollo local
+
+```bash
+npm install
+cp .env.example .env
+npm run dev            # Vite :5173 + API :3001
+npm run build && npm start
+```
+
+Tras editar `salonServices.ts` o categorías: **reiniciar servidor** para `syncSalonServices`.
+
+## Despliegue Coolify
+
+Ver [deploy-coolify.md](deploy-coolify.md).
+
+## Diagnóstico rápido
+
+| Síntoma | Causa habitual |
+|---------|----------------|
+| Login admin 401 con clave correcta | `ADMIN_SECRET` no en contenedor |
+| `/api/*` devuelve HTML | `caddy_0.try_files` o deploy solo estático |
+| No se puede cambiar especialidad | Bug de estado — ver `pickedCategoryId` en pickers |
+| Color sin hueco de 90 min | Segundo tramo ocupado; pausa central puede tener otra cita |
+| Profesional no entra | Nombre exacto; hash en `salonStaff.ts` |
+
+## Convenciones
+
+- Cambios mínimos; UI crema/dorado/carbón (`typography`).
+- Nuevos servicios en `salonServices.ts` + `categoryId`; coloración partida solo en los 4 IDs de `COLOR_SPLIT_SERVICE_IDS`.
+- No commitear `.env`, `data/`, `.cursor/` salvo `skills/superpelu/`.
+- Responder al usuario en **español**.
