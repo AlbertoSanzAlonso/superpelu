@@ -111,26 +111,38 @@ export function StaffAppointmentFormFields({
         </>
       )}
 
-      <div className={`grid gap-3 ${compact ? 'sm:grid-cols-3' : 'gap-4 sm:grid-cols-2'}`}>
+      <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2'}`}>
         <Input
-          label="Cliente"
+          label="Nombre"
           required
-          value={draft.customerName}
-          onChange={(e) => onDraftChange({ customerName: e.target.value })}
+          value={draft.customerFirstName}
+          onChange={(e) => onDraftChange({ customerFirstName: e.target.value })}
           className={compact ? fieldCompact : undefined}
+          autoComplete="given-name"
+        />
+        <Input
+          label="Apellidos"
+          value={draft.customerLastName}
+          onChange={(e) => onDraftChange({ customerLastName: e.target.value })}
+          className={compact ? fieldCompact : undefined}
+          autoComplete="family-name"
         />
         <Input
           label="Teléfono"
           required
+          type="tel"
           value={draft.customerPhone}
           onChange={(e) => onDraftChange({ customerPhone: e.target.value })}
           className={compact ? fieldCompact : undefined}
+          autoComplete="tel"
         />
         <Input
           label="Email"
+          type="email"
           value={draft.customerEmail}
           onChange={(e) => onDraftChange({ customerEmail: e.target.value })}
           className={compact ? fieldCompact : undefined}
+          autoComplete="email"
         />
       </div>
 

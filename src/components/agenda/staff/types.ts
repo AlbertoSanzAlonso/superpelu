@@ -1,9 +1,11 @@
+import { splitCustomerName } from '@/lib/customerName'
 import type { DayScheduleAppointment } from '@/types/booking'
 
 export type AppointmentDraft = {
   serviceId: string
   startTime: string
-  customerName: string
+  customerFirstName: string
+  customerLastName: string
   customerPhone: string
   customerEmail: string
   notes: string
@@ -12,17 +14,20 @@ export type AppointmentDraft = {
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   serviceId: '',
   startTime: '',
-  customerName: '',
+  customerFirstName: '',
+  customerLastName: '',
   customerPhone: '',
   customerEmail: '',
   notes: '',
 }
 
 export function appointmentToDraft(apt: DayScheduleAppointment): AppointmentDraft {
+  const { firstName, lastName } = splitCustomerName(apt.customerName)
   return {
     serviceId: apt.serviceId,
     startTime: apt.startTime,
-    customerName: apt.customerName,
+    customerFirstName: firstName,
+    customerLastName: lastName,
     customerPhone: apt.customerPhone,
     customerEmail: '',
     notes: '',

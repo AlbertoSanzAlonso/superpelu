@@ -40,11 +40,13 @@ export function AppointmentForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-8">
+    <form onSubmit={handleSubmit} className="mx-auto max-w-lg space-y-8 md:max-w-4xl">
       <ServiceCategoryPickerPublic
         services={form.services}
         serviceId={form.serviceId}
         loading={form.servicesLoading}
+        error={form.servicesError}
+        onRetry={() => void form.loadServices()}
         onServiceChange={form.setServiceId}
       />
 

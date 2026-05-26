@@ -5,6 +5,11 @@ import { getStaffDayWindow, isStaffWorkingOnDate } from './availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from './staffBlocks.js'
 import { getStaff, staffCanPerformService } from './staff.js'
 import { schedule } from './config.js'
+import {
+  customerNameSnapshot,
+  resolveCustomerFromInput,
+  upsertCustomer,
+} from './customers.js'
 import { isSalonOpenDay, isWithinSalonBookingWindow, todaySalon } from '../src/lib/dates.ts'
 import {
   appointmentOccupiedSlots,
@@ -151,7 +156,10 @@ export type CreateAppointmentInput = {
   staffId: string
   date: string
   startTime: string
-  customerName: string
+  /** Nombre completo (reserva pública); alternativa a firstName + lastName. */
+  customerName?: string
+  customerFirstName?: string
+  customerLastName?: string
   customerPhone: string
   customerEmail?: string
   notes?: string
@@ -185,6 +193,21 @@ export function createAppointment(input: CreateAppointmentInput): AppointmentRow
   })
   if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
+  const customer = resolveCustomerFromInput({
+    firstName: input.customerFirstName,
+    lastName: input.customerLastName,
+    customerName: input.customerName,
+    phone: input.customerPhone,
+  })
+  upsertCustomer({
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    phone: customer.phone,
+    email: input.customerEmail,
+    notes: input.notes,
+  })
+  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
+
   const id = randomUUID()
   const createdAt = new Date().toISOString()
   const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
@@ -205,8 +228,8 @@ export function createAppointment(input: CreateAppointmentInput): AppointmentRow
     storedDuration,
     input.date,
     input.startTime,
-    input.customerName.trim(),
-    input.customerPhone.trim(),
+    nameSnapshot,
+    customer.phone,
     input.customerEmail?.trim() || null,
     input.notes?.trim() || null,
     createdAt,
@@ -220,6 +243,8 @@ export type UpdateAppointmentInput = {
   date?: string
   startTime?: string
   customerName?: string
+  customerFirstName?: string
+  customerLastName?: string
   customerPhone?: string
   customerEmail?: string | null
   notes?: string | null
@@ -277,6 +302,35 @@ export function updateAppointmentForStaff(
   }
 
   const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+
+  const hasCustomerPatch =
+    input.customerName !== undefined ||
+    input.customerFirstName !== undefined ||
+    input.customerLastName !== undefined ||
+    input.customerPhone !== undefined
+
+  let nameSnapshot = existing.customer_name
+  let customerPhone = existing.customer_phone
+
+  if (hasCustomerPatch) {
+    const split = resolveCustomerFromInput({
+      firstName: input.customerFirstName,
+      lastName: input.customerLastName,
+      customerName: input.customerName ?? existing.customer_name,
+      phone: input.customerPhone ?? existing.customer_phone,
+    })
+    upsertCustomer({
+      firstName: split.firstName,
+      lastName: split.lastName,
+      phone: split.phone,
+      email:
+        input.customerEmail !== undefined ? input.customerEmail : existing.customer_email,
+      notes: input.notes !== undefined ? input.notes : existing.notes,
+    })
+    nameSnapshot = customerNameSnapshot(split.firstName, split.lastName)
+    customerPhone = split.phone
+  }
+
   const staff = getStaff(staffId)!
   db.prepare(
     `UPDATE appointments SET
@@ -291,8 +345,8 @@ export function updateAppointmentForStaff(
     storedDuration,
     date,
     startTime,
-    (input.customerName ?? existing.customer_name).trim(),
-    (input.customerPhone ?? existing.customer_phone).trim(),
+    nameSnapshot,
+    customerPhone,
     input.customerEmail !== undefined
       ? input.customerEmail?.trim() || null
       : existing.customer_email,

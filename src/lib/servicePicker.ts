@@ -52,6 +52,15 @@ export function getOrderedCategoriesForServices(services: BookableService[]) {
   return serviceCategories.filter((c) => ids.has(c.id))
 }
 
+/** Las 12 especialidades del catálogo (reserva pública). */
+export function getAllServiceCategories() {
+  return [...serviceCategories]
+}
+
+export function countServicesInCategory(services: BookableService[], categoryId: string) {
+  return servicesInCategory(services, categoryId).length
+}
+
 export function servicesInCategory(services: BookableService[], categoryId: string) {
   return services.filter((s) => s.categoryId === categoryId)
 }

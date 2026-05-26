@@ -36,6 +36,8 @@ function requireStaff(c: Parameters<Parameters<typeof me.get>[1]>[0]) {
 }
 
 const errorMessages: Record<string, string> = {
+  TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
+  NOMBRE_INVALIDO: 'Indica al menos el nombre',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',
   STAFF_NO_REALIZA_SERVICIO: 'No realizas ese servicio',
@@ -120,12 +122,15 @@ me.post('/me/appointments', async (c) => {
     serviceId: string
     date: string
     startTime: string
-    customerName: string
+    customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
     customerPhone: string
     customerEmail?: string
     notes?: string
   }>()
-  if (!body.serviceId || !body.date || !body.startTime || !body.customerName?.trim()) {
+  const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
+  if (!body.serviceId || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   try {
@@ -150,6 +155,8 @@ me.patch('/me/appointments/:id', async (c) => {
     date?: string
     startTime?: string
     customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
     customerPhone?: string
     customerEmail?: string | null
     notes?: string | null

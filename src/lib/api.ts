@@ -6,6 +6,7 @@ import type {
   StaffDaySchedule,
   StaffMember,
 } from '@/types/booking'
+import type { Customer, CustomerDetail } from '@/types/customers'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 
 const API_BASE = '/api'
@@ -149,7 +150,8 @@ export type AdminAppointmentPayload = {
   serviceId: string
   date: string
   startTime: string
-  customerName: string
+  customerFirstName: string
+  customerLastName?: string
   customerPhone: string
   customerEmail?: string
   notes?: string
@@ -197,6 +199,21 @@ export function createAdminBlock(
     method: 'POST',
     headers: adminHeaders(adminToken),
     body: JSON.stringify(payload),
+  })
+}
+
+export function fetchCustomers(adminToken: string, q?: string) {
+  const params = new URLSearchParams()
+  if (q?.trim()) params.set('q', q.trim())
+  const qs = params.toString()
+  return request<{ customers: Customer[] }>(`/customers${qs ? `?${qs}` : ''}`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => ({ customers: res.customers ?? [] }))
+}
+
+export function fetchCustomerDetail(adminToken: string, phone: string) {
+  return request<CustomerDetail>(`/customers/${encodeURIComponent(phone)}`, {
+    headers: adminHeaders(adminToken),
   })
 }
 

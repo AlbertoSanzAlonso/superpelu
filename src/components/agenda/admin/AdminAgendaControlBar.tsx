@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
 import { addDaysToDateString, formatDisplayDate, todaySalon, toDateString } from '@/lib/dates'
 import type { GridSelectionSummary } from '@/lib/timeGrid'
@@ -159,7 +160,13 @@ export function AdminAgendaControlBar({
         </Button>
       )}
 
-      <div className="ml-auto">
+      <div className="ml-auto flex items-center gap-2">
+        <Link
+          to="/clientes"
+          className="border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
+        >
+          Clientes
+        </Link>
         <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={onLogout}>
           Salir
         </Button>

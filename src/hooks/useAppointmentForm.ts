@@ -21,6 +21,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
   const [services, setServices] = useState<BookableService[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
+  const [servicesError, setServicesError] = useState('')
   const [serviceId, setServiceId] = useState(options.initialServiceId ?? '')
   const [staffOptions, setStaffOptions] = useState<StaffMember[]>([])
   const [staffId, setStaffId] = useState(options.initialStaffId ?? '')
@@ -48,15 +49,30 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     serviceId && staffId && date && startTime && customerName.trim() && customerPhone.trim(),
   )
 
-  useEffect(() => {
+  const loadServices = useCallback(() => {
     setServicesLoading(true)
-    fetchServices()
+    setServicesError('')
+    return fetchServices()
       .then((res) => {
         setServices(res.services)
+        if (res.services.length === 0) {
+          setServicesError('No hay tratamientos disponibles online en este momento.')
+        }
       })
-      .catch(() => setServices([]))
+      .catch((err) => {
+        setServices([])
+        setServicesError(
+          err instanceof ApiError
+            ? err.message
+            : 'No se pudo conectar con el servidor. Si estás en local, ejecuta npm run dev y recarga.',
+        )
+      })
       .finally(() => setServicesLoading(false))
-  }, [options.initialServiceId])
+  }, [])
+
+  useEffect(() => {
+    void loadServices()
+  }, [loadServices])
 
   useEffect(() => {
     if (!serviceId) {
@@ -177,6 +193,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   return {
     services,
     servicesLoading,
+    servicesError,
+    loadServices,
     serviceId,
     setServiceId,
     staffOptions,

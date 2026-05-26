@@ -100,7 +100,8 @@ export function createMyAppointment(
     serviceId: string
     date: string
     startTime: string
-    customerName: string
+    customerFirstName: string
+    customerLastName?: string
     customerPhone: string
     customerEmail?: string
     notes?: string
@@ -119,7 +120,8 @@ export function updateMyAppointment(
     serviceId: string
     date: string
     startTime: string
-    customerName: string
+    customerFirstName: string
+    customerLastName: string
     customerPhone: string
     customerEmail: string | null
     notes: string | null

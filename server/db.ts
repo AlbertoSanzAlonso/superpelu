@@ -10,6 +10,8 @@ import {
 } from '../src/data/salonStaff.ts'
 import { salonSchedule } from '../src/data/schedule.ts'
 import { hashPassword } from './password.js'
+import { splitCustomerName } from '../src/lib/customerName.ts'
+import { normalizePhone } from '../src/lib/phone.ts'
 
 const dataDir = path.resolve(process.cwd(), 'data')
 const dbPath = process.env.DATABASE_PATH ?? path.join(dataDir, 'appointments.sqlite')
@@ -118,6 +120,19 @@ db.exec(`
     staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
     expires_at TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS customers (
+    phone TEXT PRIMARY KEY,
+    first_name TEXT NOT NULL,
+    last_name TEXT,
+    email TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_customers_name
+    ON customers (last_name, first_name);
 `)
 
 function columnExists(table: string, column: string): boolean {
@@ -163,6 +178,54 @@ function migrateServiceCategoryPrices() {
   if (!columnExists('service_categories', 'price_note')) {
     db.exec(`ALTER TABLE service_categories ADD COLUMN price_note TEXT`)
   }
+}
+
+function migrateCustomersAndBackfill() {
+  const tableExists = (
+    db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='customers'`).get() as
+      | { name: string }
+      | undefined
+  )?.name
+  if (!tableExists) return
+
+  const appointments = db
+    .prepare(`SELECT id, customer_phone, customer_name, customer_email FROM appointments`)
+    .all() as {
+    id: string
+    customer_phone: string
+    customer_name: string
+    customer_email: string | null
+  }[]
+
+  const upsert = db.prepare(
+    `INSERT INTO customers (phone, first_name, last_name, email, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, NULL, ?, ?)
+     ON CONFLICT(phone) DO UPDATE SET
+       first_name = excluded.first_name,
+       last_name = excluded.last_name,
+       email = COALESCE(excluded.email, customers.email),
+       updated_at = excluded.updated_at`,
+  )
+
+  const updateAptPhone = db.prepare(`UPDATE appointments SET customer_phone = ? WHERE id = ?`)
+  const now = new Date().toISOString()
+
+  for (const row of appointments) {
+    const phone = normalizePhone(row.customer_phone)
+    if (!phone) continue
+    const { firstName, lastName } = splitCustomerName(row.customer_name)
+    if (firstName) {
+      upsert.run(phone, firstName, lastName || null, row.customer_email, now, now)
+    }
+    if (row.customer_phone !== phone) {
+      updateAptPhone.run(phone, row.id)
+    }
+  }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_appointments_customer_phone
+      ON appointments (customer_phone, appointment_date);
+  `)
 }
 
 function migrateStaffBlockSeriesColumns() {
@@ -392,6 +455,7 @@ migrateStaffPasswordColumn()
 migrateServicesCategoryColumn()
 migrateServiceCategoryPrices()
 migrateStaffBlockSeriesColumns()
+migrateCustomersAndBackfill()
 
 if (columnExists('appointments', 'staff_id')) {
   db.exec(`
@@ -407,6 +471,16 @@ syncSalonStaff()
 syncStaffAllServices()
 seedStaffAvailabilityIfMissing()
 seedStaffPasswordsIfMissing()
+
+export type CustomerRow = {
+  phone: string
+  first_name: string
+  last_name: string | null
+  email: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}
 
 export type AppointmentRow = {
   id: string

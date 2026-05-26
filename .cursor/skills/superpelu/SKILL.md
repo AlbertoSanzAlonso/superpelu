@@ -37,7 +37,9 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 ## Base de datos (SQLite)
 
-Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+
+**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers.ts`.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 
@@ -50,6 +52,7 @@ Migraciones en `server/db.ts` (`columnExists` + `ALTER`).
 | `/` | Landing |
 | `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`) |
 | `/agenda` | Login dual: **profesional** o **administración** |
+| `/clientes` | Gestión de clientes (solo admin, mismo `ADMIN_SECRET`) |
 
 ### UI de agenda — shell común
 
@@ -104,6 +107,8 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | Método | Ruta |
 |--------|------|
 | GET | `/api/auth/verify` |
+| GET | `/api/customers?q=` |
+| GET | `/api/customers/:phone` | Ficha + historial de citas |
 | GET | `/api/schedule/day?date=` |
 | GET | `/api/schedule/slots?date=&serviceId=&staffId=` |
 | GET/PATCH/POST | `/api/appointments`, bloqueos `/api/schedule/blocks` |

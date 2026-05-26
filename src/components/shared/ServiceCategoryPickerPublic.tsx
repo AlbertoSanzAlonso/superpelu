@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   categoryIdForService,
   categoryLabelFor,
-  getOrderedCategoriesForServices,
+  countServicesInCategory,
+  getAllServiceCategories,
   servicePickerLabels,
   servicesInCategory,
 } from '@/lib/servicePicker'
@@ -15,6 +16,8 @@ type Props = {
   serviceId: string
   onServiceChange: (serviceId: string) => void
   loading?: boolean
+  error?: string
+  onRetry?: () => void
 }
 
 export function ServiceCategoryPickerPublic({
@@ -22,10 +25,12 @@ export function ServiceCategoryPickerPublic({
   serviceId,
   onServiceChange,
   loading = false,
+  error = '',
+  onRetry,
 }: Props) {
   const labels = servicePickerLabels.public
 
-  const categories = useMemo(() => getOrderedCategoriesForServices(services), [services])
+  const categories = useMemo(() => getAllServiceCategories(), [])
 
   const categoryFromService = categoryIdForService(services, serviceId)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
@@ -59,9 +64,24 @@ export function ServiceCategoryPickerPublic({
 
   if (services.length === 0) {
     return (
-      <p className={`${typography.caption} text-center`}>
-        No hay tratamientos disponibles online. Llámanos al 952 44 36 86.
-      </p>
+      <div className="space-y-3 text-center">
+        <p
+          className={`text-sm ${error ? 'text-amber-950' : 'text-charcoal-muted'}`}
+          role={error ? 'alert' : undefined}
+        >
+          {error ||
+            'No hay tratamientos disponibles. Llámanos al 952 44 36 86.'}
+        </p>
+        {onRetry && error && (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="border border-gold/40 px-4 py-2 text-sm text-gold hover:border-gold"
+          >
+            Reintentar
+          </button>
+        )}
+      </div>
     )
   }
 
@@ -71,25 +91,40 @@ export function ServiceCategoryPickerPublic({
         <legend className={`${typography.label} mb-2 block w-full text-center`}>
           {labels.category}
         </legend>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {categories.map((cat) => {
             const selected = selectedCategoryId === cat.id
-            const count = servicesInCategory(services, cat.id).length
+            const count = countServicesInCategory(services, cat.id)
+            const countLabel =
+              count === 0
+                ? 'Solo teléfono / WhatsApp'
+                : count === 1
+                  ? '1 tratamiento'
+                  : `${count} tratamientos`
             return (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => handleCategoryPick(cat.id)}
                 className={[
-                  'border px-4 py-3 text-left text-sm transition-colors',
+                  'cursor-pointer border px-2 py-2.5 text-left text-sm transition-colors md:px-2 md:py-3 md:text-center',
                   selected
                     ? 'border-gold bg-gold/10 text-gold'
-                    : 'border-gold/20 hover:border-gold/45',
+                    : 'border-gold/20 hover:border-gold/40',
                 ].join(' ')}
               >
-                <span className="block font-medium">{categoryLabelFor(cat.id)}</span>
-                <span className={`${typography.caption} mt-0.5 block`}>
-                  {count === 1 ? '1 tratamiento' : `${count} tratamientos`}
+                <span className="block font-medium leading-snug">{categoryLabelFor(cat.id)}</span>
+                <span
+                  className={[
+                    'mt-1 block font-normal leading-tight',
+                    count === 0
+                      ? 'text-[9px] tracking-tight'
+                      : 'whitespace-nowrap text-[10px] tracking-normal',
+                    selected ? 'text-gold/80' : 'text-charcoal-muted',
+                    'md:text-[11px] md:uppercase md:tracking-wide',
+                  ].join(' ')}
+                >
+                  {countLabel}
                 </span>
               </button>
             )
@@ -105,11 +140,11 @@ export function ServiceCategoryPickerPublic({
           {categoryServices.length === 0 ? (
             <p className={`${typography.caption} text-center`}>{labels.emptyCategory}</p>
           ) : (
-            <div className="grid gap-3">
+            <div className="grid gap-2 md:grid-cols-3 md:gap-3">
               {categoryServices.map((service) => (
                 <label
                   key={service.id}
-                  className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${
+                  className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 transition-colors md:p-3 ${
                     serviceId === service.id
                       ? 'border-gold bg-gold/5'
                       : 'border-gold/20 hover:border-gold/40'
@@ -121,15 +156,16 @@ export function ServiceCategoryPickerPublic({
                     value={service.id}
                     checked={serviceId === service.id}
                     onChange={() => onServiceChange(service.id)}
-                    className="mt-1 accent-gold"
+                    className="mt-0.5 shrink-0 accent-gold"
                   />
-                  <span className="text-left">
-                    <span className={`${typography.h3} block text-gold`}>{service.nameEs}</span>
-                    <span className={typography.caption}>
+                  <span className="min-w-0 flex-1 text-left">
+                    <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
+                      {service.nameEs}
+                    </span>
+                    <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
                       {usesColorSplitBooking(service.id)
-                        ? '90 min (30 color + pausa + 30 lavado)'
+                        ? '90 min (color + pausa + lavado)'
                         : `${service.durationMinutes} min`}
-                      {service.nameEn ? ` · ${service.nameEn}` : ''}
                     </span>
                   </span>
                 </label>

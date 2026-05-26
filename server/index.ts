@@ -25,6 +25,7 @@ import {
   type DeleteBlockMode,
 } from './staffBlocks.js'
 import { listServicesForStaff } from './staff.js'
+import { getCustomer, listCustomerAppointments, listCustomers } from './customers.js'
 
 const app = new Hono()
 const adminSecret = (process.env.ADMIN_SECRET ?? 'superpelu-dev-admin').trim()
@@ -131,9 +132,40 @@ app.post('/api/appointments', async (c) => {
       STAFF_NO_REALIZA_SERVICIO: 'Este profesional no realiza ese servicio',
       FECHA_INVALIDA: 'Fecha no disponible',
       HORARIO_NO_DISPONIBLE: 'Ese horario ya no está disponible',
+      TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
+      NOMBRE_INVALIDO: 'Indica al menos el nombre',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear la cita' }, 409)
   }
+})
+
+app.get('/api/customers', (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const q = c.req.query('q')
+  const limit = c.req.query('limit') ? Number(c.req.query('limit')) : undefined
+  return c.json({ customers: listCustomers({ q, limit }) })
+})
+
+app.get('/api/customers/:phone', (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const customer = getCustomer(phone)
+  if (!customer) return c.json({ error: 'Cliente no encontrado' }, 404)
+  const appointments = listCustomerAppointments(phone).map(rowToPublic)
+  return c.json({
+    customer: {
+      phone: customer.phone,
+      firstName: customer.first_name,
+      lastName: customer.last_name ?? '',
+      email: customer.email,
+      notes: customer.notes,
+      createdAt: customer.created_at,
+      updatedAt: customer.updated_at,
+    },
+    appointments,
+  })
 })
 
 app.get('/api/appointments', (c) => {
@@ -171,6 +203,8 @@ const adminScheduleErrors: Record<string, string> = {
   FECHA_INVALIDA: 'Fecha no disponible',
   HORARIO_NO_DISPONIBLE: 'Ese horario no está disponible',
   CITA_NO_ENCONTRADA: 'Cita no encontrada',
+  TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
+  NOMBRE_INVALIDO: 'Indica al menos el nombre',
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',
@@ -211,17 +245,20 @@ app.post('/api/schedule/appointments', async (c) => {
     serviceId: string
     date: string
     startTime: string
-    customerName: string
+    customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
     customerPhone: string
     customerEmail?: string
     notes?: string
   }>()
+  const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
     !body.staffId ||
     !body.serviceId ||
     !body.date ||
     !body.startTime ||
-    !body.customerName?.trim() ||
+    !hasName ||
     !body.customerPhone?.trim()
   ) {
     return c.json({ error: 'Datos incompletos' }, 400)
@@ -233,6 +270,8 @@ app.post('/api/schedule/appointments', async (c) => {
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,
+      customerFirstName: body.customerFirstName,
+      customerLastName: body.customerLastName,
       customerPhone: body.customerPhone,
       customerEmail: body.customerEmail,
       notes: body.notes,
@@ -253,6 +292,8 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     date?: string
     startTime?: string
     customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
     customerPhone?: string
     customerEmail?: string | null
     notes?: string | null
