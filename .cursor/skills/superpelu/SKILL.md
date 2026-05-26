@@ -4,7 +4,8 @@ description: >-
   Superpelu Hair Studio — React + Hono + SQLite. Reservas (/reservar), agenda
   admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
-  colores agenda, bloqueos con alcance, o API que devuelve HTML.
+  colores agenda, bloqueos con alcance, gestión de clientes (/clientes),
+  o API que devuelve HTML.
 ---
 
 # Superpelu
@@ -52,7 +53,21 @@ Migraciones en `server/db.ts` (`columnExists` + `ALTER`).
 | `/` | Landing |
 | `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`) |
 | `/agenda` | Login dual: **profesional** o **administración** |
-| `/clientes` | Gestión de clientes (solo admin, mismo `ADMIN_SECRET`) |
+| `/clientes` | Listado de clientes (solo admin, mismo `ADMIN_SECRET` que agenda) |
+| `/clientes/:phone` | Historial de citas del cliente (pantalla completa; `phone` URL-encoded, p. ej. `%2B34600000000`) |
+
+**Pagos:** no implementados (sin tabla ni UI de cobros).
+
+### Gestión de clientes (admin)
+
+- Auth: `useAdminSession` — token en `sessionStorage` (`superpelu-admin-token`); sin token → redirige a `/agenda`.
+- **`CustomersPage` (`/clientes`):** tabla con búsqueda (`?q=`), columnas citas/última cita; clic en fila → historial.
+- **`CustomerHistoryPage` (`/clientes/:phone`):** ficha + lista de citas a pantalla completa.
+  - Filtros en cliente: fecha **desde/hasta**, **tratamiento** (select con servicios del historial), «Quitar filtros», contador «X de Y citas».
+  - Clic en cita → modal solo lectura `CustomerAppointmentDetailModal`.
+- Enlace desde `AdminAgendaControlBar` → «Clientes».
+- Componentes: `src/components/customers/` (`CustomersWorkspaceHeader`, `CustomerAppointmentDetailModal`).
+- Utilidades: `src/lib/phone.ts`, `src/lib/customerName.ts`, tipos `src/types/customers.ts`.
 
 ### UI de agenda — shell común
 
@@ -70,7 +85,7 @@ Ambos modos usan `AgendaWorkspaceShell` (pantalla completa, **sin** logo ni `Pag
 ### Administración (`AdminAgendaPage`)
 
 - Bearer `ADMIN_SECRET` → calendario día (`AdminSalonDayCalendar`), columnas por profesional.
-- **Barra:** `AdminAgendaControlBar` — fecha, profesional activo, + Cita, selección, Salir.
+- **Barra:** `AdminAgendaControlBar` — fecha, profesional activo, + Cita, **Clientes**, selección, Salir.
 - Bloqueos con alcance: `BlockScopeModal`, `UnblockScopeModal` (`server/staffBlocks.ts`).
 - Cita: `StaffAppointmentFormModal`.
 - `GET /api/schedule/day?date=` → `listStaffDaySchedules` (citas con `occupiedSlots` para coloración partida).
@@ -100,7 +115,7 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/service-categories` | Con precios |
 | GET | `/api/staff?serviceId=` | Profesionales del servicio |
 | GET | `/api/slots?date=&serviceId=&staffId=` | Respeta tramos de coloración |
-| POST | `/api/appointments` | Crear cita |
+| POST | `/api/appointments` | Crear cita; `customerName` o `customerFirstName` + `customerLastName` + `customerPhone` |
 
 ### Admin (`Authorization: Bearer ADMIN_SECRET`)
 
@@ -129,20 +144,35 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 
 | Archivo | Rol |
 |---------|-----|
-| `server/appointments.ts` | Slots, citas; usa `bookingOccupancy` |
+| `server/appointments.ts` | Slots, citas; `upsertCustomer` al crear/editar |
+| `server/customers.ts` | `listCustomers`, `getCustomer`, `listCustomerAppointments`, `upsertCustomer` |
 | `server/staffSchedule.ts` | Día por profesional, `occupiedSlots` |
 | `server/staffBlocks.ts` | Series de bloqueos |
 | `src/lib/bookingOccupancy.ts` | Tramos coloración, solapes, formato horario |
 | `src/lib/timeGrid.ts` | Grilla staff (segmentos ocupados) |
-| `src/lib/servicePicker.ts` | Labels especialidad/tratamiento |
+| `src/lib/servicePicker.ts` | Labels especialidad/tratamiento; `getAllServiceCategories()` para reserva pública |
 | `src/components/shared/ServiceCategoryPicker.tsx` | Staff/admin — estado local de categoría |
+| `src/components/shared/ServiceCategoryPickerPublic.tsx` | Reserva pública — 12 categorías, grid 2×/4 col, tratamientos 3 col en desktop |
+| `src/hooks/useAdminSession.ts` | Token admin en `sessionStorage` para `/clientes` |
 | `src/hooks/useAdminAgenda.ts` | Lógica agenda admin |
+| `src/hooks/useAppointmentForm.ts` | Reserva pública; `servicesError` + Reintentar si API cae |
 
 **Importante:** código importado desde `server/` debe usar rutas relativas en utilidades compartidas (sin alias `@/`), p. ej. `../src/lib/dates.ts`.
 
 ## Selector especialidad / tratamiento
 
-Al cambiar especialidad se limpia el tratamiento pero la categoría elegida se guarda en estado local (`pickedCategoryId`). Sin esto el `<select>` volvía a la primera categoría.
+Al cambiar especialidad se limpia el tratamiento pero la categoría elegida se guarda en estado local (`pickedCategoryId`). Sin esto el picker volvía a la primera categoría.
+
+**Reserva pública (`ServiceCategoryPickerPublic`):**
+
+- Muestra las **12 categorías** del catálogo (`getAllServiceCategories`), aunque no tengan servicios online.
+- Categoría sin servicios reservables: subtítulo «Solo teléfono / WhatsApp» (`bookableOnline: false`, p. ej. mechas).
+- Contador bajo el nombre: «N tratamiento(s)» (sin la palabra «online»).
+- Móvil: tipografía pequeña en contador (`text-[10px]`, `whitespace-nowrap`) para evitar saltos de línea.
+- Tarjetas categoría/tratamiento: `cursor-pointer`, `hover:border-gold/40`; títulos de tratamiento compactos (`text-sm` / `text-xs` en `md`).
+- Si `GET /api/services` falla (p. ej. Vite sin API en `:3001`): mensaje + botón Reintentar (`useAppointmentForm`).
+
+**Formularios de cita (staff/admin):** nombre + apellidos (`StaffAppointmentFormFields`); servidor acepta también `customerName` legacy en reserva pública.
 
 ## Desarrollo local
 
@@ -168,6 +198,8 @@ Ver [deploy-coolify.md](deploy-coolify.md).
 | No se puede cambiar especialidad | Bug de estado — ver `pickedCategoryId` en pickers |
 | Color sin hueco de 90 min | Segundo tramo ocupado; pausa central puede tener otra cita |
 | Profesional no entra | Nombre exacto; hash en `salonStaff.ts` |
+| `/clientes` redirige a agenda | Falta login admin o token inválido en `sessionStorage` |
+| `/reservar` sin tratamientos | API no arrancada en dev; usar `npm run dev` (no solo Vite) |
 
 ## Convenciones
 

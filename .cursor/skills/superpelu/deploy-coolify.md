@@ -39,7 +39,12 @@ curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer clave-incorrect
 # Debe ser 200
 curl -s -H "Authorization: Bearer TU_CLAVE" \
   "$BASE/api/appointments?from=2026-01-01&to=2026-01-01"
+
+# Clientes (admin)
+curl -s -H "Authorization: Bearer TU_CLAVE" "$BASE/api/customers"
 ```
+
+Rutas web admin con el mismo secreto: `/agenda`, `/clientes`, `/clientes/:phone` (historial; el teléfono va URL-encoded).
 
 Si la clave correcta da 401 pero `superpelu-dev-admin` da 200, la variable no está aplicada en el contenedor.
 
