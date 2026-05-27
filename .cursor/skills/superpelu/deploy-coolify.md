@@ -69,11 +69,19 @@ postgresql://postgres.abcdefghijklmnop:TU_PASSWORD@aws-1-eu-central-1.pooler.sup
 
 **Arranca bien pero `/api/services` falla con `user "postgres"`:** suele ser Transaction (6543) + pool de conexiones. Cambia a Session (5432) en la URI o redeploy con el código actual (`max: 1`, `prepare: false` en pooler).
 
-Alternativa en Coolify (tres variables en lugar de URI):
+**Recomendado en Coolify** (evita pegar la URI y romper la contraseña con `+`, `@`, etc.):
 
-- `SUPABASE_PROJECT_REF` = id del proyecto (subdominio de `https://XXXX.supabase.co`)
-- `SUPABASE_DB_PASSWORD` = contraseña de la BD
-- Opcional: `SUPABASE_REGION=eu-central-1`
+1. **Borra** `DATABASE_URL` de Coolify (si existe).
+2. Añade solo:
+   - `SUPABASE_PROJECT_REF` = id del proyecto (ej. `zskaxmjxskfznetfjcwz`, de `https://XXXX.supabase.co`)
+   - `SUPABASE_DB_PASSWORD` = contraseña **en texto plano** (la de *Reset database password*, sin URI)
+   - `SUPABASE_DB_PORT` = `5432`
+   - `NODE_ENV` = `production`
+3. Save → Redeploy.
+
+El servidor monta la URI con `encodeURIComponent` en la contraseña. En logs debe salir `origen SUPABASE_*`.
+
+Si usas `DATABASE_URL`, tiene **menor prioridad** que `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD`.
 
 Migrar desde SQLite de producción antigua:
 

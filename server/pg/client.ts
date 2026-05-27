@@ -11,36 +11,60 @@ if (process.env.NODE_ENV !== 'production') {
   }
 }
 
-function resolveDatabaseUrl(): string {
-  let direct = process.env.DATABASE_URL?.trim()
-  if (direct) {
-    if (
-      (direct.startsWith('"') && direct.endsWith('"')) ||
-      (direct.startsWith("'") && direct.endsWith("'"))
-    ) {
-      direct = direct.slice(1, -1)
-    }
-    return direct
-  }
-
+function buildUrlFromSupabaseEnv(): string | null {
   const ref = process.env.SUPABASE_PROJECT_REF?.trim()
   const password = process.env.SUPABASE_DB_PASSWORD?.trim()
-  if (ref && password) {
-    const pooler = process.env.SUPABASE_POOLER ?? 'aws-1'
-    const region = process.env.SUPABASE_REGION ?? 'eu-central-1'
-    const host =
-      process.env.SUPABASE_DB_HOST?.trim() ?? `${pooler}-${region}.pooler.supabase.com`
-    const port = process.env.SUPABASE_DB_PORT ?? '5432'
-    const user = process.env.SUPABASE_DB_USER ?? `postgres.${ref}`
-    return `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/postgres`
-  }
+  if (!ref || !password) return null
 
-  throw new Error(
-    'Falta DATABASE_URL o bien SUPABASE_PROJECT_REF + SUPABASE_DB_PASSWORD en .env',
-  )
+  const pooler = process.env.SUPABASE_POOLER ?? 'aws-1'
+  const region = process.env.SUPABASE_REGION ?? 'eu-central-1'
+  const host =
+    process.env.SUPABASE_DB_HOST?.trim() ?? `${pooler}-${region}.pooler.supabase.com`
+  const port = process.env.SUPABASE_DB_PORT ?? '5432'
+  const user = process.env.SUPABASE_DB_USER ?? `postgres.${ref}`
+  return `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/postgres`
 }
 
-const connectionString = resolveDatabaseUrl()
+/** Reconstruye la URI para que la contraseña quede bien escapada (+, @, /, etc.). */
+function normalizeDatabaseUrl(raw: string): string {
+  const u = new URL(raw.replace(/^postgresql:/, 'http:'))
+  const username = decodeURIComponent(u.username)
+  const password = decodeURIComponent(u.password)
+  const hostname = u.hostname
+  let port = u.port || '5432'
+  if (hostname.includes('pooler.') && port === '6543') {
+    port = '5432'
+    console.log(
+      'Superpelu: pooler en Session (5432); en Coolify usa Session o SUPABASE_DB_PORT=5432',
+    )
+  }
+  const database = u.pathname.replace(/^\//, '') || 'postgres'
+  return `postgresql://${encodeURIComponent(username)}:${encodeURIComponent(password)}@${hostname}:${port}/${database}`
+}
+
+let credentialSource: 'SUPABASE_*' | 'DATABASE_URL' = 'DATABASE_URL'
+
+const connectionString = (() => {
+  const fromSupabaseEnv = buildUrlFromSupabaseEnv()
+  if (fromSupabaseEnv) {
+    credentialSource = 'SUPABASE_*'
+    return fromSupabaseEnv
+  }
+  let direct = process.env.DATABASE_URL?.trim()
+  if (!direct) {
+    throw new Error(
+      'Falta SUPABASE_PROJECT_REF + SUPABASE_DB_PASSWORD o DATABASE_URL en variables de entorno',
+    )
+  }
+  if (
+    (direct.startsWith('"') && direct.endsWith('"')) ||
+    (direct.startsWith("'") && direct.endsWith("'"))
+  ) {
+    direct = direct.slice(1, -1)
+  }
+  credentialSource = 'DATABASE_URL'
+  return normalizeDatabaseUrl(direct)
+})()
 
 /** Errores habituales en Coolify antes de abrir conexión. */
 function validateSupabaseUrl(url: string): void {
@@ -78,10 +102,11 @@ function isPoolerConnection(url: string): boolean {
 function logDatabaseTarget(url: string): void {
   try {
     const u = new URL(url.replace(/^postgresql:/, 'http:'))
+    const pwdLen = u.password ? decodeURIComponent(u.password).length : 0
     console.log(
       `Superpelu: PostgreSQL ${u.hostname}:${u.port || '5432'} (${u.username})${
         isPoolerConnection(url) ? ' [pooler]' : ''
-      }`,
+      } — origen ${credentialSource}, contraseña ${pwdLen} caracteres`,
     )
   } catch {
     // ignorar URL mal formada

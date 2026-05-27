@@ -11,9 +11,6 @@ try {
 }
 
 function resolveDatabaseUrl() {
-  const direct = process.env.DATABASE_URL?.trim()
-  if (direct) return direct
-
   const ref = process.env.SUPABASE_PROJECT_REF?.trim()
   const password = process.env.SUPABASE_DB_PASSWORD?.trim()
   if (ref && password) {
@@ -24,6 +21,10 @@ function resolveDatabaseUrl() {
     const user = process.env.SUPABASE_DB_USER ?? `postgres.${ref}`
     return `postgresql://${user}:${encodeURIComponent(password)}@${host}:${port}/postgres`
   }
+
+  const direct = process.env.DATABASE_URL?.trim()
+  if (direct) return direct
+
   return null
 }
 
