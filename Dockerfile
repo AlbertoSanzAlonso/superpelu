@@ -1,9 +1,9 @@
 # Superpelu — imagen para VPS
 FROM node:22-bookworm-slim
 
-# Coolify healthcheck usa curl o wget dentro del contenedor
+# Coolify comprueba GET /api/health con wget; HEALTHCHECK interno usa curl
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends curl \
+  && apt-get install -y --no-install-recommends curl wget \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

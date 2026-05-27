@@ -11,7 +11,7 @@
 
 - Ruta: `GET /api/health` → `{"ok":true}`
 - Puerto **3001**
-- La imagen Dockerfile incluye **curl** (Coolify lo usa para comprobar el contenedor; `node:slim` no lo trae por defecto)
+- La imagen Dockerfile incluye **wget** (Coolify lo usa en el healthcheck) y **curl** (HEALTHCHECK del Dockerfile); `node:slim` no los trae por defecto
 - **Start period:** 60–90 s (arranque + Postgres + seed)
 
 ## Container Labels (Caddy)
