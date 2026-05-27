@@ -21,7 +21,7 @@ export function Studio() {
       <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="relative aspect-[4/5] overflow-hidden">
           <img
-            src="/images/brand-identity.jpeg"
+            src="/images/superpelu-salon.webp"
             alt="Superpelu Hair Studio — peluquería en Benalmádena"
             className="h-full w-full object-cover transition-transform duration-700 hover:scale-105"
           />
