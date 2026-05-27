@@ -5,24 +5,12 @@ import {
   isSalonOpenDay,
 } from '../src/lib/dates.ts'
 import { isStaffWorkingOnDate } from './availability.js'
-import { db } from './db.js'
+import { sql, type StaffBlockRow } from './db.js'
 
 export type BlockScope = 'single' | 'range' | 'weekly'
 
 /** Semanas hacia delante para bloqueos «permanentes» (mismo día cada semana). */
 const WEEKS_PERMANENT = 104
-
-export type StaffBlockRow = {
-  id: string
-  staff_id: string
-  block_date: string
-  start_time: string
-  end_time: string
-  note: string | null
-  series_id: string | null
-  scope: string | null
-  created_at: string
-}
 
 export type BlockSeriesMeta = {
   blockId: string
@@ -49,37 +37,36 @@ export function overlapsTimeRange(
   return startA < endB && startB < endA
 }
 
-export function getBlocksForStaffOnDate(date: string, staffId: string): StaffBlockRow[] {
-  return db
-    .prepare(
-      `SELECT * FROM staff_time_blocks
-       WHERE block_date = ? AND staff_id = ?
-       ORDER BY start_time ASC`,
-    )
-    .all(date, staffId) as StaffBlockRow[]
+export async function getBlocksForStaffOnDate(
+  date: string,
+  staffId: string,
+): Promise<StaffBlockRow[]> {
+  return sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks
+    WHERE block_date = ${date} AND staff_id = ${staffId}
+    ORDER BY start_time ASC
+  `
 }
 
-export function getBlocksForStaffBetween(
+export async function getBlocksForStaffBetween(
   staffId: string,
   from: string,
   to: string,
-): StaffBlockRow[] {
-  return db
-    .prepare(
-      `SELECT * FROM staff_time_blocks
-       WHERE staff_id = ? AND block_date >= ? AND block_date <= ?
-       ORDER BY block_date ASC, start_time ASC`,
-    )
-    .all(staffId, from, to) as StaffBlockRow[]
+): Promise<StaffBlockRow[]> {
+  return sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks
+    WHERE staff_id = ${staffId} AND block_date >= ${from} AND block_date <= ${to}
+    ORDER BY block_date ASC, start_time ASC
+  `
 }
 
-export function isRangeBlockedByStaff(
+export async function isRangeBlockedByStaff(
   staffId: string,
   date: string,
   startMinutes: number,
   endMinutes: number,
-): boolean {
-  const blocks = getBlocksForStaffOnDate(date, staffId)
+): Promise<boolean> {
+  const blocks = await getBlocksForStaffOnDate(date, staffId)
   return blocks.some((block) => {
     const bStart = timeToMinutes(block.start_time)
     const bEnd = timeToMinutes(block.end_time)
@@ -87,14 +74,14 @@ export function isRangeBlockedByStaff(
   })
 }
 
-function collectDatesForScope(
+async function collectDatesForScope(
   staffId: string,
   anchorDate: string,
   scope: BlockScope,
   endDate?: string,
-): string[] {
+): Promise<string[]> {
   if (scope === 'single') {
-    return isStaffWorkingOnDate(staffId, anchorDate) ? [anchorDate] : []
+    return (await isStaffWorkingOnDate(staffId, anchorDate)) ? [anchorDate] : []
   }
 
   if (scope === 'weekly') {
@@ -105,7 +92,7 @@ function collectDatesForScope(
       if (
         dayOfWeekFromDateString(cursor) === targetDow &&
         isSalonOpenDay(cursor) &&
-        isStaffWorkingOnDate(staffId, cursor)
+        (await isStaffWorkingOnDate(staffId, cursor))
       ) {
         dates.push(cursor)
       }
@@ -121,7 +108,7 @@ function collectDatesForScope(
   const dates: string[] = []
   let cursor = anchorDate
   while (cursor <= endDate) {
-    if (isSalonOpenDay(cursor) && isStaffWorkingOnDate(staffId, cursor)) {
+    if (isSalonOpenDay(cursor) && (await isStaffWorkingOnDate(staffId, cursor))) {
       dates.push(cursor)
     }
     cursor = addDaysToDateString(cursor, 1)
@@ -129,14 +116,14 @@ function collectDatesForScope(
   return dates
 }
 
-function assertNoOverlapOnDates(
+async function assertNoOverlapOnDates(
   staffId: string,
   dates: string[],
   start: number,
   end: number,
-): void {
+): Promise<void> {
   for (const date of dates) {
-    const existing = getBlocksForStaffOnDate(date, staffId)
+    const existing = await getBlocksForStaffOnDate(date, staffId)
     if (
       existing.some((b) =>
         overlapsTimeRange(start, end, timeToMinutes(b.start_time), timeToMinutes(b.end_time)),
@@ -157,9 +144,9 @@ export type CreateBlockInput = {
   endDate?: string
 }
 
-export function createStaffBlock(input: CreateBlockInput): StaffBlockRow {
+export async function createStaffBlock(input: CreateBlockInput): Promise<StaffBlockRow> {
   const scope = input.scope ?? 'single'
-  const dates = collectDatesForScope(input.staffId, input.date, scope, input.endDate)
+  const dates = await collectDatesForScope(input.staffId, input.date, scope, input.endDate)
   if (dates.length === 0) {
     throw new Error('FECHA_INVALIDA')
   }
@@ -170,49 +157,43 @@ export function createStaffBlock(input: CreateBlockInput): StaffBlockRow {
     throw new Error('RANGO_INVALIDO')
   }
 
-  assertNoOverlapOnDates(input.staffId, dates, start, end)
+  await assertNoOverlapOnDates(input.staffId, dates, start, end)
 
   const seriesId = scope === 'single' ? null : randomUUID()
   const createdAt = new Date().toISOString()
   const note = input.note?.trim() || null
 
-  const insert = db.prepare(
-    `INSERT INTO staff_time_blocks (
-       id, staff_id, block_date, start_time, end_time, note, series_id, scope, created_at
-     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  )
+  let firstId = ''
 
-  const insertMany = db.transaction((dayList: string[]) => {
-    let firstId = ''
-    for (const day of dayList) {
+  await sql.begin(async (tx) => {
+    for (const day of dates) {
       const id = randomUUID()
       if (!firstId) firstId = id
-      insert.run(
-        id,
-        input.staffId,
-        day,
-        input.startTime,
-        input.endTime,
-        note,
-        seriesId,
-        scope,
-        createdAt,
-      )
+      await tx`
+        INSERT INTO staff_time_blocks (
+          id, staff_id, block_date, start_time, end_time, note, series_id, scope, created_at
+        ) VALUES (
+          ${id}, ${input.staffId}, ${day}, ${input.startTime}, ${input.endTime},
+          ${note}, ${seriesId}, ${scope}, ${createdAt}
+        )
+      `
     }
-    return firstId
   })
 
-  const firstId = insertMany(dates)
-  return db.prepare('SELECT * FROM staff_time_blocks WHERE id = ?').get(firstId) as StaffBlockRow
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${firstId}
+  `
+  return rows[0]!
 }
 
-export function getBlockSeriesMeta(
+export async function getBlockSeriesMeta(
   blockId: string,
   staffId?: string,
-): BlockSeriesMeta | null {
-  const row = db.prepare('SELECT * FROM staff_time_blocks WHERE id = ?').get(blockId) as
-    | StaffBlockRow
-    | undefined
+): Promise<BlockSeriesMeta | null> {
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  const row = rows[0]
   if (!row) return null
   if (staffId != null && row.staff_id !== staffId) return null
 
@@ -229,13 +210,11 @@ export function getBlockSeriesMeta(
     }
   }
 
-  const siblings = db
-    .prepare(
-      `SELECT block_date FROM staff_time_blocks
-       WHERE series_id = ?
-       ORDER BY block_date ASC`,
-    )
-    .all(row.series_id) as { block_date: string }[]
+  const siblings = await sql<{ block_date: string }[]>`
+    SELECT block_date FROM staff_time_blocks
+    WHERE series_id = ${row.series_id}
+    ORDER BY block_date ASC
+  `
 
   const scope = (row.scope as BlockScope) ?? 'single'
 
@@ -253,38 +232,49 @@ export function getBlockSeriesMeta(
 
 export type DeleteBlockMode = 'single' | 'series'
 
-export function deleteStaffBlock(blockId: string, staffId: string, mode: DeleteBlockMode = 'single'): boolean {
-  const row = db
-    .prepare('SELECT * FROM staff_time_blocks WHERE id = ? AND staff_id = ?')
-    .get(blockId, staffId) as StaffBlockRow | undefined
+export async function deleteStaffBlock(
+  blockId: string,
+  staffId: string,
+  mode: DeleteBlockMode = 'single',
+): Promise<boolean> {
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId} AND staff_id = ${staffId}
+  `
+  const row = rows[0]
   if (!row) return false
 
   if (mode === 'series' && row.series_id) {
-    const result = db
-      .prepare('DELETE FROM staff_time_blocks WHERE series_id = ? AND staff_id = ?')
-      .run(row.series_id, staffId)
-    return result.changes > 0
+    const result = await sql`
+      DELETE FROM staff_time_blocks WHERE series_id = ${row.series_id} AND staff_id = ${staffId}
+    `
+    return result.count > 0
   }
 
-  const result = db
-    .prepare('DELETE FROM staff_time_blocks WHERE id = ? AND staff_id = ?')
-    .run(blockId, staffId)
-  return result.changes > 0
+  const result = await sql`
+    DELETE FROM staff_time_blocks WHERE id = ${blockId} AND staff_id = ${staffId}
+  `
+  return result.count > 0
 }
 
-export function deleteStaffBlockById(blockId: string, mode: DeleteBlockMode = 'single'): boolean {
-  const row = db.prepare('SELECT * FROM staff_time_blocks WHERE id = ?').get(blockId) as
-    | StaffBlockRow
-    | undefined
+export async function deleteStaffBlockById(
+  blockId: string,
+  mode: DeleteBlockMode = 'single',
+): Promise<boolean> {
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  const row = rows[0]
   if (!row) return false
 
   if (mode === 'series' && row.series_id) {
-    const result = db.prepare('DELETE FROM staff_time_blocks WHERE series_id = ?').run(row.series_id)
-    return result.changes > 0
+    const result = await sql`
+      DELETE FROM staff_time_blocks WHERE series_id = ${row.series_id}
+    `
+    return result.count > 0
   }
 
-  const result = db.prepare('DELETE FROM staff_time_blocks WHERE id = ?').run(blockId)
-  return result.changes > 0
+  const result = await sql`DELETE FROM staff_time_blocks WHERE id = ${blockId}`
+  return result.count > 0
 }
 
 export function rowBlockToPublic(row: StaffBlockRow) {

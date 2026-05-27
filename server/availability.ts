@@ -1,4 +1,4 @@
-import { db } from './db.js'
+import { sql } from './db.js'
 import { schedule } from './config.js'
 import { dayOfWeekFromDateString, isSalonOpenDay } from '../src/lib/dates.ts'
 
@@ -15,22 +15,24 @@ function timeToMinutes(time: string): number {
 }
 
 /** Franja laboral del profesional para un día concreto (plantilla semanal). */
-export function getStaffDayWindow(staffId: string, date: string): StaffDayWindow | null {
+export async function getStaffDayWindow(
+  staffId: string,
+  date: string,
+): Promise<StaffDayWindow | null> {
   if (!isSalonOpenDay(date)) return null
 
   const dayOfWeek = dayOfWeekFromDateString(date)
-  const row = db
-    .prepare(
-      `SELECT start_time, end_time FROM staff_availability
-       WHERE staff_id = ? AND day_of_week = ?`,
-    )
-    .get(staffId, dayOfWeek) as { start_time: string; end_time: string } | undefined
+  const rows = await sql<{ start_time: string; end_time: string }[]>`
+    SELECT start_time, end_time FROM staff_availability
+    WHERE staff_id = ${staffId} AND day_of_week = ${dayOfWeek}
+  `
+  const row = rows[0]
 
   if (!row) {
-    const { count } = db
-      .prepare('SELECT COUNT(*) AS count FROM staff_availability WHERE staff_id = ?')
-      .get(staffId) as { count: number }
-    if (count === 0) {
+    const [{ count }] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM staff_availability WHERE staff_id = ${staffId}
+    `
+    if (Number(count) === 0) {
       return {
         startMinutes: timeToMinutes(schedule.openTime),
         endMinutes: timeToMinutes(schedule.closeTime),
@@ -53,6 +55,6 @@ export function getStaffDayWindow(staffId: string, date: string): StaffDayWindow
   }
 }
 
-export function isStaffWorkingOnDate(staffId: string, date: string): boolean {
-  return getStaffDayWindow(staffId, date) !== null
+export async function isStaffWorkingOnDate(staffId: string, date: string): Promise<boolean> {
+  return (await getStaffDayWindow(staffId, date)) !== null
 }

@@ -19,6 +19,7 @@ import {
   type DeleteBlockMode,
 } from './staffBlocks.js'
 import { loginStaff, logoutStaff, resolveStaffSession } from './staffAuth.js'
+import type { StaffRow } from './db.js'
 
 const me = new Hono()
 
@@ -27,10 +28,10 @@ function getBearer(c: { req: { header: (name: string) => string | undefined } })
   return auth?.startsWith('Bearer ') ? auth.slice(7).trim() : undefined
 }
 
-function requireStaff(c: Parameters<Parameters<typeof me.get>[1]>[0]) {
-  const staff = resolveStaffSession(getBearer(c))
+async function requireStaff(c: Parameters<Parameters<typeof me.get>[1]>[0]) {
+  const staff = await resolveStaffSession(getBearer(c))
   if (!staff) {
-    return { error: c.json({ error: 'No autorizado' }, 401) as Response, staff: null }
+    return { error: c.json({ error: 'No autorizado' }, 401) as Response, staff: null as StaffRow | null }
   }
   return { error: null, staff }
 }
@@ -47,7 +48,6 @@ const errorMessages: Record<string, string> = {
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',
-  FECHA_INVALIDA: 'Fecha no disponible',
 }
 
 me.post('/auth/staff/login', async (c) => {
@@ -56,7 +56,7 @@ me.post('/auth/staff/login', async (c) => {
     return c.json({ error: 'Introduce nombre y contraseña' }, 400)
   }
   try {
-    const result = loginStaff(body.name, body.password)
+    const result = await loginStaff(body.name, body.password)
     return c.json(result)
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -64,59 +64,59 @@ me.post('/auth/staff/login', async (c) => {
   }
 })
 
-me.post('/auth/staff/logout', (c) => {
+me.post('/auth/staff/logout', async (c) => {
   const token = getBearer(c)
-  if (token) logoutStaff(token)
+  if (token) await logoutStaff(token)
   return c.json({ ok: true })
 })
 
-me.get('/me/verify', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/verify', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   return c.json({ ok: true, staff: { id: staff!.id, name: staff!.name, role: staff!.role } })
 })
 
-me.get('/me/services', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/services', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
-  return c.json({ services: listServicesForStaff(staff!.id) })
+  return c.json({ services: await listServicesForStaff(staff!.id) })
 })
 
-me.get('/me/schedule', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/schedule', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const date = c.req.query('date')
   if (!date) return c.json({ error: 'Falta date' }, 400)
-  const schedule = getStaffDaySchedule(staff!.id, date)
+  const schedule = await getStaffDaySchedule(staff!.id, date)
   return c.json({ date, schedule })
 })
 
-me.get('/me/slots', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/slots', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const date = c.req.query('date')
   const serviceId = c.req.query('serviceId')
   const exclude = c.req.query('excludeAppointmentId')
   if (!date || !serviceId) return c.json({ error: 'Faltan date o serviceId' }, 400)
   return c.json({
-    slots: getAvailableSlots(date, serviceId, staff!.id, {
+    slots: await getAvailableSlots(date, serviceId, staff!.id, {
       forStaffPortal: true,
       excludeAppointmentId: exclude,
     }),
   })
 })
 
-me.get('/me/appointments', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/appointments', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const from = c.req.query('from') ?? new Date().toISOString().slice(0, 10)
   const to = c.req.query('to') ?? from
-  const rows = listAppointmentsForStaff(staff!.id, from, to).map(rowToPublic)
-  return c.json({ appointments: rows })
+  const rows = await listAppointmentsForStaff(staff!.id, from, to)
+  return c.json({ appointments: rows.map(rowToPublic) })
 })
 
 me.post('/me/appointments', async (c) => {
-  const { error, staff } = requireStaff(c)
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const body = await c.req.json<{
     serviceId: string
@@ -134,7 +134,7 @@ me.post('/me/appointments', async (c) => {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   try {
-    const row = createAppointment({
+    const row = await createAppointment({
       ...body,
       staffId: staff!.id,
       customerPhone: body.customerPhone ?? '',
@@ -148,7 +148,7 @@ me.post('/me/appointments', async (c) => {
 })
 
 me.patch('/me/appointments/:id', async (c) => {
-  const { error, staff } = requireStaff(c)
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const body = await c.req.json<{
     serviceId?: string
@@ -162,7 +162,7 @@ me.patch('/me/appointments/:id', async (c) => {
     notes?: string | null
   }>()
   try {
-    const row = updateAppointmentForStaff(c.req.param('id'), staff!.id, body)
+    const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)
     return c.json({ appointment: rowToPublic(row) })
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -170,33 +170,33 @@ me.patch('/me/appointments/:id', async (c) => {
   }
 })
 
-me.delete('/me/appointments/:id', (c) => {
-  const { error, staff } = requireStaff(c)
+me.delete('/me/appointments/:id', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
-  const ok = deleteAppointmentForStaff(c.req.param('id'), staff!.id)
+  const ok = await deleteAppointmentForStaff(c.req.param('id'), staff!.id)
   if (!ok) return c.json({ error: 'Cita no encontrada' }, 404)
   return c.json({ ok: true })
 })
 
-me.get('/me/blocks', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/blocks', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const from = c.req.query('from') ?? new Date().toISOString().slice(0, 10)
   const to = c.req.query('to') ?? from
-  const blocks = getBlocksForStaffBetween(staff!.id, from, to).map(rowBlockToPublic)
+  const blocks = (await getBlocksForStaffBetween(staff!.id, from, to)).map(rowBlockToPublic)
   return c.json({ blocks })
 })
 
-me.get('/me/blocks/:id/series', (c) => {
-  const { error, staff } = requireStaff(c)
+me.get('/me/blocks/:id/series', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
-  const meta = getBlockSeriesMeta(c.req.param('id'), staff!.id)
+  const meta = await getBlockSeriesMeta(c.req.param('id'), staff!.id)
   if (!meta) return c.json({ error: 'Bloqueo no encontrado' }, 404)
   return c.json({ series: meta })
 })
 
 me.post('/me/blocks', async (c) => {
-  const { error, staff } = requireStaff(c)
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const body = await c.req.json<{
     date: string
@@ -211,7 +211,7 @@ me.post('/me/blocks', async (c) => {
   }
   const scope = body.scope ?? 'single'
   try {
-    const row = createStaffBlock({
+    const row = await createStaffBlock({
       staffId: staff!.id,
       date: body.date,
       startTime: body.startTime,
@@ -220,7 +220,7 @@ me.post('/me/blocks', async (c) => {
       scope,
       endDate: body.endDate,
     })
-    const meta = getBlockSeriesMeta(row.id, staff!.id)
+    const meta = await getBlockSeriesMeta(row.id, staff!.id)
     return c.json({ block: rowBlockToPublic(row), series: meta }, 201)
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -228,11 +228,11 @@ me.post('/me/blocks', async (c) => {
   }
 })
 
-me.delete('/me/blocks/:id', (c) => {
-  const { error, staff } = requireStaff(c)
+me.delete('/me/blocks/:id', async (c) => {
+  const { error, staff } = await requireStaff(c)
   if (error) return error
   const mode = (c.req.query('mode') ?? 'single') as DeleteBlockMode
-  const ok = deleteStaffBlock(c.req.param('id'), staff!.id, mode)
+  const ok = await deleteStaffBlock(c.req.param('id'), staff!.id, mode)
   if (!ok) return c.json({ error: 'Bloqueo no encontrado' }, 404)
   return c.json({ ok: true })
 })

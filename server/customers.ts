@@ -1,4 +1,4 @@
-import { db, type CustomerRow } from './db.js'
+import { sql, type CustomerRow } from './db.js'
 import {
   formatCustomerDisplayName,
   splitCustomerName,
@@ -65,57 +65,63 @@ export function resolveCustomerFromInput(input: {
 }
 
 /** Crea o actualiza ficha de cliente (PK = teléfono normalizado). */
-export function upsertCustomer(input: CustomerInput): CustomerRow {
+export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow> {
   const { firstName, lastName, phone } = resolveCustomerFromInput(input)
   const now = new Date().toISOString()
   const email = input.email?.trim() || null
   const notes = input.notes?.trim() || null
 
-  db.prepare(
-    `INSERT INTO customers (phone, first_name, last_name, email, notes, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(phone) DO UPDATE SET
-       first_name = excluded.first_name,
-       last_name = excluded.last_name,
-       email = COALESCE(excluded.email, customers.email),
-       notes = COALESCE(excluded.notes, customers.notes),
-       updated_at = excluded.updated_at`,
-  ).run(phone, firstName, lastName || null, email, notes, now, now)
+  await sql`
+    INSERT INTO customers (phone, first_name, last_name, email, notes, created_at, updated_at)
+    VALUES (${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes}, ${now}, ${now})
+    ON CONFLICT (phone) DO UPDATE SET
+      first_name = EXCLUDED.first_name,
+      last_name = EXCLUDED.last_name,
+      email = COALESCE(EXCLUDED.email, customers.email),
+      notes = COALESCE(EXCLUDED.notes, customers.notes),
+      updated_at = EXCLUDED.updated_at
+  `
 
-  return db.prepare('SELECT * FROM customers WHERE phone = ?').get(phone) as CustomerRow
+  const rows = await sql<CustomerRow[]>`
+    SELECT * FROM customers WHERE phone = ${phone}
+  `
+  return rows[0]!
 }
 
-export function getCustomer(phone: string): CustomerRow | undefined {
+export async function getCustomer(phone: string): Promise<CustomerRow | undefined> {
   const normalized = normalizePhone(phone)
   if (!normalized) return undefined
-  return db.prepare('SELECT * FROM customers WHERE phone = ?').get(normalized) as
-    | CustomerRow
-    | undefined
+  const rows = await sql<CustomerRow[]>`
+    SELECT * FROM customers WHERE phone = ${normalized}
+  `
+  return rows[0]
 }
 
 export function customerNameSnapshot(firstName: string, lastName: string): string {
   return formatCustomerDisplayName(firstName, lastName)
 }
 
-export function listCustomers(options: { q?: string; limit?: number } = {}): PublicCustomer[] {
+export async function listCustomers(
+  options: { q?: string; limit?: number } = {},
+): Promise<PublicCustomer[]> {
   const q = options.q?.trim().toLowerCase() ?? ''
   const limit = Math.min(Math.max(options.limit ?? 200, 1), 500)
 
-  const rows = db
-    .prepare(
-      `SELECT c.*,
-        (SELECT COUNT(*) FROM appointments a
-         WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS appointment_count,
-        (SELECT MAX(a.appointment_date) FROM appointments a
-         WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS last_appointment_date
-       FROM customers c
-       ORDER BY c.updated_at DESC
-       LIMIT ?`,
-    )
-    .all(limit) as (CustomerRow & {
-    appointment_count: number
-    last_appointment_date: string | null
-  })[]
+  const rows = await sql<
+    (CustomerRow & {
+      appointment_count: number
+      last_appointment_date: string | null
+    })[]
+  >`
+    SELECT c.*,
+      (SELECT COUNT(*)::int FROM appointments a
+       WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS appointment_count,
+      (SELECT MAX(a.appointment_date) FROM appointments a
+       WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS last_appointment_date
+    FROM customers c
+    ORDER BY c.updated_at DESC
+    LIMIT ${limit}
+  `
 
   const filtered = q
     ? rows.filter((row) => {
@@ -139,15 +145,13 @@ export function listCustomers(options: { q?: string; limit?: number } = {}): Pub
   )
 }
 
-export function listCustomerAppointments(phone: string) {
+export async function listCustomerAppointments(phone: string) {
   const normalized = normalizePhone(phone)
   if (!normalized) return []
 
-  return db
-    .prepare(
-      `SELECT * FROM appointments
-       WHERE customer_phone = ?
-       ORDER BY appointment_date DESC, start_time DESC`,
-    )
-    .all(normalized)
+  return sql`
+    SELECT * FROM appointments
+    WHERE customer_phone = ${normalized}
+    ORDER BY appointment_date DESC, start_time DESC
+  `
 }

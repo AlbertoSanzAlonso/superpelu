@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { db, type StaffRow } from './db.js'
+import { sql, type StaffRow } from './db.js'
 import { verifyPassword } from './password.js'
 
 const SESSION_DAYS = 14
@@ -14,19 +14,21 @@ function normalizeStaffName(name: string): string {
   return name.trim().toLowerCase()
 }
 
-export function findStaffByLoginName(name: string): StaffRow | undefined {
+export async function findStaffByLoginName(name: string): Promise<StaffRow | undefined> {
   const normalized = normalizeStaffName(name)
-  return db
-    .prepare(
-      `SELECT * FROM staff
-       WHERE active = 1 AND lower(trim(name)) = ?
-       LIMIT 1`,
-    )
-    .get(normalized) as StaffRow | undefined
+  const rows = await sql<StaffRow[]>`
+    SELECT * FROM staff
+    WHERE active = TRUE AND lower(trim(name)) = ${normalized}
+    LIMIT 1
+  `
+  return rows[0]
 }
 
-export function loginStaff(name: string, password: string): { token: string; staff: PublicStaffSession } {
-  const row = findStaffByLoginName(name)
+export async function loginStaff(
+  name: string,
+  password: string,
+): Promise<{ token: string; staff: PublicStaffSession }> {
+  const row = await findStaffByLoginName(name)
   if (!row || !verifyPassword(password, row.password_hash)) {
     throw new Error('CREDENCIALES_INVALIDAS')
   }
@@ -35,9 +37,10 @@ export function loginStaff(name: string, password: string): { token: string; sta
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS)
 
-  db.prepare(
-    `INSERT INTO staff_sessions (token, staff_id, expires_at) VALUES (?, ?, ?)`,
-  ).run(token, row.id, expiresAt.toISOString())
+  await sql`
+    INSERT INTO staff_sessions (token, staff_id, expires_at)
+    VALUES (${token}, ${row.id}, ${expiresAt.toISOString()})
+  `
 
   return {
     token,
@@ -45,20 +48,21 @@ export function loginStaff(name: string, password: string): { token: string; sta
   }
 }
 
-export function resolveStaffSession(token: string | undefined): StaffRow | undefined {
+export async function resolveStaffSession(
+  token: string | undefined,
+): Promise<StaffRow | undefined> {
   if (!token?.trim()) return undefined
 
-  const row = db
-    .prepare(
-      `SELECT s.* FROM staff_sessions ss
-       INNER JOIN staff s ON s.id = ss.staff_id
-       WHERE ss.token = ? AND ss.expires_at > ? AND s.active = 1`,
-    )
-    .get(token.trim(), new Date().toISOString()) as StaffRow | undefined
-
-  return row
+  const rows = await sql<StaffRow[]>`
+    SELECT s.* FROM staff_sessions ss
+    INNER JOIN staff s ON s.id = ss.staff_id
+    WHERE ss.token = ${token.trim()}
+      AND ss.expires_at > ${new Date().toISOString()}
+      AND s.active = TRUE
+  `
+  return rows[0]
 }
 
-export function logoutStaff(token: string): void {
-  db.prepare('DELETE FROM staff_sessions WHERE token = ?').run(token)
+export async function logoutStaff(token: string): Promise<void> {
+  await sql`DELETE FROM staff_sessions WHERE token = ${token}`
 }

@@ -1,4 +1,4 @@
-import { db, type ServiceCategoryRow } from './db.js'
+import { sql, type ServiceCategoryRow } from './db.js'
 import { priceEurToCents, serviceCategories } from '../src/data/serviceCategories.ts'
 
 export type PublicServiceCategory = {
@@ -38,14 +38,12 @@ function rowToPublic(row: ServiceCategoryRow): PublicServiceCategory {
   }
 }
 
-export function listActiveServiceCategories(): PublicServiceCategory[] {
-  const rows = db
-    .prepare(
-      `SELECT * FROM service_categories
-       WHERE active = 1
-       ORDER BY sort_order ASC, name_es ASC`,
-    )
-    .all() as ServiceCategoryRow[]
+export async function listActiveServiceCategories(): Promise<PublicServiceCategory[]> {
+  const rows = await sql<ServiceCategoryRow[]>`
+    SELECT * FROM service_categories
+    WHERE active = TRUE
+    ORDER BY sort_order ASC, name_es ASC
+  `
 
   if (rows.length > 0) {
     return rows.map(rowToPublic)
@@ -54,11 +52,13 @@ export function listActiveServiceCategories(): PublicServiceCategory[] {
   return serviceCategories.map(seedToPublic)
 }
 
-export function getServiceCategory(id: string): PublicServiceCategory | undefined {
-  const row = db
-    .prepare('SELECT * FROM service_categories WHERE id = ? AND active = 1')
-    .get(id) as ServiceCategoryRow | undefined
-
+export async function getServiceCategory(
+  id: string,
+): Promise<PublicServiceCategory | undefined> {
+  const rows = await sql<ServiceCategoryRow[]>`
+    SELECT * FROM service_categories WHERE id = ${id} AND active = TRUE
+  `
+  const row = rows[0]
   if (row) return rowToPublic(row)
 
   const fallback = serviceCategories.find((c) => c.id === id)

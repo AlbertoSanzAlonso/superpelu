@@ -48,9 +48,15 @@ Rutas web admin con el mismo secreto: `/agenda`, `/clientes`, `/clientes/:phone`
 
 Si la clave correcta da 401 pero `superpelu-dev-admin` da 200, la variable no está aplicada en el contenedor.
 
-## Persistent storage
+## Base de datos (Supabase)
 
-Montar volumen en **`/app/data`** para que SQLite sobreviva a redeploys.
+Variable de entorno **`DATABASE_URL`** (runtime): connection string de Supabase (pooler «Transaction», puerto 6543). No hace falta volumen local para citas.
+
+Migrar desde SQLite de producción antigua:
+
+```bash
+SQLITE_PATH=./data/appointments.sqlite DATABASE_URL="postgresql://..." npm run db:migrate-sqlite
+```
 
 ## Docker local (referencia)
 

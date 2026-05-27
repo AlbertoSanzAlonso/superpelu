@@ -11,7 +11,7 @@ export function Hero() {
     >
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/hero-salon-premium.png')" }}
+        style={{ backgroundImage: "url('/images/superpelu-hero.webp')" }}
         aria-hidden
       />
       <div className="absolute inset-0 bg-gradient-to-b from-cream/85 via-cream/75 to-cream" aria-hidden />

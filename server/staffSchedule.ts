@@ -1,6 +1,6 @@
 import { getStaffDayWindow } from './availability.js'
 import { getAvailableSlots } from './appointments.js'
-import { db } from './db.js'
+import { sql } from './db.js'
 import { schedule } from './config.js'
 import { getBlocksForStaffOnDate, rowBlockToPublic } from './staffBlocks.js'
 import { getStaff, listActiveStaff } from './staff.js'
@@ -35,16 +35,14 @@ function overlaps(
 
 type OccupiedRow = AppointmentRow & { category_id: string | null }
 
-function getOccupiedOnDate(date: string, staffId: string): OccupiedRow[] {
-  return db
-    .prepare(
-      `SELECT a.*, s.category_id
-       FROM appointments a
-       LEFT JOIN services s ON s.id = a.service_id
-       WHERE a.appointment_date = ? AND a.staff_id = ? AND a.status != 'cancelled'
-       ORDER BY a.start_time ASC`,
-    )
-    .all(date, staffId) as OccupiedRow[]
+async function getOccupiedOnDate(date: string, staffId: string): Promise<OccupiedRow[]> {
+  return sql<OccupiedRow[]>`
+    SELECT a.*, s.category_id
+    FROM appointments a
+    LEFT JOIN services s ON s.id = a.service_id
+    WHERE a.appointment_date = ${date} AND a.staff_id = ${staffId} AND a.status != 'cancelled'
+    ORDER BY a.start_time ASC
+  `
 }
 
 export type DayScheduleAppointment = {
@@ -57,7 +55,6 @@ export type DayScheduleAppointment = {
   categoryId: string | null
   customerName: string
   customerPhone: string
-  /** Tramos realmente ocupados (p. ej. coloración: 2 × 30 min con pausa). */
   occupiedSlots: { startTime: string; endTime: string }[]
 }
 
@@ -75,15 +72,17 @@ export type StaffDaySchedule = {
   window: { startTime: string; endTime: string } | null
   appointments: DayScheduleAppointment[]
   blocks: DayScheduleBlock[]
-  /** Huecos de 30 min libres (sin cita ni bloqueo). */
   freeSlots: string[]
 }
 
-export function getStaffDaySchedule(staffId: string, date: string): StaffDaySchedule | null {
-  const staff = getStaff(staffId)
+export async function getStaffDaySchedule(
+  staffId: string,
+  date: string,
+): Promise<StaffDaySchedule | null> {
+  const staff = await getStaff(staffId)
   if (!staff) return null
 
-  const window = getStaffDayWindow(staffId, date)
+  const window = await getStaffDayWindow(staffId, date)
   if (!window) {
     return {
       staffId: staff.id,
@@ -96,8 +95,8 @@ export function getStaffDaySchedule(staffId: string, date: string): StaffDaySche
     }
   }
 
-  const occupied = getOccupiedOnDate(date, staffId)
-  const blockRows = getBlocksForStaffOnDate(date, staffId)
+  const occupied = await getOccupiedOnDate(date, staffId)
+  const blockRows = await getBlocksForStaffOnDate(date, staffId)
   const blocks: DayScheduleBlock[] = blockRows.map((row) => ({
     id: row.id,
     startTime: row.start_time,
@@ -166,10 +165,12 @@ export function getStaffDaySchedule(staffId: string, date: string): StaffDaySche
 
 export { rowBlockToPublic }
 
-export function listStaffDaySchedules(date: string) {
-  return listActiveStaff()
-    .map((member) => getStaffDaySchedule(member.id, date))
-    .filter((s): s is StaffDaySchedule => s !== null)
+export async function listStaffDaySchedules(date: string) {
+  const members = await listActiveStaff()
+  const schedules = await Promise.all(
+    members.map((member) => getStaffDaySchedule(member.id, date)),
+  )
+  return schedules.filter((s): s is StaffDaySchedule => s !== null)
 }
 
 export { getAvailableSlots }

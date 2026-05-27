@@ -1,7 +1,7 @@
 ---
 name: superpelu
 description: >-
-  Superpelu Hair Studio — React + Hono + SQLite. Reservas (/reservar), agenda
+  Superpelu Hair Studio — React + Hono + PostgreSQL (Supabase). Reservas (/reservar), agenda
   admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes),
@@ -14,7 +14,7 @@ description: >-
 
 - **Un proceso Node** (`npm start` → `server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
 - **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
-- **SQLite:** `DATABASE_PATH` (prod: `/app/data/appointments.sqlite` + volumen en `/app/data`).
+- **PostgreSQL (Supabase):** `DATABASE_URL` (connection string del proyecto). El servidor aplica `server/db/schema.sql` y sincroniza catálogo al arrancar.
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
 - **Horario salón:** mar–sáb 10:00–20:00, slots cada 30 min (`salonSchedule.slotMinutes`).
 
@@ -36,15 +36,17 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 **Lavar color** (`svc-wash-color`): cita normal de 20 min (verde agua en agenda).
 
-## Base de datos (SQLite)
+## Base de datos (PostgreSQL / Supabase)
 
 Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+
+Esquema: `server/db/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-sqlite` (requiere `SQLITE_PATH` y `DATABASE_URL`).
 
 **Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers.ts`.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 
-Migraciones en `server/db.ts` (`columnExists` + `ALTER`).
+Esquema versionado en `server/db/schema.sql` (aplicado al arrancar).
 
 ## Rutas web
 

@@ -5,9 +5,7 @@ services:
     env_file: .env
     environment:
       PORT: 3001
-      DATABASE_PATH: /app/data/appointments.sqlite
-    volumes:
-      - superpelu-data:/app/data
+      DATABASE_URL: ${DATABASE_URL}
     networks:
       - web
 
@@ -41,7 +39,6 @@ services:
     # Solo red interna; no exponer 2785/2886 a internet
 
 volumes:
-  superpelu-data:
   caddy-data:
   caddy-config:
   openwa-data:

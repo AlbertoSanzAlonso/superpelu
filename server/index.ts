@@ -26,6 +26,7 @@ import {
 } from './staffBlocks.js'
 import { listServicesForStaff } from './staff.js'
 import { getCustomer, listCustomerAppointments, listCustomers } from './customers.js'
+import { initDatabase } from './db.js'
 
 const app = new Hono()
 const adminSecret = (process.env.ADMIN_SECRET ?? 'superpelu-dev-admin').trim()
@@ -63,21 +64,23 @@ app.get('/api/auth/verify', (c) => {
   return c.json({ ok: true })
 })
 
-app.get('/api/services', (c) => c.json({ services: listActiveServices({ onlineOnly: true }) }))
-
-app.get('/api/service-categories', (c) =>
-  c.json({ categories: listActiveServiceCategories() }),
+app.get('/api/services', async (c) =>
+  c.json({ services: await listActiveServices({ onlineOnly: true }) }),
 )
 
-app.get('/api/staff', (c) => {
+app.get('/api/service-categories', async (c) =>
+  c.json({ categories: await listActiveServiceCategories() }),
+)
+
+app.get('/api/staff', async (c) => {
   const serviceId = c.req.query('serviceId')
   if (!serviceId) {
     return c.json({ error: 'Falta serviceId' }, 400)
   }
-  return c.json({ staff: listStaffForService(serviceId) })
+  return c.json({ staff: await listStaffForService(serviceId) })
 })
 
-app.get('/api/slots', (c) => {
+app.get('/api/slots', async (c) => {
   const date = c.req.query('date')
   const serviceId = c.req.query('serviceId')
   const staffId = c.req.query('staffId')
@@ -86,7 +89,12 @@ app.get('/api/slots', (c) => {
     return c.json({ error: 'Faltan date, serviceId o staffId' }, 400)
   }
 
-  return c.json({ date, serviceId, staffId, slots: getAvailableSlots(date, serviceId, staffId) })
+  return c.json({
+    date,
+    serviceId,
+    staffId,
+    slots: await getAvailableSlots(date, serviceId, staffId),
+  })
 })
 
 app.post('/api/appointments', async (c) => {
@@ -113,7 +121,7 @@ app.post('/api/appointments', async (c) => {
   }
 
   try {
-    const row = createAppointment({
+    const row = await createAppointment({
       serviceId: body.serviceId,
       staffId: body.staffId,
       date: body.date,
@@ -139,21 +147,22 @@ app.post('/api/appointments', async (c) => {
   }
 })
 
-app.get('/api/customers', (c) => {
+app.get('/api/customers', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const q = c.req.query('q')
   const limit = c.req.query('limit') ? Number(c.req.query('limit')) : undefined
-  return c.json({ customers: listCustomers({ q, limit }) })
+  return c.json({ customers: await listCustomers({ q, limit }) })
 })
 
-app.get('/api/customers/:phone', (c) => {
+app.get('/api/customers/:phone', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const phone = decodeURIComponent(c.req.param('phone'))
-  const customer = getCustomer(phone)
+  const customer = await getCustomer(phone)
   if (!customer) return c.json({ error: 'Cliente no encontrado' }, 404)
-  const appointments = listCustomerAppointments(phone).map(rowToPublic)
+  const appointmentRows = await listCustomerAppointments(phone)
+  const appointments = appointmentRows.map(rowToPublic)
   return c.json({
     customer: {
       phone: customer.phone,
@@ -168,7 +177,7 @@ app.get('/api/customers/:phone', (c) => {
   })
 })
 
-app.get('/api/appointments', (c) => {
+app.get('/api/appointments', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) {
     return c.json({ error: 'No autorizado' }, 401)
@@ -177,12 +186,12 @@ app.get('/api/appointments', (c) => {
   const from = c.req.query('from') ?? new Date().toISOString().slice(0, 10)
   const to = c.req.query('to') ?? from
 
-  const appointments = listAppointments(from, to).map(rowToPublic)
-  return c.json({ appointments })
+  const rows = await listAppointments(from, to)
+  return c.json({ appointments: rows.map(rowToPublic) })
 })
 
 /** Franja del personal + citas que la ocupan + huecos libres (admin). */
-app.get('/api/schedule/day', (c) => {
+app.get('/api/schedule/day', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) {
     return c.json({ error: 'No autorizado' }, 401)
@@ -193,7 +202,7 @@ app.get('/api/schedule/day', (c) => {
     return c.json({ error: 'Falta date' }, 400)
   }
 
-  return c.json({ date, schedules: listStaffDaySchedules(date) })
+  return c.json({ date, schedules: await listStaffDaySchedules(date) })
 })
 
 const adminScheduleErrors: Record<string, string> = {
@@ -211,15 +220,15 @@ const adminScheduleErrors: Record<string, string> = {
   ALCANCE_INVALIDO: 'Tipo de bloqueo no válido',
 }
 
-app.get('/api/schedule/services', (c) => {
+app.get('/api/schedule/services', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const staffId = c.req.query('staffId')
   if (!staffId) return c.json({ error: 'Falta staffId' }, 400)
-  return c.json({ services: listServicesForStaff(staffId) })
+  return c.json({ services: await listServicesForStaff(staffId) })
 })
 
-app.get('/api/schedule/slots', (c) => {
+app.get('/api/schedule/slots', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const date = c.req.query('date')
@@ -230,7 +239,7 @@ app.get('/api/schedule/slots', (c) => {
     return c.json({ error: 'Faltan date, serviceId o staffId' }, 400)
   }
   return c.json({
-    slots: getAvailableSlots(date, serviceId, staffId, {
+    slots: await getAvailableSlots(date, serviceId, staffId, {
       forStaffPortal: true,
       excludeAppointmentId: exclude,
     }),
@@ -264,7 +273,7 @@ app.post('/api/schedule/appointments', async (c) => {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   try {
-    const row = createAppointment({
+    const row = await createAppointment({
       staffId: body.staffId,
       serviceId: body.serviceId,
       date: body.date,
@@ -299,7 +308,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     notes?: string | null
   }>()
   try {
-    const row = updateAppointmentForAdmin(c.req.param('id'), body)
+    const row = await updateAppointmentForAdmin(c.req.param('id'), body)
     return c.json({ appointment: rowToPublic(row) })
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -307,10 +316,10 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
   }
 })
 
-app.get('/api/schedule/blocks/:id/series', (c) => {
+app.get('/api/schedule/blocks/:id/series', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const meta = getBlockSeriesMeta(c.req.param('id'))
+  const meta = await getBlockSeriesMeta(c.req.param('id'))
   if (!meta) return c.json({ error: 'Bloqueo no encontrado' }, 404)
   return c.json({ series: meta })
 })
@@ -338,7 +347,7 @@ app.post('/api/schedule/blocks', async (c) => {
     return c.json({ error: 'Falta endDate para el rango' }, 400)
   }
   try {
-    const row = createStaffBlock({
+    const row = await createStaffBlock({
       staffId: body.staffId,
       date: body.date,
       startTime: body.startTime,
@@ -347,7 +356,7 @@ app.post('/api/schedule/blocks', async (c) => {
       scope,
       endDate: body.endDate,
     })
-    const meta = getBlockSeriesMeta(row.id)
+    const meta = await getBlockSeriesMeta(row.id)
     return c.json({ block: rowBlockToPublic(row), series: meta }, 201)
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -355,26 +364,26 @@ app.post('/api/schedule/blocks', async (c) => {
   }
 })
 
-app.delete('/api/schedule/blocks/:id', (c) => {
+app.delete('/api/schedule/blocks/:id', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const mode = (c.req.query('mode') ?? 'single') as DeleteBlockMode
   if (mode !== 'single' && mode !== 'series') {
     return c.json({ error: 'mode debe ser single o series' }, 400)
   }
-  if (!deleteStaffBlockById(c.req.param('id'), mode)) {
+  if (!(await deleteStaffBlockById(c.req.param('id'), mode))) {
     return c.json({ error: 'Bloqueo no encontrado' }, 404)
   }
   return c.json({ ok: true })
 })
 
-app.patch('/api/appointments/:id/cancel', (c) => {
+app.patch('/api/appointments/:id/cancel', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) {
     return c.json({ error: 'No autorizado' }, 401)
   }
 
-  const row = cancelAppointment(c.req.param('id'))
+  const row = await cancelAppointment(c.req.param('id'))
   if (!row) {
     return c.json({ error: 'Cita no encontrada' }, 404)
   }
@@ -431,5 +440,13 @@ if (hasDist) {
   console.warn('Superpelu: dist/index.html no encontrado — solo API disponible')
 }
 
-console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
-serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
+async function main() {
+  await initDatabase()
+  console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
+  serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
+}
+
+main().catch((err) => {
+  console.error('Superpelu: error al iniciar', err)
+  process.exit(1)
+})

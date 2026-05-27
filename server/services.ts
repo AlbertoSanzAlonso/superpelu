@@ -1,4 +1,4 @@
-import { db, type ServiceRow } from './db.js'
+import { sql, type ServiceRow } from './db.js'
 
 export type PublicService = {
   id: string
@@ -18,28 +18,40 @@ function rowToPublic(row: ServiceRow): PublicService {
   }
 }
 
-export function listActiveServices(options?: { onlineOnly?: boolean }): PublicService[] {
+export async function listActiveServices(options?: {
+  onlineOnly?: boolean
+}): Promise<PublicService[]> {
   const onlineOnly = options?.onlineOnly ?? true
-  const rows = db
-    .prepare(
-      `SELECT * FROM services
-       WHERE active = 1${onlineOnly ? ' AND bookable_online = 1' : ''}
-       ORDER BY sort_order ASC, name ASC`,
-    )
-    .all() as ServiceRow[]
+  const rows = onlineOnly
+    ? await sql<ServiceRow[]>`
+        SELECT * FROM services
+        WHERE active = TRUE AND bookable_online = TRUE
+        ORDER BY sort_order ASC, name ASC
+      `
+    : await sql<ServiceRow[]>`
+        SELECT * FROM services
+        WHERE active = TRUE
+        ORDER BY sort_order ASC, name ASC
+      `
 
   return rows.map(rowToPublic)
 }
 
-export function getService(id: string, options?: { onlineOnly?: boolean }): PublicService | undefined {
+export async function getService(
+  id: string,
+  options?: { onlineOnly?: boolean },
+): Promise<PublicService | undefined> {
   const onlineOnly = options?.onlineOnly ?? false
-  const row = db
-    .prepare(
-      `SELECT * FROM services
-       WHERE id = ? AND active = 1${onlineOnly ? ' AND bookable_online = 1' : ''}`,
-    )
-    .get(id) as ServiceRow | undefined
+  const rows = onlineOnly
+    ? await sql<ServiceRow[]>`
+        SELECT * FROM services
+        WHERE id = ${id} AND active = TRUE AND bookable_online = TRUE
+      `
+    : await sql<ServiceRow[]>`
+        SELECT * FROM services WHERE id = ${id} AND active = TRUE
+      `
 
+  const row = rows[0]
   if (!row) return undefined
   return rowToPublic(row)
 }
