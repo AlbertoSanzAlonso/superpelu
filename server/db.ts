@@ -1,5 +1,5 @@
-export { sql, closeDatabase } from './db/client.js'
-export { initDatabase } from './db/init.js'
+export { sql, closeDatabase } from './pg/client.js'
+export { initDatabase } from './pg/init.js'
 export type {
   AppointmentRow,
   CustomerRow,
@@ -8,4 +8,4 @@ export type {
   StaffAvailabilityRow,
   StaffBlockRow,
   StaffRow,
-} from './db/types.js'
+} from './pg/types.js'
