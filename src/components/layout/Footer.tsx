@@ -18,7 +18,7 @@ export function Footer() {
   return (
     <footer className="border-t border-gold/15 bg-cream-dark section-padding py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 text-center">
-        <Logo size="sm" />
+        <Logo size="sm" variant="footer" />
         <p className={`${typography.body} max-w-md`}>{brand.address}</p>
         <p className={typography.caption}>
           <a href={brand.phoneHref} className="hover:text-gold">

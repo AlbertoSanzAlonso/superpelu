@@ -7,31 +7,29 @@ export function Hero() {
   return (
     <section
       id="inicio"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden pt-24"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20"
     >
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/hero-salon.jpeg')" }}
+        style={{ backgroundImage: "url('/images/hero-salon-premium.png')" }}
         aria-hidden
       />
       <div className="absolute inset-0 bg-gradient-to-b from-cream/85 via-cream/75 to-cream" aria-hidden />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-6 py-20 text-center md:px-10">
-        <div className="animate-fade-up mb-10 flex justify-center">
-          <Logo size="lg" />
+      <div className="relative z-10 mx-auto max-w-4xl px-6 pb-20 text-center md:px-10">
+        <h1 className="sr-only">
+          {brand.name} {brand.tagline}
+        </h1>
+
+        <div className="animate-fade-up -mt-16 -mb-14 flex justify-center md:mt-0 md:-mb-20">
+          <Logo size="lg" variant="hero" />
         </div>
+
+        <p className={`${typography.label} animate-fade-up-delay mb-6`}>{brand.location}</p>
 
         <p className={`${typography.script} animate-fade-up-delay mb-4`}>
           Tu belleza, nuestro arte
         </p>
-
-        <h1 className={`${typography.display} animate-fade-up-delay mb-4`}>
-          Superpelu
-          <br />
-          <span className="text-gradient-gold">Hair Studio</span>
-        </h1>
-
-        <p className={`${typography.label} animate-fade-up-delay mb-4`}>{brand.location}</p>
 
         <p className={`${typography.body} animate-fade-up-delay mx-auto mb-4 max-w-2xl font-medium text-charcoal`}>
           {hero.lead}

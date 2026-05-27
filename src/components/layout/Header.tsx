@@ -8,9 +8,9 @@ export function Header() {
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-gold/10 bg-cream/90 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-10">
+      <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between px-6 md:px-10">
         <a href="/#inicio" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
-          <Logo size="sm" />
+          <Logo size="sm" variant="mark" />
         </a>
 
         <nav className="hidden items-center gap-10 md:flex" aria-label="Principal">
