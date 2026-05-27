@@ -15,6 +15,7 @@
 
   --tracking-brand: 0.2em;
   --tracking-wide: 0.35em;
+  --radius-subtle: 0.125rem;
 
   --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
 }

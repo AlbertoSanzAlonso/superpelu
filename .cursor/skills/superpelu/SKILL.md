@@ -204,6 +204,9 @@ Ver [deploy-coolify.md](deploy-coolify.md).
 ## Convenciones
 
 - Cambios mínimos; UI crema/dorado/carbón (`typography`).
+- En UI: cualquier elemento interactivo tipo **botón** debe usar `cursor-pointer` (y mantener `:focus` visible con `focus:ring`/`focus:outline-none`).
+- Usar radio sutil unificado `ui-rounded` (token `--radius-subtle`) en botones y contenedores para mantener consistencia visual.
+- CTAs de reserva: hover más llamativo pero elegante (micro-elevación, sombra dorada suave, sin efectos agresivos).
 - Nuevos servicios en `salonServices.ts` + `categoryId`; coloración partida solo en los 4 IDs de `COLOR_SPLIT_SERVICE_IDS`.
 - No commitear `.env`, `data/`, `.cursor/` salvo `skills/superpelu/`.
 - Responder al usuario en **español**.

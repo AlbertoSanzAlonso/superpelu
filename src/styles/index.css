@@ -20,6 +20,48 @@
     @apply bg-gradient-to-r from-gold-light via-gold to-gold-dark bg-clip-text text-transparent;
   }
 
+  /* Radio sutil unificado para botones y contenedores UI. */
+  .ui-rounded {
+    border-radius: var(--radius-subtle);
+  }
+
+  /* Scrollbar premium (usable con `className="scrollbar-premium"`). */
+  .scrollbar-premium {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--color-gold) 55%, transparent)
+      color-mix(in oklab, var(--color-charcoal) 12%, transparent);
+  }
+
+  .scrollbar-premium::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .scrollbar-premium::-webkit-scrollbar-track {
+    background: color-mix(in oklab, var(--color-charcoal) 10%, transparent);
+    border-radius: 999px;
+  }
+
+  .scrollbar-premium::-webkit-scrollbar-thumb {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--color-gold-light) 70%, transparent),
+      color-mix(in oklab, var(--color-gold) 70%, transparent)
+    );
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .scrollbar-premium::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+      180deg,
+      color-mix(in oklab, var(--color-gold-light) 85%, transparent),
+      color-mix(in oklab, var(--color-gold-dark) 75%, transparent)
+    );
+    background-clip: padding-box;
+  }
+
   .border-gold-thin {
     @apply border border-gold/40;
   }
@@ -36,6 +78,14 @@
     animation: fadeUp 0.8s var(--ease-premium) 0.15s forwards;
     opacity: 0;
   }
+
+  .lightbox-slide-left {
+    animation: lightboxSlideLeft 220ms var(--ease-premium);
+  }
+
+  .lightbox-slide-right {
+    animation: lightboxSlideRight 220ms var(--ease-premium);
+  }
 }
 
 @keyframes fadeUp {
@@ -46,5 +96,27 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes lightboxSlideLeft {
+  from {
+    opacity: 0.65;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lightboxSlideRight {
+  from {
+    opacity: 0.65;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
