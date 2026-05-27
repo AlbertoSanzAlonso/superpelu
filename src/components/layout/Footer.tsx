@@ -1,13 +1,16 @@
+import { Link } from 'react-router-dom'
 import { brand, footerLegal, navLinks } from '@/data/content'
 import { Logo } from '@/components/ui/Logo'
 import { Divider } from '@/components/ui/Divider'
+import { SocialIcon } from '@/components/ui/SocialIcon'
 import { typography } from '@/styles/typography'
 
 const socialLinks = [
-  { href: brand.instagram, label: 'Instagram' },
-  { href: brand.facebook, label: 'Facebook' },
-  { href: brand.tiktok, label: 'TikTok' },
-] as const
+  { id: 'instagram' as const, href: brand.instagram, label: 'Instagram' },
+  { id: 'facebook' as const, href: brand.facebook, label: 'Facebook' },
+  { id: 'tiktok' as const, href: brand.tiktok, label: 'TikTok' },
+  { id: 'whatsapp' as const, href: brand.whatsapp, label: 'WhatsApp' },
+]
 
 export function Footer() {
   const year = new Date().getFullYear()
@@ -39,16 +42,18 @@ export function Footer() {
           ))}
         </nav>
 
-        <div className="flex flex-wrap justify-center gap-6">
+        <div className="flex justify-center gap-4" role="list" aria-label="Redes sociales">
           {socialLinks.map((link) => (
             <a
-              key={link.href}
+              key={link.id}
               href={link.href}
-              className={`${typography.caption} hover:text-gold`}
+              role="listitem"
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/25 text-charcoal-muted transition-colors hover:border-gold hover:text-gold"
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={link.label}
             >
-              {link.label}
+              <SocialIcon name={link.id} />
             </a>
           ))}
         </div>
@@ -57,15 +62,13 @@ export function Footer() {
 
         <div className="flex flex-wrap justify-center gap-4">
           {footerLegal.map((link) => (
-            <a
+            <Link
               key={link.href}
-              href={link.href}
+              to={link.href}
               className={`${typography.caption} hover:text-gold`}
-              target="_blank"
-              rel="noopener noreferrer"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </div>
 

@@ -3,15 +3,20 @@ import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
+const mapsSection = {
+  title: 'Cómo llegar',
+  subtitle: brand.address,
+} as const
+
 export function Studio() {
   return (
     <Section
-      id="estudio"
       eyebrow={studioSection.eyebrow}
       scriptAccent={studioSection.scriptAccent}
       title={studioSection.title}
       subtitle={studioSection.subtitle}
       dark
+      className="!pt-40 md:!pt-44"
     >
       <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
         <div className="relative aspect-[4/5] overflow-hidden">
@@ -48,6 +53,35 @@ export function Studio() {
             </Button>
           </div>
         </div>
+      </div>
+
+      <div className="mt-16 border-t border-gold/15 pt-16 md:mt-20 md:pt-20">
+        <div className="mb-8 text-center">
+          <h3 className={`${typography.h3} text-cream`}>{mapsSection.title}</h3>
+          <p className={`${typography.body} mx-auto mt-3 max-w-xl text-cream/70`}>
+            {mapsSection.subtitle}
+          </p>
+        </div>
+        <div className="relative aspect-[4/3] w-full overflow-hidden ring-1 ring-gold/20 md:aspect-[16/9]">
+          <iframe
+            src={brand.mapsEmbed}
+            title="Ubicación de Superpelu Hair Studio en Google Maps"
+            className="absolute inset-0 h-full w-full border-0"
+            loading="lazy"
+            allowFullScreen
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+        <p className="mt-6 text-center">
+          <a
+            href={brand.maps}
+            className={`${typography.label} text-gold-light transition-colors hover:text-gold`}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Abrir en Google Maps
+          </a>
+        </p>
       </div>
     </Section>
   )

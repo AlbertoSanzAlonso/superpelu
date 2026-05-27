@@ -10,20 +10,20 @@ export const brand = {
     'https://wa.me/34604808312?text=Hola%2C+quiero+reservar+una+cita+en+SuperPelu+Benalm%C3%A1dena',
   bookingOnline: '/reservar',
   maps: 'https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA',
-  instagram: 'https://www.instagram.com/superpelu.benalmadena/',
+  /** iframe: requiere /maps/embed?pb=… (la URL con cid no se puede incrustar) */
+  mapsEmbed:
+    'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3264.886635449141!2d-4.5329705!3d36.5892695!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd72fc7cabdda42b%3A0xde943290a140976e!2sSuper%20Pelu!5e0!3m2!1ses!2ses!4v1748340000000!5m2!1ses!2ses',
+  instagram: 'https://www.instagram.com/superpelu_benalmadena/',
   facebook: 'https://www.facebook.com/superpelu.benalmadena/',
   tiktok: 'https://www.tiktok.com/@superpelu.benalmadena',
   website: 'https://superpelubenalmadena.es/',
 } as const
 
 export const navLinks = [
-  { href: '/#inicio', label: 'Inicio' },
   { href: '/#servicios', label: 'Servicios' },
-  { href: '/#estudio', label: 'El salón' },
+  { href: '/salon', label: 'El salón' },
   { href: '/#galeria', label: 'Galería' },
-  { href: '/#opiniones', label: 'Opiniones' },
   { href: '/#contacto', label: 'Contacto' },
-  { href: '/reservar', label: 'Reservar' },
 ] as const
 
 export const hero = {
@@ -40,37 +40,6 @@ export const servicesSection = {
   subtitle:
     'Coloración profesional, cortes personalizados y tratamientos capilares con las últimas tendencias del sector.',
 } as const
-
-export const services = [
-  {
-    id: 'color',
-    title: 'Coloración profesional',
-    description:
-      'Especialistas en color capilar: rubios, morenos cálidos, corrección de color y resultados naturales y duraderos.',
-    icon: 'palette' as const,
-  },
-  {
-    id: 'balayage',
-    title: 'Balayage y mechas',
-    description:
-      'Técnicas actuales como balayage, mechas y degradados luminosos adaptados a tu cabello y estilo.',
-    icon: 'sun' as const,
-  },
-  {
-    id: 'corte',
-    title: 'Corte y styling',
-    description:
-      'Cortes personalizados y acabados profesionales con asesoramiento adaptado a tus necesidades.',
-    icon: 'scissors' as const,
-  },
-  {
-    id: 'tratamiento',
-    title: 'Tratamientos capilares',
-    description:
-      'Tratamientos reparadores, hidratación y cuidado del cabello con productos profesionales de alta calidad.',
-    icon: 'sparkle' as const,
-  },
-] as const
 
 export const studioSection = {
   eyebrow: 'Tu salón en Benalmádena',
@@ -158,5 +127,5 @@ export const bookingOptions = [
 ] as const
 
 export const footerLegal = [
-  { href: `${brand.website}politica-de-cookies`, label: 'Política de cookies' },
+  { href: '/politica-de-cookies', label: 'Política de cookies' },
 ] as const

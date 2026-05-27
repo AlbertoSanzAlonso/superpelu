@@ -1,5 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { HomePage } from '@/pages/HomePage'
+import { SalonPage } from '@/pages/SalonPage'
+import { CookiePolicyPage } from '@/pages/CookiePolicyPage'
 import { BookingPage } from '@/pages/BookingPage'
 import { AdminAgendaPage } from '@/pages/AdminAgendaPage'
 import { CustomerHistoryPage } from '@/pages/CustomerHistoryPage'
@@ -8,8 +11,11 @@ import { CustomersPage } from '@/pages/CustomersPage'
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/salon" element={<SalonPage />} />
+        <Route path="/politica-de-cookies" element={<CookiePolicyPage />} />
         <Route path="/reservar" element={<BookingPage />} />
         <Route path="/agenda" element={<AdminAgendaPage />} />
         <Route path="/clientes" element={<CustomersPage />} />

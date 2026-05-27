@@ -10,7 +10,7 @@ export function Testimonials() {
       scriptAccent={testimonialsSection.scriptAccent}
       title={testimonialsSection.title}
       subtitle={testimonialsSection.subtitle}
-      className="bg-cream-dark"
+      dark
     >
       <div className="grid gap-8 md:grid-cols-2">
         {testimonials.map((item) => (
