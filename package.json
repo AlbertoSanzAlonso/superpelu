@@ -11,6 +11,7 @@
     "start": "tsx server/index.ts",
     "preview": "vite preview",
     "gallery:webp": "node scripts/convert-gallery-to-webp.mjs",
+    "db:check": "node scripts/db-check.mjs",
     "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
   },
   "dependencies": {

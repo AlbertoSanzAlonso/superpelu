@@ -28,13 +28,21 @@ También puedes pegar el mismo SQL en **SQL Editor** de Supabase.
 
 ## 4. Migrar datos desde SQLite (opcional)
 
-Si ya tenías citas en `data/appointments.sqlite`:
+Si ya tenías citas en `data/appointments.sqlite` (local o copiado desde Coolify):
+
+1. En Supabase → **Database** → **Connection string** → elige **Session** (puerto `5432`).
+2. Pega la URI en `.env` como `DATABASE_URL` (sustituye `[PASSWORD]` por la contraseña real del proyecto).
+3. Ejecuta:
 
 ```bash
 SQLITE_PATH=./data/appointments.sqlite npm run db:migrate-sqlite
 ```
 
-(Requiere `DATABASE_URL` en el entorno o en `.env`.)
+El script aplica el esquema, vacía las tablas en Postgres y copia todo desde SQLite. Al final imprime un resumen por tabla.
+
+**Error `password authentication failed`:** la contraseña en `.env` no coincide con la de Supabase. Restablécela en *Project Settings → Database* y actualiza `DATABASE_URL`.
+
+**Producción antigua (Coolify con volumen SQLite):** copia `appointments.sqlite` del contenedor/volumen a tu máquina y usa la misma ruta en `SQLITE_PATH`.
 
 ## 5. Coolify
 
