@@ -26,9 +26,18 @@ import {
 } from './staffBlocks.js'
 import { listServicesForStaff } from './staff.js'
 import { getCustomer, listCustomerAppointments, listCustomers } from './customers.js'
-import { initDatabase } from './db.js'
+import { initDatabase, sql } from './db.js'
 
 const app = new Hono()
+
+app.onError((err, c) => {
+  const path = c.req.path
+  if (path.startsWith('/api/')) {
+    console.error(`Superpelu API ${path}:`, err)
+    return c.json({ error: 'Error interno del servidor' }, 500)
+  }
+  throw err
+})
 const adminSecret = (process.env.ADMIN_SECRET ?? 'superpelu-dev-admin').trim()
 const port = Number(process.env.PORT ?? 3001)
 
@@ -54,7 +63,15 @@ function requireAdmin(authorization: string | undefined): boolean {
 
 app.route('/api', me)
 
-app.get('/api/health', (c) => c.json({ ok: true }))
+app.get('/api/health', async (c) => {
+  try {
+    await sql`SELECT 1 AS ok`
+    return c.json({ ok: true, db: true })
+  } catch (err) {
+    console.error('Superpelu: healthcheck DB falló', err)
+    return c.json({ ok: false, db: false, error: 'Base de datos no disponible' }, 503)
+  }
+})
 
 app.get('/api/auth/verify', (c) => {
   const auth = c.req.header('Authorization')
@@ -448,5 +465,15 @@ async function main() {
 
 main().catch((err) => {
   console.error('Superpelu: error al iniciar', err)
+  const code = err && typeof err === 'object' && 'code' in err ? String(err.code) : ''
+  if (code === '28P01') {
+    console.error(`
+Supabase rechazó la contraseña (usuario en logs arriba).
+  1. Supabase → Project Settings → Database → Reset database password
+  2. Connect → Session → copia la URI (usuario postgres.[ref], puerto 5432)
+  3. Coolify → DATABASE_URL = esa URI, sin comillas, variable de runtime
+  4. Redeploy (no solo Restart)
+`)
+  }
   process.exit(1)
 })

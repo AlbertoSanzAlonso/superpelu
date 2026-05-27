@@ -36,10 +36,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   const contentType = res.headers.get('content-type') ?? ''
   if (!contentType.includes('application/json')) {
+    const isHtml = contentType.includes('text/html')
+    const hint =
+      res.status === 500 && import.meta.env.DEV
+        ? ' En desarrollo: ejecuta npm run dev (web + API) o arranca la API en el puerto 3001.'
+        : isHtml && res.ok
+          ? ' La ruta /api devuelve HTML: en Coolify quita la etiqueta caddy_0.try_files.'
+          : ' Abre /api/health en el navegador (debe ser JSON).'
     throw new ApiError(
       res.ok
-        ? 'El servidor devolvió una respuesta inválida (¿la API está activa?). Abre /api/health en el navegador.'
-        : `Error del servidor (${res.status}). Abre /api/health para comprobar la API.`,
+        ? `El servidor devolvió una respuesta inválida (¿la API está activa?).${hint}`
+        : `Error del servidor (${res.status}).${hint}`,
       res.status,
     )
   }

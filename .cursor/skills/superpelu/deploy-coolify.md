@@ -9,7 +9,7 @@
 
 ## Healthcheck
 
-- Ruta: `GET /api/health` → `{"ok":true}`
+- Ruta: `GET /api/health` → `{"ok":true,"db":true}` (si `db:false` o 503, revisa `DATABASE_URL`)
 - Puerto **3001**
 - La imagen Dockerfile incluye **wget** (Coolify lo usa en el healthcheck) y **curl** (HEALTHCHECK del Dockerfile); `node:slim` no los trae por defecto
 - **Start period:** 60–90 s (arranque + Postgres + seed)
@@ -57,7 +57,23 @@ Si la clave correcta da 401 pero `superpelu-dev-admin` da 200, la variable no es
 
 ## Base de datos (Supabase)
 
-Variable de entorno **`DATABASE_URL`** (runtime): connection string de Supabase (pooler «Transaction», puerto 6543). No hace falta volumen local para citas.
+Variable de entorno **`DATABASE_URL`** (runtime): connection string de Supabase. Para este servidor Node persistente, usa el pooler en modo **Session** (puerto **5432**), no Transaction (6543). No hace falta volumen local para citas.
+
+**Error `password authentication failed for user "postgres"`:** la URI en Coolify es incorrecta. En el pooler el usuario **no** es `postgres`, sino `postgres.TU_PROJECT_REF` (lo muestra Supabase al copiar «Transaction»). Contraseña = la de *Project Settings → Database*, sin comillas en Coolify.
+
+Ejemplo correcto:
+
+```text
+postgresql://postgres.abcdefghijklmnop:TU_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres
+```
+
+**Arranca bien pero `/api/services` falla con `user "postgres"`:** suele ser Transaction (6543) + pool de conexiones. Cambia a Session (5432) en la URI o redeploy con el código actual (`max: 1`, `prepare: false` en pooler).
+
+Alternativa en Coolify (tres variables en lugar de URI):
+
+- `SUPABASE_PROJECT_REF` = id del proyecto (subdominio de `https://XXXX.supabase.co`)
+- `SUPABASE_DB_PASSWORD` = contraseña de la BD
+- Opcional: `SUPABASE_REGION=eu-central-1`
 
 Migrar desde SQLite de producción antigua:
 
