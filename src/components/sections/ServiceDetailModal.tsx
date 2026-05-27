@@ -54,17 +54,25 @@ export function ServiceDetailModal({ service, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="absolute right-3 top-3 z-10 border border-gold/40 bg-cream/95 px-2.5 py-1.5 text-sm text-charcoal-muted backdrop-blur-sm transition-colors hover:border-gold hover:text-gold"
+            className="absolute right-3 top-3 z-10 cursor-pointer border border-gold/40 bg-cream/95 px-2.5 py-1.5 text-sm text-charcoal-muted backdrop-blur-sm transition-colors hover:border-gold hover:text-gold md:hidden"
             aria-label="Cerrar"
           >
             ✕
           </button>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-8 sm:py-8 md:justify-center md:overflow-visible md:px-7 md:py-5">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-6 py-6 sm:px-8 sm:py-8 md:justify-center md:overflow-visible md:px-7 md:py-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-3 top-3 z-10 hidden cursor-pointer border border-gold/40 bg-cream/95 px-2.5 py-1.5 text-sm text-charcoal-muted backdrop-blur-sm transition-colors hover:border-gold hover:text-gold md:block"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
           <h2
             id="service-detail-title"
-            className="mb-3 font-serif text-xl uppercase tracking-wide text-gold md:mb-2 md:text-lg md:leading-snug"
+            className="mb-3 font-serif text-xl uppercase tracking-wide text-gold md:mb-2 md:pr-10 md:text-lg md:leading-snug"
           >
             {service.title}
           </h2>

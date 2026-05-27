@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPickerPublic } from '@/components/shared/ServiceCategoryPickerPublic'
@@ -15,13 +14,11 @@ const bookableDates = getBookableDates(35)
 
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
-  showAgendaLink?: boolean
   onConfirmed?: (appointment: Appointment) => void
 }
 
 export function AppointmentForm({
   submitLabel = 'Confirmar cita',
-  showAgendaLink = true,
   onConfirmed,
   onSuccess,
   ...formOptions
@@ -218,15 +215,6 @@ export function AppointmentForm({
       {form.selectedStaff && form.selectedService && (
         <p className={`${typography.caption} text-center`}>
           {form.selectedStaff.name} · {form.selectedService.nameEs}
-        </p>
-      )}
-
-      {showAgendaLink && (
-        <p className={`${typography.caption} text-center`}>
-          ¿Eres del equipo?{' '}
-          <Link to="/agenda" className="text-gold hover:text-gold-dark">
-            Ver agenda interna
-          </Link>
         </p>
       )}
     </form>

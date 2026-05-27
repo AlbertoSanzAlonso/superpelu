@@ -52,13 +52,20 @@ Esquema versionado en `server/pg/schema.sql` (aplicado al arrancar).
 
 | Ruta | Uso |
 |------|-----|
-| `/` | Landing |
-| `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`) |
+| `/` | Landing — sección servicios con modal de detalle (`Services`, `ServiceDetailModal`) |
+| `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`); sin enlace a agenda interna |
 | `/agenda` | Login dual: **profesional** o **administración** |
 | `/clientes` | Listado de clientes (solo admin, mismo `ADMIN_SECRET` que agenda) |
 | `/clientes/:phone` | Historial de citas del cliente (pantalla completa; `phone` URL-encoded, p. ej. `%2B34600000000`) |
 
 **Pagos:** no implementados (sin tabla ni UI de cobros).
+
+### Landing — servicios de marketing
+
+- Datos: `src/data/marketingServices.ts` (títulos, descripciones, imágenes, iconos).
+- **`Services`:** grid de tarjetas; marca de agua SP (`BRAND_MARK_SRC`) de fondo; tarjetas `bg-cream/35` + `backdrop-blur`.
+- **`ServiceDetailModal`:** imagen + descripción + CTAs (Reservar cita, WhatsApp).
+- Botón cerrar (✕): `cursor-pointer`; en **móvil** sobre la imagen; en **desktop (`md+`)** en el panel de descripción (esquina superior derecha; título con `md:pr-10`).
 
 ### Gestión de clientes (admin)
 
@@ -158,6 +165,9 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/hooks/useAdminSession.ts` | Token admin en `sessionStorage` para `/clientes` |
 | `src/hooks/useAdminAgenda.ts` | Lógica agenda admin |
 | `src/hooks/useAppointmentForm.ts` | Reserva pública; `servicesError` + Reintentar si API cae |
+| `src/components/booking/AppointmentForm.tsx` | Formulario `/reservar` (sin enlace a `/agenda`) |
+| `src/components/sections/Services.tsx` | Grid servicios en home |
+| `src/components/sections/ServiceDetailModal.tsx` | Modal detalle servicio (home) |
 
 **Importante:** código importado desde `server/` debe usar rutas relativas en utilidades compartidas (sin alias `@/`), p. ej. `../src/lib/dates.ts`.
 
@@ -173,6 +183,7 @@ Al cambiar especialidad se limpia el tratamiento pero la categoría elegida se g
 - Móvil: tipografía pequeña en contador (`text-[10px]`, `whitespace-nowrap`) para evitar saltos de línea.
 - Tarjetas categoría/tratamiento: `cursor-pointer`, `hover:border-gold/40`; títulos de tratamiento compactos (`text-sm` / `text-xs` en `md`).
 - Si `GET /api/services` falla (p. ej. Vite sin API en `:3001`): mensaje + botón Reintentar (`useAppointmentForm`).
+- **Sin** enlace «¿Eres del equipo? Ver agenda interna» — el personal entra por `/agenda` (navbar u URL directa).
 
 **Formularios de cita (staff/admin):** nombre + apellidos (`StaffAppointmentFormFields`); servidor acepta también `customerName` legacy en reserva pública.
 

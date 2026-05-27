@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { marketingServices } from '@/data/marketingServices'
 import { servicesSection } from '@/data/content'
 import { Section } from '@/components/ui/Section'
+import { BRAND_MARK_SRC } from '@/components/ui/Logo'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
 import { ServiceDetailModal } from '@/components/sections/ServiceDetailModal'
 import { typography } from '@/styles/typography'
@@ -17,14 +18,24 @@ export function Services() {
         scriptAccent={servicesSection.scriptAccent}
         title={servicesSection.title}
         subtitle={servicesSection.subtitle}
+        className="relative overflow-hidden"
       >
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+        <img
+          src={BRAND_MARK_SRC}
+          alt=""
+          width={384}
+          height={384}
+          aria-hidden
+          decoding="async"
+          className="pointer-events-none absolute left-1/2 top-[61%] z-0 h-auto w-[min(92vw,36rem)] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.11] md:top-[66%]"
+        />
+        <div className="relative z-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {marketingServices.map((service, index) => (
             <button
               key={service.id}
               type="button"
               onClick={() => setSelected(service)}
-              className="group flex min-w-0 cursor-pointer flex-col items-center border border-gold/20 bg-cream p-8 text-center transition-all duration-500 hover:border-gold/50 hover:shadow-lg hover:shadow-gold/5"
+              className="group flex min-w-0 cursor-pointer flex-col items-center border border-gold/20 bg-cream/35 p-8 text-center backdrop-blur-[2px] transition-all duration-500 hover:border-gold/50 hover:bg-cream/50 hover:shadow-lg hover:shadow-gold/5"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="mb-6 rounded-full border border-gold/30 p-4 transition-colors group-hover:border-gold/60 group-hover:bg-gold/5">
