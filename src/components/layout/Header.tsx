@@ -1,13 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { brand, navLinks } from '@/data/content'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 
+const SCROLL_THRESHOLD = 12
+
 export function Header() {
   const [open, setOpen] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > SCROLL_THRESHOLD)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  const shellClass = scrolled
+    ? 'border-b border-gold/15 bg-white/72 shadow-sm shadow-charcoal/5 backdrop-blur-md'
+    : 'border-b border-gold/20 bg-cream-footer'
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-gold/10 bg-cream/90 backdrop-blur-md">
+    <header
+      className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-premium ${shellClass}`}
+    >
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between px-6 md:px-10">
         <a href="/#inicio" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
           <Logo size="sm" variant="mark" />
@@ -46,7 +62,9 @@ export function Header() {
 
       {open && (
         <nav
-          className="border-t border-gold/10 bg-cream px-6 py-6 md:hidden"
+          className={`border-t px-6 py-6 backdrop-blur-md md:hidden ${
+            scrolled ? 'border-gold/15 bg-white/72' : 'border-gold/20 bg-cream-footer'
+          }`}
           aria-label="Menú móvil"
         >
           <ul className="flex flex-col items-center gap-6">

@@ -16,7 +16,7 @@ export function PageShell({ title, subtitle, wide = false, children }: PageShell
 
   return (
     <div className="min-h-screen bg-cream">
-      <header className="border-b border-gold/10 bg-cream/95 backdrop-blur-md">
+      <header className="border-b border-gold/20 bg-cream-footer">
         <div className={`mx-auto flex h-[4.5rem] ${contentMax} items-center justify-between px-6 md:px-10`}>
           <Link to="/" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
             <Logo size="sm" variant="mark" />

@@ -44,6 +44,8 @@ export const sql = postgres(connectionString, {
   transform: {
     undefined: null,
   },
+  // CREATE IF NOT EXISTS → NOTICE 42P07 en cada arranque; no son errores
+  onnotice: () => {},
 })
 
 const schemaPath = path.join(import.meta.dirname, 'schema.sql')

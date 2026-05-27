@@ -7,6 +7,13 @@
 3. Logs del contenedor: `Superpelu en http://0.0.0.0:3001 (web + API)`
 4. Probar `/api/health` en ventana privada (evitar caché del navegador)
 
+## Healthcheck
+
+- Ruta: `GET /api/health` → `{"ok":true}`
+- Puerto **3001**
+- La imagen Dockerfile incluye **curl** (Coolify lo usa para comprobar el contenedor; `node:slim` no lo trae por defecto)
+- **Start period:** 60–90 s (arranque + Postgres + seed)
+
 ## Container Labels (Caddy)
 
 **Mantener:**
