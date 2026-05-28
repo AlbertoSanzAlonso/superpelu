@@ -17,7 +17,7 @@ import {
   rowToPublic,
   updateAppointmentForAdmin,
 } from './appointments.js'
-import { buildIcs, verifyCancelToken } from './appointmentLinks.js'
+import { buildIcs, decodeId, verifyCancelToken } from './appointmentLinks.js'
 import { formatDisplayDate } from '../src/lib/dates.ts'
 import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
 import {
@@ -549,10 +549,10 @@ function cancelPage(title: string, bodyHtml: string, status: 200 | 400 | 404 = 2
 }
 
 /** Página de confirmación de cancelación (enlace enviado por WhatsApp). */
-app.get('/cancelar/:id', async (c) => {
-  const id = c.req.param('id')
+app.get('/c/:code', async (c) => {
+  const id = decodeId(c.req.param('code'))
   const token = c.req.query('t')
-  if (!verifyCancelToken(id, token)) {
+  if (!id || !verifyCancelToken(id, token)) {
     return c.html(
       cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>Este enlace de cancelación no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>'),
       400,
@@ -587,7 +587,7 @@ app.get('/cancelar/:id', async (c) => {
          <p>💇 ${service}</p>
          ${staff ? `<p>👤 Con ${staff}</p>` : ''}
        </div>
-       <form method="POST" action="/cancelar/${encodeURIComponent(id)}">
+       <form method="POST" action="/c/${encodeURIComponent(c.req.param('code'))}">
          <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
          <button class="btn btn-danger" type="submit">Sí, cancelar la cita</button>
        </form>
@@ -596,11 +596,11 @@ app.get('/cancelar/:id', async (c) => {
   )
 })
 
-app.post('/cancelar/:id', async (c) => {
-  const id = c.req.param('id')
+app.post('/c/:code', async (c) => {
+  const id = decodeId(c.req.param('code'))
   const body = await c.req.parseBody()
   const token = typeof body.t === 'string' ? body.t : undefined
-  if (!verifyCancelToken(id, token)) {
+  if (!id || !verifyCancelToken(id, token)) {
     return c.html(cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cancelar.</p>'), 400)
   }
 
@@ -622,12 +622,9 @@ app.post('/cancelar/:id', async (c) => {
 })
 
 /** Archivo .ics para añadir la cita al calendario nativo del móvil. */
-app.get('/cita/:id/calendario.ics', async (c) => {
-  const id = c.req.param('id')
-  const token = c.req.query('t')
-  if (!verifyCancelToken(id, token)) {
-    return c.text('Enlace no válido', 400)
-  }
+app.get('/a/:code', async (c) => {
+  const id = decodeId(c.req.param('code'))
+  if (!id) return c.text('Enlace no válido', 400)
 
   const row = await getAppointmentById(id)
   if (!row) return c.text('Cita no encontrada', 404)

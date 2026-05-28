@@ -9,7 +9,25 @@ function cancelSecret(): string {
 
 /** Token de cancelación (HMAC del id), para enlaces enviados al cliente. */
 export function appointmentCancelToken(id: string): string {
-  return createHmac('sha256', cancelSecret()).update(`cancel:${id}`).digest('hex').slice(0, 32)
+  return createHmac('sha256', cancelSecret()).update(`cancel:${id}`).digest('hex').slice(0, 12)
+}
+
+/** UUID → código compacto (base64url, ~22 chars) para URLs cortas. */
+export function encodeId(id: string): string {
+  const hex = id.replace(/-/g, '')
+  if (hex.length !== 32) return id
+  return Buffer.from(hex, 'hex').toString('base64url')
+}
+
+/** Código compacto → UUID. Devuelve null si no es válido. */
+export function decodeId(code: string): string | null {
+  try {
+    const hex = Buffer.from(code, 'base64url').toString('hex')
+    if (hex.length !== 32) return null
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+  } catch {
+    return null
+  }
 }
 
 export function verifyCancelToken(id: string, token: string | undefined): boolean {
@@ -34,7 +52,7 @@ export function buildCancelUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
   const token = appointmentCancelToken(row.id)
-  return `${base}/cancelar/${encodeURIComponent(row.id)}?t=${token}`
+  return `${base}/c/${encodeId(row.id)}?t=${token}`
 }
 
 function pad(n: number): string {
@@ -69,8 +87,8 @@ export function buildCalendarUrl(row: AppointmentRow): string {
 export function buildIcsUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
-  const token = appointmentCancelToken(row.id)
-  return `${base}/cita/${encodeURIComponent(row.id)}/calendario.ics?t=${token}`
+  // El código (uuid v4 aleatorio) ya es secreto; no necesita token extra.
+  return `${base}/a/${encodeId(row.id)}`
 }
 
 function icsEscape(value: string): string {
