@@ -17,7 +17,7 @@ import {
   rowToPublic,
   updateAppointmentForAdmin,
 } from './appointments.js'
-import { verifyCancelToken } from './appointmentLinks.js'
+import { buildIcs, verifyCancelToken } from './appointmentLinks.js'
 import { formatDisplayDate } from '../src/lib/dates.ts'
 import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
 import {
@@ -619,6 +619,22 @@ app.post('/cancelar/:id', async (c) => {
       '<h1>✅ Cita cancelada</h1><p>Tu cita ha sido cancelada correctamente.</p><p>Si quieres, puedes reservar otra cuando quieras. ¡Gracias!</p>',
     ),
   )
+})
+
+/** Archivo .ics para añadir la cita al calendario nativo del móvil. */
+app.get('/cita/:id/calendario.ics', async (c) => {
+  const id = c.req.param('id')
+  const token = c.req.query('t')
+  if (!verifyCancelToken(id, token)) {
+    return c.text('Enlace no válido', 400)
+  }
+
+  const row = await getAppointmentById(id)
+  if (!row) return c.text('Cita no encontrada', 404)
+
+  c.header('Content-Type', 'text/calendar; charset=utf-8')
+  c.header('Content-Disposition', 'attachment; filename="cita-superpelu.ics"')
+  return c.body(buildIcs(row))
 })
 
 const distPath = path.resolve(process.cwd(), 'dist')

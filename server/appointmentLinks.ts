@@ -61,3 +61,68 @@ export function buildCalendarUrl(row: AppointmentRow): string {
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
+
+/**
+ * URL del archivo .ics: al abrirlo en el móvil se añade al calendario nativo
+ * (Apple Calendar, Google, Samsung…). Requiere URL pública; si no, null.
+ */
+export function buildIcsUrl(row: AppointmentRow): string | null {
+  const base = publicBaseUrl()
+  if (!base) return null
+  const token = appointmentCancelToken(row.id)
+  return `${base}/cita/${encodeURIComponent(row.id)}/calendario.ics?t=${token}`
+}
+
+function icsEscape(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
+}
+
+/** Genera el contenido del archivo .ics para una cita (hora Europe/Madrid). */
+export function buildIcs(row: AppointmentRow): string {
+  const [y, m, d] = row.appointment_date.split('-').map(Number)
+  const [hh, mm] = row.start_time.split(':').map(Number)
+  const startTotal = hh * 60 + mm
+  const endTotal = startTotal + row.duration_minutes
+
+  const local = (totalMin: number) =>
+    `${y}${pad(m)}${pad(d)}T${pad(Math.floor(totalMin / 60))}${pad(totalMin % 60)}00`
+
+  const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Superpelu//Reservas//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VTIMEZONE',
+    'TZID:Europe/Madrid',
+    'BEGIN:DAYLIGHT',
+    'TZOFFSETFROM:+0100',
+    'TZOFFSETTO:+0200',
+    'TZNAME:CEST',
+    'DTSTART:19700329T020000',
+    'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+    'END:DAYLIGHT',
+    'BEGIN:STANDARD',
+    'TZOFFSETFROM:+0200',
+    'TZOFFSETTO:+0100',
+    'TZNAME:CET',
+    'DTSTART:19701025T030000',
+    'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+    'END:STANDARD',
+    'END:VTIMEZONE',
+    'BEGIN:VEVENT',
+    `UID:${row.id}@superpelu`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART;TZID=Europe/Madrid:${local(startTotal)}`,
+    `DTEND;TZID=Europe/Madrid:${local(endTotal)}`,
+    `SUMMARY:${icsEscape(`Cita Superpelu — ${row.service_name}`)}`,
+    `DESCRIPTION:${icsEscape(`Cita con ${row.staff_name ?? 'Superpelu'}. Tel: 952 443 686`)}`,
+    `LOCATION:${icsEscape(SALON_ADDRESS)}`,
+    'STATUS:CONFIRMED',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ]
+  return lines.join('\r\n')
+}
