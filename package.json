@@ -12,7 +12,12 @@
     "preview": "vite preview",
     "gallery:webp": "node scripts/convert-gallery-to-webp.mjs",
     "db:check": "node scripts/db-check.mjs",
-    "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs"
+    "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
+    "openwa:up": "docker compose -f deploy/openwa-local.compose.yml up -d --build",
+    "openwa:down": "docker compose -f deploy/openwa-local.compose.yml down",
+    "openwa:logs": "docker compose -f deploy/openwa-local.compose.yml logs -f",
+    "openwa:setup": "node scripts/openwa-local.mjs",
+    "docker:install": "bash scripts/install-docker.sh"
   },
   "dependencies": {
     "@hono/node-server": "^2.0.4",

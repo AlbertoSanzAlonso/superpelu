@@ -1,0 +1,42 @@
+# OpenWA solo API (sin dashboard). Uso en Coolify:
+# 1) Editar el compose en la UI y dejar solo este servicio, o
+# 2) Mejor: Build Pack → Dockerfile (ver docs/deploy-coolify-openwa.md)
+
+services:
+  openwa:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openwa
+    restart: unless-stopped
+    expose:
+      - '2785'
+    environment:
+      NODE_ENV: production
+      PORT: 2785
+      DATABASE_TYPE: sqlite
+      DATABASE_NAME: /app/data/openwa.sqlite
+      DATABASE_SYNCHRONIZE: 'false'
+      ENGINE_TYPE: whatsapp-web.js
+      SESSION_DATA_PATH: /app/data/sessions
+      PUPPETEER_HEADLESS: 'true'
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/media
+    volumes:
+      - openwa-data:/app/data
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:2785/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+
+volumes:
+  openwa-data:

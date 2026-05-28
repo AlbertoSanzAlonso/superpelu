@@ -6,6 +6,10 @@ dist-ssr
 /data/
 .env
 
+# OpenWA (clon aparte: git clone https://github.com/rmyndharis/OpenWA.git openwa)
+/openwa/
+openwa-qr.html
+
 # Cursor local (skills del proyecto sí van al repo)
 .cursor/*
 !.cursor/skills/

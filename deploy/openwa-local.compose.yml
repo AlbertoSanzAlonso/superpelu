@@ -1,0 +1,44 @@
+# Solo API OpenWA (sin dashboard). Usado por npm run openwa:setup
+# El dashboard del upstream suele fallar en Docker (npm ci / vite 8).
+# QR: scripts/openwa-local.mjs genera openwa/data/qr.html o Swagger.
+
+services:
+  openwa:
+    build:
+      context: ../openwa
+      dockerfile: Dockerfile
+    container_name: openwa-api
+    ports:
+      - '127.0.0.1:2785:2785'
+    environment:
+      NODE_ENV: development
+      PORT: 2785
+      DATABASE_TYPE: sqlite
+      DATABASE_NAME: /app/data/openwa.sqlite
+      DATABASE_SYNCHRONIZE: 'true'
+      ENGINE_TYPE: whatsapp-web.js
+      SESSION_DATA_PATH: /app/data/sessions
+      PUPPETEER_HEADLESS: 'true'
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/media
+      QUEUE_ENABLED: 'false'
+    volumes:
+      - ../openwa/data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:2785/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  default:
+    name: openwa-network

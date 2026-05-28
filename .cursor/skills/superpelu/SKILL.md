@@ -198,6 +198,22 @@ npm run build && npm start
 
 Tras editar `salonServices.ts` o categorías: **reiniciar servidor** para `syncSalonServices`.
 
+## WhatsApp (OpenWA)
+
+Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (`server/openwa.ts`, `server/appointmentWhatsApp.ts`).
+
+| Variable | Uso |
+|----------|-----|
+| `OPENWA_ENABLED` | `true` para activar |
+| `OPENWA_API_URL` | Default `http://openwa:2785/api` (red Docker) |
+| `OPENWA_API_KEY` | Clave del dashboard OpenWA |
+| `OPENWA_SESSION_ID` | ID de sesión conectada (QR escaneado) |
+| `OPENWA_NOTIFY_PUBLIC_ONLY` | Si `true`, solo reservas `/reservar` (no agenda) |
+
+Diagnóstico admin: `GET /api/admin/whatsapp` (Bearer `ADMIN_SECRET`).
+
+Dev: `npm run openwa:up` → API `http://127.0.0.1:2785/api`, dashboard `:2886`. **Coolify:** `docs/deploy-coolify-openwa.md`. Local compose perfil: `docker compose --profile openwa`.
+
 ## Despliegue Coolify
 
 Ver [deploy-coolify.md](deploy-coolify.md).

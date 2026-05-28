@@ -7,7 +7,7 @@ export function Hero() {
   return (
     <section
       id="inicio"
-      className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20"
+      className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20 md:pt-[4.5rem]"
     >
       <div
         className="absolute inset-0 bg-cover bg-center"
@@ -16,12 +16,12 @@ export function Hero() {
       />
       <div className="absolute inset-0 bg-gradient-to-b from-cream/85 via-cream/75 to-cream" aria-hidden />
 
-      <div className="relative z-10 mx-auto max-w-4xl px-6 pb-20 text-center md:px-10">
+      <div className="relative z-10 mx-auto max-w-4xl px-6 pb-20 text-center md:px-10 md:pb-14">
         <h1 className="sr-only">
           {brand.name} {brand.tagline}
         </h1>
 
-        <div className="animate-fade-up -mt-16 -mb-14 flex justify-center md:mt-0 md:-mb-20">
+        <div className="animate-fade-up -mt-16 -mb-14 flex justify-center md:-mt-8 md:-mb-20">
           <Logo size="lg" variant="hero" />
         </div>
 

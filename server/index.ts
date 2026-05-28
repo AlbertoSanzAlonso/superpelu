@@ -27,6 +27,18 @@ import {
 import { listServicesForStaff } from './staff.js'
 import { getCustomer, listCustomerAppointments, listCustomers } from './customers.js'
 import { initDatabase, sql } from './db.js'
+import {
+  getOpenWaAdminConfig,
+  isOpenWaConfigured,
+  isOpenWaSessionConnected,
+  logOpenWaStartup,
+  openWaEnsureSession,
+  openWaGetQr,
+  openWaGetSessionById,
+  openWaGetSessionStatus,
+  openWaSessionName,
+  openWaStartSession,
+} from './openwa.js'
 
 const app = new Hono()
 
@@ -79,6 +91,101 @@ app.get('/api/auth/verify', (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
   return c.json({ ok: true })
+})
+
+/** Estado de la sesión OpenWA (solo admin). */
+app.get('/api/admin/whatsapp', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  if (!isOpenWaConfigured()) {
+    return c.json({
+      configured: false,
+      enabled: false,
+      message: 'OpenWA no configurado (OPENWA_ENABLED y credenciales)',
+    })
+  }
+
+  const session = await openWaGetSessionStatus()
+  return c.json({
+    configured: true,
+    enabled: true,
+    session: session
+      ? {
+          id: session.id,
+          status: session.status,
+          phoneNumber: session.phone ?? session.phoneNumber,
+          name: session.name,
+        }
+      : null,
+    connected: isOpenWaSessionConnected(session?.status),
+  })
+})
+
+/**
+ * Alta de WhatsApp por navegador (solo admin): crea/arranca la sesión y muestra
+ * el QR como imagen. Acepta el secret por header `Authorization: Bearer` o por
+ * query `?secret=` (para poder abrirlo directamente en el navegador).
+ */
+app.get('/api/admin/whatsapp/qr', async (c) => {
+  const auth = c.req.header('Authorization')
+  const querySecret = c.req.query('secret') ?? ''
+  const authorized = requireAdmin(auth) || (querySecret.length > 0 && querySecret === adminSecret)
+  if (!authorized) {
+    return c.html('<h1>No autorizado</h1><p>Añade ?secret=TU_ADMIN_SECRET a la URL.</p>', 401)
+  }
+
+  const admin = getOpenWaAdminConfig()
+  if (!admin) {
+    return c.html(
+      '<h1>OpenWA no configurado</h1><p>Faltan OPENWA_ENABLED, OPENWA_API_URL u OPENWA_API_KEY.</p>',
+      400,
+    )
+  }
+
+  const name = openWaSessionName()
+  const refresh = '<meta http-equiv="refresh" content="15">'
+  const style =
+    '<style>body{font-family:system-ui;text-align:center;padding:2rem;background:#111;color:#eee}' +
+    'img{max-width:340px;background:#fff;padding:12px;border-radius:8px}code{background:#222;padding:2px 6px;border-radius:4px}</style>'
+
+  try {
+    const session = await openWaEnsureSession(name)
+    const fresh = (await openWaGetSessionById(session.id)) ?? session
+
+    if (isOpenWaSessionConnected(fresh.status)) {
+      return c.html(
+        `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">${style}<title>WhatsApp Superpelu</title></head>` +
+          `<body><h1>✅ WhatsApp conectado</h1>` +
+          `<p>Sesión <code>${name}</code> · estado <code>${fresh.status}</code></p>` +
+          `<p>Session ID:<br><code>${fresh.id}</code></p>` +
+          `<p>Pon este id en <code>OPENWA_SESSION_ID</code> en Superpelu y haz Redeploy.</p></body></html>`,
+      )
+    }
+
+    await openWaStartSession(session.id)
+    const qr = await openWaGetQr(session.id)
+
+    if (!qr) {
+      return c.html(
+        `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">${refresh}${style}<title>WhatsApp Superpelu</title></head>` +
+          `<body><h1>Generando QR…</h1><p>Estado <code>${fresh.status}</code>. La página se recarga sola.</p>` +
+          `<p>Session ID: <code>${session.id}</code></p></body></html>`,
+      )
+    }
+
+    return c.html(
+      `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">${refresh}${style}<title>WhatsApp Superpelu</title></head>` +
+        `<body><h1>WhatsApp — Superpelu</h1>` +
+        `<p>Escanea con el móvil del salón: WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>` +
+        `<img src="${qr}" alt="QR">` +
+        `<p style="opacity:.6">La página se recarga sola cada 15 s</p>` +
+        `<p>Session ID:<br><code>${session.id}</code></p>` +
+        `<p>Cuando conecte, pon ese id en <code>OPENWA_SESSION_ID</code> y haz Redeploy.</p></body></html>`,
+    )
+  } catch (err) {
+    return c.html(`<h1>Error</h1><pre>${String(err)}</pre>`, 502)
+  }
 })
 
 app.get('/api/services', async (c) =>
@@ -459,6 +566,7 @@ if (hasDist) {
 
 async function main() {
   await initDatabase()
+  logOpenWaStartup()
   console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
 }

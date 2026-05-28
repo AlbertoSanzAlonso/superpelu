@@ -120,10 +120,11 @@ Caddy obtiene el certificado Let's Encrypt solo al tener el dominio apuntando al
 En la **misma VM**, carpeta aparte:
 
 ```bash
-cd /opt
+cd /opt/superpelu
 git clone https://github.com/rmyndharis/OpenWA.git openwa
 cd openwa
-docker compose up -d
+docker compose -f docker-compose.dev.yml up -d
+# Dashboard :2886 · API :2785/api (solo localhost en la VM)
 ```
 
 1. Entra al dashboard (túnel SSH si no lo expones):

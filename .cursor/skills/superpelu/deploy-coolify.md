@@ -97,6 +97,23 @@ docker compose up -d --build   # Caddy :80 → superpelu:3001
 
 En Coolify no hace falta un segundo recurso: web + API van en la misma app Dockerfile.
 
+## WhatsApp (OpenWA)
+
+OpenWA es un **recurso aparte** en Coolify (Docker Compose del repo [rmyndharis/OpenWA](https://github.com/rmyndharis/OpenWA)). Superpelu se conecta por red interna.
+
+Guía paso a paso: **[docs/deploy-coolify-openwa.md](../../../docs/deploy-coolify-openwa.md)**
+
+Variables en la app **Superpelu** (runtime):
+
+```env
+OPENWA_ENABLED=true
+OPENWA_API_URL=http://openwa:2785/api
+OPENWA_API_KEY=...
+OPENWA_SESSION_ID=sess_...
+```
+
+Requiere **Connect To Predefined Network** (misma red que el stack OpenWA) y volumen `/app/data` en OpenWA. La API **no** debe tener dominio público.
+
 ## Credenciales
 
 - **Admin:** solo `ADMIN_SECRET` en variables de entorno del contenedor (no en el repo).

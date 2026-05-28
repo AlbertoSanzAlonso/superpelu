@@ -6,6 +6,11 @@ services:
     environment:
       PORT: 3001
       DATABASE_URL: ${DATABASE_URL}
+      OPENWA_ENABLED: ${OPENWA_ENABLED:-false}
+      OPENWA_API_URL: ${OPENWA_API_URL:-http://openwa:2785/api}
+      OPENWA_API_KEY: ${OPENWA_API_KEY:-}
+      OPENWA_SESSION_ID: ${OPENWA_SESSION_ID:-}
+      OPENWA_NOTIFY_PUBLIC_ONLY: ${OPENWA_NOTIFY_PUBLIC_ONLY:-false}
     networks:
       - web
 
@@ -26,17 +31,61 @@ services:
     networks:
       - web
 
-  # OpenWA — perfil opcional: docker compose --profile openwa up -d
-  # Requiere clonar https://github.com/rmyndharis/OpenWA en ./openwa
+  # OpenWA (producción en la misma red) — dev local preferido:
+  #   cd openwa && docker compose -f docker-compose.dev.yml up -d
+  #   → http://localhost:2886 · http://localhost:2785/api
   openwa:
     profiles: ['openwa']
     build: ./openwa
+    container_name: openwa
     restart: unless-stopped
+    expose:
+      - '2785'
+    environment:
+      NODE_ENV: production
+      PORT: 2785
+      DATABASE_TYPE: sqlite
+      DATABASE_NAME: /app/data/openwa.sqlite
+      DATABASE_SYNCHRONIZE: 'false'
+      ENGINE_TYPE: whatsapp-web.js
+      SESSION_DATA_PATH: /app/data/sessions
+      PUPPETEER_HEADLESS: 'true'
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      STORAGE_TYPE: local
+      STORAGE_LOCAL_PATH: /app/data/media
+      API_MASTER_KEY: ${OPENWA_API_MASTER_KEY:-}
     volumes:
       - openwa-data:/app/data
     networks:
       - web
-    # Solo red interna; no exponer 2785/2886 a internet
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "require('http').get('http://localhost:2785/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Dashboard OpenWA (QR y API key) — solo localhost
+  openwa-dashboard:
+    profiles: ['openwa']
+    build:
+      context: ./openwa/dashboard
+      dockerfile: Dockerfile
+    container_name: openwa-dashboard
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:2886:80'
+    depends_on:
+      openwa:
+        condition: service_healthy
+    networks:
+      - web
 
 volumes:
   caddy-data:

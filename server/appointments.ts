@@ -10,6 +10,7 @@ import {
   resolveCustomerFromInput,
   upsertCustomer,
 } from './customers.js'
+import { notifyAppointmentCreated } from './appointmentWhatsApp.js'
 import { isSalonOpenDay, isWithinSalonBookingWindow, todaySalon } from '../src/lib/dates.ts'
 import {
   appointmentOccupiedSlots,
@@ -233,7 +234,13 @@ export async function createAppointment(
     )
   `
 
-  return (await getAppointmentById(id))!
+  const row = (await getAppointmentById(id))!
+  void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
+    (err) => {
+      console.error('Superpelu WhatsApp (cita nueva):', err)
+    },
+  )
+  return row
 }
 
 export type UpdateAppointmentInput = {
