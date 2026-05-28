@@ -6,6 +6,7 @@ import {
   openWaSendText,
   phoneToWhatsAppChatId,
 } from './openwa.js'
+import { buildCalendarUrl, buildCancelUrl } from './appointmentLinks.js'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
@@ -19,6 +20,14 @@ export function buildAppointmentConfirmationMessage(row: AppointmentRow): string
     row.duration_minutes,
   )
 
+  const calendarUrl = buildCalendarUrl(row)
+  const cancelUrl = buildCancelUrl(row)
+
+  const actions: string[] = ['', '➕ Añadir al calendario:', calendarUrl]
+  if (cancelUrl) {
+    actions.push('', '❌ Cancelar la cita:', cancelUrl)
+  }
+
   return `Hola ${firstName}, 👋
 
 Tu cita en *Superpelu* está confirmada:
@@ -30,8 +39,7 @@ Tu cita en *Superpelu* está confirmada:
 
 📍 ${SALON_ADDRESS}
 📞 ${SALON_PHONE}
-
-Si necesitas cambiarla, llámanos o escríbenos por aquí.
+${actions.join('\n')}
 
 ¡Te esperamos!`
 }

@@ -11,11 +11,15 @@ import { listStaffDaySchedules } from './staffSchedule.js'
 import {
   cancelAppointment,
   createAppointment,
+  getAppointmentById,
   getAvailableSlots,
   listAppointments,
   rowToPublic,
   updateAppointmentForAdmin,
 } from './appointments.js'
+import { verifyCancelToken } from './appointmentLinks.js'
+import { formatDisplayDate } from '../src/lib/dates.ts'
+import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
 import {
   createStaffBlock,
   deleteStaffBlockById,
@@ -513,6 +517,108 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
   }
 
   return c.json({ appointment: rowToPublic(row) })
+})
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function cancelPage(title: string, bodyHtml: string, status: 200 | 400 | 404 = 200) {
+  return [
+    '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">',
+    '<meta name="viewport" content="width=device-width, initial-scale=1">',
+    `<title>${title} · Superpelu</title>`,
+    '<style>',
+    'body{font-family:system-ui,-apple-system,sans-serif;background:#faf7f5;color:#2b2b2b;',
+    'margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}',
+    '.card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);max-width:420px;width:100%;padding:2rem;text-align:center}',
+    'h1{font-size:1.4rem;margin:0 0 1rem}p{line-height:1.5;margin:.5rem 0}',
+    '.detail{background:#f4efec;border-radius:10px;padding:1rem;margin:1rem 0;text-align:left}',
+    '.btn{display:inline-block;border:0;border-radius:10px;padding:.85rem 1.4rem;font-size:1rem;',
+    'font-weight:600;cursor:pointer;text-decoration:none;margin-top:.5rem}',
+    '.btn-danger{background:#c0392b;color:#fff}.btn-secondary{background:#e7e0db;color:#2b2b2b}',
+    '.muted{color:#888;font-size:.9rem}',
+    '</style></head><body><div class="card">',
+    bodyHtml,
+    '</div></body></html>',
+  ].join('')
+}
+
+/** Página de confirmación de cancelación (enlace enviado por WhatsApp). */
+app.get('/cancelar/:id', async (c) => {
+  const id = c.req.param('id')
+  const token = c.req.query('t')
+  if (!verifyCancelToken(id, token)) {
+    return c.html(
+      cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>Este enlace de cancelación no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>'),
+      400,
+    )
+  }
+
+  const row = await getAppointmentById(id)
+  if (!row) {
+    return c.html(cancelPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>'), 404)
+  }
+
+  if (row.status === 'cancelled') {
+    return c.html(
+      cancelPage('Cita cancelada', '<h1>Esta cita ya está cancelada</h1><p>No hay nada más que hacer. ¡Gracias!</p>'),
+    )
+  }
+
+  const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
+  const timeRange = escapeHtml(
+    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes),
+  )
+  const service = escapeHtml(row.service_name)
+  const staff = escapeHtml(row.staff_name ?? '')
+
+  return c.html(
+    cancelPage(
+      'Cancelar cita',
+      `<h1>¿Cancelar tu cita?</h1>
+       <div class="detail">
+         <p>📅 ${dateLabel}</p>
+         <p>🕐 ${timeRange}</p>
+         <p>💇 ${service}</p>
+         ${staff ? `<p>👤 Con ${staff}</p>` : ''}
+       </div>
+       <form method="POST" action="/cancelar/${encodeURIComponent(id)}">
+         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+         <button class="btn btn-danger" type="submit">Sí, cancelar la cita</button>
+       </form>
+       <p class="muted">Si fue un error, cierra esta página y tu cita seguirá activa.</p>`,
+    ),
+  )
+})
+
+app.post('/cancelar/:id', async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.parseBody()
+  const token = typeof body.t === 'string' ? body.t : undefined
+  if (!verifyCancelToken(id, token)) {
+    return c.html(cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cancelar.</p>'), 400)
+  }
+
+  const existing = await getAppointmentById(id)
+  if (!existing) {
+    return c.html(cancelPage('Cita no encontrada', '<h1>Cita no encontrada</h1>'), 404)
+  }
+  if (existing.status === 'cancelled') {
+    return c.html(cancelPage('Cita cancelada', '<h1>Esta cita ya estaba cancelada</h1><p>¡Gracias!</p>'))
+  }
+
+  await cancelAppointment(id)
+  return c.html(
+    cancelPage(
+      'Cita cancelada',
+      '<h1>✅ Cita cancelada</h1><p>Tu cita ha sido cancelada correctamente.</p><p>Si quieres, puedes reservar otra cuando quieras. ¡Gracias!</p>',
+    ),
+  )
 })
 
 const distPath = path.resolve(process.cwd(), 'dist')
