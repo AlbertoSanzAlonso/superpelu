@@ -48,11 +48,28 @@ export function publicBaseUrl(): string {
   return ''
 }
 
+/** URL del botón «Ir a agenda» en el email al admin (`ADMIN_AGENDA_URL` o base + `/agenda`). */
+export function adminAgendaUrl(): string {
+  const explicit = (process.env.ADMIN_AGENDA_URL ?? '').trim()
+  if (explicit) return explicit.replace(/\/$/, '')
+  const base = publicBaseUrl()
+  if (base) return `${base}/agenda`
+  return ''
+}
+
 export function buildCancelUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
   const token = appointmentCancelToken(row.id)
   return `${base}/c/${encodeId(row.id)}?t=${token}`
+}
+
+/** Enlace para que el cliente cambie fecha/hora o cancele la cita (WhatsApp, etc.). */
+export function buildManageUrl(row: AppointmentRow): string | null {
+  const base = publicBaseUrl()
+  if (!base) return null
+  const token = appointmentCancelToken(row.id)
+  return `${base}/m/${encodeId(row.id)}?t=${token}`
 }
 
 function pad(n: number): string {

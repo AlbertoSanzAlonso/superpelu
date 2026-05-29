@@ -6,7 +6,7 @@ import {
   openWaSendText,
   phoneToWhatsAppChatId,
 } from './openwa.js'
-import { buildCancelUrl } from './appointmentLinks.js'
+import { buildManageUrl } from './appointmentLinks.js'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
@@ -20,11 +20,11 @@ export function buildAppointmentConfirmationMessage(row: AppointmentRow): string
     row.duration_minutes,
   )
 
-  const cancelUrl = buildCancelUrl(row)
+  const manageUrl = buildManageUrl(row)
 
   const actions: string[] = []
-  if (cancelUrl) {
-    actions.push('', '❌ Cancelar la cita:', cancelUrl)
+  if (manageUrl) {
+    actions.push('', '📋 Gestionar tu cita (cambiar o cancelar):', manageUrl)
   }
 
   return `Hola ${firstName}, 👋
@@ -52,11 +52,11 @@ export function buildAppointmentReminderMessage(row: AppointmentRow): string {
     row.duration_minutes,
   )
 
-  const cancelUrl = buildCancelUrl(row)
+  const manageUrl = buildManageUrl(row)
 
   const actions: string[] = []
-  if (cancelUrl) {
-    actions.push('', '❌ Si no puedes venir, cancela aquí:', cancelUrl)
+  if (manageUrl) {
+    actions.push('', '📋 Cambiar o cancelar tu cita:', manageUrl)
   }
 
   return `Hola ${firstName}, 👋

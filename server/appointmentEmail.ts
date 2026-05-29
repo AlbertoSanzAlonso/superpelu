@@ -3,7 +3,7 @@
 import nodemailer, { type Transporter } from 'nodemailer'
 import type { AppointmentRow } from './db.js'
 import { formatDisplayDate } from '../src/lib/dates.ts'
-import { publicBaseUrl } from './appointmentLinks.js'
+import { adminAgendaUrl } from './appointmentLinks.js'
 
 export type AppointmentEmailEvent = 'created' | 'cancelled'
 
@@ -94,7 +94,7 @@ export function buildAppointmentAdminEmail(
   const phone = row.customer_phone ? `\n${row.customer_phone}` : ''
   const notes = row.notes?.trim() || ''
 
-  const agendaUrl = publicBaseUrl() ? `${publicBaseUrl()}/agenda` : ''
+  const agendaUrl = adminAgendaUrl()
 
   const subject = `${labels.heading} — ${row.customer_name} · ${dateTime}`
 
@@ -109,7 +109,7 @@ export function buildAppointmentAdminEmail(
     labels.intro,
     '',
     ...detailRows.flatMap((d) => [d.label, d.value, '']),
-    agendaUrl ? `Ver agenda: ${agendaUrl}` : '',
+    agendaUrl ? `Ir a agenda: ${agendaUrl}` : '',
   ]
     .join('\n')
     .trim()
@@ -134,7 +134,7 @@ export function buildAppointmentAdminEmail(
     ? `
         <tr>
           <td style="padding-top:24px;">
-            <a href="${escapeHtml(agendaUrl)}" style="display:inline-block;background:#1f1b18;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 26px;border-radius:8px;">Ver agenda</a>
+            <a href="${escapeHtml(agendaUrl)}" style="display:inline-block;background:#1f1b18;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 26px;border-radius:8px;">Ir a agenda</a>
           </td>
         </tr>`
     : ''
@@ -203,6 +203,14 @@ export function logEmailStartup(): void {
     console.log(
       `Superpelu email: avisos activos → ${config.host}:${config.port} (de ${config.from} a ${config.to.join(', ')})`,
     )
+    const agendaUrl = adminAgendaUrl()
+    if (agendaUrl) {
+      console.log(`Superpelu email: botón «Ir a agenda» → ${agendaUrl}`)
+    } else {
+      console.warn(
+        'Superpelu email: falta PUBLIC_BASE_URL, CORS_ORIGIN o ADMIN_AGENDA_URL — el botón «Ir a agenda» no aparecerá en los correos',
+      )
+    }
     return
   }
   if (envFlag('EMAIL_ENABLED')) {

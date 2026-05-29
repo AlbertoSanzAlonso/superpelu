@@ -447,6 +447,35 @@ export async function markReminderSent(id: string): Promise<void> {
   await sql`UPDATE appointments SET reminder_sent_at = now() WHERE id = ${id}`
 }
 
+export async function rescheduleAppointmentByCustomer(
+  appointmentId: string,
+  input: { date: string; startTime: string },
+): Promise<AppointmentRow> {
+  const existing = await getAppointmentById(appointmentId)
+  if (!existing || existing.status === 'cancelled' || !existing.staff_id) {
+    throw new Error('CITA_NO_ENCONTRADA')
+  }
+
+  const { staff_id: staffId, service_id: serviceId } = existing
+  const { date, startTime } = input
+
+  if (
+    !isValidDateString(date) ||
+    !isSalonOpenDay(date) ||
+    !isWithinSalonBookingWindow(date) ||
+    !(await isStaffWorkingOnDate(staffId, date))
+  ) {
+    throw new Error('FECHA_INVALIDA')
+  }
+
+  const slots = await getAvailableSlots(date, serviceId, staffId, {
+    excludeAppointmentId: appointmentId,
+  })
+  if (!slots.includes(startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+
+  return updateAppointmentForStaff(appointmentId, staffId, { date, startTime })
+}
+
 export async function cancelAppointment(id: string): Promise<AppointmentRow | undefined> {
   const existing = await getAppointmentById(id)
   if (!existing) return undefined
