@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { AppointmentForm } from '@/components/booking/AppointmentForm'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
+import { downloadAppointmentCalendar } from '@/lib/calendar'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -47,13 +48,23 @@ export function BookingPage() {
               <dd>{confirmed.customerName}</dd>
             </div>
           </dl>
-          <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button href="/" variant="outline" size="md">
-              Inicio
+          <div className="mt-10 space-y-4">
+            <Button
+              variant="solid"
+              size="md"
+              className="w-full"
+              onClick={() => downloadAppointmentCalendar(confirmed)}
+            >
+              Añadir al calendario
             </Button>
-            <Button href="/reservar" variant="solid" size="md">
-              Nueva cita
-            </Button>
+            <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+              <Button href="/" variant="outline" size="md">
+                Inicio
+              </Button>
+              <Button href="/reservar" variant="outline" size="md">
+                Nueva cita
+              </Button>
+            </div>
           </div>
         </div>
       </PageShell>

@@ -6,7 +6,7 @@ import {
   openWaSendText,
   phoneToWhatsAppChatId,
 } from './openwa.js'
-import { buildCalendarUrl, buildCancelUrl, buildIcsUrl } from './appointmentLinks.js'
+import { buildCancelUrl } from './appointmentLinks.js'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
@@ -20,12 +20,9 @@ export function buildAppointmentConfirmationMessage(row: AppointmentRow): string
     row.duration_minutes,
   )
 
-  // Preferimos el .ics (abre el calendario nativo del móvil); si no hay URL
-  // pública, caemos a Google Calendar.
-  const calendarUrl = buildIcsUrl(row) ?? buildCalendarUrl(row)
   const cancelUrl = buildCancelUrl(row)
 
-  const actions: string[] = ['', '➕ Añadir al calendario:', calendarUrl]
+  const actions: string[] = []
   if (cancelUrl) {
     actions.push('', '❌ Cancelar la cita:', cancelUrl)
   }
