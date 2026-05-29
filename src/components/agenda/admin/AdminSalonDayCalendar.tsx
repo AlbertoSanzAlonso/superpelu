@@ -201,6 +201,28 @@ function BlockEvent({ block, range }: { block: DayScheduleBlock; range: Calendar
   )
 }
 
+const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
+
+function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
+  return (
+    <div
+      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3`}
+    >
+      <StaffInitial name={schedule.staffName} />
+      {schedule.working && schedule.window ? (
+        <div className="min-w-0">
+          <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
+          <p className="text-[10px] tabular-nums text-charcoal-muted">
+            {schedule.window.startTime}–{schedule.window.endTime}
+          </p>
+        </div>
+      ) : (
+        <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
+      )}
+    </div>
+  )
+}
+
 function StaffColumn({
   schedule,
   date,
@@ -237,10 +259,7 @@ function StaffColumn({
   if (!schedule.working || !schedule.window) {
     return (
       <div className="min-w-[11rem] flex-1 border-l border-gold/20">
-        <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-gold/20 bg-cream px-3 py-3">
-          <StaffInitial name={schedule.staffName} />
-          <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
-        </div>
+        <StaffColumnHeader schedule={schedule} />
         <div className="flex items-center justify-center bg-charcoal/[0.03] p-8">
           <p className={typography.caption}>No trabaja</p>
         </div>
@@ -250,15 +269,7 @@ function StaffColumn({
 
   return (
     <div className="min-w-[11rem] flex-1 border-l border-gold/20">
-      <div className="sticky top-0 z-30 flex items-center gap-2 border-b border-gold/20 bg-cream px-3 py-3">
-        <StaffInitial name={schedule.staffName} />
-        <div className="min-w-0">
-          <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
-          <p className="text-[10px] tabular-nums text-charcoal-muted">
-            {schedule.window.startTime}–{schedule.window.endTime}
-          </p>
-        </div>
-      </div>
+      <StaffColumnHeader schedule={schedule} />
 
       <div className="relative" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} />
@@ -309,30 +320,33 @@ export function AdminSalonDayCalendar({
   }
 
   return (
-    <div className="overflow-x-auto border border-gold/25 bg-cream">
-        <div className="flex min-w-max">
-          <div className="sticky left-0 z-30 shrink-0 bg-cream">
-            <div className="h-[3.25rem] border-b border-gold/20" aria-hidden />
-            <TimeGutter range={range} />
-          </div>
-
-          <div className="flex flex-1">
-            {schedules.map((schedule) => (
-              <StaffColumn
-                key={schedule.staffId}
-                schedule={schedule}
-                date={date}
-                range={range}
-                nowLineTop={nowLineTop}
-                selection={selection}
-                formSlotTime={formSlotTime}
-                formStaffId={formStaffId}
-                onToggleSlot={onToggleSlot}
-                onEditAppointment={onEditAppointment}
-              />
-            ))}
-          </div>
+    <div className="h-full min-h-0 overflow-auto border border-gold/25 bg-cream">
+      <div className="flex min-w-max">
+        <div className="sticky left-0 z-20 shrink-0 bg-cream">
+          <div
+            className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+            aria-hidden
+          />
+          <TimeGutter range={range} />
         </div>
+
+        <div className="flex flex-1">
+          {schedules.map((schedule) => (
+            <StaffColumn
+              key={schedule.staffId}
+              schedule={schedule}
+              date={date}
+              range={range}
+              nowLineTop={nowLineTop}
+              selection={selection}
+              formSlotTime={formSlotTime}
+              formStaffId={formStaffId}
+              onToggleSlot={onToggleSlot}
+              onEditAppointment={onEditAppointment}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

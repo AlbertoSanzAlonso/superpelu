@@ -245,12 +245,13 @@ export function AdminAgendaPage() {
         )}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2">
         {agenda.loading ? (
           <p className={`${typography.caption} py-8 text-center`}>Cargando agenda…</p>
         ) : (
           <>
             <AdminCalendarLegend />
+            <div className="min-h-0 flex-1">
             <AdminSalonDayCalendar
               date={selectedDate}
               schedules={agenda.schedules}
@@ -260,6 +261,7 @@ export function AdminAgendaPage() {
               onToggleSlot={agenda.toggleSlot}
               onEditAppointment={agenda.startEditAppointment}
             />
+            </div>
           </>
         )}
       </main>
