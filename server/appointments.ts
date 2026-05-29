@@ -12,6 +12,10 @@ import {
 } from './customers.js'
 import { notifyAppointmentCreated } from './appointmentWhatsApp.js'
 import {
+  notifyAdminAppointmentCancelled,
+  notifyAdminAppointmentCreated,
+} from './appointmentEmail.js'
+import {
   addDaysToDateString,
   hoursUntilAppointment,
   isSalonOpenDay,
@@ -250,6 +254,7 @@ export async function createAppointment(
       console.error('Superpelu WhatsApp (cita nueva):', err)
     },
   )
+  void notifyAdminAppointmentCreated(row)
   return row
 }
 
@@ -407,6 +412,9 @@ export async function deleteAppointmentForStaff(
   const result = await sql`
     DELETE FROM appointments WHERE id = ${appointmentId} AND staff_id = ${staffId}
   `
+  if (result.count > 0 && existing.status !== 'cancelled') {
+    void notifyAdminAppointmentCancelled(existing)
+  }
   return result.count > 0
 }
 
@@ -443,8 +451,13 @@ export async function cancelAppointment(id: string): Promise<AppointmentRow | un
   const existing = await getAppointmentById(id)
   if (!existing) return undefined
 
+  const wasCancelled = existing.status === 'cancelled'
   await sql`UPDATE appointments SET status = 'cancelled' WHERE id = ${id}`
-  return getAppointmentById(id)
+  const row = await getAppointmentById(id)
+  if (row && !wasCancelled) {
+    void notifyAdminAppointmentCancelled(row)
+  }
+  return row
 }
 
 export function rowToPublic(row: AppointmentRow) {
