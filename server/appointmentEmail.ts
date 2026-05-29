@@ -196,6 +196,22 @@ async function sendAppointmentAdminEmail(
   }
 }
 
+/** Traza al arrancar si los avisos por email están activos (diagnóstico). */
+export function logEmailStartup(): void {
+  const config = getEmailConfig()
+  if (config) {
+    console.log(
+      `Superpelu email: avisos activos → ${config.host}:${config.port} (de ${config.from} a ${config.to.join(', ')})`,
+    )
+    return
+  }
+  if (envFlag('EMAIL_ENABLED')) {
+    console.warn(
+      'Superpelu email: EMAIL_ENABLED=true pero faltan SMTP_HOST o ADMIN_NOTIFICATION_EMAIL — avisos desactivados',
+    )
+  }
+}
+
 /** Avisa al administrador de que se ha creado una cita. No lanza errores. */
 export function notifyAdminAppointmentCreated(row: AppointmentRow): Promise<void> {
   return sendAppointmentAdminEmail(row, 'created')

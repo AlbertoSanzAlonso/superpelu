@@ -45,6 +45,7 @@ import {
   startOpenWaKeepAlive,
 } from './openwa.js'
 import { processDueReminders, startReminderScheduler } from './reminderScheduler.js'
+import { logEmailStartup } from './appointmentEmail.js'
 
 const app = new Hono()
 
@@ -696,6 +697,7 @@ if (hasDist) {
 async function main() {
   await initDatabase()
   logOpenWaStartup()
+  logEmailStartup()
   console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
   startOpenWaKeepAlive()
