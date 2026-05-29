@@ -1,5 +1,13 @@
 import { salonSchedule } from '../data/schedule'
 
+/** Comprueba que una cadena sea YYYY-MM-DD y una fecha de calendario válida */
+export function isValidDateString(dateStr: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+}
+
 /** Fecha local YYYY-MM-DD a partir de un Date */
 export function toDateString(date: Date): string {
   const y = date.getFullYear()

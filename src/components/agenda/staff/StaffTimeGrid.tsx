@@ -59,7 +59,7 @@ export function StaffTimeGrid({
 
   return (
     <section className="space-y-3">
-      <div className={`${typography.caption} flex flex-wrap gap-3`}>
+      <div className={`${typography.caption} hidden flex-wrap gap-3 lg:flex`}>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 border border-gold/35 bg-cream" />
           Libre

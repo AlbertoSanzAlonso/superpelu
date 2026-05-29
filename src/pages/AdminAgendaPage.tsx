@@ -13,7 +13,7 @@ import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppoin
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
 import { staffLogin, verifyStaffToken, type StaffSession } from '@/lib/staffApi'
-import { toDateString } from '@/lib/dates'
+import { useAgendaDate } from '@/hooks/useAgendaDate'
 import { typography } from '@/styles/typography'
 
 const ADMIN_TOKEN_KEY = 'superpelu-admin-token'
@@ -37,7 +37,7 @@ export function AdminAgendaPage() {
   const [loginError, setLoginError] = useState('')
   const [loggingIn, setLoggingIn] = useState(false)
 
-  const [selectedDate, setSelectedDate] = useState(toDateString(new Date()))
+  const { date: selectedDate, setDate: setSelectedDate } = useAgendaDate()
 
   const isAdmin = Boolean(adminToken)
   const isStaff = Boolean(staffToken && staffUser)

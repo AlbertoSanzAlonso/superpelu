@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
-import { addDaysToDateString, formatDisplayDate, todaySalon, toDateString } from '@/lib/dates'
+import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/dates'
 import type { GridSelectionSummary } from '@/lib/timeGrid'
 import { Button } from '@/components/ui/Button'
 import type { StaffDaySchedule } from '@/types/booking'
@@ -96,8 +96,8 @@ export function AdminAgendaControlBar({
       <button
         type="button"
         disabled={isToday}
-        onClick={() => onDateChange(toDateString(new Date()))}
-        className="border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:opacity-40"
+        onClick={() => onDateChange(todaySalon())}
+        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-default disabled:opacity-40"
       >
         Hoy
       </button>

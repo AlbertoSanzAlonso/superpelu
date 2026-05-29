@@ -20,11 +20,11 @@ import {
   groupContiguousSlotTimes,
   summarizeGridSelection,
 } from '@/lib/timeGrid'
-import { toDateString } from '@/lib/dates'
+import { useAgendaDate } from '@/hooks/useAgendaDate'
 import type { BookableService, DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 export function useStaffAgenda(token: string) {
-  const [date, setDate] = useState(toDateString(new Date()))
+  const { date, setDate } = useAgendaDate()
   const [schedule, setSchedule] = useState<StaffDaySchedule | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
   const [slots, setSlots] = useState<string[]>([])

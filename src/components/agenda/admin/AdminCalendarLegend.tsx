@@ -4,7 +4,7 @@ import { categoryLegendSwatch } from '@/lib/serviceCategoryColors'
 
 export function AdminCalendarLegend() {
   return (
-    <div className="mb-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-charcoal-muted">
+    <div className="mb-2 hidden flex-wrap gap-x-3 gap-y-1 text-[11px] text-charcoal-muted lg:flex">
       {serviceCategories.map((cat) => (
         <span key={cat.id} className="flex items-center gap-1">
           <span

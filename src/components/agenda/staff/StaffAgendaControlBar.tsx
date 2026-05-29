@@ -1,5 +1,5 @@
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
-import { addDaysToDateString, formatDisplayDate, todaySalon, toDateString } from '@/lib/dates'
+import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/dates'
 import type { GridSelectionSummary } from '@/lib/timeGrid'
 import type { StaffSession } from '@/lib/staffApi'
 import { Button } from '@/components/ui/Button'
@@ -99,8 +99,8 @@ export function StaffAgendaControlBar({
       <button
         type="button"
         disabled={isToday}
-        onClick={() => onDateChange(toDateString(new Date()))}
-        className="border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:opacity-40"
+        onClick={() => onDateChange(todaySalon())}
+        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-default disabled:opacity-40"
       >
         Hoy
       </button>
