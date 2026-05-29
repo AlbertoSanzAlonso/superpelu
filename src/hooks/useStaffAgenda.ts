@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import {
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
@@ -36,6 +37,8 @@ export function useStaffAgenda(token: string) {
 
   const [selectedGridTimes, setSelectedGridTimes] = useState<Set<string>>(() => new Set())
   const [gridActionsBusy, setGridActionsBusy] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -211,17 +214,42 @@ export function useStaffAgenda(token: string) {
     [aptDraft, date, editingId, load, resetAppointmentForm, token],
   )
 
+  const closeConfirmDialog = useCallback(() => {
+    if (confirmBusy) return
+    setConfirmDialog(null)
+  }, [confirmBusy])
+
+  const runConfirmDialog = useCallback(async () => {
+    if (!confirmDialog) return
+    setConfirmBusy(true)
+    try {
+      await confirmDialog.onConfirm()
+      setConfirmDialog(null)
+    } finally {
+      setConfirmBusy(false)
+    }
+  }, [confirmDialog])
+
   const removeAppointment = useCallback(
-    async (id: string) => {
-      if (!confirm('¿Eliminar esta cita?')) return
-      setError('')
-      try {
-        await deleteMyAppointment(token, id)
-        if (editingId === id) resetAppointmentForm()
-        await load()
-      } catch {
-        setError('No se pudo eliminar la cita')
-      }
+    (id: string, onSuccess?: () => void) => {
+      setConfirmDialog({
+        title: '¿Eliminar esta cita?',
+        message:
+          'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
+        confirmLabel: 'Eliminar cita',
+        destructive: true,
+        onConfirm: async () => {
+          setError('')
+          try {
+            await deleteMyAppointment(token, id)
+            if (editingId === id) resetAppointmentForm()
+            await load()
+            onSuccess?.()
+          } catch {
+            setError('No se pudo eliminar la cita')
+          }
+        },
+      })
     },
     [editingId, load, resetAppointmentForm, token],
   )
@@ -249,5 +277,9 @@ export function useStaffAgenda(token: string) {
     gridActionsBusy,
     removeAppointment,
     resetAppointmentForm,
+    confirmDialog,
+    confirmBusy,
+    closeConfirmDialog,
+    runConfirmDialog,
   }
 }

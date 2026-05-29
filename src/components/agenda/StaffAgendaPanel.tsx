@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
@@ -127,9 +128,21 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         onClose={closeAppointmentForm}
         onCancelAppointment={
           agenda.editingId
-            ? () => void agenda.removeAppointment(agenda.editingId!).then(closeAppointmentForm)
+            ? () => agenda.removeAppointment(agenda.editingId!, closeAppointmentForm)
             : undefined
         }
+      />
+
+      <ConfirmDialog
+        open={agenda.confirmDialog != null}
+        title={agenda.confirmDialog?.title ?? ''}
+        message={agenda.confirmDialog?.message}
+        confirmLabel={agenda.confirmDialog?.confirmLabel}
+        cancelLabel={agenda.confirmDialog?.cancelLabel}
+        destructive={agenda.confirmDialog?.destructive}
+        busy={agenda.confirmBusy}
+        onClose={agenda.closeConfirmDialog}
+        onConfirm={agenda.runConfirmDialog}
       />
     </AgendaWorkspaceShell>
   )

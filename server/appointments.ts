@@ -395,7 +395,12 @@ export async function updateAppointmentForStaff(
   `
 
   const updated = (await getAppointmentById(appointmentId))!
-  if (dateOrTimeChanged || serviceId !== existing.service_id) {
+  const scheduleChanged =
+    dateOrTimeChanged || serviceId !== existing.service_id
+  if (scheduleChanged) {
+    void notifyAppointmentRescheduled(updated).catch((err) => {
+      console.error('Superpelu WhatsApp (cita reprogramada):', err)
+    })
     void notifyAdminAppointmentUpdated(existing, updated)
   }
   return updated
@@ -423,6 +428,9 @@ export async function deleteAppointmentForStaff(
   `
   if (result.count > 0 && existing.status !== 'cancelled') {
     void notifyAdminAppointmentCancelled(existing)
+    void notifyAppointmentCancelled(existing).catch((err) => {
+      console.error('Superpelu WhatsApp (cita cancelada):', err)
+    })
   }
   return result.count > 0
 }

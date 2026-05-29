@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
@@ -299,11 +300,23 @@ export function AdminAgendaPage() {
           onClose={closeAppointmentForm}
           onCancelAppointment={
             agenda.editingId
-              ? () => void agenda.cancelAppointmentById(agenda.editingId!)
+              ? () => agenda.cancelAppointmentById(agenda.editingId!)
               : undefined
           }
         />
       )}
+
+      <ConfirmDialog
+        open={agenda.confirmDialog != null}
+        title={agenda.confirmDialog?.title ?? ''}
+        message={agenda.confirmDialog?.message}
+        confirmLabel={agenda.confirmDialog?.confirmLabel}
+        cancelLabel={agenda.confirmDialog?.cancelLabel}
+        destructive={agenda.confirmDialog?.destructive}
+        busy={agenda.confirmBusy}
+        onClose={agenda.closeConfirmDialog}
+        onConfirm={agenda.runConfirmDialog}
+      />
     </AgendaWorkspaceShell>
   )
 }

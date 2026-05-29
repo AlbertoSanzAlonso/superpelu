@@ -530,7 +530,7 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
 
-  const row = await cancelAppointment(c.req.param('id'))
+  const row = await cancelAppointment(c.req.param('id'), { notifyCustomer: true })
   if (!row) {
     return c.json({ error: 'Cita no encontrada' }, 404)
   }

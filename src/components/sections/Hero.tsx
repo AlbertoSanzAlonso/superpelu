@@ -10,7 +10,7 @@ export function Hero() {
       className="relative flex min-h-screen items-center justify-center overflow-hidden pt-20 md:pt-[4.5rem]"
     >
       <div
-        className="absolute inset-0 bg-cover bg-center"
+        className="absolute inset-0 bg-cover bg-[58%_center] md:bg-center"
         style={{ backgroundImage: "url('/images/superpelu-hero.webp')" }}
         aria-hidden
       />
@@ -31,11 +31,11 @@ export function Hero() {
           Tu belleza, nuestro arte
         </p>
 
-        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-4 max-w-2xl font-medium text-charcoal`}>
+        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl font-medium text-charcoal md:mb-4`}>
           {hero.lead}
         </p>
 
-        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl`}>
+        <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl hidden md:block`}>
           {hero.body}
         </p>
 

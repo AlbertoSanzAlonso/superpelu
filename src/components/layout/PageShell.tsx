@@ -7,11 +7,20 @@ import { typography } from '@/styles/typography'
 type PageShellProps = {
   title: string
   subtitle?: string
+  titleClassName?: string
+  subtitleClassName?: string
   wide?: boolean
   children: ReactNode
 }
 
-export function PageShell({ title, subtitle, wide = false, children }: PageShellProps) {
+export function PageShell({
+  title,
+  subtitle,
+  titleClassName,
+  subtitleClassName,
+  wide = false,
+  children,
+}: PageShellProps) {
   const contentMax = wide ? 'max-w-[min(100%,90rem)]' : 'max-w-4xl'
 
   return (
@@ -33,8 +42,12 @@ export function PageShell({ title, subtitle, wide = false, children }: PageShell
       <main className={`mx-auto ${contentMax} px-6 py-12 md:px-10 md:py-16`}>
         <header className="mb-10 text-center">
           <p className={`${typography.script} mb-2 text-gold`}>Agenda</p>
-          <h1 className={typography.h1}>{title}</h1>
-          {subtitle && <p className={`${typography.body} mx-auto mt-4 max-w-lg`}>{subtitle}</p>}
+          <h1 className={titleClassName ?? typography.h1}>{title}</h1>
+          {subtitle && (
+            <p className={`${typography.body} mx-auto mt-4 max-w-lg ${subtitleClassName ?? ''}`}>
+              {subtitle}
+            </p>
+          )}
         </header>
         {children}
       </main>

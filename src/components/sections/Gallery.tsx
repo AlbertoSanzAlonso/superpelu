@@ -2,7 +2,8 @@ import { gallerySection } from '@/data/content'
 import { galleryImages, type GalleryImage } from '@/data/galleryImages'
 import { Section } from '@/components/ui/Section'
 import { ImageLightbox } from '@/components/ui/lightbox'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { typography } from '@/styles/typography'
 
 const SLIDE_SIZE = 5
 const AUTOPLAY_MS = 6000
@@ -186,6 +187,100 @@ function GalleryDesktopCarousel({ slides, onOpen, paused }: GalleryDesktopCarous
   )
 }
 
+type GalleryMobileCarouselProps = {
+  images: GalleryImage[]
+  onOpen: (index: number) => void
+  reduceMotion: boolean
+}
+
+function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCarouselProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [hintDismissed, setHintDismissed] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(true)
+
+  const updateScrollState = useCallback(() => {
+    const el = scrollRef.current
+    if (!el || el.children.length === 0) return
+
+    if (!hintDismissed && el.scrollLeft > 8) setHintDismissed(true)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8)
+
+    const firstCard = el.children[0] as HTMLElement
+    const cardStride = firstCard.offsetWidth + 12
+    const index = Math.round(el.scrollLeft / cardStride)
+    setActiveIndex(Math.min(Math.max(index, 0), images.length - 1))
+  }, [hintDismissed, images.length])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+
+    updateScrollState()
+    el.addEventListener('scroll', updateScrollState, { passive: true })
+    window.addEventListener('resize', updateScrollState)
+
+    return () => {
+      el.removeEventListener('scroll', updateScrollState)
+      window.removeEventListener('resize', updateScrollState)
+    }
+  }, [updateScrollState])
+
+  if (images.length === 0) return null
+
+  return (
+    <div className="sm:hidden">
+      {!hintDismissed && (
+        <p
+          id="gallery-swipe-hint"
+          className={`${typography.caption} mb-3 flex items-center justify-center gap-2 text-center normal-case tracking-normal`}
+        >
+          <span aria-hidden className={reduceMotion ? '' : 'motion-safe:animate-pulse'}>
+            ←
+          </span>
+          Desliza para ver más fotos
+          <span aria-hidden className={reduceMotion ? '' : 'motion-safe:animate-pulse'}>
+            →
+          </span>
+        </p>
+      )}
+
+      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
+        {canScrollRight && (
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-cream via-cream/70 to-transparent"
+            aria-hidden
+          />
+        )}
+
+        <div
+          ref={scrollRef}
+          className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[7.5vw] pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Galería de imágenes"
+          aria-describedby={hintDismissed ? undefined : 'gallery-swipe-hint'}
+        >
+          {images.map((image, index) => (
+            <GalleryFigure
+              key={image.src}
+              image={image}
+              index={index}
+              onOpen={onOpen}
+              className="w-[85vw] shrink-0 snap-center shadow-lg shadow-charcoal/10"
+              imageClassName="aspect-[4/5]"
+            />
+          ))}
+        </div>
+      </div>
+
+      {images.length > 1 && (
+        <p className={`${typography.caption} mt-3 text-center normal-case tracking-normal`}>
+          {activeIndex + 1} de {images.length}
+        </p>
+      )}
+    </div>
+  )
+}
+
 export function Gallery() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -235,23 +330,7 @@ export function Gallery() {
       title={gallerySection.title}
       subtitle={gallerySection.subtitle}
     >
-      <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 sm:hidden">
-        <div
-          className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[7.5vw] pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          aria-label="Galería de imágenes"
-        >
-          {galleryImages.map((image, index) => (
-            <GalleryFigure
-              key={image.src}
-              image={image}
-              index={index}
-              onOpen={openAt}
-              className="w-[85vw] shrink-0 snap-center shadow-lg shadow-charcoal/10"
-              imageClassName="aspect-[4/5]"
-            />
-          ))}
-        </div>
-      </div>
+      <GalleryMobileCarousel images={galleryImages} onOpen={openAt} reduceMotion={reduceMotion} />
 
       <GalleryDesktopCarousel
         slides={slides}

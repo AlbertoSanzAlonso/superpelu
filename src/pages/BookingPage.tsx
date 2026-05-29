@@ -68,6 +68,8 @@ export function BookingPage() {
     <PageShell
       title="Reserva tu cita"
       subtitle="Elige servicio, profesional, día y hora. Martes a sábado de 10:00 a 20:00."
+      titleClassName="font-serif text-2xl uppercase tracking-brand text-charcoal md:text-4xl"
+      subtitleClassName="hidden md:block"
     >
       <AppointmentForm onConfirmed={setConfirmed} />
     </PageShell>

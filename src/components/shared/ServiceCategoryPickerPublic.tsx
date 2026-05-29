@@ -18,6 +18,9 @@ type Props = {
   loading?: boolean
   error?: string
   onRetry?: () => void
+  visibleSection?: 'category' | 'service' | 'both'
+  categoryId?: string
+  onCategoryChange?: (categoryId: string) => void
 }
 
 export function ServiceCategoryPickerPublic({
@@ -27,6 +30,9 @@ export function ServiceCategoryPickerPublic({
   loading = false,
   error = '',
   onRetry,
+  visibleSection = 'both',
+  categoryId: controlledCategoryId,
+  onCategoryChange,
 }: Props) {
   const labels = servicePickerLabels.public
 
@@ -38,10 +44,15 @@ export function ServiceCategoryPickerPublic({
   useEffect(() => {
     if (categoryFromService) {
       setPickedCategoryId(categoryFromService)
+      onCategoryChange?.(categoryFromService)
     }
-  }, [categoryFromService])
+  }, [categoryFromService, onCategoryChange])
 
-  const selectedCategoryId = pickedCategoryId || categoryFromService
+  const selectedCategoryId =
+    controlledCategoryId || pickedCategoryId || categoryFromService
+
+  const showCategory = visibleSection === 'category' || visibleSection === 'both'
+  const showService = visibleSection === 'service' || visibleSection === 'both'
 
   const categoryServices = useMemo(
     () => (selectedCategoryId ? servicesInCategory(services, selectedCategoryId) : []),
@@ -50,6 +61,7 @@ export function ServiceCategoryPickerPublic({
 
   function handleCategoryPick(categoryId: string) {
     setPickedCategoryId(categoryId)
+    onCategoryChange?.(categoryId)
     const inCategory = servicesInCategory(services, categoryId)
     if (inCategory.length === 1) {
       onServiceChange(inCategory[0].id)
@@ -86,7 +98,8 @@ export function ServiceCategoryPickerPublic({
   }
 
   return (
-    <div className="space-y-8">
+    <div className={visibleSection === 'both' ? 'space-y-8' : undefined}>
+      {showCategory && (
       <fieldset className="space-y-3">
         <legend className={`${typography.label} mb-2 block w-full text-center`}>
           {labels.category}
@@ -131,8 +144,9 @@ export function ServiceCategoryPickerPublic({
           })}
         </div>
       </fieldset>
+      )}
 
-      {selectedCategoryId && (
+      {showService && selectedCategoryId && (
         <fieldset className="space-y-3">
           <legend className={`${typography.label} mb-2 block w-full text-center`}>
             {labels.service}

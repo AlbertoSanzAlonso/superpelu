@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import {
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
@@ -51,6 +52,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     blockIds: string[]
     series: BlockSeriesMeta
   } | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -349,18 +352,42 @@ export function useAdminAgenda(adminToken: string, date: string) {
     ],
   )
 
+  const closeConfirmDialog = useCallback(() => {
+    if (confirmBusy) return
+    setConfirmDialog(null)
+  }, [confirmBusy])
+
+  const runConfirmDialog = useCallback(async () => {
+    if (!confirmDialog) return
+    setConfirmBusy(true)
+    try {
+      await confirmDialog.onConfirm()
+      setConfirmDialog(null)
+    } finally {
+      setConfirmBusy(false)
+    }
+  }, [confirmDialog])
+
   const cancelAppointmentById = useCallback(
-    async (id: string) => {
-      if (!confirm('¿Cancelar esta cita?')) return
-      setError('')
-      try {
-        await cancelAppointment(id, adminToken)
-        setAppointmentFormOpen(false)
-        resetAppointmentForm()
-        await load()
-      } catch {
-        setError('No se pudo cancelar la cita')
-      }
+    (id: string) => {
+      setConfirmDialog({
+        title: '¿Cancelar esta cita?',
+        message:
+          'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
+        confirmLabel: 'Cancelar cita',
+        destructive: true,
+        onConfirm: async () => {
+          setError('')
+          try {
+            await cancelAppointment(id, adminToken)
+            setAppointmentFormOpen(false)
+            resetAppointmentForm()
+            await load()
+          } catch {
+            setError('No se pudo cancelar la cita')
+          }
+        },
+      })
     },
     [adminToken, load, resetAppointmentForm],
   )
@@ -416,6 +443,10 @@ export function useAdminAgenda(adminToken: string, date: string) {
     saveAppointment,
     cancelAppointmentById,
     deleteBlockById,
+    confirmDialog,
+    confirmBusy,
+    closeConfirmDialog,
+    runConfirmDialog,
     formSlotTime:
       appointmentFormOpen && !editingId && activeStaffId ? aptDraft.startTime || null : null,
     formStaffId: appointmentFormOpen && !editingId ? activeStaffId : null,
