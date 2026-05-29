@@ -74,26 +74,50 @@ export function AdminAgendaControlBar({
   const workingStaff = schedules.filter((s) => s.working)
   const hasSelection = selectionCount > 0 && selectionSummary != null
 
+  const dayNav = (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        className={dayNavButtonClass}
+        aria-label="Día anterior"
+        onClick={() => onDateChange(addDaysToDateString(date, -1))}
+      >
+        <NavChevron direction="prev" />
+      </button>
+      <button
+        type="button"
+        className={dayNavButtonClass}
+        aria-label="Día siguiente"
+        onClick={() => onDateChange(addDaysToDateString(date, 1))}
+      >
+        <NavChevron direction="next" />
+      </button>
+    </div>
+  )
+
+  const accountActions = (
+    <>
+      <Link
+        to="/clientes"
+        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
+      >
+        Clientes
+      </Link>
+      <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={onLogout}>
+        Salir
+      </Button>
+    </>
+  )
+
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gold/15 bg-cream px-3 py-2">
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          className={dayNavButtonClass}
-          aria-label="Día anterior"
-          onClick={() => onDateChange(addDaysToDateString(date, -1))}
-        >
-          <NavChevron direction="prev" />
-        </button>
-        <button
-          type="button"
-          className={dayNavButtonClass}
-          aria-label="Día siguiente"
-          onClick={() => onDateChange(addDaysToDateString(date, 1))}
-        >
-          <NavChevron direction="next" />
-        </button>
+    <div className="flex flex-col gap-2 border-b border-gold/15 bg-cream px-3 py-2 md:gap-y-2">
+      <div className="flex w-full items-center justify-between md:hidden">
+        {dayNav}
+        <div className="flex items-center gap-2">{accountActions}</div>
       </div>
+
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div className="hidden items-center gap-1 md:flex">{dayNav}</div>
 
       <p className={`${typography.label} shrink-0 capitalize tabular-nums text-gold`}>
         {formatDisplayDate(date)}
@@ -166,16 +190,7 @@ export function AdminAgendaControlBar({
         </Button>
       )}
 
-      <div className="ml-auto flex items-center gap-2">
-        <Link
-          to="/clientes"
-          className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
-        >
-          Clientes
-        </Link>
-        <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={onLogout}>
-          Salir
-        </Button>
+      <div className="ml-auto hidden items-center gap-2 md:flex">{accountActions}</div>
       </div>
     </div>
   )
