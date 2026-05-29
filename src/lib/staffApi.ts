@@ -104,6 +104,7 @@ export function createMyAppointment(
     customerLastName?: string
     customerPhone: string
     customerEmail?: string
+    customerNotes?: string
     notes?: string
   },
 ) {
@@ -124,6 +125,7 @@ export function updateMyAppointment(
     customerLastName: string
     customerPhone: string
     customerEmail: string | null
+    customerNotes?: string | null
     notes: string | null
   }>,
 ) {

@@ -8,6 +8,9 @@ export type AppointmentDraft = {
   customerLastName: string
   customerPhone: string
   customerEmail: string
+  /** Notas en la ficha del cliente (`customers.notes`). */
+  customerNotes: string
+  /** Notas de esta cita (`appointments.notes`). */
   notes: string
 }
 
@@ -18,10 +21,14 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   customerLastName: '',
   customerPhone: '',
   customerEmail: '',
+  customerNotes: '',
   notes: '',
 }
 
-export function appointmentToDraft(apt: DayScheduleAppointment): AppointmentDraft {
+export function appointmentToDraft(
+  apt: DayScheduleAppointment,
+  customerProfile?: { email: string | null; notes: string | null },
+): AppointmentDraft {
   const { firstName, lastName } = splitCustomerName(apt.customerName)
   return {
     serviceId: apt.serviceId,
@@ -29,7 +36,8 @@ export function appointmentToDraft(apt: DayScheduleAppointment): AppointmentDraf
     customerFirstName: firstName,
     customerLastName: lastName,
     customerPhone: apt.customerPhone,
-    customerEmail: '',
-    notes: '',
+    customerEmail: apt.customerEmail ?? customerProfile?.email ?? '',
+    customerNotes: customerProfile?.notes ?? '',
+    notes: apt.notes ?? '',
   }
 }

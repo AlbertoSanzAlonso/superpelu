@@ -7,6 +7,7 @@ import { getStaff, staffCanPerformService } from './staff.js'
 import { schedule } from './config.js'
 import {
   customerNameSnapshot,
+  getCustomer,
   resolveCustomerFromInput,
   upsertCustomer,
 } from './customers.js'
@@ -183,6 +184,7 @@ export type CreateAppointmentInput = {
   customerLastName?: string
   customerPhone: string
   customerEmail?: string
+  customerNotes?: string
   notes?: string
   forStaffPortal?: boolean
 }
@@ -227,7 +229,7 @@ export async function createAppointment(
     lastName: customer.lastName,
     phone: customer.phone,
     email: input.customerEmail,
-    notes: input.notes,
+    notes: input.customerNotes ?? input.notes,
   })
   const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
 
@@ -272,6 +274,7 @@ export type UpdateAppointmentInput = {
   customerLastName?: string
   customerPhone?: string
   customerEmail?: string | null
+  customerNotes?: string | null
   notes?: string | null
 }
 
@@ -339,7 +342,9 @@ export async function updateAppointmentForStaff(
     input.customerName !== undefined ||
     input.customerFirstName !== undefined ||
     input.customerLastName !== undefined ||
-    input.customerPhone !== undefined
+    input.customerPhone !== undefined ||
+    input.customerEmail !== undefined ||
+    input.customerNotes !== undefined
 
   let nameSnapshot = existing.customer_name
   let customerPhone = existing.customer_phone
@@ -351,13 +356,17 @@ export async function updateAppointmentForStaff(
       customerName: input.customerName ?? existing.customer_name,
       phone: input.customerPhone ?? existing.customer_phone,
     })
+    const profile = await getCustomer(split.phone)
     await upsertCustomer({
       firstName: split.firstName,
       lastName: split.lastName,
       phone: split.phone,
       email:
         input.customerEmail !== undefined ? input.customerEmail : existing.customer_email,
-      notes: input.notes !== undefined ? input.notes : existing.notes,
+      notes:
+        input.customerNotes !== undefined
+          ? input.customerNotes
+          : (profile?.notes ?? null),
     })
     nameSnapshot = customerNameSnapshot(split.firstName, split.lastName)
     customerPhone = split.phone

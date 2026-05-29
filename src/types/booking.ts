@@ -55,6 +55,9 @@ export type DayScheduleAppointment = {
   categoryId: string | null
   customerName: string
   customerPhone: string
+  customerEmail: string | null
+  notes: string | null
+  createdAt: string
   occupiedSlots: AppointmentOccupiedSlot[]
 }
 

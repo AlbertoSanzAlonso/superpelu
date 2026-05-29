@@ -1,0 +1,441 @@
+import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
+import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
+import { Button } from '@/components/ui/Button'
+import { Input, Textarea } from '@/components/ui/Input'
+import { formatCustomerDisplayName } from '@/lib/customerName'
+import { formatDisplayDate } from '@/lib/dates'
+import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
+import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
+import type { BookableService, DayScheduleAppointment } from '@/types/booking'
+import { typography } from '@/styles/typography'
+
+type Props = {
+  open: boolean
+  mode: 'view' | 'edit'
+  date: string
+  staffName: string
+  appointment: DayScheduleAppointment
+  customerRegistered: boolean
+  draft: AppointmentDraft
+  services: BookableService[]
+  slots: string[]
+  saving?: boolean
+  onModeChange: (mode: 'view' | 'edit') => void
+  onDraftChange: (patch: Partial<AppointmentDraft>) => void
+  onSubmit: (e: React.FormEvent) => void
+  onClose: () => void
+  onCancelAppointment?: () => void
+  /** Enlace al historial del cliente (solo administración). */
+  showCustomerHistoryLink?: boolean
+}
+
+function dash(value: string | null | undefined): string {
+  const t = value?.trim()
+  return t ? t : '—'
+}
+
+function whatsappHref(phone: string): string {
+  const digits = normalizePhone(phone).replace(/\D/g, '')
+  return `https://wa.me/${digits}`
+}
+
+function ServiceBlocks({
+  appointment,
+  staffName,
+  services,
+}: {
+  appointment: DayScheduleAppointment
+  staffName: string
+  services: BookableService[]
+}) {
+  const serviceEn =
+    services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
+
+  const blocks =
+    appointment.occupiedSlots.length > 0
+      ? appointment.occupiedSlots.map((slot) => ({
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }))
+      : [{ startTime: appointment.startTime, endTime: appointment.endTime }]
+
+  return (
+    <ul className="space-y-2">
+      {blocks.map((block, i) => (
+        <li
+          key={`${block.startTime}-${i}`}
+          className={`rounded px-3 py-2 text-sm font-medium leading-snug ${appointmentBlockBarClass(
+            appointment.categoryId,
+            appointment.serviceId,
+          )}`}
+        >
+          <span className="tabular-nums">
+            {block.startTime}
+            {block.endTime !== block.startTime ? ` – ${block.endTime}` : ''}
+          </span>
+          {' — '}
+          {appointment.serviceName}
+          {serviceEn ? ` - ${serviceEn}` : ''} ({staffName})
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function ClientPanelView({
+  draft,
+  customerRegistered,
+  showCustomerHistoryLink,
+  onEditClient,
+}: {
+  draft: AppointmentDraft
+  customerRegistered: boolean
+  showCustomerHistoryLink: boolean
+  onEditClient: () => void
+}) {
+  const displayName = formatCustomerDisplayName(
+    draft.customerFirstName,
+    draft.customerLastName,
+  )
+  const phone = draft.customerPhone
+
+  return (
+    <div className="rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-semibold text-charcoal">{displayName || '—'}</p>
+            {customerRegistered && (
+              <button
+                type="button"
+                onClick={onEditClient}
+                className="text-charcoal-muted hover:text-gold"
+                aria-label="Editar cliente"
+                title="Editar datos del cliente"
+              >
+                ✎
+              </button>
+            )}
+          </div>
+          {customerRegistered && (
+            <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
+              Cliente en tu listado
+            </p>
+          )}
+        </div>
+        {phone && (
+          <div className="flex shrink-0 gap-1.5">
+            <a
+              href={whatsappHref(phone)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 text-charcoal-muted hover:border-gold hover:text-gold"
+              aria-label="WhatsApp"
+              title="WhatsApp"
+            >
+              💬
+            </a>
+            <a
+              href={`tel:${normalizePhone(phone)}`}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 text-charcoal-muted hover:border-gold hover:text-gold"
+              aria-label="Llamar"
+              title="Llamar"
+            >
+              📞
+            </a>
+          </div>
+        )}
+      </div>
+
+      <dl className="space-y-2.5 text-sm">
+        <div>
+          <dt className={typography.label}>Móvil</dt>
+          <dd className="mt-0.5 tabular-nums">{phone ? formatPhoneDisplay(phone) : '—'}</dd>
+        </div>
+        <div>
+          <dt className={typography.label}>Correo electrónico</dt>
+          <dd className="mt-0.5 break-all">{dash(draft.customerEmail)}</dd>
+        </div>
+        <div>
+          <dt className={typography.label}>Observaciones (cliente)</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">
+            {dash(draft.customerNotes)}
+          </dd>
+        </div>
+        <div>
+          <dt className={typography.label}>Notas de la cita</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">{dash(draft.notes)}</dd>
+        </div>
+      </dl>
+
+      {showCustomerHistoryLink && customerRegistered && phone && (
+        <p className="mt-3 text-right">
+          <Link
+            to={`/clientes/${encodeURIComponent(phone)}`}
+            className={`${typography.caption} text-gold hover:underline`}
+          >
+            Ver historial del cliente →
+          </Link>
+        </p>
+      )}
+    </div>
+  )
+}
+
+function ClientPanelEdit({
+  draft,
+  customerRegistered,
+  onDraftChange,
+}: {
+  draft: AppointmentDraft
+  customerRegistered: boolean
+  onDraftChange: (patch: Partial<AppointmentDraft>) => void
+}) {
+  return (
+    <div className="space-y-3 rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
+      <p className={`${typography.label} text-gold`}>
+        {customerRegistered ? 'Datos del cliente' : 'Datos del cliente en esta cita'}
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          label="Nombre"
+          required
+          value={draft.customerFirstName}
+          onChange={(e) => onDraftChange({ customerFirstName: e.target.value })}
+          className="!px-3 !py-2"
+        />
+        <Input
+          label="Apellidos"
+          value={draft.customerLastName}
+          onChange={(e) => onDraftChange({ customerLastName: e.target.value })}
+          className="!px-3 !py-2"
+        />
+        <Input
+          label="Móvil"
+          required
+          type="tel"
+          value={draft.customerPhone}
+          onChange={(e) => onDraftChange({ customerPhone: e.target.value })}
+          className="!px-3 !py-2"
+          autoComplete="tel"
+        />
+        <Input
+          label="Correo electrónico"
+          type="email"
+          value={draft.customerEmail}
+          onChange={(e) => onDraftChange({ customerEmail: e.target.value })}
+          className="!px-3 !py-2"
+        />
+      </div>
+      {customerRegistered && (
+        <Textarea
+          label="Observaciones (ficha cliente)"
+          rows={2}
+          value={draft.customerNotes}
+          onChange={(e) => onDraftChange({ customerNotes: e.target.value })}
+          className="!px-3 !py-2"
+        />
+      )}
+      <Textarea
+        label="Notas de la cita"
+        rows={2}
+        value={draft.notes}
+        onChange={(e) => onDraftChange({ notes: e.target.value })}
+        className="!px-3 !py-2"
+      />
+    </div>
+  )
+}
+
+export function AgendaAppointmentModal({
+  open,
+  mode,
+  date,
+  staffName,
+  appointment,
+  customerRegistered,
+  draft,
+  services,
+  slots,
+  saving = false,
+  onModeChange,
+  onDraftChange,
+  onSubmit,
+  onClose,
+  onCancelAppointment,
+  showCustomerHistoryLink = false,
+}: Props) {
+  const createdLabel = useMemo(() => {
+    if (!appointment.createdAt) return null
+    return new Date(appointment.createdAt).toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }, [appointment.createdAt])
+
+  if (!open) return null
+
+  const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
+  const selectCn =
+    'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex bg-charcoal/45 sm:items-center sm:justify-center sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="agenda-apt-modal-title"
+      onClick={onClose}
+    >
+      <div
+        className="flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-cream sm:h-auto sm:max-h-[92vh] sm:border sm:border-gold/30 sm:shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gold/15 px-4 py-3 sm:px-5">
+          <div>
+            <h2 id="agenda-apt-modal-title" className={`${typography.h3} text-gold`}>
+              Cita
+            </h2>
+            {createdLabel && (
+              <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
+                Creada {createdLabel} · Backoffice
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+
+        {mode === 'view' ? (
+          <>
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section>
+                  <p className="mb-3 font-semibold capitalize text-charcoal">
+                    {formatDisplayDate(date)}
+                  </p>
+                  <p className={`${typography.caption} mb-2 text-charcoal-muted`}>
+                    Con {staffName}
+                  </p>
+                  <ServiceBlocks
+                    appointment={appointment}
+                    staffName={staffName}
+                    services={services}
+                  />
+                </section>
+                <section>
+                  <ClientPanelView
+                    draft={draft}
+                    customerRegistered={customerRegistered}
+                    showCustomerHistoryLink={showCustomerHistoryLink}
+                    onEditClient={() => onModeChange('edit')}
+                  />
+                </section>
+              </div>
+            </div>
+
+            <footer className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/15 px-4 py-3 sm:px-5">
+              <Button type="button" variant="solid" size="sm" onClick={() => onModeChange('edit')}>
+                Editar
+              </Button>
+              {onCancelAppointment && (
+                <button
+                  type="button"
+                  onClick={onCancelAppointment}
+                  className="text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline"
+                >
+                  Eliminar
+                </button>
+              )}
+            </footer>
+          </>
+        ) : (
+          <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section className="space-y-3">
+                  <p className={`${typography.label} text-gold`}>Cita</p>
+                  <p className={`${typography.caption} capitalize text-charcoal-muted`}>
+                    {formatDisplayDate(date)} · {staffName}
+                  </p>
+                  <ServiceCategoryPicker
+                    compact
+                    variant="staff"
+                    services={services}
+                    serviceId={draft.serviceId}
+                    loading={services.length === 0}
+                    onServiceChange={(id) => onDraftChange({ serviceId: id })}
+                  />
+                  <div>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>Hora</label>
+                    <select
+                      required
+                      value={draft.startTime}
+                      onChange={(e) => onDraftChange({ startTime: e.target.value })}
+                      className={selectCn}
+                      disabled={!draft.serviceId}
+                    >
+                      <option value="">
+                        {draft.serviceId ? 'Elige hora' : 'Tratamiento primero'}
+                      </option>
+                      {timeOptions.map((slot) => (
+                        <option key={slot} value={slot}>
+                          {slot}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </section>
+                <section>
+                  <ClientPanelEdit
+                    draft={draft}
+                    customerRegistered={customerRegistered}
+                    onDraftChange={onDraftChange}
+                  />
+                </section>
+              </div>
+            </div>
+
+            <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
+              <Button type="submit" variant="solid" size="sm" disabled={saving || services.length === 0}>
+                {saving ? 'Guardando…' : 'Guardar cambios'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onModeChange('view')}
+                disabled={saving}
+              >
+                Volver
+              </Button>
+              {onCancelAppointment && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-red-300 text-red-800 hover:bg-red-50"
+                  onClick={onCancelAppointment}
+                  disabled={saving}
+                >
+                  Cancelar cita
+                </Button>
+              )}
+            </footer>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}

@@ -14,6 +14,7 @@ import {
   fetchAdminBlockSeries,
   fetchAdminSlots,
   fetchDaySchedule,
+  fetchCustomerDetail,
   fetchStaffServicesForAdmin,
   updateAdminAppointment,
 } from '@/lib/api'
@@ -45,6 +46,13 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [appointmentFormOpen, setAppointmentFormOpen] = useState(false)
+  const [viewingAppointment, setViewingAppointment] = useState<{
+    staffId: string
+    staffName: string
+    apt: DayScheduleAppointment
+  } | null>(null)
+  const [detailEditMode, setDetailEditMode] = useState(false)
+  const [detailCustomerRegistered, setDetailCustomerRegistered] = useState(false)
 
   const [blockModalOpen, setBlockModalOpen] = useState(false)
   const [pendingBlockGroups, setPendingBlockGroups] = useState<PendingBlockGroup[]>([])
@@ -81,6 +89,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setSelection(null)
     setAppointmentFormOpen(false)
     setEditingId(null)
+    setViewingAppointment(null)
+    setDetailEditMode(false)
     setActiveStaffId(null)
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
   }, [date])
@@ -159,16 +169,46 @@ export function useAdminAgenda(adminToken: string, date: string) {
     openNewAppointment(activeStaffId, '')
   }, [activeStaffId, openNewAppointment])
 
-  const startEditAppointment = useCallback(
+  const closeAppointmentDetail = useCallback(() => {
+    setViewingAppointment(null)
+    setDetailEditMode(false)
+    setEditingId(null)
+    setDetailCustomerRegistered(false)
+    setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
+  }, [])
+
+  const openAppointmentDetail = useCallback(
     (staffId: string, apt: DayScheduleAppointment) => {
+      const staffName = schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
       setActiveStaffId(staffId)
       setSelection(null)
       setEditingId(apt.id)
+      setDetailEditMode(false)
+      setViewingAppointment({ staffId, staffName, apt })
       setAptDraft(appointmentToDraft(apt))
-      setAppointmentFormOpen(true)
+      setDetailCustomerRegistered(false)
+
+      if (!adminToken || !apt.customerPhone) return
+      fetchCustomerDetail(adminToken, apt.customerPhone)
+        .then((detail) => {
+          setDetailCustomerRegistered(true)
+          setAptDraft(
+            appointmentToDraft(apt, {
+              email: detail.customer.email,
+              notes: detail.customer.notes,
+            }),
+          )
+        })
+        .catch(() => {
+          setDetailCustomerRegistered(false)
+        })
     },
-    [],
+    [adminToken, schedules],
   )
+
+  const startDetailEdit = useCallback(() => {
+    setDetailEditMode(true)
+  }, [])
 
   const selectionSummary = useCallback(() => {
     if (!selection) {
@@ -312,6 +352,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
             customerLastName: aptDraft.customerLastName,
             customerPhone: aptDraft.customerPhone,
             customerEmail: aptDraft.customerEmail || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
           })
         } else {
@@ -325,12 +366,14 @@ export function useAdminAgenda(adminToken: string, date: string) {
               customerLastName: aptDraft.customerLastName,
               customerPhone: aptDraft.customerPhone,
               customerEmail: aptDraft.customerEmail || undefined,
+              customerNotes: aptDraft.customerNotes || aptDraft.notes || undefined,
               notes: aptDraft.notes || undefined,
             },
             adminToken,
           )
         }
         setAppointmentFormOpen(false)
+        closeAppointmentDetail()
         resetAppointmentForm()
         clearSelection()
         await load()
@@ -347,6 +390,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
       aptDraft,
       date,
       resetAppointmentForm,
+      closeAppointmentDetail,
       clearSelection,
       load,
     ],
@@ -381,6 +425,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
           try {
             await cancelAppointment(id, adminToken)
             setAppointmentFormOpen(false)
+            closeAppointmentDetail()
             resetAppointmentForm()
             await load()
           } catch {
@@ -389,7 +434,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
         },
       })
     },
-    [adminToken, load, resetAppointmentForm],
+    [adminToken, load, resetAppointmentForm, closeAppointmentDetail],
   )
 
   const deleteBlockById = useCallback(
@@ -439,7 +484,13 @@ export function useAdminAgenda(adminToken: string, date: string) {
     selectStaff,
     openNewAppointment,
     openNewAppointmentForActiveStaff,
-    startEditAppointment,
+    viewingAppointment,
+    detailEditMode,
+    detailCustomerRegistered,
+    openAppointmentDetail,
+    closeAppointmentDetail,
+    startDetailEdit,
+    setDetailEditMode,
     saveAppointment,
     cancelAppointmentById,
     deleteBlockById,

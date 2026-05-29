@@ -89,6 +89,23 @@ export function appointmentEventClass(
   return palettes[key].event
 }
 
+/** Barra sólida en modal de detalle de cita (estilo BUK). */
+export function appointmentBlockBarClass(
+  categoryId: string | null | undefined,
+  serviceId?: string | null,
+): string {
+  const key = resolveAgendaColorKey(categoryId, serviceId)
+  const bar: Record<AgendaColorKey, string> = {
+    blue: 'bg-[#3498DB] text-white',
+    red: 'bg-[#C0392B] text-white',
+    teal: 'bg-[#1ABC9C] text-white',
+    purple: 'bg-[#9B59B6] text-white',
+    brown: 'bg-[#D35400] text-white',
+    maroon: 'bg-[#922B21] text-white',
+  }
+  return bar[key]
+}
+
 /** @deprecated Usar appointmentEventClass con serviceId cuando exista. */
 export function categoryEventClass(categoryId: string | null | undefined): string {
   return appointmentEventClass(categoryId)

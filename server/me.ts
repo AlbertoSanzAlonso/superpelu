@@ -127,6 +127,7 @@ me.post('/me/appointments', async (c) => {
     customerLastName?: string
     customerPhone: string
     customerEmail?: string
+    customerNotes?: string
     notes?: string
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
@@ -159,6 +160,7 @@ me.patch('/me/appointments/:id', async (c) => {
     customerLastName?: string
     customerPhone?: string
     customerEmail?: string | null
+    customerNotes?: string | null
     notes?: string | null
   }>()
   try {

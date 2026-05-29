@@ -161,6 +161,7 @@ export type AdminAppointmentPayload = {
   customerLastName?: string
   customerPhone: string
   customerEmail?: string
+  customerNotes?: string
   notes?: string
 }
 

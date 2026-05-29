@@ -55,6 +55,9 @@ export type DayScheduleAppointment = {
   categoryId: string | null
   customerName: string
   customerPhone: string
+  customerEmail: string | null
+  notes: string | null
+  createdAt: string
   occupiedSlots: { startTime: string; endTime: string }[]
 }
 
@@ -120,6 +123,9 @@ export async function getStaffDaySchedule(
       categoryId: row.category_id ?? null,
       customerName: row.customer_name,
       customerPhone: row.customer_phone,
+      customerEmail: row.customer_email,
+      notes: row.notes,
+      createdAt: row.created_at,
       occupiedSlots,
     }
   })

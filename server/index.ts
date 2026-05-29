@@ -414,6 +414,7 @@ app.post('/api/schedule/appointments', async (c) => {
     customerLastName?: string
     customerPhone: string
     customerEmail?: string
+    customerNotes?: string
     notes?: string
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
@@ -438,6 +439,7 @@ app.post('/api/schedule/appointments', async (c) => {
       customerLastName: body.customerLastName,
       customerPhone: body.customerPhone,
       customerEmail: body.customerEmail,
+      customerNotes: body.customerNotes,
       notes: body.notes,
       forStaffPortal: true,
     })
@@ -460,6 +462,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     customerLastName?: string
     customerPhone?: string
     customerEmail?: string | null
+    customerNotes?: string | null
     notes?: string | null
   }>()
   try {

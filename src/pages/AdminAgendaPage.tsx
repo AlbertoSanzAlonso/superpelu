@@ -10,6 +10,7 @@ import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCa
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
 import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
+import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
@@ -259,7 +260,7 @@ export function AdminAgendaPage() {
               formSlotTime={agenda.formSlotTime}
               formStaffId={agenda.formStaffId}
               onToggleSlot={agenda.toggleSlot}
-              onEditAppointment={agenda.startEditAppointment}
+              onEditAppointment={agenda.openAppointmentDetail}
             />
             </div>
           </>
@@ -289,22 +290,37 @@ export function AdminAgendaPage() {
         />
       )}
 
-      {agenda.activeStaffId && (
+      {agenda.viewingAppointment && (
+        <AgendaAppointmentModal
+          open
+          mode={agenda.detailEditMode ? 'edit' : 'view'}
+          date={selectedDate}
+          staffName={agenda.viewingAppointment.staffName}
+          appointment={agenda.viewingAppointment.apt}
+          customerRegistered={agenda.detailCustomerRegistered}
+          draft={agenda.aptDraft}
+          services={agenda.services}
+          slots={agenda.slots}
+          onModeChange={(m) => (m === 'edit' ? agenda.startDetailEdit() : agenda.setDetailEditMode(false))}
+          onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
+          onSubmit={agenda.saveAppointment}
+          onClose={agenda.closeAppointmentDetail}
+          onCancelAppointment={() => agenda.cancelAppointmentById(agenda.viewingAppointment!.apt.id)}
+          showCustomerHistoryLink
+        />
+      )}
+
+      {agenda.activeStaffId && agenda.appointmentFormOpen && !agenda.viewingAppointment && (
         <StaffAppointmentFormModal
-          open={agenda.appointmentFormOpen}
+          open
           staffName={activeStaffName}
-          editingId={agenda.editingId}
+          editingId={null}
           draft={agenda.aptDraft}
           services={agenda.services}
           slots={agenda.slots}
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}
-          onCancelAppointment={
-            agenda.editingId
-              ? () => agenda.cancelAppointmentById(agenda.editingId!)
-              : undefined
-          }
         />
       )}
 
