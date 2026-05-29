@@ -30,6 +30,7 @@ export function CustomerHistoryPage() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [serviceFilter, setServiceFilter] = useState('')
+  const [staffFilter, setStaffFilter] = useState('')
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
 
@@ -66,16 +67,29 @@ export function CustomerHistoryPage() {
       .sort((a, b) => a.name.localeCompare(b.name, 'es'))
   }, [appointments])
 
+  const staffOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const apt of appointments) {
+      if (apt.staffId && apt.staffName) {
+        map.set(apt.staffId, apt.staffName)
+      }
+    }
+    return [...map.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }, [appointments])
+
   const filteredAppointments = useMemo(() => {
     return appointments.filter((apt) => {
       if (dateFrom && apt.date < dateFrom) return false
       if (dateTo && apt.date > dateTo) return false
       if (serviceFilter && apt.serviceId !== serviceFilter) return false
+      if (staffFilter && apt.staffId !== staffFilter) return false
       return true
     })
-  }, [appointments, dateFrom, dateTo, serviceFilter])
+  }, [appointments, dateFrom, dateTo, serviceFilter, staffFilter])
 
-  const hasFilters = Boolean(dateFrom || dateTo || serviceFilter)
+  const hasFilters = Boolean(dateFrom || dateTo || serviceFilter || staffFilter)
 
   if (!phone) {
     return <Navigate to="/clientes" replace />
@@ -129,7 +143,7 @@ export function CustomerHistoryPage() {
 
         <div className="border-b border-gold/15 bg-cream/90 px-3 py-3">
           <p className={`${typography.label} mb-3`}>Filtrar historial</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <label className="block text-left">
               <span className={`${typography.caption} mb-1 block`}>Desde</span>
               <input
@@ -148,7 +162,7 @@ export function CustomerHistoryPage() {
                 className={fieldClass}
               />
             </label>
-            <label className="block text-left sm:col-span-2 lg:col-span-1">
+            <label className="block text-left">
               <span className={`${typography.caption} mb-1 block`}>Tratamiento</span>
               <select
                 value={serviceFilter}
@@ -163,7 +177,22 @@ export function CustomerHistoryPage() {
                 ))}
               </select>
             </label>
-            <div className="flex items-end sm:col-span-2 lg:col-span-1">
+            <label className="block text-left">
+              <span className={`${typography.caption} mb-1 block`}>Profesional</span>
+              <select
+                value={staffFilter}
+                onChange={(e) => setStaffFilter(e.target.value)}
+                className={fieldClass}
+              >
+                <option value="">Todos los profesionales</option>
+                {staffOptions.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-1">
               <button
                 type="button"
                 disabled={!hasFilters}
@@ -171,6 +200,7 @@ export function CustomerHistoryPage() {
                   setDateFrom('')
                   setDateTo('')
                   setServiceFilter('')
+                  setStaffFilter('')
                 }}
                 className="w-full border border-gold/30 px-3 py-2 text-sm text-charcoal-muted hover:border-gold disabled:opacity-40"
               >
