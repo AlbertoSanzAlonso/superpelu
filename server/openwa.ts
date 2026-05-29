@@ -221,6 +221,31 @@ export async function openWaGetSessionById(id: string): Promise<OpenWaSessionSta
   }
 }
 
+/**
+ * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA), intenta
+ * arrancarla. Como la autenticación persiste en el volumen, reconecta a
+ * `ready` sin pedir QR nuevo.
+ */
+export async function openWaEnsureStarted(): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+  try {
+    const session = await openWaGetSessionStatus()
+    if (session && isOpenWaSessionConnected(session.status)) return
+    console.log('Superpelu OpenWA: sesión no conectada, intentando reconectar…')
+    await openWaStartSession(config.sessionId)
+  } catch (err) {
+    console.error('Superpelu OpenWA reconexión:', err)
+  }
+}
+
+/** Mantiene viva la conexión: reconecta al arrancar y cada pocos minutos. */
+export function startOpenWaKeepAlive(): void {
+  if (!getOpenWaConfig()) return
+  setTimeout(() => void openWaEnsureStarted(), 20_000)
+  setInterval(() => void openWaEnsureStarted(), 5 * 60_000)
+}
+
 export function logOpenWaStartup(): void {
   const config = getOpenWaConfig()
   if (config) {

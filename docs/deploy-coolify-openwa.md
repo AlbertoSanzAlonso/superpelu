@@ -258,6 +258,34 @@ Si sigue en `3000`, busca otra variable `PORT` en Coolify o en *Server* y elimí
 
 **Alternativa:** dejar la app en 3000 y cambiar healthcheck + `OPENWA_API_URL` en Superpelu a `:3000` — peor, porque la documentación y el Dockerfile asumen **2785**.
 
+### Tras un redeploy/restart no genera QR: `The profile appears to be in use` (lock de Chromium)
+
+Síntoma en los logs de OpenWA al arrancar la sesión:
+
+```text
+Failed to launch the browser process: Code: 21
+The profile appears to be in use by another Chromium process (...) on another computer (...).
+Chromium has locked the profile so that it doesn't get corrupted.
+```
+
+**Causa:** al parar el contenedor de forma brusca (cada redeploy/restart), Chromium deja archivos de bloqueo (`SingletonLock`, `SingletonSocket`, `SingletonCookie`) en el perfil persistido (`/app/data/sessions/session-<nombre>/`). El nuevo contenedor se niega a arrancar el navegador.
+
+**Arreglo inmediato (manual):** abre una terminal en el contenedor OpenWA (Coolify → OpenWA → Terminal, o `docker exec`) y borra los locks; luego **Restart**:
+
+```bash
+find /app/data -name "Singleton*" -print -delete
+```
+
+**Arreglo permanente (que no vuelva a pasar):** en Coolify → OpenWA → **General → Custom Start Command** (Build Pack Dockerfile), pon:
+
+```bash
+sh -c "find /app/data -name 'Singleton*' -delete 2>/dev/null; node dist/main"
+```
+
+Como el `ENTRYPOINT` del Dockerfile es `dumb-init --`, el contenedor ejecutará `dumb-init -- sh -c "borra locks; node dist/main"` en cada arranque, limpiando el lock automáticamente. **Redeploy** para aplicarlo.
+
+> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada 5 min (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo.
+
 ---
 
 | Síntoma | Qué revisar |

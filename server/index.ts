@@ -42,6 +42,7 @@ import {
   openWaGetSessionStatus,
   openWaSessionName,
   openWaStartSession,
+  startOpenWaKeepAlive,
 } from './openwa.js'
 import { processDueReminders, startReminderScheduler } from './reminderScheduler.js'
 
@@ -697,6 +698,7 @@ async function main() {
   logOpenWaStartup()
   console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
+  startOpenWaKeepAlive()
   startReminderScheduler()
 }
 
