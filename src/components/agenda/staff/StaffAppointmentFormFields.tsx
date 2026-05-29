@@ -57,7 +57,7 @@ export function StaffAppointmentFormFields({
               services={services}
               serviceId={draft.serviceId}
               loading={services.length === 0}
-              onServiceChange={(id) => onDraftChange({ serviceId: id, startTime: '' })}
+              onServiceChange={(id) => onDraftChange({ serviceId: id })}
             />
           </div>
           <div>
@@ -87,7 +87,7 @@ export function StaffAppointmentFormFields({
             services={services}
             serviceId={draft.serviceId}
             loading={services.length === 0}
-            onServiceChange={(id) => onDraftChange({ serviceId: id, startTime: '' })}
+            onServiceChange={(id) => onDraftChange({ serviceId: id })}
           />
           <div>
             <label className={timeLabelCn}>Hora</label>

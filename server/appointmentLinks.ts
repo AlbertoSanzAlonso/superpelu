@@ -91,6 +91,37 @@ export function buildLinkPreviewMetaTags(options: {
   return tags.join('')
 }
 
+const SPA_LINK_PREVIEW_TITLES: Record<string, string> = {
+  '/reservar': 'Reservar cita',
+}
+
+/** Título Open Graph para rutas de la SPA (WhatsApp al compartir /reservar, etc.). */
+export function spaLinkPreviewTitle(pagePath: string): string {
+  const path = pagePath.split('?')[0] || '/'
+  return SPA_LINK_PREVIEW_TITLES[path] ?? 'Superpelu Hair Studio | Peluquería en Benalmádena'
+}
+
+/**
+ * Sustituye meta description / Open Graph del index.html de la SPA por URLs absolutas.
+ * WhatsApp exige og:image con URL absoluta; en el HTML estático va relativa.
+ */
+export function injectSpaLinkPreviewMeta(html: string, pagePath: string): string {
+  const base = publicBaseUrl()
+  if (!base) return html
+
+  const pathOnly = pagePath.split('?')[0] || '/'
+  const pageUrl = pathOnly === '/' ? `${base}/` : `${base}${pathOnly}`
+  const meta = buildLinkPreviewMetaTags({
+    title: spaLinkPreviewTitle(pathOnly),
+    pageUrl,
+  })
+
+  return html.replace(
+    /<meta\s+name="description"[\s\S]*?<title>[^<]*<\/title>/,
+    meta,
+  )
+}
+
 /** URL pública base de Superpelu (sin barra final). Vacío si no se puede determinar. */
 export function publicBaseUrl(): string {
   const explicit = (process.env.PUBLIC_BASE_URL ?? '').trim()
@@ -107,6 +138,13 @@ export function adminAgendaUrl(): string {
   const base = publicBaseUrl()
   if (base) return `${base}/agenda`
   return ''
+}
+
+/** Enlace a la reserva online (WhatsApp cancelación, etc.). */
+export function buildBookingUrl(): string | null {
+  const base = publicBaseUrl()
+  if (!base) return null
+  return `${base}/reservar`
 }
 
 export function buildCancelUrl(row: AppointmentRow): string | null {

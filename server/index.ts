@@ -23,6 +23,7 @@ import {
   buildLinkPreviewMetaTags,
   buildManageUrl,
   decodeId,
+  injectSpaLinkPreviewMeta,
   publicBaseUrl,
   verifyCancelToken,
 } from './appointmentLinks.js'
@@ -995,7 +996,10 @@ if (hasDist) {
       const type = staticMime[ext] ?? 'application/octet-stream'
       return c.body(fs.readFileSync(filePath), 200, { 'Content-Type': type })
     }
-    const html = fs.readFileSync(path.join(distPath, 'index.html'), 'utf-8')
+    const html = injectSpaLinkPreviewMeta(
+      fs.readFileSync(path.join(distPath, 'index.html'), 'utf-8'),
+      c.req.path,
+    )
     return c.html(html)
   })
 } else {

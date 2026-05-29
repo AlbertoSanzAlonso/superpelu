@@ -6,7 +6,7 @@ import {
   openWaSendText,
   phoneToWhatsAppChatId,
 } from './openwa.js'
-import { buildManageUrl, publicBaseUrl } from './appointmentLinks.js'
+import { buildBookingUrl, buildManageUrl } from './appointmentLinks.js'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
@@ -116,8 +116,8 @@ export function buildAppointmentCancelledMessage(row: AppointmentRow): string {
     row.duration_minutes,
   )
 
-  const base = publicBaseUrl()
-  const bookingLine = base ? `\n\nReservar otra cita: ${base}/reservar` : ''
+  const bookingUrl = buildBookingUrl()
+  const bookingLine = bookingUrl ? `\n\nReservar otra cita: ${bookingUrl}` : ''
 
   return `Hola ${firstName}, 👋
 
