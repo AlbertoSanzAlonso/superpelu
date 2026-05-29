@@ -71,6 +71,29 @@ curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
   http://localhost:3001/api/admin/whatsapp
 ```
 
+## Recordatorio 24h antes de la cita
+
+Además del mensaje de confirmación inmediato, Superpelu envía un **recordatorio** cuando faltan ~24h. Lo gestiona un temporizador dentro del propio servidor (`server/reminderScheduler.ts`):
+
+- Cada `REMINDER_POLL_MINUTES` (def. 10) busca citas `confirmed` sin recordatorio enviado y, si entran en la ventana de `REMINDER_HOURS_BEFORE` (def. 24), las notifica.
+- Idempotente: la columna `reminder_sent_at` de `appointments` evita duplicados aunque el contenedor se reinicie.
+- Si una cita se reserva con **menos de 24h** de antelación, no se envía recordatorio (solo la confirmación).
+
+Variables (todas opcionales):
+
+| Variable | Default | Descripción |
+|----------|---------|-------------|
+| `REMINDERS_ENABLED` | `true` | `false` desactiva el recordatorio |
+| `REMINDER_HOURS_BEFORE` | `24` | horas antes de la cita |
+| `REMINDER_POLL_MINUTES` | `10` | frecuencia de revisión |
+
+Requiere OpenWA configurado (si no, el scheduler queda inactivo). Forzar un envío manual (para pruebas):
+
+```bash
+curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  http://localhost:3001/api/admin/whatsapp/reminders/run
+```
+
 ## Coolify
 
 Guía completa: **[deploy-coolify-openwa.md](./deploy-coolify-openwa.md)** — recurso Docker Compose (repo OpenWA) + variables en Superpelu + red compartida.

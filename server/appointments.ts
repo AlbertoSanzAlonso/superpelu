@@ -11,7 +11,13 @@ import {
   upsertCustomer,
 } from './customers.js'
 import { notifyAppointmentCreated } from './appointmentWhatsApp.js'
-import { isSalonOpenDay, isWithinSalonBookingWindow, todaySalon } from '../src/lib/dates.ts'
+import {
+  addDaysToDateString,
+  hoursUntilAppointment,
+  isSalonOpenDay,
+  isWithinSalonBookingWindow,
+  todaySalon,
+} from '../src/lib/dates.ts'
 import {
   appointmentOccupiedSlots,
   getBookingSpanMinutes,
@@ -220,17 +226,21 @@ export async function createAppointment(
   const createdAt = new Date().toISOString()
   const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
 
+  // Si la cita es en menos de 24h, no hay recordatorio: se marca como ya gestionado.
+  const reminderSentAt =
+    hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
+
   await sql`
     INSERT INTO appointments (
       id, staff_id, staff_name, service_id, service_name, duration_minutes,
       appointment_date, start_time,
       customer_name, customer_phone, customer_email, notes,
-      status, created_at
+      status, created_at, reminder_sent_at
     ) VALUES (
       ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${service.nameEs}, ${storedDuration},
       ${input.date}, ${input.startTime},
       ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
-      ${input.notes?.trim() || null}, 'confirmed', ${createdAt}
+      ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}
     )
   `
 
@@ -343,6 +353,16 @@ export async function updateAppointmentForStaff(
     customerPhone = split.phone
   }
 
+  // Reprogramación: si la nueva fecha/hora queda a más de 24h, reactivar el
+  // recordatorio (NULL); si queda a 24h o menos, marcar como gestionado.
+  const dateOrTimeChanged =
+    date !== existing.appointment_date || startTime !== existing.start_time
+  const reminderSentAt = dateOrTimeChanged
+    ? hoursUntilAppointment(date, startTime) <= 24
+      ? new Date().toISOString()
+      : null
+    : existing.reminder_sent_at
+
   const staff = (await getStaff(staffId))!
   await sql`
     UPDATE appointments SET
@@ -359,7 +379,8 @@ export async function updateAppointmentForStaff(
           : existing.customer_email
       },
       notes = ${input.notes !== undefined ? input.notes?.trim() || null : existing.notes},
-      staff_name = ${staff.name}
+      staff_name = ${staff.name},
+      reminder_sent_at = ${reminderSentAt}
     WHERE id = ${appointmentId}
   `
 
@@ -395,6 +416,27 @@ export async function listAppointments(from: string, to: string): Promise<Appoin
     WHERE appointment_date >= ${from} AND appointment_date <= ${to}
     ORDER BY appointment_date ASC, start_time ASC
   `
+}
+
+/**
+ * Citas candidatas a recordatorio: confirmadas, sin recordatorio enviado y con
+ * fecha entre hoy y mañana (la ventana de 24h solo cae en ese rango).
+ */
+export async function listAppointmentsDueForReminder(): Promise<AppointmentRow[]> {
+  const today = todaySalon()
+  const until = addDaysToDateString(today, 1)
+  return sql<AppointmentRow[]>`
+    SELECT * FROM appointments
+    WHERE status = 'confirmed'
+      AND reminder_sent_at IS NULL
+      AND appointment_date >= ${today}
+      AND appointment_date <= ${until}
+    ORDER BY appointment_date ASC, start_time ASC
+  `
+}
+
+export async function markReminderSent(id: string): Promise<void> {
+  await sql`UPDATE appointments SET reminder_sent_at = now() WHERE id = ${id}`
 }
 
 export async function cancelAppointment(id: string): Promise<AppointmentRow | undefined> {

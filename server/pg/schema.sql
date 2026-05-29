@@ -95,8 +95,14 @@ CREATE TABLE IF NOT EXISTS appointments (
   created_at TIMESTAMPTZ NOT NULL
 );
 
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_appointments_date
   ON appointments (appointment_date, status);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_reminder
+  ON appointments (appointment_date, start_time)
+  WHERE status = 'confirmed' AND reminder_sent_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_staff_date
   ON appointments (staff_id, appointment_date, status);

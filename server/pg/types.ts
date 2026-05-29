@@ -23,6 +23,7 @@ export type AppointmentRow = {
   notes: string | null
   status: string
   created_at: string
+  reminder_sent_at: string | null
 }
 
 export type StaffRow = {

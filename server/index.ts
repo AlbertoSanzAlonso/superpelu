@@ -43,6 +43,7 @@ import {
   openWaSessionName,
   openWaStartSession,
 } from './openwa.js'
+import { processDueReminders, startReminderScheduler } from './reminderScheduler.js'
 
 const app = new Hono()
 
@@ -95,6 +96,14 @@ app.get('/api/auth/verify', (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
   return c.json({ ok: true })
+})
+
+/** Fuerza el envío de recordatorios pendientes (solo admin, para pruebas). */
+app.post('/api/admin/whatsapp/reminders/run', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const sent = await processDueReminders()
+  return c.json({ sent })
 })
 
 /** Estado de la sesión OpenWA (solo admin). */
@@ -688,6 +697,7 @@ async function main() {
   logOpenWaStartup()
   console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
+  startReminderScheduler()
 }
 
 main().catch((err) => {
