@@ -267,6 +267,7 @@ export async function createAppointment(
 
 export type UpdateAppointmentInput = {
   serviceId?: string
+  staffId?: string
   date?: string
   startTime?: string
   customerName?: string
@@ -308,9 +309,15 @@ export async function updateAppointmentForStaff(
   input: UpdateAppointmentInput,
 ): Promise<AppointmentRow> {
   const existing = await getAppointmentById(appointmentId)
-  if (!existing || existing.staff_id !== staffId || existing.status === 'cancelled') {
+  if (!existing || existing.status === 'cancelled') {
     throw new Error('CITA_NO_ENCONTRADA')
   }
+  if (existing.staff_id !== staffId && input.staffId === undefined) {
+    throw new Error('CITA_NO_ENCONTRADA')
+  }
+
+  const targetStaffId = input.staffId ?? existing.staff_id ?? staffId
+  if (!targetStaffId) throw new Error('CITA_NO_ENCONTRADA')
 
   const serviceId = input.serviceId ?? existing.service_id
   const date = input.date ?? existing.appointment_date
@@ -318,21 +325,21 @@ export async function updateAppointmentForStaff(
   const service = await getService(serviceId, { onlineOnly: false })
   if (!service) throw new Error('SERVICIO_INVALIDO')
 
-  if (!(await staffCanPerformService(staffId, serviceId))) {
+  if (!(await staffCanPerformService(targetStaffId, serviceId))) {
     throw new Error('STAFF_NO_REALIZA_SERVICIO')
   }
 
   if (
     !isValidDateString(date) ||
     !isSalonOpenDay(date) ||
-    !(await isStaffWorkingOnDate(staffId, date))
+    !(await isStaffWorkingOnDate(targetStaffId, date))
   ) {
     throw new Error('FECHA_INVALIDA')
   }
 
   const startMinutes = timeToMinutes(startTime)
   const segments = getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
-  if (await isBookingUnavailable(staffId, date, segments, appointmentId)) {
+  if (await isBookingUnavailable(targetStaffId, date, segments, appointmentId)) {
     throw new Error('HORARIO_NO_DISPONIBLE')
   }
 
@@ -376,15 +383,20 @@ export async function updateAppointmentForStaff(
   // recordatorio (NULL); si queda a 24h o menos, marcar como gestionado.
   const dateOrTimeChanged =
     date !== existing.appointment_date || startTime !== existing.start_time
-  const reminderSentAt = dateOrTimeChanged
-    ? hoursUntilAppointment(date, startTime) <= 24
-      ? new Date().toISOString()
-      : null
-    : existing.reminder_sent_at
+  const staffChanged = targetStaffId !== existing.staff_id
+  const reminderSentAt =
+    dateOrTimeChanged || staffChanged
+      ? hoursUntilAppointment(date, startTime) <= 24
+        ? new Date().toISOString()
+        : null
+      : existing.reminder_sent_at
 
-  const staff = (await getStaff(staffId))!
+  const staff = (await getStaff(targetStaffId))!
+  if (!staff?.active) throw new Error('STAFF_INVALIDO')
+
   await sql`
     UPDATE appointments SET
+      staff_id = ${targetStaffId},
       service_id = ${service.id},
       service_name = ${service.nameEs},
       duration_minutes = ${storedDuration},
@@ -405,7 +417,7 @@ export async function updateAppointmentForStaff(
 
   const updated = (await getAppointmentById(appointmentId))!
   const scheduleChanged =
-    dateOrTimeChanged || serviceId !== existing.service_id
+    dateOrTimeChanged || serviceId !== existing.service_id || staffChanged
   if (scheduleChanged) {
     void notifyAppointmentRescheduled(updated).catch((err) => {
       console.error('Superpelu WhatsApp (cita reprogramada):', err)

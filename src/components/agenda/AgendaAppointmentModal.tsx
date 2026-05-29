@@ -11,11 +11,16 @@ import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
 import type { BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
+export type AgendaStaffOption = { id: string; name: string }
+
 type Props = {
   open: boolean
   mode: 'view' | 'edit'
   date: string
+  staffId: string
   staffName: string
+  staffOptions: AgendaStaffOption[]
+  onStaffChange: (staffId: string) => void
   appointment: DayScheduleAppointment
   customerRegistered: boolean
   draft: AppointmentDraft
@@ -253,7 +258,10 @@ export function AgendaAppointmentModal({
   open,
   mode,
   date,
+  staffId,
   staffName,
+  staffOptions,
+  onStaffChange,
   appointment,
   customerRegistered,
   draft,
@@ -282,7 +290,7 @@ export function AgendaAppointmentModal({
 
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
   const selectCn =
-    'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
+    'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
 
   return (
     <div
@@ -310,7 +318,7 @@ export function AgendaAppointmentModal({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
+            className="shrink-0 cursor-pointer border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
             aria-label="Cerrar"
           >
             ✕
@@ -353,7 +361,7 @@ export function AgendaAppointmentModal({
                 <button
                   type="button"
                   onClick={onCancelAppointment}
-                  className="text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline"
+                  className="cursor-pointer text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline"
                 >
                   Eliminar
                 </button>
@@ -367,8 +375,27 @@ export function AgendaAppointmentModal({
                 <section className="space-y-3">
                   <p className={`${typography.label} text-gold`}>Cita</p>
                   <p className={`${typography.caption} capitalize text-charcoal-muted`}>
-                    {formatDisplayDate(date)} · {staffName}
+                    {formatDisplayDate(date)}
                   </p>
+                  {staffOptions.length > 0 && (
+                    <div>
+                      <label className={`${typography.label} mb-0.5 block text-xs`}>
+                        Profesional
+                      </label>
+                      <select
+                        required
+                        value={staffId}
+                        onChange={(e) => onStaffChange(e.target.value)}
+                        className={selectCn}
+                      >
+                        {staffOptions.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <ServiceCategoryPicker
                     compact
                     variant="staff"

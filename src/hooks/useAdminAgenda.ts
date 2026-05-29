@@ -210,6 +210,22 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setDetailEditMode(true)
   }, [])
 
+  const changeDetailStaff = useCallback(
+    (staffId: string) => {
+      const staffName = schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
+      setActiveStaffId(staffId)
+      setViewingAppointment((prev) => (prev ? { ...prev, staffId, staffName } : null))
+    },
+    [schedules],
+  )
+
+  useEffect(() => {
+    if (!detailEditMode || !viewingAppointment || services.length === 0) return
+    if (aptDraft.serviceId && !services.some((s) => s.id === aptDraft.serviceId)) {
+      setAptDraft((d) => ({ ...d, serviceId: '', startTime: '' }))
+    }
+  }, [services, aptDraft.serviceId, detailEditMode, viewingAppointment])
+
   const selectionSummary = useCallback(() => {
     if (!selection) {
       return { freeTimes: [], blockIds: [], hasAppointment: false }
@@ -345,6 +361,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
       try {
         if (editingId) {
           await updateAdminAppointment(editingId, adminToken, {
+            staffId: activeStaffId,
             serviceId: aptDraft.serviceId,
             date,
             startTime: aptDraft.startTime,
@@ -491,6 +508,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     closeAppointmentDetail,
     startDetailEdit,
     setDetailEditMode,
+    changeDetailStaff,
     saveAppointment,
     cancelAppointmentById,
     deleteBlockById,

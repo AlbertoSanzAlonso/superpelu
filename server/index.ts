@@ -454,6 +454,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const body = await c.req.json<{
+    staffId?: string
     serviceId?: string
     date?: string
     startTime?: string

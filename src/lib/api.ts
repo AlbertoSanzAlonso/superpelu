@@ -176,7 +176,7 @@ export function createAdminAppointment(payload: AdminAppointmentPayload, adminTo
 export function updateAdminAppointment(
   id: string,
   adminToken: string,
-  patch: Partial<Omit<AdminAppointmentPayload, 'staffId'>>,
+  patch: Partial<AdminAppointmentPayload>,
 ) {
   return request<{ appointment: Appointment }>(`/schedule/appointments/${id}`, {
     method: 'PATCH',

@@ -11,7 +11,7 @@ import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 const selectClass =
-  'w-full border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:opacity-50'
+  'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
 
 const selectClassCompact = `${selectClass} py-1.5`
 

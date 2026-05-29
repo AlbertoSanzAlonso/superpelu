@@ -295,7 +295,13 @@ export function AdminAgendaPage() {
           open
           mode={agenda.detailEditMode ? 'edit' : 'view'}
           date={selectedDate}
+          staffId={agenda.viewingAppointment.staffId}
           staffName={agenda.viewingAppointment.staffName}
+          staffOptions={agenda.schedules.map((s) => ({
+            id: s.staffId,
+            name: s.staffName,
+          }))}
+          onStaffChange={agenda.changeDetailStaff}
           appointment={agenda.viewingAppointment.apt}
           customerRegistered={agenda.detailCustomerRegistered}
           draft={agenda.aptDraft}

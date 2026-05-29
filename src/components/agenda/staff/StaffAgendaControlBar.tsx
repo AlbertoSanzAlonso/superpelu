@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 const dayNavButtonClass =
-  'flex h-8 w-8 shrink-0 items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
+  'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
+
+const dateInputClass =
+  'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs outline-none focus:border-gold'
 
 type Props = {
   staff: StaffSession
@@ -100,7 +103,7 @@ export function StaffAgendaControlBar({
         type="button"
         disabled={isToday}
         onClick={() => onDateChange(todaySalon())}
-        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-default disabled:opacity-40"
+        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
       >
         Hoy
       </button>
@@ -109,7 +112,7 @@ export function StaffAgendaControlBar({
         type="date"
         value={date}
         onChange={(e) => onDateChange(e.target.value)}
-        className="h-8 border border-gold/30 bg-cream px-2 text-xs outline-none focus:border-gold"
+        className={dateInputClass}
         aria-label="Fecha"
       />
 

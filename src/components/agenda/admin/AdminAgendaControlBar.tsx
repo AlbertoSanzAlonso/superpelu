@@ -7,7 +7,13 @@ import type { StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 const dayNavButtonClass =
-  'flex h-8 w-8 shrink-0 items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
+  'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
+
+const dateInputClass =
+  'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs outline-none focus:border-gold'
+
+const staffSelectClass =
+  'h-8 min-w-[9rem] flex-1 cursor-pointer border border-gold/30 bg-cream px-2 text-xs md:max-w-[12rem] md:flex-none'
 
 type Props = {
   date: string
@@ -97,7 +103,7 @@ export function AdminAgendaControlBar({
         type="button"
         disabled={isToday}
         onClick={() => onDateChange(todaySalon())}
-        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-default disabled:opacity-40"
+        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
       >
         Hoy
       </button>
@@ -106,7 +112,7 @@ export function AdminAgendaControlBar({
         type="date"
         value={date}
         onChange={(e) => onDateChange(e.target.value)}
-        className="h-8 border border-gold/30 bg-cream px-2 text-xs outline-none focus:border-gold"
+        className={dateInputClass}
         aria-label="Fecha"
       />
 
@@ -121,7 +127,7 @@ export function AdminAgendaControlBar({
       <select
         value={activeStaffId ?? ''}
         onChange={(e) => onStaffChange(e.target.value)}
-        className="h-8 min-w-[9rem] flex-1 border border-gold/30 bg-cream px-2 text-xs md:max-w-[12rem] md:flex-none"
+        className={staffSelectClass}
         aria-label="Profesional"
       >
         <option value="">Profesional…</option>
@@ -163,7 +169,7 @@ export function AdminAgendaControlBar({
       <div className="ml-auto flex items-center gap-2">
         <Link
           to="/clientes"
-          className="border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
+          className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
         >
           Clientes
         </Link>

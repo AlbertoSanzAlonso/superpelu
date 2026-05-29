@@ -53,7 +53,7 @@ export function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={() => void onConfirm()}
-            className={`inline-flex h-9 items-center justify-center px-4 text-sm font-medium transition-colors disabled:opacity-50 ${
+            className={`inline-flex h-9 cursor-pointer items-center justify-center px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               destructive
                 ? 'bg-red-800 text-cream hover:bg-red-900'
                 : 'border border-gold bg-gold/10 text-gold hover:border-gold hover:bg-gold/20'
