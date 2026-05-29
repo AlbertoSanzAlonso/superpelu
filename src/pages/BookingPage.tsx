@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
 import { AppointmentForm } from '@/components/booking/AppointmentForm'
+import { AddToCalendarButton } from '@/components/booking/AddToCalendarButton'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
-import { downloadAppointmentCalendar } from '@/lib/calendar'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -49,14 +49,7 @@ export function BookingPage() {
             </div>
           </dl>
           <div className="mt-10 space-y-4">
-            <Button
-              variant="solid"
-              size="md"
-              className="w-full"
-              onClick={() => downloadAppointmentCalendar(confirmed)}
-            >
-              Añadir al calendario
-            </Button>
+            <AddToCalendarButton appointment={confirmed} />
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Button href="/" variant="outline" size="md">
                 Inicio

@@ -11,16 +11,31 @@ function icsEscape(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
 }
 
-/** Genera el contenido .ics de una cita (hora Europe/Madrid). */
-export function buildAppointmentIcs(apt: Appointment): string {
+/** Marcas de tiempo locales (sin zona) inicio/fin de la cita en formato YYYYMMDDTHHMMSS. */
+function localStamps(apt: Appointment): { start: string; end: string } {
   const [y, m, d] = apt.date.split('-').map(Number)
   const [hh, mm] = apt.startTime.split(':').map(Number)
   const startTotal = hh * 60 + mm
   const endTotal = startTotal + apt.durationMinutes
-
   const local = (totalMin: number) =>
     `${y}${pad(m)}${pad(d)}T${pad(Math.floor(totalMin / 60))}${pad(totalMin % 60)}00`
+  return { start: local(startTotal), end: local(endTotal) }
+}
 
+function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && 'ontouchend' in document)
+}
+
+function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android/i.test(navigator.userAgent || '')
+}
+
+/** Genera el contenido .ics de una cita (hora Europe/Madrid). */
+export function buildAppointmentIcs(apt: Appointment): string {
+  const { start, end } = localStamps(apt)
   const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 
   return [
@@ -49,8 +64,8 @@ export function buildAppointmentIcs(apt: Appointment): string {
     'BEGIN:VEVENT',
     `UID:${apt.id}@superpelu`,
     `DTSTAMP:${dtStamp}`,
-    `DTSTART;TZID=Europe/Madrid:${local(startTotal)}`,
-    `DTEND;TZID=Europe/Madrid:${local(endTotal)}`,
+    `DTSTART;TZID=Europe/Madrid:${start}`,
+    `DTEND;TZID=Europe/Madrid:${end}`,
     `SUMMARY:${icsEscape(`Cita Superpelu — ${apt.serviceName}`)}`,
     `DESCRIPTION:${icsEscape(`Cita con ${apt.staffName ?? 'Superpelu'}. Tel: ${SALON_PHONE}`)}`,
     `LOCATION:${icsEscape(SALON_ADDRESS)}`,
@@ -60,8 +75,25 @@ export function buildAppointmentIcs(apt: Appointment): string {
   ].join('\r\n')
 }
 
+/**
+ * URL de Google Calendar con el evento prerellenado. En Android abre la app de
+ * Google Calendar (o la web), que es el flujo más fiable para guardar la cita.
+ */
+export function buildGoogleCalendarUrl(apt: Appointment): string {
+  const { start, end } = localStamps(apt)
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `Cita Superpelu — ${apt.serviceName}`,
+    dates: `${start}/${end}`,
+    details: `Cita con ${apt.staffName ?? 'Superpelu'}. Tel: ${SALON_PHONE}`,
+    location: SALON_ADDRESS,
+    ctz: 'Europe/Madrid',
+  })
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
+
 /** Descarga el .ics de la cita; el SO abre el calendario nativo para guardarla. */
-export function downloadAppointmentCalendar(apt: Appointment): void {
+export function downloadAppointmentIcs(apt: Appointment): void {
   const ics = buildAppointmentIcs(apt)
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -72,4 +104,17 @@ export function downloadAppointmentCalendar(apt: Appointment): void {
   link.click()
   document.body.removeChild(link)
   setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+/**
+ * Añade la cita al calendario del usuario eligiendo el mejor flujo por dispositivo:
+ * - Android → Google Calendar con el evento prerellenado (más fiable que descargar .ics).
+ * - iPhone/iPad y escritorio → descarga .ics, que abre el calendario nativo (Apple/Outlook…).
+ */
+export function addAppointmentToCalendar(apt: Appointment): void {
+  if (isAndroid() && !isIOS()) {
+    window.open(buildGoogleCalendarUrl(apt), '_blank', 'noopener,noreferrer')
+    return
+  }
+  downloadAppointmentIcs(apt)
 }
