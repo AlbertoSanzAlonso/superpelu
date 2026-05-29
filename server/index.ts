@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { listActiveServiceCategories } from './serviceCategories.js'
 import { listActiveServices } from './services.js'
-import { listStaffForService } from './staff.js'
+import { listStaffForService, getStaff } from './staff.js'
 import { me } from './me.js'
 import { listStaffDaySchedules } from './staffSchedule.js'
 import {
@@ -546,6 +546,16 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
+function webHomeButtonHtml(): string {
+  const base = publicBaseUrl()
+  if (!base) return ''
+  return `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(base)}">Ir a la web</a></p>`
+}
+
+function customerPage(title: string, bodyHtml: string) {
+  return cancelPage(title, `${bodyHtml}${webHomeButtonHtml()}`)
+}
+
 function cancelPage(title: string, bodyHtml: string, status: 200 | 400 | 404 = 200) {
   return [
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">',
@@ -560,6 +570,7 @@ function cancelPage(title: string, bodyHtml: string, status: 200 | 400 | 404 = 2
     '.btn{display:inline-block;border:0;border-radius:10px;padding:.85rem 1.4rem;font-size:1rem;',
     'font-weight:600;cursor:pointer;text-decoration:none;margin-top:.5rem}',
     '.btn-danger{background:#c0392b;color:#fff}.btn-secondary{background:#e7e0db;color:#2b2b2b}',
+    '.btn-primary{background:#1f1b18;color:#fff}',
     '.section-label{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9a8f86;margin:1.25rem 0 .5rem;text-align:left}',
     '.date-form,.staff-form{margin:.5rem 0 1rem;text-align:left}.date-form input[type=date],.staff-form select{width:100%;padding:.65rem;border:1px solid #d4c4bc;border-radius:8px;font-size:1rem}',
     '.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.5rem 0 1rem}.slot-form{margin:0}',
@@ -578,21 +589,32 @@ app.get('/c/:code', async (c) => {
   const token = c.req.query('t')
   if (!id || !verifyCancelToken(id, token)) {
     return c.html(
-      cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>Este enlace de cancelación no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>'),
+      customerPage(
+        'Enlace no válido',
+        '<h1>Enlace no válido</h1><p>Este enlace de cancelación no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>',
+      ),
       400,
     )
   }
 
   const row = await getAppointmentById(id)
   if (!row) {
-    return c.html(cancelPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>'), 404)
+    return c.html(customerPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>'), 404)
   }
 
   if (row.status === 'cancelled') {
     return c.html(
-      cancelPage('Cita cancelada', '<h1>Esta cita ya está cancelada</h1><p>No hay nada más que hacer. ¡Gracias!</p>'),
+      customerPage(
+        'Cita cancelada',
+        '<h1>Esta cita ya está cancelada</h1><p>No hay nada más que hacer. ¡Gracias!</p>',
+      ),
     )
   }
+
+  const manageUrl = buildManageUrl(row)
+  const backToManage = manageUrl
+    ? `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(manageUrl)}">Volver a gestionar</a></p>`
+    : ''
 
   const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
   const timeRange = escapeHtml(
@@ -602,7 +624,7 @@ app.get('/c/:code', async (c) => {
   const staff = escapeHtml(row.staff_name ?? '')
 
   return c.html(
-    cancelPage(
+    customerPage(
       'Cancelar cita',
       `<h1>¿Cancelar tu cita?</h1>
        <div class="detail">
@@ -615,6 +637,7 @@ app.get('/c/:code', async (c) => {
          <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
          <button class="btn btn-danger" type="submit">Sí, cancelar la cita</button>
        </form>
+       ${backToManage}
        <p class="muted">Si fue un error, cierra esta página y tu cita seguirá activa.</p>`,
     ),
   )
@@ -625,20 +648,20 @@ app.post('/c/:code', async (c) => {
   const body = await c.req.parseBody()
   const token = typeof body.t === 'string' ? body.t : undefined
   if (!id || !verifyCancelToken(id, token)) {
-    return c.html(cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cancelar.</p>'), 400)
+    return c.html(customerPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cancelar.</p>'), 400)
   }
 
   const existing = await getAppointmentById(id)
   if (!existing) {
-    return c.html(cancelPage('Cita no encontrada', '<h1>Cita no encontrada</h1>'), 404)
+    return c.html(customerPage('Cita no encontrada', '<h1>Cita no encontrada</h1>'), 404)
   }
   if (existing.status === 'cancelled') {
-    return c.html(cancelPage('Cita cancelada', '<h1>Esta cita ya estaba cancelada</h1><p>¡Gracias!</p>'))
+    return c.html(customerPage('Cita cancelada', '<h1>Esta cita ya estaba cancelada</h1><p>¡Gracias!</p>'))
   }
 
   await cancelAppointment(id)
   return c.html(
-    cancelPage(
+    customerPage(
       'Cita cancelada',
       '<h1>✅ Cita cancelada</h1><p>Tu cita ha sido cancelada correctamente.</p><p>Si quieres, puedes reservar otra cuando quieras. ¡Gracias!</p>',
     ),
@@ -654,6 +677,67 @@ const manageErrors: Record<string, string> = {
   SERVICIO_INVALIDO: 'Servicio no válido.',
 }
 
+/** Confirmación antes de aplicar un cambio de cita (cliente). */
+app.get('/m/:code/confirm', async (c) => {
+  const code = c.req.param('code')
+  const token = c.req.query('t')
+  const date = c.req.query('date')
+  const startTime = c.req.query('startTime')
+  const staffId = c.req.query('staffId')
+  const id = decodeId(code)
+
+  if (!id || !verifyCancelToken(id, token)) {
+    return c.html(
+      customerPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo confirmar el cambio.</p>'),
+      400,
+    )
+  }
+
+  if (!date || !startTime || !staffId) {
+    return c.html(
+      customerPage('Datos incompletos', '<h1>Faltan datos</h1><p>Elige profesional, día y hora.</p>'),
+      400,
+    )
+  }
+
+  const row = await getAppointmentById(id)
+  if (!row || row.status === 'cancelled') {
+    return c.html(
+      customerPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>Esta cita ya no está activa.</p>'),
+      404,
+    )
+  }
+
+  const staff = await getStaff(staffId)
+  const staffName = escapeHtml(staff?.name ?? row.staff_name ?? '')
+  const dateLabel = escapeHtml(formatDisplayDate(date))
+  const timeRange = escapeHtml(formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes))
+  const service = escapeHtml(row.service_name)
+  const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}&staffId=${encodeURIComponent(staffId)}`
+
+  return c.html(
+    customerPage(
+      'Confirmar cambio',
+      `<h1>¿Confirmar el cambio?</h1>
+       <p>Tu cita quedará así:</p>
+       <div class="detail">
+         <p>💇 ${service}</p>
+         <p>👤 ${staffName}</p>
+         <p>📅 ${dateLabel}</p>
+         <p>🕐 ${timeRange}</p>
+       </div>
+       <form method="POST" action="/m/${encodeURIComponent(code)}">
+         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+         <input type="hidden" name="date" value="${escapeHtml(date)}">
+         <input type="hidden" name="startTime" value="${escapeHtml(startTime)}">
+         <input type="hidden" name="staffId" value="${escapeHtml(staffId)}">
+         <button class="btn btn-primary" type="submit">Sí, confirmar cambio</button>
+       </form>
+       <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">No, volver</a></p>`,
+    ),
+  )
+})
+
 /** Página para que el cliente cambie la fecha/hora o vaya a cancelar (enlace en WhatsApp). */
 app.get('/m/:code', async (c) => {
   const code = c.req.param('code')
@@ -661,7 +745,7 @@ app.get('/m/:code', async (c) => {
   const id = decodeId(code)
   if (!id || !verifyCancelToken(id, token)) {
     return c.html(
-      cancelPage(
+      customerPage(
         'Enlace no válido',
         '<h1>Enlace no válido</h1><p>Este enlace no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>',
       ),
@@ -672,14 +756,14 @@ app.get('/m/:code', async (c) => {
   const row = await getAppointmentById(id)
   if (!row) {
     return c.html(
-      cancelPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>'),
+      customerPage('Cita no encontrada', '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>'),
       404,
     )
   }
 
   if (row.status === 'cancelled') {
     return c.html(
-      cancelPage(
+      customerPage(
         'Cita cancelada',
         '<h1>Esta cita está cancelada</h1><p>Si quieres, puedes reservar otra cita en nuestra web.</p>',
       ),
@@ -741,7 +825,7 @@ app.get('/m/:code', async (c) => {
         slots
           .map(
             (slot) =>
-              `<form method="POST" action="/m/${encodeURIComponent(code)}" class="slot-form">
+              `<form method="GET" action="/m/${encodeURIComponent(code)}/confirm" class="slot-form">
                  <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
                  <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
                  <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
@@ -754,7 +838,7 @@ app.get('/m/:code', async (c) => {
   }
 
   return c.html(
-    cancelPage(
+    customerPage(
       'Gestionar cita',
       `<h1>Gestionar tu cita</h1>
        <div class="detail">
@@ -790,14 +874,14 @@ app.post('/m/:code', async (c) => {
 
   if (!id || !verifyCancelToken(id, token)) {
     return c.html(
-      cancelPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cambiar la cita.</p>'),
+      customerPage('Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cambiar la cita.</p>'),
       400,
     )
   }
 
   if (!date || !startTime) {
     return c.html(
-      cancelPage('Datos incompletos', '<h1>Faltan datos</h1><p>Elige una fecha y una hora.</p>'),
+      customerPage('Datos incompletos', '<h1>Faltan datos</h1><p>Elige una fecha y una hora.</p>'),
       400,
     )
   }
@@ -814,7 +898,7 @@ app.post('/m/:code', async (c) => {
       : ''
 
     return c.html(
-      cancelPage(
+      customerPage(
         'Cita actualizada',
         `<h1>✅ Cita actualizada</h1>
          <p>Tu cita ha quedado así:</p>
@@ -833,7 +917,7 @@ app.post('/m/:code', async (c) => {
     const message = manageErrors[codeErr] ?? 'No se pudo cambiar la cita. Inténtalo de nuevo.'
     const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}`
     return c.html(
-      cancelPage(
+      customerPage(
         'No se pudo cambiar',
         `<h1>No se pudo cambiar</h1><p>${escapeHtml(message)}</p>
          <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">Volver</a></p>`,

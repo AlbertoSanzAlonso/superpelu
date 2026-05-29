@@ -5,7 +5,7 @@ import type { AppointmentRow } from './db.js'
 import { formatDisplayDate } from '../src/lib/dates.ts'
 import { adminAgendaUrl } from './appointmentLinks.js'
 
-export type AppointmentEmailEvent = 'created' | 'cancelled'
+export type AppointmentEmailEvent = 'created' | 'cancelled' | 'updated'
 
 type EmailConfig = {
   host: string
@@ -77,6 +77,11 @@ const EVENT_LABELS: Record<AppointmentEmailEvent, { heading: string; intro: stri
     intro: 'Se ha cancelado una cita en Superpelu.',
     accent: '#c0392b',
   },
+  updated: {
+    heading: 'Cita modificada',
+    intro: 'Un cliente ha modificado su cita en Superpelu.',
+    accent: '#9a7b4f',
+  },
 }
 
 type EmailContent = { subject: string; html: string; text: string }
@@ -84,6 +89,7 @@ type EmailContent = { subject: string; html: string; text: string }
 export function buildAppointmentAdminEmail(
   row: AppointmentRow,
   event: AppointmentEmailEvent,
+  options?: { previous?: AppointmentRow },
 ): EmailContent {
   const labels = EVENT_LABELS[event]
   const dateLabel = formatDisplayDate(row.appointment_date)
@@ -98,11 +104,20 @@ export function buildAppointmentAdminEmail(
 
   const subject = `${labels.heading} — ${row.customer_name} · ${dateTime}`
 
-  const detailRows: Array<{ label: string; value: string }> = [
+  const detailRows: Array<{ label: string; value: string }> = []
+  if (event === 'updated' && options?.previous) {
+    const prev = options.previous
+    const prevStaff = prev.staff_name ? ` · ${prev.staff_name}` : ''
+    detailRows.push({
+      label: 'Anterior',
+      value: `${formatDisplayDate(prev.appointment_date)} ${prev.start_time}${prevStaff}`,
+    })
+  }
+  detailRows.push(
     { label: 'Nombre', value: `${row.customer_name}${phone}` },
-    { label: 'Fecha / hora', value: dateTime },
+    { label: event === 'updated' ? 'Nueva fecha / hora' : 'Fecha / hora', value: dateTime },
     { label: 'Servicio(s) y colaborador(es)', value: serviceLine },
-  ]
+  )
   if (notes) detailRows.push({ label: 'Notas', value: notes })
 
   const text = [
@@ -175,12 +190,13 @@ export function buildAppointmentAdminEmail(
 async function sendAppointmentAdminEmail(
   row: AppointmentRow,
   event: AppointmentEmailEvent,
+  options?: { previous?: AppointmentRow },
 ): Promise<void> {
   const config = getEmailConfig()
   if (!config) return
 
   try {
-    const { subject, html, text } = buildAppointmentAdminEmail(row, event)
+    const { subject, html, text } = buildAppointmentAdminEmail(row, event, options)
     const info = await getTransporter(config).sendMail({
       from: config.from,
       to: config.to,
@@ -228,4 +244,12 @@ export function notifyAdminAppointmentCreated(row: AppointmentRow): Promise<void
 /** Avisa al administrador de que se ha cancelado/eliminado una cita. No lanza errores. */
 export function notifyAdminAppointmentCancelled(row: AppointmentRow): Promise<void> {
   return sendAppointmentAdminEmail(row, 'cancelled')
+}
+
+/** Avisa al administrador de que un cliente ha modificado su cita. No lanza errores. */
+export function notifyAdminAppointmentUpdated(
+  previous: AppointmentRow,
+  row: AppointmentRow,
+): Promise<void> {
+  return sendAppointmentAdminEmail(row, 'updated', { previous })
 }

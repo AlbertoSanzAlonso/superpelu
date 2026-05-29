@@ -10,10 +10,14 @@ import {
   resolveCustomerFromInput,
   upsertCustomer,
 } from './customers.js'
-import { notifyAppointmentCreated } from './appointmentWhatsApp.js'
+import {
+  notifyAppointmentCreated,
+  notifyAppointmentRescheduled,
+} from './appointmentWhatsApp.js'
 import {
   notifyAdminAppointmentCancelled,
   notifyAdminAppointmentCreated,
+  notifyAdminAppointmentUpdated,
 } from './appointmentEmail.js'
 import {
   addDaysToDateString,
@@ -389,7 +393,11 @@ export async function updateAppointmentForStaff(
     WHERE id = ${appointmentId}
   `
 
-  return (await getAppointmentById(appointmentId))!
+  const updated = (await getAppointmentById(appointmentId))!
+  if (dateOrTimeChanged || serviceId !== existing.service_id) {
+    void notifyAdminAppointmentUpdated(existing, updated)
+  }
+  return updated
 }
 
 export async function updateAppointmentForAdmin(
@@ -508,7 +516,14 @@ export async function rescheduleAppointmentByCustomer(
     WHERE id = ${appointmentId}
   `
 
-  return (await getAppointmentById(appointmentId))!
+  const row = (await getAppointmentById(appointmentId))!
+  if (scheduleChanged) {
+    void notifyAppointmentRescheduled(row).catch((err) => {
+      console.error('Superpelu WhatsApp (cita reprogramada):', err)
+    })
+    void notifyAdminAppointmentUpdated(existing, row)
+  }
+  return row
 }
 
 export async function cancelAppointment(id: string): Promise<AppointmentRow | undefined> {
@@ -516,7 +531,10 @@ export async function cancelAppointment(id: string): Promise<AppointmentRow | un
   if (!existing) return undefined
 
   const wasCancelled = existing.status === 'cancelled'
-  await sql`UPDATE appointments SET status = 'cancelled' WHERE id = ${id}`
+  await sql`
+    UPDATE appointments SET status = 'cancelled', reminder_sent_at = now()
+    WHERE id = ${id}
+  `
   const row = await getAppointmentById(id)
   if (row && !wasCancelled) {
     void notifyAdminAppointmentCancelled(row)

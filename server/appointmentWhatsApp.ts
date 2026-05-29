@@ -43,6 +43,38 @@ ${actions.join('\n')}
 ¡Te esperamos!`
 }
 
+export function buildAppointmentRescheduledMessage(row: AppointmentRow): string {
+  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
+  const dateLabel = formatDisplayDate(row.appointment_date)
+  const timeRange = formatAppointmentTimeRange(
+    row.service_id,
+    row.start_time,
+    row.duration_minutes,
+  )
+
+  const manageUrl = buildManageUrl(row)
+
+  const actions: string[] = []
+  if (manageUrl) {
+    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
+  }
+
+  return `Hola ${firstName}, 👋
+
+Tu cita en *Superpelu* ha sido *reprogramada*:
+
+📅 ${dateLabel}
+🕐 ${timeRange}
+💇 ${row.service_name}
+👤 Con ${row.staff_name}
+
+📍 ${SALON_ADDRESS}
+📞 ${SALON_PHONE}
+${actions.join('\n')}
+
+¡Te esperamos!`
+}
+
 export function buildAppointmentReminderMessage(row: AppointmentRow): string {
   const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
   const dateLabel = formatDisplayDate(row.appointment_date)
@@ -90,6 +122,20 @@ export async function notifyAppointmentCreated(
   const messageId = await openWaSendText(chatId, text)
   console.log(
     `Superpelu WhatsApp: confirmación enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+  )
+}
+
+/** Confirmación tras reprogramar una cita (cliente o agenda). */
+export async function notifyAppointmentRescheduled(row: AppointmentRow): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+  if (row.status === 'cancelled') return
+
+  const chatId = phoneToWhatsAppChatId(row.customer_phone)
+  const text = buildAppointmentRescheduledMessage(row)
+  const messageId = await openWaSendText(chatId, text)
+  console.log(
+    `Superpelu WhatsApp: reprogramación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
 }
 
