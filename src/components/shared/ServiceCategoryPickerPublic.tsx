@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Button } from '@/components/ui/Button'
+import { brand } from '@/data/content'
 import {
   categoryIdForService,
   categoryLabelFor,
@@ -10,6 +12,9 @@ import {
 import { usesColorSplitBooking } from '@/lib/bookingOccupancy'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
+
+const WHATSAPP_HIGHLIGHTS =
+  'https://wa.me/34604808312?text=Hola%2C+quiero+reservar+mechas+o+balayage+en+SuperPelu+Benalm%C3%A1dena'
 
 type Props = {
   services: BookableService[]
@@ -157,7 +162,21 @@ export function ServiceCategoryPickerPublic({
             {labels.service}
           </legend>
           {categoryServices.length === 0 ? (
-            <p className={`${typography.caption} text-center`}>{labels.emptyCategory}</p>
+            <div className="space-y-6 text-center">
+              <p className={typography.caption}>{labels.emptyCategory}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                <Button href={brand.phoneHref} variant="solid" size="md">
+                  Llamar al {brand.phone}
+                </Button>
+                <Button
+                  href={selectedCategoryId === 'highlights' ? WHATSAPP_HIGHLIGHTS : brand.whatsapp}
+                  variant="outline"
+                  size="md"
+                >
+                  Escribir por WhatsApp
+                </Button>
+              </div>
+            </div>
           ) : (
             <div className="grid gap-2 md:grid-cols-3 md:gap-3">
               {categoryServices.map((service) => (
