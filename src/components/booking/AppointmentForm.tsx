@@ -22,6 +22,9 @@ const BOOKING_STEPS = [
   'Datos y confirmación',
 ] as const
 
+/** Título de paso visible solo en móvil (sustituye al h2 grande). */
+const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`
+
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
   onConfirmed?: (appointment: Appointment) => void
@@ -108,12 +111,12 @@ export function AppointmentForm({
         </button>
       )}
 
-      <div className={`mb-8 text-center ${step > 0 ? 'pt-1' : ''}`}>
-        <p className={`${typography.caption} mb-2`}>
+      <div className={`mb-6 text-center md:mb-8 ${step > 0 ? 'pt-1' : ''}`}>
+        <p className={`${typography.caption} mb-2 hidden md:block`}>
           Paso {step + 1} de {BOOKING_STEPS.length}
         </p>
-        <h2 className={typography.h2}>{BOOKING_STEPS[step]}</h2>
-        <div className="mt-5 flex justify-center gap-2" aria-hidden>
+        <h2 className={`${typography.h2} hidden md:block`}>{BOOKING_STEPS[step]}</h2>
+        <div className="flex justify-center gap-2 md:mt-5" aria-hidden>
           {BOOKING_STEPS.map((_, index) => (
             <span
               key={index}
@@ -144,7 +147,7 @@ export function AppointmentForm({
 
         {step === 2 && (
           <fieldset className="space-y-3">
-            <legend className={`${typography.label} mb-2 block w-full text-center`}>
+            <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
               Profesional
             </legend>
             {!form.serviceId ? (
@@ -191,7 +194,10 @@ export function AppointmentForm({
         {step === 3 && (
           <div className="space-y-8">
             <div>
-              <label htmlFor="apt-date" className={`${typography.label} mb-2 block`}>
+              <label
+                htmlFor="apt-date"
+                className={`${typography.label} mb-2 block md:hidden`}
+              >
                 Día
               </label>
               <select
@@ -212,7 +218,9 @@ export function AppointmentForm({
             </div>
 
             <fieldset className="space-y-3">
-              <legend className={`${typography.label} mb-2 block w-full text-center`}>Hora</legend>
+              <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
+                Hora
+              </legend>
               {!form.date || !form.staffId ? (
                 <p className={`${typography.caption} text-center`}>
                   {!form.staffId ? 'Elige un profesional' : 'Primero elige un día'}
@@ -265,6 +273,7 @@ export function AppointmentForm({
 
         {step === 4 && (
           <div className="space-y-4">
+            <p className={stepLegendMobile}>{BOOKING_STEPS[4]}</p>
             <Input
               label="Nombre completo"
               required

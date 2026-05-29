@@ -39,6 +39,58 @@ export function verifyCancelToken(id: string, token: string | undefined): boolea
   return timingSafeEqual(a, b)
 }
 
+/** Imagen del logo para vistas previa (WhatsApp, redes). Debe estar en `public/`. */
+export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-hero-logo.webp'
+
+const LINK_PREVIEW_DESCRIPTION =
+  'Superpelu Hair Studio — peluquería en Benalmádena especialista en color y estética.'
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/** Meta Open Graph / Twitter para enlaces compartidos (p. ej. gestionar cita por WhatsApp). */
+export function buildLinkPreviewMetaTags(options: {
+  title: string
+  description?: string
+  pageUrl?: string
+}): string {
+  const base = publicBaseUrl()
+  const pageTitle = `${options.title} · Superpelu`
+  const description = options.description ?? LINK_PREVIEW_DESCRIPTION
+
+  const tags = [
+    `<title>${escapeHtmlAttr(pageTitle)}</title>`,
+    `<meta name="description" content="${escapeHtmlAttr(description)}">`,
+    '<meta property="og:type" content="website">',
+    '<meta property="og:site_name" content="Superpelu Hair Studio">',
+    `<meta property="og:title" content="${escapeHtmlAttr(pageTitle)}">`,
+    `<meta property="og:description" content="${escapeHtmlAttr(description)}">`,
+    '<meta name="twitter:card" content="summary_large_image">',
+    `<meta name="twitter:title" content="${escapeHtmlAttr(pageTitle)}">`,
+    `<meta name="twitter:description" content="${escapeHtmlAttr(description)}">`,
+  ]
+
+  if (base) {
+    const imageUrl = `${base}${LINK_PREVIEW_IMAGE_PATH}`
+    tags.push(
+      `<meta property="og:image" content="${escapeHtmlAttr(imageUrl)}">`,
+      `<meta property="og:image:secure_url" content="${escapeHtmlAttr(imageUrl)}">`,
+      '<meta property="og:image:type" content="image/webp">',
+      '<meta property="og:image:alt" content="Superpelu Hair Studio">',
+      `<meta name="twitter:image" content="${escapeHtmlAttr(imageUrl)}">`,
+    )
+    const url = options.pageUrl ?? base
+    tags.push(`<meta property="og:url" content="${escapeHtmlAttr(url)}">`)
+  }
+
+  return tags.join('')
+}
+
 /** URL pública base de Superpelu (sin barra final). Vacío si no se puede determinar. */
 export function publicBaseUrl(): string {
   const explicit = (process.env.PUBLIC_BASE_URL ?? '').trim()

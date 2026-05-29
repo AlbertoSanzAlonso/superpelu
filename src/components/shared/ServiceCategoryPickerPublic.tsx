@@ -106,7 +106,7 @@ export function ServiceCategoryPickerPublic({
     <div className={visibleSection === 'both' ? 'space-y-8' : undefined}>
       {showCategory && (
       <fieldset className="space-y-3">
-        <legend className={`${typography.label} mb-2 block w-full text-center`}>
+        <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
           {labels.category}
         </legend>
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -153,7 +153,7 @@ export function ServiceCategoryPickerPublic({
 
       {showService && selectedCategoryId && (
         <fieldset className="space-y-3">
-          <legend className={`${typography.label} mb-2 block w-full text-center`}>
+          <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
             {labels.service}
           </legend>
           {categoryServices.length === 0 ? (
