@@ -12,6 +12,7 @@ import {
 } from './customers.js'
 import {
   notifyAppointmentCreated,
+  notifyAppointmentCancelled,
   notifyAppointmentRescheduled,
 } from './appointmentWhatsApp.js'
 import {
@@ -526,7 +527,10 @@ export async function rescheduleAppointmentByCustomer(
   return row
 }
 
-export async function cancelAppointment(id: string): Promise<AppointmentRow | undefined> {
+export async function cancelAppointment(
+  id: string,
+  options?: { notifyCustomer?: boolean },
+): Promise<AppointmentRow | undefined> {
   const existing = await getAppointmentById(id)
   if (!existing) return undefined
 
@@ -538,6 +542,11 @@ export async function cancelAppointment(id: string): Promise<AppointmentRow | un
   const row = await getAppointmentById(id)
   if (row && !wasCancelled) {
     void notifyAdminAppointmentCancelled(row)
+    if (options?.notifyCustomer) {
+      void notifyAppointmentCancelled(existing).catch((err) => {
+        console.error('Superpelu WhatsApp (cita cancelada):', err)
+      })
+    }
   }
   return row
 }

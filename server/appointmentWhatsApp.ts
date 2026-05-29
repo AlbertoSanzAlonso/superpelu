@@ -6,7 +6,7 @@ import {
   openWaSendText,
   phoneToWhatsAppChatId,
 } from './openwa.js'
-import { buildManageUrl } from './appointmentLinks.js'
+import { buildManageUrl, publicBaseUrl } from './appointmentLinks.js'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
@@ -107,6 +107,34 @@ ${actions.join('\n')}
 ¡Te esperamos!`
 }
 
+export function buildAppointmentCancelledMessage(row: AppointmentRow): string {
+  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
+  const dateLabel = formatDisplayDate(row.appointment_date)
+  const timeRange = formatAppointmentTimeRange(
+    row.service_id,
+    row.start_time,
+    row.duration_minutes,
+  )
+
+  const base = publicBaseUrl()
+  const bookingLine = base ? `\n\nReservar otra cita: ${base}/reservar` : ''
+
+  return `Hola ${firstName}, 👋
+
+Tu cita en *Superpelu* ha sido *cancelada*:
+
+📅 ${dateLabel}
+🕐 ${timeRange}
+💇 ${row.service_name}
+👤 Con ${row.staff_name}
+${bookingLine}
+
+📍 ${SALON_ADDRESS}
+📞 ${SALON_PHONE}
+
+¡Gracias!`
+}
+
 export async function notifyAppointmentCreated(
   row: AppointmentRow,
   options?: { forStaffPortal?: boolean },
@@ -152,4 +180,17 @@ export async function sendAppointmentReminder(row: AppointmentRow): Promise<bool
     `Superpelu WhatsApp: recordatorio enviado a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
   return true
+}
+
+/** Confirmación tras cancelar una cita (cliente desde enlace público). */
+export async function notifyAppointmentCancelled(row: AppointmentRow): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+
+  const chatId = phoneToWhatsAppChatId(row.customer_phone)
+  const text = buildAppointmentCancelledMessage(row)
+  const messageId = await openWaSendText(chatId, text)
+  console.log(
+    `Superpelu WhatsApp: cancelación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+  )
 }

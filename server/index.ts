@@ -659,7 +659,7 @@ app.post('/c/:code', async (c) => {
     return c.html(customerPage('Cita cancelada', '<h1>Esta cita ya estaba cancelada</h1><p>¡Gracias!</p>'))
   }
 
-  await cancelAppointment(id)
+  await cancelAppointment(id, { notifyCustomer: true })
   return c.html(
     customerPage(
       'Cita cancelada',
