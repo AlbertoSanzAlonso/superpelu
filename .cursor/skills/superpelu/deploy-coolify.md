@@ -31,6 +31,16 @@ caddy_0.try_files={path} /index.html /index.php
 
 `try_files` hace que `/api/appointments` devuelva `index.html` con `200` y `content-type: text/html`. El login y las reservas fallan en silencio o con mensajes confusos.
 
+## Dominio y HTTPS
+
+- **`sslip.io` con HTTPS NO sirve:** Let's Encrypt rate-limita esos dominios públicos → el certificado falla. Coolify avisa de ello. Usar **dominio propio**.
+- **Subdominio recomendado** (no tocar la web del dominio raíz si apunta a otro hosting, p. ej. Hostinger): p. ej. `reservas.superpelubenalmadena.es`.
+  1. DNS: registro **A** del subdominio → **IP del servidor Coolify** (la que codifica el dominio `sslip.io`, p. ej. `…178.104.249.230.sslip.io`). Directo a la IP, **sin** proxy/CDN del proveedor (rompe el challenge HTTP-01).
+  2. Coolify → app → dominio con **`https://`** → Save → **Redeploy**. Caddy emite el certificado solo.
+- **Síntoma «el móvil no abre la web»:** `https://…` devuelve **certificado autofirmado** (el interno de Caddy). Causa: el dominio está como `http://`; cambiar a `https://`.
+- **Campo «Domains» bloqueado / «Readonly labels are disabled»:** los labels están en modo editable. O bien reactivar el toggle **Readonly labels** (pestaña **Advanced**) para volver a editar Domains, o editar el label a mano: `caddy_0=https://TU-DOMINIO` (con `https://`), upstream **3001**, **sin** `try_files`.
+- Tras tener HTTPS: poner `PUBLIC_BASE_URL=https://TU-SUBDOMINIO` (runtime) para que los WhatsApp incluyan los enlaces de cancelar/calendario (ver SKILL.md → WhatsApp).
+
 ## ADMIN_SECRET
 
 - Valor **sin comillas** en la UI de Coolify
@@ -113,6 +123,26 @@ OPENWA_SESSION_ID=sess_...
 ```
 
 Requiere **Connect To Predefined Network** (misma red que el stack OpenWA) y volumen `/app/data` en OpenWA. La API **no** debe tener dominio público.
+
+## Email (aviso al administrador)
+
+En cada cita nueva o cancelada el servidor envía un email al administrador (SMTP vía `nodemailer`, `server/appointmentEmail.ts`). Variables en la app **Superpelu** (runtime); como `NODE_ENV=production` **no** carga `.env`, hay que ponerlas en el panel de Coolify y **Redeploy**:
+
+```env
+EMAIL_ENABLED=true
+ADMIN_NOTIFICATION_EMAIL=destinatario@ejemplo.com   # varios separados por comas
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false                                    # true para el puerto 465
+SMTP_USER=remitente@gmail.com
+SMTP_PASS=<contraseña-de-aplicación>                 # Gmail: NO la contraseña normal
+EMAIL_FROM=Superpelu <remitente@gmail.com>           # por defecto usa SMTP_USER
+```
+
+- **Gmail:** requiere verificación en 2 pasos + *contraseña de aplicación* (https://myaccount.google.com/apppasswords). Pégala en `SMTP_PASS` sin espacios.
+- El botón **Ver agenda** del email usa `PUBLIC_BASE_URL` (o `CORS_ORIGIN`) + `/agenda`; sin URL pública no aparece el botón.
+- Si falta `EMAIL_ENABLED`, `SMTP_HOST` o `ADMIN_NOTIFICATION_EMAIL`, no se envía nada (sin error).
+- No documentar claves reales aquí ni en el repo.
 
 ## Credenciales
 

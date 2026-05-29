@@ -153,7 +153,8 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 
 | Archivo | Rol |
 |---------|-----|
-| `server/appointments.ts` | Slots, citas; `upsertCustomer` al crear/editar |
+| `server/appointments.ts` | Slots, citas; `upsertCustomer` al crear/editar; engancha avisos WhatsApp + email |
+| `server/appointmentEmail.ts` | Email al administrador en cita nueva/cancelada (SMTP/nodemailer) |
 | `server/customers.ts` | `listCustomers`, `getCustomer`, `listCustomerAppointments`, `upsertCustomer` |
 | `server/staffSchedule.ts` | Día por profesional, `occupiedSlots` |
 | `server/staffBlocks.ts` | Series de bloqueos |
@@ -166,10 +167,21 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/hooks/useAdminAgenda.ts` | Lógica agenda admin |
 | `src/hooks/useAppointmentForm.ts` | Reserva pública; `servicesError` + Reintentar si API cae |
 | `src/components/booking/AppointmentForm.tsx` | Formulario `/reservar` (sin enlace a `/agenda`) |
+| `src/components/booking/AddToCalendarButton.tsx` | Botón «Añadir al calendario» en la confirmación (`BookingPage`) |
+| `src/lib/calendar.ts` | `.ics` cliente + URL Google Calendar; `addAppointmentToCalendar` por dispositivo |
 | `src/components/sections/Services.tsx` | Grid servicios en home |
 | `src/components/sections/ServiceDetailModal.tsx` | Modal detalle servicio (home) |
 
 **Importante:** código importado desde `server/` debe usar rutas relativas en utilidades compartidas (sin alias `@/`), p. ej. `../src/lib/dates.ts`.
+
+## Añadir al calendario (confirmación de reserva)
+
+Tras reservar, `BookingPage` muestra `AddToCalendarButton`. Comportamiento **según resolución** (`matchMedia('(min-width: 768px)')`):
+
+- **Móvil (`< 768px`):** botón único; detecta SO → Android abre **Google Calendar**, iPhone/iPad descarga **`.ics`** (Apple Calendar nativo).
+- **Escritorio (`≥ 768px`):** menú con opciones **Google Calendar** (enlace) y **`.ics`** (Apple/Outlook, descarga). En escritorio el `.ics` se descarga: es lo esperado (no hay calendario nativo del navegador).
+
+Lógica en `src/lib/calendar.ts`: `addAppointmentToCalendar` (móvil), `buildGoogleCalendarUrl`, `downloadAppointmentIcs`. Hora en `Europe/Madrid` (VTIMEZONE en el `.ics`, `ctz` en Google).
 
 ## Selector especialidad / tratamiento
 
@@ -212,7 +224,51 @@ Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (
 
 Diagnóstico admin: `GET /api/admin/whatsapp` (Bearer `ADMIN_SECRET`).
 
+### Enlaces del mensaje (cancelar / calendario)
+
+Los enlaces **❌ Cancelar la cita** y los `/c/…`·`/a/…` se generan en `server/appointmentLinks.ts` y **requieren `PUBLIC_BASE_URL`** (o, en su defecto, `CORS_ORIGIN`). Sin esa variable, `buildCancelUrl` devuelve `null` y **el enlace no aparece** en el WhatsApp (no es un bug del mensaje).
+
+- `PUBLIC_BASE_URL` debe apuntar al **dominio de la app Superpelu** (el subdominio de Coolify con HTTPS), **no** al dominio raíz si este apunta a otra web (p. ej. Hostinger): el enlace `/c/…` lo sirve la propia app.
+- Firma de los enlaces de cancelación: `CANCEL_TOKEN_SECRET` (por defecto `ADMIN_SECRET`).
+
+### Recordatorio 24h (`server/reminderScheduler.ts`)
+
+Temporizador interno (arranca con el servidor si OpenWA está configurado y `REMINDERS_ENABLED != false`). Cada `REMINDER_POLL_MINUTES` (def. 10) busca citas `confirmed` con `reminder_sent_at IS NULL` dentro de la ventana `REMINDER_HOURS_BEFORE` (def. 24) y envía el recordatorio (idempotente vía columna `reminder_sent_at`).
+
+- Reservas con **< 24h** de antelación: solo confirmación, sin recordatorio.
+- Forzar a mano (pruebas): `POST /api/admin/whatsapp/reminders/run` (Bearer `ADMIN_SECRET`) → `{ sent }`; solo envía las que ya están dentro de la ventana.
+- Log de arranque: `Superpelu recordatorio: activo (cada N min, 24h antes)`.
+
 Dev: `npm run openwa:up` → API `http://127.0.0.1:2785/api`, dashboard `:2886`. **Coolify:** `docs/deploy-coolify-openwa.md`. Local compose perfil: `docker compose --profile openwa`.
+
+## Email (aviso al administrador)
+
+En **cada cita nueva o cancelada** se envía un email al administrador del negocio (`server/appointmentEmail.ts`, SMTP vía `nodemailer`). Cubre todas las vías porque se engancha en las funciones de datos, no en las rutas:
+
+| Función (`server/appointments.ts`) | Evento |
+|-------------------------------------|--------|
+| `createAppointment` | `created` (reserva pública, agenda admin y profesional) |
+| `cancelAppointment` | `cancelled` (cancelación admin + enlace público `/c/:code`) |
+| `deleteAppointmentForStaff` | `cancelled` (profesional elimina su cita) |
+
+Los envíos son *fire-and-forget* (`void`, error capturado y logueado): nunca bloquean ni rompen la respuesta de la API.
+
+**Plantilla** (`buildAppointmentAdminEmail`): cabecera con el evento (verde «Nueva cita reservada» / rojo «Cita cancelada»), luego los datos en orden **Nombre** (+ teléfono), **Fecha / hora**, **Servicio(s) y colaborador(es)** (`Servicio (Profesional)`), **Notas** (si hay), y botón **Ver agenda** (→ `PUBLIC_BASE_URL`/`CORS_ORIGIN` + `/agenda`; se omite si no hay URL pública).
+
+| Variable | Uso |
+|----------|-----|
+| `EMAIL_ENABLED` | `true` para activar |
+| `ADMIN_NOTIFICATION_EMAIL` | Destinatario(s) de los avisos; varios separados por comas |
+| `SMTP_HOST` | Servidor SMTP (p. ej. `smtp.gmail.com`) |
+| `SMTP_PORT` | Default `587`; `465` = SSL |
+| `SMTP_SECURE` | `true` para puerto 465 (STARTTLS en 587) |
+| `SMTP_USER` | Cuenta que envía (remitente) |
+| `SMTP_PASS` | Con Gmail: **contraseña de aplicación**, no la normal |
+| `EMAIL_FROM` | Remitente mostrado; por defecto `SMTP_USER` |
+
+`getEmailConfig()` devuelve `null` si falta `EMAIL_ENABLED`, `SMTP_HOST` o `ADMIN_NOTIFICATION_EMAIL` (entonces no se envía nada).
+
+**Gmail:** requiere verificación en 2 pasos + contraseña de aplicación (https://myaccount.google.com/apppasswords). En local el `.env` se carga solo (`process.loadEnvFile` en `server/pg/client.ts`), pero `tsx watch` **no** recarga el `.env`: tras editarlo hay que reiniciar `npm run dev`. En **producción (Coolify)** `NODE_ENV=production` no carga `.env`; las variables van en el panel de entorno.
 
 ## Despliegue Coolify
 
@@ -229,6 +285,10 @@ Ver [deploy-coolify.md](deploy-coolify.md).
 | Profesional no entra | Nombre exacto; hash en `salonStaff.ts` |
 | `/clientes` redirige a agenda | Falta login admin o token inválido en `sessionStorage` |
 | `/reservar` sin tratamientos | API no arrancada en dev; usar `npm run dev` (no solo Vite) |
+| WhatsApp sin enlace de cancelar/calendario | Falta `PUBLIC_BASE_URL` (o `CORS_ORIGIN`) en el contenedor |
+| Móvil no abre la web (HTTPS) | Dominio en `http://` o `sslip.io` → certificado autofirmado; usar subdominio propio con `https://` |
+| No llega recordatorio 24h | OpenWA no configurado, cita `< 24h`, o `REMINDERS_ENABLED=false` |
+| No llega el email de aviso | `EMAIL_ENABLED`/`SMTP_*` ausentes en el contenedor; en local, reiniciar `npm run dev` (no recarga `.env`); con Gmail, usar contraseña de aplicación |
 
 ## Convenciones
 
