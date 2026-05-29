@@ -24,7 +24,7 @@ export function buildAppointmentConfirmationMessage(row: AppointmentRow): string
 
   const actions: string[] = []
   if (manageUrl) {
-    actions.push('', '📋 Gestionar tu cita (cambiar o cancelar):', manageUrl)
+    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
   }
 
   return `Hola ${firstName}, 👋
@@ -56,7 +56,7 @@ export function buildAppointmentReminderMessage(row: AppointmentRow): string {
 
   const actions: string[] = []
   if (manageUrl) {
-    actions.push('', '📋 Cambiar o cancelar tu cita:', manageUrl)
+    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
   }
 
   return `Hola ${firstName}, 👋

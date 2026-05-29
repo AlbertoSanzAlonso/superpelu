@@ -561,7 +561,7 @@ function cancelPage(title: string, bodyHtml: string, status: 200 | 400 | 404 = 2
     'font-weight:600;cursor:pointer;text-decoration:none;margin-top:.5rem}',
     '.btn-danger{background:#c0392b;color:#fff}.btn-secondary{background:#e7e0db;color:#2b2b2b}',
     '.section-label{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9a8f86;margin:1.25rem 0 .5rem;text-align:left}',
-    '.date-form{margin:.5rem 0 1rem;text-align:left}.date-form input[type=date]{width:100%;padding:.65rem;border:1px solid #d4c4bc;border-radius:8px;font-size:1rem}',
+    '.date-form,.staff-form{margin:.5rem 0 1rem;text-align:left}.date-form input[type=date],.staff-form select{width:100%;padding:.65rem;border:1px solid #d4c4bc;border-radius:8px;font-size:1rem}',
     '.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.5rem 0 1rem}.slot-form{margin:0}',
     '.slot-btn{width:100%;padding:.65rem;border:1px solid #d4c4bc;background:#fff;border-radius:8px;cursor:pointer;font-size:.95rem}',
     '.slot-btn:hover{border-color:#1f1b18;background:#faf7f5}',
@@ -649,6 +649,9 @@ const manageErrors: Record<string, string> = {
   CITA_NO_ENCONTRADA: 'No hemos encontrado esta cita.',
   FECHA_INVALIDA: 'La fecha elegida no está disponible. Elige otro día (mar–sáb, dentro del plazo de reserva).',
   HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
+  STAFF_NO_REALIZA_SERVICIO: 'Ese profesional no realiza este servicio.',
+  STAFF_INVALIDO: 'Profesional no disponible.',
+  SERVICIO_INVALIDO: 'Servicio no válido.',
 }
 
 /** Página para que el cliente cambie la fecha/hora o vaya a cancelar (enlace en WhatsApp). */
@@ -689,7 +692,14 @@ app.get('/m/:code', async (c) => {
     formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes),
   )
   const service = escapeHtml(row.service_name)
-  const staff = escapeHtml(row.staff_name ?? '')
+  const staffOptions = await listStaffForService(row.service_id)
+  let selectedStaffId = (c.req.query('staffId') ?? row.staff_id ?? '').trim()
+  if (!staffOptions.some((s) => s.id === selectedStaffId)) {
+    selectedStaffId = row.staff_id ?? staffOptions[0]?.id ?? ''
+  }
+  const selectedStaffName = escapeHtml(
+    staffOptions.find((s) => s.id === selectedStaffId)?.name ?? row.staff_name ?? '',
+  )
 
   const today = todaySalon()
   const maxDate = addDaysToDateString(today, schedule.maxDaysAhead)
@@ -698,25 +708,43 @@ app.get('/m/:code', async (c) => {
   if (selectedDate < today) selectedDate = today
   if (selectedDate > maxDate) selectedDate = maxDate
 
+  const staffSelectHtml =
+    staffOptions.length > 0
+      ? `<p class="section-label">Profesional</p>
+       <form method="GET" action="/m/${encodeURIComponent(code)}" class="staff-form">
+         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+         <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
+         <select name="staffId" aria-label="Profesional" onchange="this.form.submit()">
+           ${staffOptions
+             .map(
+               (s) =>
+                 `<option value="${escapeHtml(s.id)}"${s.id === selectedStaffId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`,
+             )
+             .join('')}
+         </select>
+       </form>`
+      : ''
+
   let slotsHtml = ''
   if (!isSalonOpenDay(selectedDate) || !isWithinSalonBookingWindow(selectedDate)) {
     slotsHtml =
       '<p class="muted">El salón no abre ese día o está fuera del plazo de reserva. Elige otra fecha.</p>'
-  } else if (row.staff_id) {
-    const slots = await getAvailableSlots(selectedDate, row.service_id, row.staff_id, {
+  } else if (selectedStaffId) {
+    const slots = await getAvailableSlots(selectedDate, row.service_id, selectedStaffId, {
       excludeAppointmentId: row.id,
     })
     if (slots.length === 0) {
-      slotsHtml = '<p class="muted">No hay huecos libres ese día. Prueba otra fecha.</p>'
+      slotsHtml = '<p class="muted">No hay huecos libres ese día. Prueba otra fecha u otro profesional.</p>'
     } else {
       slotsHtml =
-        '<p class="section-label">Horas disponibles</p><div class="slots">' +
+        '<p class="section-label">Hora</p><div class="slots">' +
         slots
           .map(
             (slot) =>
               `<form method="POST" action="/m/${encodeURIComponent(code)}" class="slot-form">
                  <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
                  <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
+                 <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
                  <button class="slot-btn" type="submit" name="startTime" value="${escapeHtml(slot)}">${escapeHtml(slot)}</button>
                </form>`,
           )
@@ -730,20 +758,23 @@ app.get('/m/:code', async (c) => {
       'Gestionar cita',
       `<h1>Gestionar tu cita</h1>
        <div class="detail">
+         <p>💇 ${service}</p>
+         <p>👤 ${selectedStaffName}</p>
          <p>📅 ${dateLabel}</p>
          <p>🕐 ${timeRange}</p>
-         <p>💇 ${service}</p>
-         ${staff ? `<p>👤 Con ${staff}</p>` : ''}
        </div>
-       <p class="section-label">Cambiar fecha u hora</p>
+       <p class="section-label">Modificar cita</p>
+       ${staffSelectHtml}
+       <p class="section-label">Día</p>
        <form method="GET" action="/m/${encodeURIComponent(code)}" class="date-form">
          <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+         <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
          <input type="date" name="date" value="${escapeHtml(selectedDate)}" min="${today}" max="${maxDate}" onchange="this.form.submit()">
        </form>
        ${slotsHtml}
        <p class="section-label">Cancelar</p>
        <a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">Cancelar la cita</a>
-       <p class="muted">Para cambiar el servicio o el profesional, llama al salón: 952 443 686</p>`,
+       <p class="muted">Para cambiar el servicio, llama al salón: 952 443 686</p>`,
     ),
   )
 })
@@ -755,6 +786,7 @@ app.post('/m/:code', async (c) => {
   const token = typeof body.t === 'string' ? body.t : undefined
   const date = typeof body.date === 'string' ? body.date : undefined
   const startTime = typeof body.startTime === 'string' ? body.startTime : undefined
+  const staffId = typeof body.staffId === 'string' ? body.staffId : undefined
 
   if (!id || !verifyCancelToken(id, token)) {
     return c.html(
@@ -771,7 +803,7 @@ app.post('/m/:code', async (c) => {
   }
 
   try {
-    const row = await rescheduleAppointmentByCustomer(id, { date, startTime })
+    const row = await rescheduleAppointmentByCustomer(id, { date, startTime, staffId })
     const manageUrl = buildManageUrl(row)
     const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
     const timeRange = escapeHtml(
@@ -799,7 +831,7 @@ app.post('/m/:code', async (c) => {
   } catch (err) {
     const codeErr = err instanceof Error ? err.message : 'ERROR'
     const message = manageErrors[codeErr] ?? 'No se pudo cambiar la cita. Inténtalo de nuevo.'
-    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}`
+    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}`
     return c.html(
       cancelPage(
         'No se pudo cambiar',

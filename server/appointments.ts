@@ -449,14 +449,27 @@ export async function markReminderSent(id: string): Promise<void> {
 
 export async function rescheduleAppointmentByCustomer(
   appointmentId: string,
-  input: { date: string; startTime: string },
+  input: { date: string; startTime: string; staffId?: string },
 ): Promise<AppointmentRow> {
   const existing = await getAppointmentById(appointmentId)
-  if (!existing || existing.status === 'cancelled' || !existing.staff_id) {
+  if (!existing || existing.status === 'cancelled') {
     throw new Error('CITA_NO_ENCONTRADA')
   }
 
-  const { staff_id: staffId, service_id: serviceId } = existing
+  const serviceId = existing.service_id
+  const staffId = input.staffId ?? existing.staff_id
+  if (!staffId) throw new Error('CITA_NO_ENCONTRADA')
+
+  const service = await getService(serviceId, { onlineOnly: false })
+  if (!service) throw new Error('SERVICIO_INVALIDO')
+
+  const staff = await getStaff(staffId)
+  if (!staff || !staff.active) throw new Error('STAFF_INVALIDO')
+
+  if (!(await staffCanPerformService(staffId, serviceId))) {
+    throw new Error('STAFF_NO_REALIZA_SERVICIO')
+  }
+
   const { date, startTime } = input
 
   if (
@@ -473,7 +486,29 @@ export async function rescheduleAppointmentByCustomer(
   })
   if (!slots.includes(startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
-  return updateAppointmentForStaff(appointmentId, staffId, { date, startTime })
+  const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+  const scheduleChanged =
+    date !== existing.appointment_date ||
+    startTime !== existing.start_time ||
+    staffId !== existing.staff_id
+  const reminderSentAt = scheduleChanged
+    ? hoursUntilAppointment(date, startTime) <= 24
+      ? new Date().toISOString()
+      : null
+    : existing.reminder_sent_at
+
+  await sql`
+    UPDATE appointments SET
+      staff_id = ${staffId},
+      staff_name = ${staff.name},
+      duration_minutes = ${storedDuration},
+      appointment_date = ${date},
+      start_time = ${startTime},
+      reminder_sent_at = ${reminderSentAt}
+    WHERE id = ${appointmentId}
+  `
+
+  return (await getAppointmentById(appointmentId))!
 }
 
 export async function cancelAppointment(id: string): Promise<AppointmentRow | undefined> {
