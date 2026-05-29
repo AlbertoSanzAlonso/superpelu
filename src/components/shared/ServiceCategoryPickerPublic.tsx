@@ -21,6 +21,8 @@ type Props = {
   visibleSection?: 'category' | 'service' | 'both'
   categoryId?: string
   onCategoryChange?: (categoryId: string) => void
+  onCategorySelected?: (categoryId: string) => void
+  onServiceSelected?: (serviceId: string) => void
 }
 
 export function ServiceCategoryPickerPublic({
@@ -33,6 +35,8 @@ export function ServiceCategoryPickerPublic({
   visibleSection = 'both',
   categoryId: controlledCategoryId,
   onCategoryChange,
+  onCategorySelected,
+  onServiceSelected,
 }: Props) {
   const labels = servicePickerLabels.public
 
@@ -68,6 +72,7 @@ export function ServiceCategoryPickerPublic({
     } else {
       onServiceChange('')
     }
+    onCategorySelected?.(categoryId)
   }
 
   if (loading) {
@@ -169,7 +174,10 @@ export function ServiceCategoryPickerPublic({
                     name="service"
                     value={service.id}
                     checked={serviceId === service.id}
-                    onChange={() => onServiceChange(service.id)}
+                    onChange={() => {
+                      onServiceChange(service.id)
+                      onServiceSelected?.(service.id)
+                    }}
                     className="mt-0.5 shrink-0 accent-gold"
                   />
                   <span className="min-w-0 flex-1 text-left">

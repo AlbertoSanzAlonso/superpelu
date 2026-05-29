@@ -8,6 +8,7 @@ import {
 } from '@/hooks/useAppointmentForm'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate, getBookableDates } from '@/lib/dates'
+import { countServicesInCategory } from '@/lib/servicePicker'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -24,27 +25,6 @@ const BOOKING_STEPS = [
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
   onConfirmed?: (appointment: Appointment) => void
-}
-
-function canProceedStep(
-  step: number,
-  pickedCategoryId: string,
-  form: ReturnType<typeof useAppointmentForm>,
-): boolean {
-  switch (step) {
-    case 0:
-      return Boolean(pickedCategoryId)
-    case 1:
-      return Boolean(form.serviceId)
-    case 2:
-      return Boolean(form.staffId) && !form.loadingStaff && form.staffOptions.length > 0
-    case 3:
-      return Boolean(form.date && form.startTime) && !form.loadingSlots && form.slots.length > 0
-    case 4:
-      return form.canSubmit
-    default:
-      return false
-  }
 }
 
 export function AppointmentForm({
@@ -64,20 +44,43 @@ export function AppointmentForm({
   const [step, setStep] = useState(0)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
 
-  const goNext = useCallback(() => {
-    setStep((current) => Math.min(current + 1, BOOKING_STEPS.length - 1))
+  const goPrev = useCallback(() => {
+    setStep((current) => {
+      if (current === 2 && pickedCategoryId) {
+        const count = countServicesInCategory(form.services, pickedCategoryId)
+        if (count === 1) return 0
+      }
+      return Math.max(current - 1, 0)
+    })
+  }, [pickedCategoryId, form.services])
+
+  const handleCategorySelected = useCallback(
+    (categoryId: string) => {
+      const count = countServicesInCategory(form.services, categoryId)
+      setStep(count === 1 ? 2 : 1)
+    },
+    [form.services],
+  )
+
+  const handleServiceSelected = useCallback(() => {
+    setStep(2)
   }, [])
 
-  const goPrev = useCallback(() => {
-    setStep((current) => Math.max(current - 1, 0))
-  }, [])
+  const handleStaffSelected = useCallback((staffId: string) => {
+    form.setStaffId(staffId)
+    setStep(3)
+  }, [form.setStaffId])
+
+  const handleTimeSelected = useCallback(
+    (slot: string) => {
+      form.setStartTime(slot)
+      setStep(4)
+    },
+    [form.setStartTime],
+  )
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (step < BOOKING_STEPS.length - 1) {
-      goNext()
-      return
-    }
     await form.submit()
   }
 
@@ -92,11 +95,20 @@ export function AppointmentForm({
     onCategoryChange: setPickedCategoryId,
   }
 
-  const canProceed = canProceedStep(step, pickedCategoryId, form)
-
   return (
-    <form onSubmit={handleSubmit} className="mx-auto max-w-lg md:max-w-4xl">
-      <div className="mb-8 text-center">
+    <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
+      {step > 0 && (
+        <button
+          type="button"
+          onClick={goPrev}
+          className="ui-rounded absolute left-0 top-0 flex h-9 w-9 cursor-pointer items-center justify-center border border-gold/30 text-lg leading-none text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 focus:outline-none focus:ring-2 focus:ring-gold/70"
+          aria-label="Paso anterior"
+        >
+          ‹
+        </button>
+      )}
+
+      <div className={`mb-8 text-center ${step > 0 ? 'pt-1' : ''}`}>
         <p className={`${typography.caption} mb-2`}>
           Paso {step + 1} de {BOOKING_STEPS.length}
         </p>
@@ -115,11 +127,19 @@ export function AppointmentForm({
 
       <div key={step} className="booking-step-enter">
         {step === 0 && (
-          <ServiceCategoryPickerPublic {...pickerProps} visibleSection="category" />
+          <ServiceCategoryPickerPublic
+            {...pickerProps}
+            visibleSection="category"
+            onCategorySelected={handleCategorySelected}
+          />
         )}
 
         {step === 1 && (
-          <ServiceCategoryPickerPublic {...pickerProps} visibleSection="service" />
+          <ServiceCategoryPickerPublic
+            {...pickerProps}
+            visibleSection="service"
+            onServiceSelected={handleServiceSelected}
+          />
         )}
 
         {step === 2 && (
@@ -154,7 +174,7 @@ export function AppointmentForm({
                       name="staff"
                       value={member.id}
                       checked={form.staffId === member.id}
-                      onChange={() => form.setStaffId(member.id)}
+                      onChange={() => handleStaffSelected(member.id)}
                       className="mt-1 accent-gold"
                     />
                     <span className="text-left">
@@ -222,7 +242,7 @@ export function AppointmentForm({
                         name="time"
                         value={slot}
                         checked={form.startTime === slot}
-                        onChange={() => form.setStartTime(slot)}
+                        onChange={() => handleTimeSelected(slot)}
                         className="sr-only"
                       />
                       {slot}
@@ -296,38 +316,17 @@ export function AppointmentForm({
         </p>
       )}
 
-      <div className="mt-10 flex items-center gap-3 border-t border-gold/15 pt-8">
-        {step > 0 ? (
-          <Button type="button" variant="outline" size="md" onClick={goPrev}>
-            Atrás
-          </Button>
-        ) : (
-          <span aria-hidden className="w-[88px]" />
-        )}
-
-        {step < BOOKING_STEPS.length - 1 ? (
-          <Button
-            type="button"
-            variant="solid"
-            size="lg"
-            className="flex-1"
-            disabled={!canProceed}
-            onClick={goNext}
-          >
-            Siguiente
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            variant="solid"
-            size="lg"
-            className="flex-1"
-            disabled={form.submitting || !form.canSubmit}
-          >
-            {form.submitting ? 'Guardando…' : submitLabel}
-          </Button>
-        )}
-      </div>
+      {step === BOOKING_STEPS.length - 1 && (
+        <Button
+          type="submit"
+          variant="solid"
+          size="lg"
+          className="mt-10 w-full"
+          disabled={form.submitting || !form.canSubmit}
+        >
+          {form.submitting ? 'Guardando…' : submitLabel}
+        </Button>
+      )}
     </form>
   )
 }
