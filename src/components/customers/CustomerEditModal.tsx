@@ -141,9 +141,6 @@ export function CustomerEditModal({
               <p className="tabular-nums text-base font-medium text-charcoal">
                 {formatPhoneDisplay(customer.phone)}
               </p>
-              <p className={`${typography.caption} mt-1.5 text-charcoal-muted`}>
-                Identificador del cliente — no se puede modificar
-              </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -193,40 +190,38 @@ export function CustomerEditModal({
             )}
           </div>
 
-          <footer className="flex shrink-0 flex-col gap-3 border-t border-gold/15 bg-cream/95 px-5 py-4">
+          <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-gold/15 bg-cream/95 px-5 py-4 sm:flex-row sm:flex-wrap sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={onClose}
+              className="w-full sm:w-auto"
+            >
+              Cancelar
+            </Button>
             {onDeleted && (
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => setDeleteConfirmOpen(true)}
-                  className="cursor-pointer text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline disabled:opacity-50"
-                >
-                  Eliminar cliente
-                </button>
-              </div>
-            )}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={onClose}
-                className="w-full sm:w-auto"
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="w-full border-red-300 text-red-800 hover:bg-red-50 sm:w-auto"
               >
-                Cancelar
+                {deleting ? 'Eliminando…' : 'Eliminar cliente'}
               </Button>
-              <Button
-                type="submit"
-                variant="solid"
-                size="sm"
-                disabled={busy}
-                className="w-full sm:w-auto"
-              >
-                {saving ? 'Guardando…' : 'Guardar cambios'}
-              </Button>
-            </div>
+            )}
+            <Button
+              type="submit"
+              variant="solid"
+              size="sm"
+              disabled={busy}
+              className="w-full sm:w-auto"
+            >
+              {saving ? 'Guardando…' : 'Guardar cambios'}
+            </Button>
           </footer>
         </form>
       </div>
