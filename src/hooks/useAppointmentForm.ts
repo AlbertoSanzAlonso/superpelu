@@ -7,6 +7,7 @@ import {
   fetchStaffForService,
   ApiError,
 } from '@/lib/api'
+import { isValidSpanishPhone } from '@/lib/phone'
 import type { Appointment, BookableService, StaffMember } from '@/types/booking'
 
 export type AppointmentFormOptions = {
@@ -37,12 +38,23 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [staffError, setStaffError] = useState('')
   const [slotsError, setSlotsError] = useState('')
 
-  const [customerName, setCustomerName] = useState('')
-  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerName, setCustomerNameState] = useState('')
+  const [customerPhone, setCustomerPhoneState] = useState('')
+
+  const setCustomerName = useCallback((value: string) => {
+    setCustomerNameState(value)
+    setFieldErrors((prev) => (prev.name ? { ...prev, name: undefined } : prev))
+  }, [])
+
+  const setCustomerPhone = useCallback((value: string) => {
+    setCustomerPhoneState(value)
+    setFieldErrors((prev) => (prev.phone ? { ...prev, phone: undefined } : prev))
+  }, [])
   const [customerEmail, setCustomerEmail] = useState('')
   const [notes, setNotes] = useState('')
 
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
   const selectedService = services.find((s) => s.id === serviceId)
@@ -145,16 +157,32 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setStartTime('')
     setSlots([])
     setError('')
+    setFieldErrors({})
     setCustomerName('')
     setCustomerPhone('')
     setCustomerEmail('')
     setNotes('')
   }, [services])
 
+  const validateCustomerFields = useCallback(() => {
+    const next: { name?: string; phone?: string } = {}
+    if (!customerName.trim()) {
+      next.name = errors.nameRequired
+    }
+    if (!customerPhone.trim()) {
+      next.phone = errors.phoneRequired
+    } else if (!isValidSpanishPhone(customerPhone)) {
+      next.phone = errors.phoneInvalid
+    }
+    setFieldErrors(next)
+    return Object.keys(next).length === 0
+  }, [customerName, customerPhone, errors.nameRequired, errors.phoneInvalid, errors.phoneRequired])
+
   const submit = useCallback(async () => {
+    setError('')
+    if (!validateCustomerFields()) return null
     if (!canSubmit) return null
 
-    setError('')
     setSubmitting(true)
 
     try {
@@ -178,6 +206,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setSubmitting(false)
     }
   }, [
+    validateCustomerFields,
     canSubmit,
     serviceId,
     staffId,
@@ -220,6 +249,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     notes,
     setNotes,
     error,
+    fieldErrors,
     submitting,
     canSubmit,
     selectedService,

@@ -6,14 +6,27 @@ const fieldClass =
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label: string
+  error?: string
 }
 
-export function Input({ label, id, className = '', ...props }: InputProps) {
+export function Input({ label, id, className = '', error, ...props }: InputProps) {
   const inputId = id ?? label.toLowerCase().replace(/\s+/g, '-')
+  const errorId = error ? `${inputId}-error` : undefined
   return (
     <label className="block text-left" htmlFor={inputId}>
       <span className={`${typography.label} mb-2 block`}>{label}</span>
-      <input id={inputId} className={`${fieldClass} ${className}`} {...props} />
+      <input
+        id={inputId}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={errorId}
+        className={`${fieldClass} ${error ? 'border-red-600 focus:border-red-600' : ''} ${className}`}
+        {...props}
+      />
+      {error && (
+        <p id={errorId} className="mt-1.5 text-sm text-red-700" role="alert">
+          {error}
+        </p>
+      )}
     </label>
   )
 }

@@ -279,6 +279,7 @@ export function AppointmentForm({
               label={b.fullName}
               required
               value={form.customerName}
+              error={form.fieldErrors.name}
               onChange={(e) => form.setCustomerName(e.target.value)}
               autoComplete="name"
             />
@@ -287,6 +288,7 @@ export function AppointmentForm({
               type="tel"
               required
               value={form.customerPhone}
+              error={form.fieldErrors.phone}
               onChange={(e) => form.setCustomerPhone(e.target.value)}
               autoComplete="tel"
               placeholder="600 000 000"
@@ -332,7 +334,7 @@ export function AppointmentForm({
           variant="solid"
           size="lg"
           className="mt-10 w-full"
-          disabled={form.submitting || !form.canSubmit}
+          disabled={form.submitting}
         >
           {form.submitting ? b.saving : confirmLabel}
         </Button>

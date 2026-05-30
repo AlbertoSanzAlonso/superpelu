@@ -292,6 +292,9 @@ const es = {
       noSlots: 'No quedan huecos libres ese día con este profesional.',
       loadSlots: 'No se pudieron cargar horarios.',
       createFailed: 'No se pudo crear la cita',
+      nameRequired: 'Indica tu nombre completo.',
+      phoneRequired: 'Indica un teléfono móvil para contactarte.',
+      phoneInvalid: 'El teléfono debe ser un móvil español (9 dígitos, empieza por 6, 7, 8 o 9).',
     },
   },
   calendar: {
@@ -771,6 +774,9 @@ const en = {
       noSlots: 'No free slots left that day with this stylist.',
       loadSlots: 'Could not load available times.',
       createFailed: 'Could not create the appointment',
+      nameRequired: 'Please enter your full name.',
+      phoneRequired: 'Please enter a mobile number so we can reach you.',
+      phoneInvalid: 'Enter a valid Spanish mobile (9 digits, starting with 6, 7, 8 or 9).',
     },
   },
   calendar: {
