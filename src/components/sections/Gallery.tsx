@@ -200,7 +200,6 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
   const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [hintDismissed, setHintDismissed] = useState(false)
   const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
 
@@ -208,7 +207,6 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
     const el = scrollRef.current
     if (!el || el.children.length === 0) return
 
-    if (!hintDismissed && el.scrollLeft > 8) setHintDismissed(true)
     setCanScrollLeft(el.scrollLeft > 8)
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8)
 
@@ -216,7 +214,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
     const cardStride = firstCard.offsetWidth + 12
     const index = Math.round(el.scrollLeft / cardStride)
     setActiveIndex(Math.min(Math.max(index, 0), images.length - 1))
-  }, [hintDismissed, images.length])
+  }, [images.length])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -236,7 +234,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
 
   return (
     <div className="sm:hidden">
-      {!hintDismissed && (
+      {images.length > 1 && (
         <p
           id="gallery-swipe-hint"
           className={`${typography.caption} mb-3 flex items-center justify-center gap-2 text-center normal-case tracking-normal`}
@@ -269,7 +267,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
           ref={scrollRef}
           className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[7.5vw] pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           aria-label={t.gallery.ariaGallery}
-          aria-describedby={hintDismissed ? undefined : 'gallery-swipe-hint'}
+          aria-describedby={images.length > 1 ? 'gallery-swipe-hint' : undefined}
         >
           {images.map((image, index) => (
             <GalleryFigure
