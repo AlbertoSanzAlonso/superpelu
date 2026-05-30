@@ -38,17 +38,17 @@ import {
   renderNotFoundPage,
   resolvePageLocale,
 } from './customerPages.js'
-import { getTranslation } from '../src/i18n/translations.ts'
-import type { Locale } from '../src/i18n/types.ts'
+import { getTranslation } from '@/i18n/translations'
+import type { Locale } from '@/i18n/types'
 import {
   addDaysToDateString,
   formatDisplayDate,
   isSalonOpenDay,
   isWithinSalonBookingWindow,
   todaySalon,
-} from '../src/lib/dates.ts'
+} from '@/lib/dates'
 import { schedule } from './config.js'
-import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
+import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import {
   createStaffBlock,
   deleteStaffBlockById,

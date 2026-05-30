@@ -9,7 +9,7 @@ import {
   appointmentOccupiedSlots,
   getOccupiedSegmentsForAppointment,
   occupiedSegmentsOverlap,
-} from '../src/lib/bookingOccupancy.ts'
+} from '@/lib/bookingOccupancy'
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)

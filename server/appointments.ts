@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { sql, type AppointmentRow } from './db.js'
 import { getService } from './services.js'
-import { serviceDisplayName } from '../src/i18n/helpers.ts'
-import { normalizeLocale, type Locale } from '../src/i18n/types.ts'
+import { serviceDisplayName } from '@/i18n/helpers'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import { getStaffDayWindow, isStaffWorkingOnDate } from './availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from './staffBlocks.js'
 import { getStaff, staffCanPerformService } from './staff.js'
@@ -29,7 +29,7 @@ import {
   isSalonOpenDay,
   isWithinSalonBookingWindow,
   todaySalon,
-} from '../src/lib/dates.ts'
+} from '@/lib/dates'
 import {
   appointmentOccupiedSlots,
   getBookingSpanMinutes,
@@ -37,7 +37,7 @@ import {
   getOccupiedSegmentsForBooking,
   occupiedSegmentsOverlap,
   type OccupiedSegment,
-} from '../src/lib/bookingOccupancy.ts'
+} from '@/lib/bookingOccupancy'
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)

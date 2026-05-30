@@ -4,8 +4,8 @@ description: >-
   Superpelu Hair Studio — React + Hono + PostgreSQL (Supabase). Reservas (/reservar), agenda
   admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
-  colores agenda, bloqueos con alcance, gestión de clientes (/clientes),
-  o API que devuelve HTML.
+  colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
+  WhatsApp/páginas cliente en idioma de reserva, o API que devuelve HTML.
 ---
 
 # Superpelu
@@ -28,7 +28,7 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 | `src/data/salonServices.ts` | ~70 servicios: `categoryId`, duración, `bookableOnline` |
 | `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga + contraseñas iniciales |
 | `src/data/schedule.ts` | Horario y timezone del salón |
-| `src/data/content.ts` | Textos de marca (landing) |
+| `src/data/content.ts` | Datos de marca no traducibles (teléfono, URLs, dirección) — **no** textos de UI |
 
 **Mechas (`highlights`):** servicios con `bookableOnline: false` — reserva online solo teléfono/WhatsApp; admin/profesional sí pueden citar.
 
@@ -48,6 +48,59 @@ Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-
 
 Esquema versionado en `server/pg/schema.sql` (aplicado al arrancar).
 
+**Citas — idioma:** columna `appointments.locale` (`es` | `en`, default `es`). Se guarda en reserva pública (`POST /api/appointments` con `locale`); citas desde agenda admin/profesional → siempre `es`. Afecta a WhatsApp, nombre de servicio en snapshot y páginas `/c/` · `/m/`.
+
+## Internacionalización (ES / EN)
+
+Sitio **público** bilingüe. **Agenda admin/profesional** sigue solo en español.
+
+### Archivos
+
+| Archivo | Rol |
+|---------|-----|
+| `src/i18n/translations.ts` | **Fuente central** de textos ES + EN (landing, reserva, legal, WhatsApp, páginas cliente) |
+| `src/i18n/types.ts` | `Locale`, `normalizeLocale`, detección navegador |
+| `src/i18n/LocaleProvider.tsx` | Contexto + `localStorage` (`superpelu-locale`) + `<html lang>` y meta SEO |
+| `src/i18n/useTranslation.ts` | Hook `{ t, locale, setLocale }` |
+| `src/i18n/helpers.ts` | Helpers UI (nav, galería, marketing, WhatsApp URL) — **solo frontend**; el server no debe importarlo (usa `@/` y assets) |
+| `src/i18n/localeHelpers.ts` | *(pendiente)* `appointmentLocale`, `serviceDisplayName` — extraer aquí lo que el server necesita, sin `@/` |
+| `src/i18n/whatsappAppointment.ts` | Plantillas mensajes WhatsApp al cliente |
+| `server/customerPages.ts` | HTML de `/c/:code` y `/m/:code` traducido |
+| `src/components/layout/LanguageSwitcher.tsx` | Toggle ES \| EN en header y `/reservar` |
+
+### Uso en React
+
+```tsx
+const { t, locale } = useTranslation()
+// t.nav.bookAppointment, t.booking.pageTitle, etc.
+```
+
+Servicios en UI: `serviceDisplayName(service, locale)` → `nameEs` / `nameEn`. Fechas: `formatDisplayDate(date, locale)`.
+
+### WhatsApp y páginas cliente (mismo idioma que la reserva)
+
+- Confirmación, recordatorio 24h, reprogramación y cancelación → `buildWhatsAppAppointmentMessage` + `translations.whatsappAppointment`.
+- Enlaces gestionar/cancelar (`buildManageUrl`, `buildCancelUrl`) llevan `&lang=en` si `locale === 'en'`.
+- **`GET/POST /c/:code`** — cancelar cita (HTML servidor).
+- **`GET/POST /m/:code`** — gestionar cita (cambiar día/hora/profesional).
+- **`GET /m/:code/confirm`** — confirmar cambio.
+- Textos en `translations.customerPages`; shell en `server/customerPages.ts`.
+
+### Regla crítica: imports server ↔ src
+
+**Producción arranca con `tsx server/index.ts`**. El alias `@/` (Vite) **no funciona** en runtime Node → `ERR_MODULE_NOT_FOUND: Cannot find package '@/…'`.
+
+| Contexto | Regla |
+|----------|--------|
+| `server/*.ts` importando `src/` | Rutas relativas con extensión: `../src/lib/dates.ts` |
+| Módulos en `src/` usados desde **server** | **Prohibido** `@/`; solo rutas relativas (`../data/content.ts`) |
+| Módulos solo frontend (React) | Puede usar `@/` |
+| Código compartido server + web | Archivo aparte sin imports de assets (`@/assets/*`) ni `@/` |
+
+Si el server importa un módulo que a su vez importa `@/` o imágenes `.webp`, el contenedor **no arranca** (healthcheck unhealthy en Coolify).
+
+**Verificar antes de desplegar:** `npm run build && npm start` (no solo `npm run dev`).
+
 ## Rutas web
 
 | Ruta | Uso |
@@ -57,12 +110,14 @@ Esquema versionado en `server/pg/schema.sql` (aplicado al arrancar).
 | `/agenda` | Login dual: **profesional** o **administración** |
 | `/clientes` | Listado de clientes (solo admin, mismo `ADMIN_SECRET` que agenda) |
 | `/clientes/:phone` | Historial de citas del cliente (pantalla completa; `phone` URL-encoded, p. ej. `%2B34600000000`) |
+| `/c/:code?t=` | Cancelar cita (HTML servidor; enlace WhatsApp) |
+| `/m/:code?t=` | Gestionar cita — cambiar fecha/hora o cancelar (HTML servidor) |
 
 **Pagos:** no implementados (sin tabla ni UI de cobros).
 
 ### Landing — servicios de marketing
 
-- Datos: `src/data/marketingServices.ts` (títulos, descripciones, imágenes, iconos).
+- Datos: assets en `src/data/marketingServices.ts`; textos en `translations.marketingServices`.
 - **`Services`:** grid de tarjetas; marca de agua SP (`BRAND_MARK_SRC`) de fondo; tarjetas `bg-cream/35` + `backdrop-blur`.
 - **`ServiceDetailModal`:** imagen + descripción + CTAs (Reservar cita, WhatsApp).
 - Botón cerrar (✕): `cursor-pointer`; en **móvil** sobre la imagen; en **desktop (`md+`)** en el panel de descripción (esquina superior derecha; título con `md:pr-10`).
@@ -124,7 +179,7 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/service-categories` | Con precios |
 | GET | `/api/staff?serviceId=` | Profesionales del servicio |
 | GET | `/api/slots?date=&serviceId=&staffId=` | Respeta tramos de coloración |
-| POST | `/api/appointments` | Crear cita; `customerName` o `customerFirstName` + `customerLastName` + `customerPhone` |
+| POST | `/api/appointments` | Crear cita; `customerName`, `customerPhone`, opcional `locale` (`es`\|`en`) |
 
 ### Admin (`Authorization: Bearer ADMIN_SECRET`)
 
@@ -153,9 +208,12 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 
 | Archivo | Rol |
 |---------|-----|
-| `server/appointments.ts` | Slots, citas; `upsertCustomer` al crear/editar; engancha avisos WhatsApp + email |
+| `server/appointmentWhatsApp.ts` | WhatsApp al cliente (confirmación, recordatorio, cambio, cancelación) en `row.locale` |
+| `server/customerPages.ts` | Páginas HTML `/c/` y `/m/` traducidas |
+| `server/appointmentLinks.ts` | URLs cancelar/gestionar/calendario; `appendLocaleToCustomerUrl` |
+| `server/appointments.ts` | Slots, citas; `upsertCustomer`; guarda `locale`; engancha avisos WhatsApp + email |
 | `server/appointmentEmail.ts` | Email al administrador en cita nueva/cancelada (SMTP/nodemailer) |
-| `server/customers.ts` | `listCustomers`, `getCustomer`, `listCustomerAppointments`, `upsertCustomer` |
+| `src/i18n/translations.ts` | Textos ES/EN centralizados |
 | `server/staffSchedule.ts` | Día por profesional, `occupiedSlots` |
 | `server/staffBlocks.ts` | Series de bloqueos |
 | `src/lib/bookingOccupancy.ts` | Tramos coloración, solapes, formato horario |
@@ -172,7 +230,7 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/components/sections/Services.tsx` | Grid servicios en home |
 | `src/components/sections/ServiceDetailModal.tsx` | Modal detalle servicio (home) |
 
-**Importante:** código importado desde `server/` debe usar rutas relativas en utilidades compartidas (sin alias `@/`), p. ej. `../src/lib/dates.ts`.
+**Importante:** ver sección **Internacionalización → Regla crítica: imports server ↔ src**. Resumen: `server/` → `../src/...` con extensión; nunca `@/` en módulos que el server cargue.
 
 ## Añadir al calendario (confirmación de reserva)
 
@@ -212,7 +270,7 @@ Tras editar `salonServices.ts` o categorías: **reiniciar servidor** para `syncS
 
 ## WhatsApp (OpenWA)
 
-Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (`server/openwa.ts`, `server/appointmentWhatsApp.ts`).
+Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (`server/openwa.ts`, `server/appointmentWhatsApp.ts`). **Idioma del mensaje** = `appointments.locale` de la cita (reserva pública envía `locale` desde el formulario).
 
 | Variable | Uso |
 |----------|-----|
@@ -289,6 +347,7 @@ Ver [deploy-coolify.md](deploy-coolify.md).
 | Móvil no abre la web (HTTPS) | Dominio en `http://` o `sslip.io` → certificado autofirmado; usar subdominio propio con `https://` |
 | No llega recordatorio 24h | OpenWA no configurado, cita `< 24h`, o `REMINDERS_ENABLED=false` |
 | No llega el email de aviso | `EMAIL_ENABLED`/`SMTP_*` ausentes en el contenedor; en local, reiniciar `npm run dev` (no recarga `.env`); con Gmail, usar contraseña de aplicación |
+| Contenedor unhealthy al desplegar | Logs: `Cannot find package '@/…'` — módulo en cadena de imports del server usa alias `@/`; usar rutas relativas y `npm start` local |
 
 ## Convenciones
 

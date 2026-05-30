@@ -14,6 +14,14 @@
 - La imagen Dockerfile incluye **wget** (Coolify lo usa en el healthcheck) y **curl** (HEALTHCHECK del Dockerfile); `node:slim` no los trae por defecto
 - **Start period:** 60–90 s (arranque + Postgres + seed)
 
+### Contenedor unhealthy — `ERR_MODULE_NOT_FOUND '@/…'`
+
+Si el healthcheck falla y en logs aparece `Cannot find package '@/…'` al arrancar:
+
+1. Algún módulo en la cadena `server/` → `src/` usa el alias Vite `@/` (solo funciona en build frontend, no en `tsx server/index.ts`).
+2. Corregir: rutas relativas con extensión (`../src/i18n/types.ts`) y separar helpers de servidor (sin imports de `@/assets/*`).
+3. **Probar local:** `npm run build && npm start` antes de push/redeploy.
+
 ## Container Labels (Caddy)
 
 **Mantener:**

@@ -1,10 +1,10 @@
 import type { AppointmentRow } from './pg/types.js'
 import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl } from './appointmentLinks.js'
-import { appointmentLocale } from '../src/i18n/helpers.ts'
-import { getTranslation } from '../src/i18n/translations.ts'
-import { normalizeLocale, type Locale } from '../src/i18n/types.ts'
-import { formatDisplayDate } from '../src/lib/dates.ts'
-import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
+import { appointmentLocale } from '@/i18n/helpers'
+import { getTranslation } from '@/i18n/translations'
+import { normalizeLocale, type Locale } from '@/i18n/types'
+import { formatDisplayDate } from '@/lib/dates'
+import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 
 export function escapeHtml(value: string): string {
   return value

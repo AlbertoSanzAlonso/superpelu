@@ -1,4 +1,4 @@
-import { salonSchedule } from '../data/schedule'
+import { salonSchedule } from '@/data/schedule'
 
 /** Comprueba que una cadena sea YYYY-MM-DD y una fecha de calendario válida */
 export function isValidDateString(dateStr: string): boolean {

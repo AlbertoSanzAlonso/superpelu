@@ -78,22 +78,34 @@ function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+function rangeBetween(start: string, end: string, locale: 'es' | 'en', separator: 'dash' | 'word'): string {
+  if (separator === 'word') {
+    const connector = locale === 'en' ? ' to ' : ' a '
+    return `${start}${connector}${end}`
+  }
+  return `${start} – ${end}`
+}
+
 export function formatAppointmentTimeRange(
   serviceId: string,
   startTime: string,
   durationMinutes: number,
   locale: 'es' | 'en' = 'es',
+  options?: { rangeSeparator?: 'dash' | 'word' },
 ): string {
+  const separator = options?.rangeSeparator ?? 'dash'
   if (!usesColorSplitBooking(serviceId)) {
     const start = timeToMinutes(startTime)
-    return `${startTime} – ${minutesToTime(start + durationMinutes)}`
+    return rangeBetween(startTime, minutesToTime(start + durationMinutes), locale, separator)
   }
   const start = timeToMinutes(startTime)
   const seg1End = start + COLOR_SPLIT_SEGMENT_MINUTES
   const seg2Start = start + COLOR_SPLIT_SEGMENT_MINUTES + COLOR_SPLIT_GAP_MINUTES
   const seg2End = start + COLOR_SPLIT_TOTAL_SPAN_MINUTES
   const connector = locale === 'en' ? 'and' : 'y'
-  return `${startTime}–${minutesToTime(seg1End)} ${connector} ${minutesToTime(seg2Start)}–${minutesToTime(seg2End)}`
+  const seg1 = rangeBetween(startTime, minutesToTime(seg1End), locale, separator)
+  const seg2 = rangeBetween(minutesToTime(seg2Start), minutesToTime(seg2End), locale, separator)
+  return `${seg1} ${connector} ${seg2}`
 }
 
 export type AppointmentOccupiedSlot = {

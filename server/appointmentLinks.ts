@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { AppointmentRow } from './db.js'
-import { appointmentLocale } from '../src/i18n/helpers.ts'
-import type { Locale } from '../src/i18n/types.ts'
+import { appointmentLocale } from '@/i18n/helpers'
+import type { Locale } from '@/i18n/types'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 

@@ -2,7 +2,7 @@
 
 import nodemailer, { type Transporter } from 'nodemailer'
 import type { AppointmentRow } from './db.js'
-import { formatDisplayDate } from '../src/lib/dates.ts'
+import { formatDisplayDate } from '@/lib/dates'
 import { adminAgendaUrl } from './appointmentLinks.js'
 
 export type AppointmentEmailEvent = 'created' | 'cancelled' | 'updated'

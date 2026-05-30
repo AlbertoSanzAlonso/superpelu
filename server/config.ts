@@ -1,4 +1,4 @@
-import { salonSchedule } from '../src/data/schedule.ts'
+import { salonSchedule } from '@/data/schedule'
 
 export { listActiveServices as bookableServices } from './services.js'
 export { getService } from './services.js'

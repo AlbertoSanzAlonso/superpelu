@@ -1,6 +1,6 @@
-import { formatAppointmentTimeRange } from '../lib/bookingOccupancy'
-import { formatDisplayDate } from '../lib/dates'
-import type { AppointmentRow } from '../../server/pg/types'
+import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { formatDisplayDate } from '@/lib/dates'
+import type { AppointmentRow } from '@server/pg/types'
 import { getTranslation } from './translations'
 import { appointmentLocale } from './helpers'
 
@@ -33,6 +33,7 @@ export function buildWhatsAppAppointmentMessage(
     row.start_time,
     row.duration_minutes,
     locale,
+    { rangeSeparator: 'word' },
   )
 
   const lines = [

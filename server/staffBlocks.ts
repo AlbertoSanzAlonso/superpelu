@@ -3,7 +3,7 @@ import {
   addDaysToDateString,
   dayOfWeekFromDateString,
   isSalonOpenDay,
-} from '../src/lib/dates.ts'
+} from '@/lib/dates'
 import { isStaffWorkingOnDate } from './availability.js'
 import { sql, type StaffBlockRow } from './db.js'
 

@@ -1,6 +1,6 @@
 import { sql } from './db.js'
 import { schedule } from './config.js'
-import { dayOfWeekFromDateString, isSalonOpenDay } from '../src/lib/dates.ts'
+import { dayOfWeekFromDateString, isSalonOpenDay } from '@/lib/dates'
 
 export type StaffDayWindow = {
   startMinutes: number

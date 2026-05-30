@@ -1,11 +1,11 @@
-import { priceEurToCents, serviceCategories } from '../../src/data/serviceCategories.ts'
-import { salonServices, salonServiceIds } from '../../src/data/salonServices.ts'
+import { priceEurToCents, serviceCategories } from '@/data/serviceCategories'
+import { salonServices, salonServiceIds } from '@/data/salonServices'
 import {
   defaultWeeklyHoursForStaff,
   legacyMockStaffIds,
   salonStaffMembers,
-} from '../../src/data/salonStaff.ts'
-import { salonSchedule } from '../../src/data/schedule.ts'
+} from '@/data/salonStaff'
+import { salonSchedule } from '@/data/schedule'
 import { hashPassword } from '../password.js'
 import { sql } from './client.js'
 

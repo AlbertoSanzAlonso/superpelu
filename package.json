@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "concurrently -n web,api -c blue,magenta \"npm run dev:web\" \"npm run dev:api\"",
     "dev:web": "vite",
-    "dev:api": "tsx watch server/index.ts",
+    "dev:api": "tsx watch --tsconfig tsconfig.server.json server/index.ts",
     "build": "tsc -b && vite build",
-    "start": "tsx server/index.ts",
+    "start": "tsx --tsconfig tsconfig.server.json server/index.ts",
     "preview": "vite preview",
     "gallery:webp": "node scripts/convert-gallery-to-webp.mjs",
     "db:check": "node scripts/db-check.mjs",

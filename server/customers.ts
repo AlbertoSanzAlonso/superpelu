@@ -2,8 +2,8 @@ import { sql, type CustomerRow } from './db.js'
 import {
   formatCustomerDisplayName,
   splitCustomerName,
-} from '../src/lib/customerName.ts'
-import { normalizePhone, isValidSpanishPhone } from '../src/lib/phone.ts'
+} from '@/lib/customerName'
+import { normalizePhone, isValidSpanishPhone } from '@/lib/phone'
 
 export type CustomerInput = {
   firstName: string

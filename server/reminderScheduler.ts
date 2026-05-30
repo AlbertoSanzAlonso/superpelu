@@ -1,7 +1,7 @@
 import { listAppointmentsDueForReminder, markReminderSent } from './appointments.js'
 import { sendAppointmentReminder } from './appointmentWhatsApp.js'
 import { isOpenWaConfigured } from './openwa.js'
-import { hoursUntilAppointment } from '../src/lib/dates.ts'
+import { hoursUntilAppointment } from '@/lib/dates'
 
 function envFlag(name: string, fallback: boolean): boolean {
   const raw = (process.env[name] ?? '').trim().toLowerCase()

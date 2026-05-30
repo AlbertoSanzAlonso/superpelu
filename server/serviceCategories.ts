@@ -1,5 +1,5 @@
 import { sql, type ServiceCategoryRow } from './db.js'
-import { priceEurToCents, serviceCategories } from '../src/data/serviceCategories.ts'
+import { priceEurToCents, serviceCategories } from '@/data/serviceCategories'
 
 export type PublicServiceCategory = {
   id: string

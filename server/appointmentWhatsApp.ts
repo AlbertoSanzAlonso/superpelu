@@ -1,5 +1,5 @@
 import type { AppointmentRow } from './db.js'
-import { buildWhatsAppAppointmentMessage } from '../src/i18n/whatsappAppointment.ts'
+import { buildWhatsAppAppointmentMessage } from '@/i18n/whatsappAppointment'
 import {
   getOpenWaConfig,
   openWaSendText,
