@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { AppointmentRow } from './db.js'
+import { appointmentLocale } from '../src/i18n/helpers.ts'
+import type { Locale } from '../src/i18n/types.ts'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 
@@ -147,11 +149,18 @@ export function buildBookingUrl(): string | null {
   return `${base}/reservar`
 }
 
+/** Añade ?lang=en / &lang=en a URLs de gestión/cancelación para visitas sin fila en BD. */
+export function appendLocaleToCustomerUrl(url: string, locale: Locale): string {
+  if (locale === 'es') return url
+  return `${url}&lang=en`
+}
+
 export function buildCancelUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
   const token = appointmentCancelToken(row.id)
-  return `${base}/c/${encodeId(row.id)}?t=${token}`
+  const url = `${base}/c/${encodeId(row.id)}?t=${token}`
+  return appendLocaleToCustomerUrl(url, appointmentLocale(row))
 }
 
 /** Enlace para que el cliente cambie fecha/hora o cancele la cita (WhatsApp, etc.). */
@@ -159,7 +168,8 @@ export function buildManageUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
   const token = appointmentCancelToken(row.id)
-  return `${base}/m/${encodeId(row.id)}?t=${token}`
+  const url = `${base}/m/${encodeId(row.id)}?t=${token}`
+  return appendLocaleToCustomerUrl(url, appointmentLocale(row))
 }
 
 function pad(n: number): string {

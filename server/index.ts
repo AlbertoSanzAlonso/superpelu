@@ -28,6 +28,19 @@ import {
   verifyCancelToken,
 } from './appointmentLinks.js'
 import {
+  appointmentDetailHtml,
+  backToManageLink,
+  customerPageShell,
+  customerPageUrlFromRequest,
+  escapeHtml,
+  manageErrorMessage,
+  renderInvalidLinkPage,
+  renderNotFoundPage,
+  resolvePageLocale,
+} from './customerPages.js'
+import { getTranslation } from '../src/i18n/translations.ts'
+import type { Locale } from '../src/i18n/types.ts'
+import {
   addDaysToDateString,
   formatDisplayDate,
   isSalonOpenDay,
@@ -601,175 +614,122 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
   return c.json({ appointment: rowToPublic(row) })
 })
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
-
-function webHomeButtonHtml(): string {
-  const base = publicBaseUrl()
-  if (!base) return ''
-  return `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(base)}">Ir a la web</a></p>`
-}
-
-function customerPageUrl(c: { req: { url: string; path: string } }): string | undefined {
-  const base = publicBaseUrl()
-  if (!base) return undefined
-  try {
-    const incoming = new URL(c.req.url)
-    return `${base}${incoming.pathname}${incoming.search}`
-  } catch {
-    return `${base}${c.req.path}`
-  }
-}
-
 function customerPage(
   title: string,
   bodyHtml: string,
+  locale: Locale,
   options?: { pageUrl?: string; description?: string },
 ) {
-  return cancelPage(title, `${bodyHtml}${webHomeButtonHtml()}`, options)
+  return customerPageShell(title, bodyHtml, locale, options)
 }
 
 type CustomerPageStatus = 200 | 400 | 404 | 409
 
 function replyCustomerPage(
-  c: { req: { url: string; path: string }; html: (html: string, status?: CustomerPageStatus) => Response },
+  c: { req: { url: string; path: string; query: (key: string) => string | undefined } },
   title: string,
   bodyHtml: string,
+  locale: Locale,
   status?: CustomerPageStatus,
 ) {
-  return c.html(customerPage(title, bodyHtml, { pageUrl: customerPageUrl(c) }), status)
+  return c.html(
+    customerPage(title, bodyHtml, locale, {
+      pageUrl: customerPageUrlFromRequest(c.req.url, c.req.path, locale),
+    }),
+    status,
+  )
 }
 
-function cancelPage(
-  title: string,
-  bodyHtml: string,
-  options?: { pageUrl?: string; description?: string },
-) {
-  return [
-    '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">',
-    '<meta name="viewport" content="width=device-width, initial-scale=1">',
-    buildLinkPreviewMetaTags({ title, ...options }),
-    '<style>',
-    'body{font-family:system-ui,-apple-system,sans-serif;background:#faf7f5;color:#2b2b2b;',
-    'margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem}',
-    '.card{background:#fff;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.08);max-width:420px;width:100%;padding:2rem;text-align:center}',
-    'h1{font-size:1.4rem;margin:0 0 1rem}p{line-height:1.5;margin:.5rem 0}',
-    '.detail{background:#f4efec;border-radius:10px;padding:1rem;margin:1rem 0;text-align:left}',
-    '.btn{display:inline-block;border:0;border-radius:10px;padding:.85rem 1.4rem;font-size:1rem;',
-    'font-weight:600;cursor:pointer;text-decoration:none;margin-top:.5rem}',
-    '.btn-danger{background:#c0392b;color:#fff}.btn-secondary{background:#e7e0db;color:#2b2b2b}',
-    '.btn-primary{background:#1f1b18;color:#fff}',
-    '.section-label{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9a8f86;margin:1.25rem 0 .5rem;text-align:left}',
-    '.date-form,.staff-form{margin:.5rem 0 1rem;text-align:left}.date-form input[type=date],.staff-form select{width:100%;padding:.65rem;border:1px solid #d4c4bc;border-radius:8px;font-size:1rem}',
-    '.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin:.5rem 0 1rem}.slot-form{margin:0}',
-    '.slot-btn{width:100%;padding:.65rem;border:1px solid #d4c4bc;background:#fff;border-radius:8px;cursor:pointer;font-size:.95rem}',
-    '.slot-btn:hover{border-color:#1f1b18;background:#faf7f5}',
-    '.muted{color:#888;font-size:.9rem}',
-    '</style></head><body><div class="card">',
-    bodyHtml,
-    '</div></body></html>',
-  ].join('')
+function cp(locale: Locale) {
+  return getTranslation(locale).customerPages
 }
 
 /** Página de confirmación de cancelación (enlace enviado por WhatsApp). */
 app.get('/c/:code', async (c) => {
+  const queryLang = c.req.query('lang')
   const id = decodeId(c.req.param('code'))
   const token = c.req.query('t')
   if (!id || !verifyCancelToken(id, token)) {
-    return replyCustomerPage(
-      c,
-      'Enlace no válido',
-      '<h1>Enlace no válido</h1><p>Este enlace de cancelación no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>',
-      400,
-    )
+    const locale = resolvePageLocale(null, queryLang)
+    const page = renderInvalidLinkPage(locale, 'cancel')
+    return c.html(page.html, 400)
   }
 
   const row = await getAppointmentById(id)
+  const locale = resolvePageLocale(row, queryLang)
   if (!row) {
-    return replyCustomerPage(
-      c,
-      'Cita no encontrada',
-      '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>',
-      404,
-    )
+    const page = renderNotFoundPage(locale)
+    return c.html(page.html, 404)
   }
 
   if (row.status === 'cancelled') {
-    return replyCustomerPage(c, 
-        'Cita cancelada',
-        '<h1>Esta cita ya está cancelada</h1><p>No hay nada más que hacer. ¡Gracias!</p>',
+    const t = cp(locale).alreadyCancelled
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.headingDone)}</h1><p>${escapeHtml(t.bodyDone)}</p>`,
+      locale,
     )
   }
 
   const manageUrl = buildManageUrl(row)
-  const backToManage = manageUrl
-    ? `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(manageUrl)}">Volver a gestionar</a></p>`
-    : ''
+  const t = cp(locale).cancel
 
-  const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
-  const timeRange = escapeHtml(
-    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes),
-  )
-  const service = escapeHtml(row.service_name)
-  const staff = escapeHtml(row.staff_name ?? '')
-
-  return replyCustomerPage(c, 
-      'Cancelar cita',
-      `<h1>¿Cancelar tu cita?</h1>
-       <div class="detail">
-         <p>📅 ${dateLabel}</p>
-         <p>🕐 ${timeRange}</p>
-         <p>💇 ${service}</p>
-         ${staff ? `<p>👤 Con ${staff}</p>` : ''}
-       </div>
-       <form method="POST" action="/c/${encodeURIComponent(c.req.param('code'))}">
-         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
-         <button class="btn btn-danger" type="submit">Sí, cancelar la cita</button>
-       </form>
-       ${backToManage}
-       <p class="muted">Si fue un error, cierra esta página y tu cita seguirá activa.</p>`,
+  return replyCustomerPage(
+    c,
+    t.title,
+    `<h1>${escapeHtml(t.heading)}</h1>
+     ${appointmentDetailHtml(row, locale)}
+     <form method="POST" action="/c/${encodeURIComponent(c.req.param('code'))}${locale === 'en' ? '?lang=en' : ''}">
+       <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+       <button class="btn btn-danger" type="submit">${escapeHtml(t.confirmButton)}</button>
+     </form>
+     ${backToManageLink(manageUrl, locale)}
+     <p class="muted">${escapeHtml(t.hint)}</p>`,
+    locale,
   )
 })
 
 app.post('/c/:code', async (c) => {
+  const queryLang = c.req.query('lang')
   const id = decodeId(c.req.param('code'))
   const body = await c.req.parseBody()
   const token = typeof body.t === 'string' ? body.t : undefined
   if (!id || !verifyCancelToken(id, token)) {
-    return replyCustomerPage(c, 'Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cancelar.</p>', 400)
+    const locale = resolvePageLocale(null, queryLang)
+    const page = renderInvalidLinkPage(locale, 'action')
+    return c.html(page.html, 400)
   }
 
   const existing = await getAppointmentById(id)
+  const locale = resolvePageLocale(existing, queryLang)
   if (!existing) {
-    return replyCustomerPage(c, 'Cita no encontrada', '<h1>Cita no encontrada</h1>', 404)
+    const page = renderNotFoundPage(locale)
+    return c.html(page.html, 404)
   }
   if (existing.status === 'cancelled') {
-    return replyCustomerPage(c, 'Cita cancelada', '<h1>Esta cita ya estaba cancelada</h1><p>¡Gracias!</p>')
+    const t = cp(locale).alreadyCancelled
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.headingWas)}</h1><p>${escapeHtml(t.bodyThanks)}</p>`,
+      locale,
+    )
   }
 
   await cancelAppointment(id, { notifyCustomer: true })
-  return replyCustomerPage(c, 
-      'Cita cancelada',
-      '<h1>✅ Cita cancelada</h1><p>Tu cita ha sido cancelada correctamente.</p><p>Si quieres, puedes reservar otra cuando quieras. ¡Gracias!</p>',
+  const t = cp(locale).cancel
+  return replyCustomerPage(
+    c,
+    t.successTitle,
+    `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successBody)}</p><p>${escapeHtml(t.successFooter)}</p>`,
+    locale,
   )
 })
 
-const manageErrors: Record<string, string> = {
-  CITA_NO_ENCONTRADA: 'No hemos encontrado esta cita.',
-  FECHA_INVALIDA: 'La fecha elegida no está disponible. Elige otro día (mar–sáb, dentro del plazo de reserva).',
-  HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
-  STAFF_NO_REALIZA_SERVICIO: 'Ese profesional no realiza este servicio.',
-  STAFF_INVALIDO: 'Profesional no disponible.',
-  SERVICIO_INVALIDO: 'Servicio no válido.',
-}
-
 /** Confirmación antes de aplicar un cambio de cita (cliente). */
 app.get('/m/:code/confirm', async (c) => {
+  const queryLang = c.req.query('lang')
   const code = c.req.param('code')
   const token = c.req.query('t')
   const date = c.req.query('date')
@@ -778,92 +738,104 @@ app.get('/m/:code/confirm', async (c) => {
   const id = decodeId(code)
 
   if (!id || !verifyCancelToken(id, token)) {
-    return replyCustomerPage(c, 'Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo confirmar el cambio.</p>', 400)
+    const locale = resolvePageLocale(null, queryLang)
+    const page = renderInvalidLinkPage(locale, 'confirm')
+    return c.html(page.html, 400)
   }
 
   if (!date || !startTime || !staffId) {
-    return replyCustomerPage(c, 'Datos incompletos', '<h1>Faltan datos</h1><p>Elige profesional, día y hora.</p>', 400)
-  }
-
-  const row = await getAppointmentById(id)
-  if (!row || row.status === 'cancelled') {
-    return replyCustomerPage(c, 'Cita no encontrada', '<h1>Cita no encontrada</h1><p>Esta cita ya no está activa.</p>', 404)
-  }
-
-  const staff = await getStaff(staffId)
-  const staffName = escapeHtml(staff?.name ?? row.staff_name ?? '')
-  const dateLabel = escapeHtml(formatDisplayDate(date))
-  const timeRange = escapeHtml(formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes))
-  const service = escapeHtml(row.service_name)
-  const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}&staffId=${encodeURIComponent(staffId)}`
-
-  return replyCustomerPage(c, 
-      'Confirmar cambio',
-      `<h1>¿Confirmar el cambio?</h1>
-       <p>Tu cita quedará así:</p>
-       <div class="detail">
-         <p>💇 ${service}</p>
-         <p>👤 ${staffName}</p>
-         <p>📅 ${dateLabel}</p>
-         <p>🕐 ${timeRange}</p>
-       </div>
-       <form method="POST" action="/m/${encodeURIComponent(code)}">
-         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
-         <input type="hidden" name="date" value="${escapeHtml(date)}">
-         <input type="hidden" name="startTime" value="${escapeHtml(startTime)}">
-         <input type="hidden" name="staffId" value="${escapeHtml(staffId)}">
-         <button class="btn btn-primary" type="submit">Sí, confirmar cambio</button>
-       </form>
-       <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">No, volver</a></p>`,
-  )
-})
-
-/** Página para que el cliente cambie la fecha/hora o vaya a cancelar (enlace en WhatsApp). */
-app.get('/m/:code', async (c) => {
-  const code = c.req.param('code')
-  const token = c.req.query('t')
-  const id = decodeId(code)
-  if (!id || !verifyCancelToken(id, token)) {
+    const row = await getAppointmentById(id)
+    const locale = resolvePageLocale(row, queryLang)
+    const t = cp(locale).incomplete
     return replyCustomerPage(
       c,
-      'Enlace no válido',
-      '<h1>Enlace no válido</h1><p>Este enlace no es correcto o ha caducado. Llama al salón si necesitas ayuda.</p>',
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1><p>${escapeHtml(t.bodyStaffDayTime)}</p>`,
+      locale,
       400,
     )
   }
 
   const row = await getAppointmentById(id)
+  const locale = resolvePageLocale(row, queryLang)
+  if (!row || row.status === 'cancelled') {
+    const page = renderNotFoundPage(locale, true)
+    return c.html(page.html, 404)
+  }
+
+  const staff = await getStaff(staffId)
+  const t = cp(locale)
+  const staffName = escapeHtml(staff?.name ?? row.staff_name ?? '')
+  const dateLabel = escapeHtml(formatDisplayDate(date, locale))
+  const timeRange = escapeHtml(
+    formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes, locale),
+  )
+  const service = escapeHtml(row.service_name)
+  const langSuffix = locale === 'en' ? '&lang=en' : ''
+  const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}&staffId=${encodeURIComponent(staffId)}${langSuffix}`
+
+  return replyCustomerPage(
+    c,
+    t.confirmChange.title,
+    `<h1>${escapeHtml(t.confirmChange.heading)}</h1>
+     <p>${escapeHtml(t.confirmChange.intro)}</p>
+     <div class="detail">
+       <p>💇 ${service}</p>
+       <p>${escapeHtml(t.withStaff(staff?.name ?? row.staff_name ?? 'Superpelu'))}</p>
+       <p>📅 ${dateLabel}</p>
+       <p>🕐 ${timeRange}</p>
+     </div>
+     <form method="POST" action="/m/${encodeURIComponent(code)}${locale === 'en' ? '?lang=en' : ''}">
+       <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+       <input type="hidden" name="date" value="${escapeHtml(date)}">
+       <input type="hidden" name="startTime" value="${escapeHtml(startTime)}">
+       <input type="hidden" name="staffId" value="${escapeHtml(staffId)}">
+       <button class="btn btn-primary" type="submit">${escapeHtml(t.confirmChange.submit)}</button>
+     </form>
+     <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">${escapeHtml(t.confirmChange.back)}</a></p>`,
+    locale,
+  )
+})
+
+/** Página para que el cliente cambie la fecha/hora o vaya a cancelar (enlace en WhatsApp). */
+app.get('/m/:code', async (c) => {
+  const queryLang = c.req.query('lang')
+  const code = c.req.param('code')
+  const token = c.req.query('t')
+  const id = decodeId(code)
+  if (!id || !verifyCancelToken(id, token)) {
+    const locale = resolvePageLocale(null, queryLang)
+    const page = renderInvalidLinkPage(locale, 'manage')
+    return c.html(page.html, 400)
+  }
+
+  const row = await getAppointmentById(id)
+  const locale = resolvePageLocale(row, queryLang)
   if (!row) {
-    return replyCustomerPage(
-      c,
-      'Cita no encontrada',
-      '<h1>Cita no encontrada</h1><p>No hemos encontrado esta cita.</p>',
-      404,
-    )
+    const page = renderNotFoundPage(locale)
+    return c.html(page.html, 404)
   }
 
   if (row.status === 'cancelled') {
+    const t = cp(locale).alreadyCancelled
     return replyCustomerPage(
       c,
-      'Cita cancelada',
-      '<h1>Esta cita está cancelada</h1><p>Si quieres, puedes reservar otra cita en nuestra web.</p>',
+      t.title,
+      `<h1>${escapeHtml(t.headingIs)}</h1><p>${escapeHtml(t.bodyBookAgain)}</p>`,
+      locale,
     )
   }
 
-  const cancelUrl = `${publicBaseUrl() || ''}/c/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}`
-  const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
-  const timeRange = escapeHtml(
-    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes),
-  )
-  const service = escapeHtml(row.service_name)
+  const langSuffix = locale === 'en' ? '&lang=en' : ''
+  const cancelUrl = `${publicBaseUrl() || ''}/c/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${langSuffix}`
+  const t = cp(locale).manage
   const staffOptions = await listStaffForService(row.service_id)
   let selectedStaffId = (c.req.query('staffId') ?? row.staff_id ?? '').trim()
   if (!staffOptions.some((s) => s.id === selectedStaffId)) {
     selectedStaffId = row.staff_id ?? staffOptions[0]?.id ?? ''
   }
-  const selectedStaffName = escapeHtml(
-    staffOptions.find((s) => s.id === selectedStaffId)?.name ?? row.staff_name ?? '',
-  )
+  const selectedStaffRaw =
+    staffOptions.find((s) => s.id === selectedStaffId)?.name ?? row.staff_name ?? ''
 
   const today = todaySalon()
   const maxDate = addDaysToDateString(today, schedule.maxDaysAhead)
@@ -874,11 +846,12 @@ app.get('/m/:code', async (c) => {
 
   const staffSelectHtml =
     staffOptions.length > 0
-      ? `<p class="section-label">Profesional</p>
+      ? `<p class="section-label">${escapeHtml(t.staffSection)}</p>
        <form method="GET" action="/m/${encodeURIComponent(code)}" class="staff-form">
          <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
          <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
-         <select name="staffId" aria-label="Profesional" onchange="this.form.submit()">
+         ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
+         <select name="staffId" aria-label="${escapeHtml(t.staffAria)}" onchange="this.form.submit()">
            ${staffOptions
              .map(
                (s) =>
@@ -891,17 +864,16 @@ app.get('/m/:code', async (c) => {
 
   let slotsHtml = ''
   if (!isSalonOpenDay(selectedDate) || !isWithinSalonBookingWindow(selectedDate)) {
-    slotsHtml =
-      '<p class="muted">El salón no abre ese día o está fuera del plazo de reserva. Elige otra fecha.</p>'
+    slotsHtml = `<p class="muted">${escapeHtml(t.salonClosed)}</p>`
   } else if (selectedStaffId) {
     const slots = await getAvailableSlots(selectedDate, row.service_id, selectedStaffId, {
       excludeAppointmentId: row.id,
     })
     if (slots.length === 0) {
-      slotsHtml = '<p class="muted">No hay huecos libres ese día. Prueba otra fecha u otro profesional.</p>'
+      slotsHtml = `<p class="muted">${escapeHtml(t.noSlots)}</p>`
     } else {
       slotsHtml =
-        '<p class="section-label">Hora</p><div class="slots">' +
+        `<p class="section-label">${escapeHtml(t.hourSection)}</p><div class="slots">` +
         slots
           .map(
             (slot) =>
@@ -909,6 +881,7 @@ app.get('/m/:code', async (c) => {
                  <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
                  <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
                  <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
+                 ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
                  <button class="slot-btn" type="submit" name="startTime" value="${escapeHtml(slot)}">${escapeHtml(slot)}</button>
                </form>`,
           )
@@ -917,31 +890,41 @@ app.get('/m/:code', async (c) => {
     }
   }
 
-  return replyCustomerPage(c, 
-      'Gestionar cita',
-      `<h1>Gestionar tu cita</h1>
-       <div class="detail">
-         <p>💇 ${service}</p>
-         <p>👤 ${selectedStaffName}</p>
-         <p>📅 ${dateLabel}</p>
-         <p>🕐 ${timeRange}</p>
-       </div>
-       <p class="section-label">Modificar cita</p>
-       ${staffSelectHtml}
-       <p class="section-label">Día</p>
-       <form method="GET" action="/m/${encodeURIComponent(code)}" class="date-form">
-         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
-         <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
-         <input type="date" name="date" value="${escapeHtml(selectedDate)}" min="${today}" max="${maxDate}" onchange="this.form.submit()">
-       </form>
-       ${slotsHtml}
-       <p class="section-label">Cancelar</p>
-       <a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">Cancelar la cita</a>
-       <p class="muted">Para cambiar el servicio, llama al salón: 952 443 686</p>`,
+  const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
+  const timeRange = escapeHtml(
+    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale),
+  )
+  const service = escapeHtml(row.service_name)
+
+  return replyCustomerPage(
+    c,
+    cp(locale).manage.title,
+    `<h1>${escapeHtml(t.heading)}</h1>
+     <div class="detail">
+       <p>💇 ${service}</p>
+       <p>${escapeHtml(cp(locale).withStaff(selectedStaffRaw))}</p>
+       <p>📅 ${dateLabel}</p>
+       <p>🕐 ${timeRange}</p>
+     </div>
+     <p class="section-label">${escapeHtml(t.modifySection)}</p>
+     ${staffSelectHtml}
+     <p class="section-label">${escapeHtml(t.daySection)}</p>
+     <form method="GET" action="/m/${encodeURIComponent(code)}" class="date-form">
+       <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+       <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
+       ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
+       <input type="date" name="date" value="${escapeHtml(selectedDate)}" min="${today}" max="${maxDate}" onchange="this.form.submit()">
+     </form>
+     ${slotsHtml}
+     <p class="section-label">${escapeHtml(t.cancelSection)}</p>
+     <a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>
+     <p class="muted">${escapeHtml(t.callSalon)}</p>`,
+    locale,
   )
 })
 
 app.post('/m/:code', async (c) => {
+  const queryLang = c.req.query('lang')
   const code = c.req.param('code')
   const id = decodeId(code)
   const body = await c.req.parseBody()
@@ -951,46 +934,63 @@ app.post('/m/:code', async (c) => {
   const staffId = typeof body.staffId === 'string' ? body.staffId : undefined
 
   if (!id || !verifyCancelToken(id, token)) {
-    return replyCustomerPage(c, 'Enlace no válido', '<h1>Enlace no válido</h1><p>No se pudo cambiar la cita.</p>', 400)
+    const locale = resolvePageLocale(null, queryLang)
+    const page = renderInvalidLinkPage(locale, 'action')
+    return c.html(page.html, 400)
   }
 
   if (!date || !startTime) {
-    return replyCustomerPage(c, 'Datos incompletos', '<h1>Faltan datos</h1><p>Elige una fecha y una hora.</p>', 400)
+    const existing = await getAppointmentById(id)
+    const locale = resolvePageLocale(existing, queryLang)
+    const t = cp(locale).incomplete
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1><p>${escapeHtml(t.bodyDateTime)}</p>`,
+      locale,
+      400,
+    )
   }
+
+  const existing = await getAppointmentById(id)
+  const locale = resolvePageLocale(existing, queryLang)
 
   try {
     const row = await rescheduleAppointmentByCustomer(id, { date, startTime, staffId })
     const manageUrl = buildManageUrl(row)
-    const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date))
+    const t = cp(locale).updated
+    const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
     const timeRange = escapeHtml(
-      formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes),
+      formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale),
     )
-    const manageLink = manageUrl
-      ? `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(manageUrl)}">Volver a gestionar</a></p>`
-      : ''
 
-    return replyCustomerPage(c, 
-        'Cita actualizada',
-        `<h1>✅ Cita actualizada</h1>
-         <p>Tu cita ha quedado así:</p>
-         <div class="detail">
-           <p>📅 ${dateLabel}</p>
-           <p>🕐 ${timeRange}</p>
-           <p>💇 ${escapeHtml(row.service_name)}</p>
-           ${row.staff_name ? `<p>👤 Con ${escapeHtml(row.staff_name)}</p>` : ''}
-         </div>
-         ${manageLink}
-         <p class="muted">¡Te esperamos!</p>`,
-  )
-  } catch (err) {
-    const codeErr = err instanceof Error ? err.message : 'ERROR'
-    const message = manageErrors[codeErr] ?? 'No se pudo cambiar la cita. Inténtalo de nuevo.'
-    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}`
     return replyCustomerPage(
       c,
-      'No se pudo cambiar',
-      `<h1>No se pudo cambiar</h1><p>${escapeHtml(message)}</p>
-         <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">Volver</a></p>`,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1>
+       <p>${escapeHtml(t.intro)}</p>
+       <div class="detail">
+         <p>📅 ${dateLabel}</p>
+         <p>🕐 ${timeRange}</p>
+         <p>💇 ${escapeHtml(row.service_name)}</p>
+         ${row.staff_name ? `<p>${escapeHtml(cp(locale).withStaff(row.staff_name))}</p>` : ''}
+       </div>
+       ${backToManageLink(manageUrl, locale)}
+       <p class="muted">${escapeHtml(t.closing)}</p>`,
+      locale,
+    )
+  } catch (err) {
+    const codeErr = err instanceof Error ? err.message : 'ERROR'
+    const message = manageErrorMessage(codeErr, locale)
+    const langSuffix = locale === 'en' ? '&lang=en' : ''
+    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}${langSuffix}`
+    const t = cp(locale).changeFailed
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1><p>${escapeHtml(message)}</p>
+         <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">${escapeHtml(t.back)}</a></p>`,
+      locale,
       409,
     )
   }
