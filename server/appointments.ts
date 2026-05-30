@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { sql, type AppointmentRow } from './db.js'
 import { getService } from './services.js'
+import { serviceDisplayName } from '../src/i18n/helpers.ts'
+import { normalizeLocale, type Locale } from '../src/i18n/types.ts'
 import { getStaffDayWindow, isStaffWorkingOnDate } from './availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from './staffBlocks.js'
 import { getStaff, staffCanPerformService } from './staff.js'
@@ -187,6 +189,7 @@ export type CreateAppointmentInput = {
   customerNotes?: string
   notes?: string
   forStaffPortal?: boolean
+  locale?: Locale
 }
 
 export async function createAppointment(
@@ -236,6 +239,8 @@ export async function createAppointment(
   const id = randomUUID()
   const createdAt = new Date().toISOString()
   const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+  const locale = input.forStaffPortal ? 'es' : normalizeLocale(input.locale)
+  const serviceName = serviceDisplayName(service, locale)
 
   // Si la cita es en menos de 24h, no hay recordatorio: se marca como ya gestionado.
   const reminderSentAt =
@@ -246,12 +251,12 @@ export async function createAppointment(
       id, staff_id, staff_name, service_id, service_name, duration_minutes,
       appointment_date, start_time,
       customer_name, customer_phone, customer_email, notes,
-      status, created_at, reminder_sent_at
+      status, created_at, reminder_sent_at, locale
     ) VALUES (
-      ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${service.nameEs}, ${storedDuration},
+      ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
       ${input.date}, ${input.startTime},
       ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
-      ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}
+      ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale}
     )
   `
 
@@ -394,11 +399,14 @@ export async function updateAppointmentForStaff(
   const staff = (await getStaff(targetStaffId))!
   if (!staff?.active) throw new Error('STAFF_INVALIDO')
 
+  const locale = normalizeLocale(existing.locale)
+  const serviceName = serviceDisplayName(service, locale)
+
   await sql`
     UPDATE appointments SET
       staff_id = ${targetStaffId},
       service_id = ${service.id},
-      service_name = ${service.nameEs},
+      service_name = ${serviceName},
       duration_minutes = ${storedDuration},
       appointment_date = ${date},
       start_time = ${startTime},

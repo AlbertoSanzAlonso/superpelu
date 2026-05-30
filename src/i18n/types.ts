@@ -20,3 +20,7 @@ export function detectBrowserLocale(): Locale {
 export function localeToBcp47(locale: Locale): string {
   return locale === 'en' ? 'en-GB' : 'es-ES'
 }
+
+export function normalizeLocale(value: unknown): Locale {
+  return value === 'en' ? 'en' : 'es'
+}

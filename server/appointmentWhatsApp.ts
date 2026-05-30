@@ -1,6 +1,5 @@
 import type { AppointmentRow } from './db.js'
-import { formatDisplayDate } from '../src/lib/dates.ts'
-import { formatAppointmentTimeRange } from '../src/lib/bookingOccupancy.ts'
+import { buildWhatsAppAppointmentMessage } from '../src/i18n/whatsappAppointment.ts'
 import {
   getOpenWaConfig,
   openWaSendText,
@@ -8,131 +7,28 @@ import {
 } from './openwa.js'
 import { buildBookingUrl, buildManageUrl } from './appointmentLinks.js'
 
-const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
-const SALON_PHONE = '952 443 686'
-
 export function buildAppointmentConfirmationMessage(row: AppointmentRow): string {
-  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
-  const dateLabel = formatDisplayDate(row.appointment_date)
-  const timeRange = formatAppointmentTimeRange(
-    row.service_id,
-    row.start_time,
-    row.duration_minutes,
-  )
-
-  const manageUrl = buildManageUrl(row)
-
-  const actions: string[] = []
-  if (manageUrl) {
-    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
-  }
-
-  return `Hola ${firstName}, 👋
-
-Tu cita en *Superpelu* está confirmada:
-
-📅 ${dateLabel}
-🕐 ${timeRange}
-💇 ${row.service_name}
-👤 Con ${row.staff_name}
-
-📍 ${SALON_ADDRESS}
-📞 ${SALON_PHONE}
-${actions.join('\n')}
-
-¡Te esperamos!`
+  return buildWhatsAppAppointmentMessage(row, 'confirmation', {
+    manageUrl: buildManageUrl(row),
+  })
 }
 
 export function buildAppointmentRescheduledMessage(row: AppointmentRow): string {
-  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
-  const dateLabel = formatDisplayDate(row.appointment_date)
-  const timeRange = formatAppointmentTimeRange(
-    row.service_id,
-    row.start_time,
-    row.duration_minutes,
-  )
-
-  const manageUrl = buildManageUrl(row)
-
-  const actions: string[] = []
-  if (manageUrl) {
-    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
-  }
-
-  return `Hola ${firstName}, 👋
-
-Tu cita en *Superpelu* ha sido *reprogramada*:
-
-📅 ${dateLabel}
-🕐 ${timeRange}
-💇 ${row.service_name}
-👤 Con ${row.staff_name}
-
-📍 ${SALON_ADDRESS}
-📞 ${SALON_PHONE}
-${actions.join('\n')}
-
-¡Te esperamos!`
+  return buildWhatsAppAppointmentMessage(row, 'rescheduled', {
+    manageUrl: buildManageUrl(row),
+  })
 }
 
 export function buildAppointmentReminderMessage(row: AppointmentRow): string {
-  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
-  const dateLabel = formatDisplayDate(row.appointment_date)
-  const timeRange = formatAppointmentTimeRange(
-    row.service_id,
-    row.start_time,
-    row.duration_minutes,
-  )
-
-  const manageUrl = buildManageUrl(row)
-
-  const actions: string[] = []
-  if (manageUrl) {
-    actions.push('', '📋 Cancelar / modificar cita:', manageUrl)
-  }
-
-  return `Hola ${firstName}, 👋
-
-Te recordamos tu cita de mañana en *Superpelu*:
-
-📅 ${dateLabel}
-🕐 ${timeRange}
-💇 ${row.service_name}
-👤 Con ${row.staff_name}
-
-📍 ${SALON_ADDRESS}
-📞 ${SALON_PHONE}
-${actions.join('\n')}
-
-¡Te esperamos!`
+  return buildWhatsAppAppointmentMessage(row, 'reminder', {
+    manageUrl: buildManageUrl(row),
+  })
 }
 
 export function buildAppointmentCancelledMessage(row: AppointmentRow): string {
-  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
-  const dateLabel = formatDisplayDate(row.appointment_date)
-  const timeRange = formatAppointmentTimeRange(
-    row.service_id,
-    row.start_time,
-    row.duration_minutes,
-  )
-
-  const bookingUrl = buildBookingUrl()
-  const bookingLine = bookingUrl ? `\n\nReservar otra cita: ${bookingUrl}` : ''
-
-  return `Hola ${firstName}, 👋
-
-Tu cita en *Superpelu* ha sido *cancelada*:
-
-📅 ${dateLabel}
-🕐 ${timeRange}
-💇 ${row.service_name}
-👤 Con ${row.staff_name}
-${bookingLine}
-
-📍 ${SALON_ADDRESS}
-📞 ${SALON_PHONE}
-
-¡Gracias!`
+  return buildWhatsAppAppointmentMessage(row, 'cancelled', {
+    bookingUrl: buildBookingUrl(),
+  })
 }
 
 export async function notifyAppointmentCreated(

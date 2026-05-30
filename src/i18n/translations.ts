@@ -308,6 +308,18 @@ const es = {
     highlights:
       'Hola, quiero reservar mechas o balayage en SuperPelu Benalmádena',
   },
+  whatsappAppointment: {
+    greeting: (name: string) => `Hola ${name}, 👋`,
+    confirmationHeading: 'Tu cita en *Superpelu* está confirmada:',
+    rescheduledHeading: 'Tu cita en *Superpelu* ha sido *reprogramada*:',
+    reminderHeading: 'Te recordamos tu cita de mañana en *Superpelu*:',
+    cancelledHeading: 'Tu cita en *Superpelu* ha sido *cancelada*:',
+    withStaff: (name: string) => `👤 Con ${name}`,
+    manageLinkLabel: '📋 Cancelar / modificar cita:',
+    bookAgainLabel: 'Reservar otra cita:',
+    closingConfirmed: '¡Te esperamos!',
+    closingThanks: '¡Gracias!',
+  },
   cookiePolicy: {
     title: 'Política de cookies',
     updatedAt: '27 de mayo de 2026',
@@ -684,6 +696,18 @@ const en = {
       'Hello, I would like to book an appointment at SuperPelu Benalmádena',
     highlights:
       'Hello, I would like to book highlights or balayage at SuperPelu Benalmádena',
+  },
+  whatsappAppointment: {
+    greeting: (name: string) => `Hello ${name}, 👋`,
+    confirmationHeading: 'Your appointment at *Superpelu* is confirmed:',
+    rescheduledHeading: 'Your appointment at *Superpelu* has been *rescheduled*:',
+    reminderHeading: 'Reminder: your appointment tomorrow at *Superpelu*:',
+    cancelledHeading: 'Your appointment at *Superpelu* has been *cancelled*:',
+    withStaff: (name: string) => `👤 With ${name}`,
+    manageLinkLabel: '📋 Cancel or change appointment:',
+    bookAgainLabel: 'Book another appointment:',
+    closingConfirmed: 'We look forward to seeing you!',
+    closingThanks: 'Thank you!',
   },
   cookiePolicy: {
     title: 'Cookie policy',

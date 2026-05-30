@@ -225,6 +225,26 @@ export function fetchCustomerDetail(adminToken: string, phone: string) {
   })
 }
 
+export function updateCustomer(
+  adminToken: string,
+  phone: string,
+  payload: {
+    firstName: string
+    lastName?: string
+    email?: string | null
+    notes?: string | null
+  },
+) {
+  return request<{ customer: CustomerDetail['customer'] }>(
+    `/customers/${encodeURIComponent(phone)}`,
+    {
+      method: 'PATCH',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify(payload),
+    },
+  )
+}
+
 export function deleteAdminBlock(
   id: string,
   adminToken: string,

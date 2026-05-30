@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
+import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
+import { Button } from '@/components/ui/Button'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
@@ -33,6 +35,7 @@ export function CustomerHistoryPage() {
   const [staffFilter, setStaffFilter] = useState('')
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
 
   const loadDetail = useCallback(async () => {
     if (!adminToken || !phone) return
@@ -130,14 +133,27 @@ export function CustomerHistoryPage() {
 
       <main className="min-h-0 flex-1 overflow-y-auto">
         {customer && (
-          <div className="border-b border-gold/15 px-4 py-3">
-            <p className="tabular-nums text-sm text-charcoal-muted">
-              {formatPhoneDisplay(customer.phone)}
-            </p>
-            {customer.email && <p className="text-sm">{customer.email}</p>}
-            {customer.notes && (
-              <p className={`${typography.caption} mt-2`}>{customer.notes}</p>
-            )}
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-gold/15 px-4 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="tabular-nums text-sm text-charcoal-muted">
+                {formatPhoneDisplay(customer.phone)}
+              </p>
+              {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
+              {customer.notes && (
+                <p className={`${typography.caption} mt-2 whitespace-pre-wrap`}>
+                  {customer.notes}
+                </p>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => setEditOpen(true)}
+            >
+              Editar
+            </Button>
           </div>
         )}
 
@@ -261,6 +277,26 @@ export function CustomerHistoryPage() {
       <CustomerAppointmentDetailModal
         appointment={selectedAppointment}
         onClose={() => setSelectedAppointment(null)}
+      />
+
+      <CustomerEditModal
+        open={editOpen}
+        customer={customer}
+        adminToken={adminToken ?? ''}
+        onClose={() => setEditOpen(false)}
+        onSaved={(updated) => {
+          setCustomer((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  firstName: updated.firstName,
+                  lastName: updated.lastName,
+                  email: updated.email,
+                  notes: updated.notes,
+                }
+              : prev,
+          )
+        }}
       />
     </AgendaWorkspaceShell>
   )

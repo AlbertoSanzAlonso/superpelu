@@ -96,6 +96,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 );
 
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'es';
 
 CREATE INDEX IF NOT EXISTS idx_appointments_date
   ON appointments (appointment_date, status);

@@ -88,6 +88,48 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   return rows[0]!
 }
 
+export type CustomerUpdateInput = {
+  firstName: string
+  lastName?: string
+  email?: string | null
+  notes?: string | null
+}
+
+/** Actualiza ficha existente (el teléfono / PK no cambia). */
+export async function updateCustomer(
+  phone: string,
+  input: CustomerUpdateInput,
+): Promise<CustomerRow> {
+  const normalized = normalizePhone(phone)
+  if (!normalized) throw new Error('TELEFONO_INVALIDO')
+
+  const existing = await getCustomer(normalized)
+  if (!existing) throw new Error('CLIENTE_NO_ENCONTRADO')
+
+  const firstName = input.firstName?.trim() ?? ''
+  if (!firstName) throw new Error('NOMBRE_INVALIDO')
+
+  const lastName = input.lastName?.trim() ?? ''
+  const email = input.email === undefined ? existing.email : input.email?.trim() || null
+  const notes = input.notes === undefined ? existing.notes : input.notes?.trim() || null
+  const now = new Date().toISOString()
+
+  await sql`
+    UPDATE customers SET
+      first_name = ${firstName},
+      last_name = ${lastName || null},
+      email = ${email},
+      notes = ${notes},
+      updated_at = ${now}
+    WHERE phone = ${normalized}
+  `
+
+  const rows = await sql<CustomerRow[]>`
+    SELECT * FROM customers WHERE phone = ${normalized}
+  `
+  return rows[0]!
+}
+
 export async function getCustomer(phone: string): Promise<CustomerRow | undefined> {
   const normalized = normalizePhone(phone)
   if (!normalized) return undefined

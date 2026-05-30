@@ -18,7 +18,7 @@ export type AppointmentFormOptions = {
 }
 
 export function useAppointmentForm(options: AppointmentFormOptions = {}) {
-  const { t } = useTranslation()
+  const { t, locale } = useTranslation()
   const errors = t.booking.errors
   const onSuccess = options.onSuccess
 
@@ -167,6 +167,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         customerPhone,
         customerEmail: customerEmail || undefined,
         notes: notes || undefined,
+        locale,
       })
       onSuccess?.(appointment)
       return appointment
@@ -188,6 +189,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     notes,
     onSuccess,
     errors.createFailed,
+    locale,
   ])
 
   return {

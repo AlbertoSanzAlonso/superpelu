@@ -24,6 +24,7 @@ export type AppointmentRow = {
   status: string
   created_at: string
   reminder_sent_at: string | null
+  locale: string
 }
 
 export type StaffRow = {

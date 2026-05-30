@@ -45,7 +45,12 @@ import {
   type DeleteBlockMode,
 } from './staffBlocks.js'
 import { listServicesForStaff } from './staff.js'
-import { getCustomer, listCustomerAppointments, listCustomers } from './customers.js'
+import {
+  getCustomer,
+  listCustomerAppointments,
+  listCustomers,
+  updateCustomer,
+} from './customers.js'
 import { initDatabase, sql } from './db.js'
 import {
   getOpenWaAdminConfig,
@@ -262,6 +267,7 @@ app.post('/api/appointments', async (c) => {
     customerPhone: string
     customerEmail?: string
     notes?: string
+    locale?: 'es' | 'en'
   }>()
 
   if (
@@ -285,6 +291,7 @@ app.post('/api/appointments', async (c) => {
       customerPhone: body.customerPhone,
       customerEmail: body.customerEmail,
       notes: body.notes,
+      locale: body.locale,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -310,6 +317,26 @@ app.get('/api/customers', async (c) => {
   return c.json({ customers: await listCustomers({ q, limit }) })
 })
 
+function customerToJson(customer: {
+  phone: string
+  first_name: string
+  last_name: string | null
+  email: string | null
+  notes: string | null
+  created_at: string
+  updated_at: string
+}) {
+  return {
+    phone: customer.phone,
+    firstName: customer.first_name,
+    lastName: customer.last_name ?? '',
+    email: customer.email,
+    notes: customer.notes,
+    createdAt: customer.created_at,
+    updatedAt: customer.updated_at,
+  }
+}
+
 app.get('/api/customers/:phone', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
@@ -319,17 +346,41 @@ app.get('/api/customers/:phone', async (c) => {
   const appointmentRows = await listCustomerAppointments(phone)
   const appointments = appointmentRows.map(rowToPublic)
   return c.json({
-    customer: {
-      phone: customer.phone,
-      firstName: customer.first_name,
-      lastName: customer.last_name ?? '',
-      email: customer.email,
-      notes: customer.notes,
-      createdAt: customer.created_at,
-      updatedAt: customer.updated_at,
-    },
+    customer: customerToJson(customer),
     appointments,
   })
+})
+
+app.patch('/api/customers/:phone', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const body = await c.req.json<{
+    firstName?: string
+    lastName?: string
+    email?: string | null
+    notes?: string | null
+  }>()
+
+  try {
+    const row = await updateCustomer(phone, {
+      firstName: body.firstName ?? '',
+      lastName: body.lastName,
+      email: body.email,
+      notes: body.notes,
+    })
+    return c.json({ customer: customerToJson(row) })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    const messages: Record<string, string> = {
+      TELEFONO_INVALIDO: 'Teléfono no válido',
+      CLIENTE_NO_ENCONTRADO: 'Cliente no encontrado',
+      NOMBRE_INVALIDO: 'Indica al menos el nombre',
+    }
+    const status = code === 'CLIENTE_NO_ENCONTRADO' ? 404 : 400
+    return c.json({ error: messages[code] ?? 'No se pudo actualizar el cliente' }, status)
+  }
 })
 
 app.get('/api/appointments', async (c) => {

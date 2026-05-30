@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
+import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -20,6 +21,7 @@ export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
@@ -121,13 +123,25 @@ export function CustomersPage() {
                         : '—'}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <Link
-                        to={`/clientes/${encodeURIComponent(c.phone)}`}
-                        className="text-xs text-gold hover:underline"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Historial →
-                      </Link>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          className="cursor-pointer text-xs text-charcoal-muted hover:text-gold"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setEditingCustomer(c)
+                          }}
+                        >
+                          Editar
+                        </button>
+                        <Link
+                          to={`/clientes/${encodeURIComponent(c.phone)}`}
+                          className="text-xs text-gold hover:underline"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Historial →
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -136,6 +150,28 @@ export function CustomersPage() {
           </table>
         )}
       </main>
+
+      <CustomerEditModal
+        open={editingCustomer != null}
+        customer={editingCustomer}
+        adminToken={adminToken ?? ''}
+        onClose={() => setEditingCustomer(null)}
+        onSaved={(updated) => {
+          setCustomers((rows) =>
+            rows.map((row) =>
+              row.phone === updated.phone
+                ? {
+                    ...row,
+                    firstName: updated.firstName,
+                    lastName: updated.lastName,
+                    email: updated.email,
+                    notes: updated.notes,
+                  }
+                : row,
+            ),
+          )
+        }}
+      />
     </AgendaWorkspaceShell>
   )
 }

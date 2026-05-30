@@ -4,13 +4,17 @@ import { marketingServiceAssets, type MarketingServiceId } from '@/data/marketin
 import type { BookableService } from '@/types/booking'
 import type { ServiceCategoryId } from '@/data/serviceCategories'
 import { getTranslation } from './translations'
-import type { Locale } from './types'
+import { normalizeLocale, type Locale } from './types'
 
 export function serviceDisplayName(
   service: Pick<BookableService, 'nameEs' | 'nameEn'>,
   locale: Locale,
 ): string {
   return locale === 'en' ? service.nameEn : service.nameEs
+}
+
+export function appointmentLocale(row: { locale?: string | null }): Locale {
+  return normalizeLocale(row.locale)
 }
 
 export function categoryLabelForLocale(

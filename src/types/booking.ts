@@ -87,4 +87,5 @@ export type CreateAppointmentPayload = {
   customerPhone: string
   customerEmail?: string
   notes?: string
+  locale?: 'es' | 'en'
 }
