@@ -5,14 +5,14 @@ description: >-
   admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
-  WhatsApp/páginas cliente en idioma de reserva, o API que devuelve HTML.
+  WhatsApp/páginas cliente en idioma de reserva, aliases @/ y @server/, o API que devuelve HTML.
 ---
 
 # Superpelu
 
 ## Arquitectura
 
-- **Un proceso Node** (`npm start` → `server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
+- **Un proceso Node** (`npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
 - **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
 - **PostgreSQL (Supabase):** `DATABASE_URL` (connection string del proyecto). El servidor aplica `server/pg/schema.sql` y sincroniza catálogo al arrancar.
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
@@ -62,8 +62,8 @@ Sitio **público** bilingüe. **Agenda admin/profesional** sigue solo en españo
 | `src/i18n/types.ts` | `Locale`, `normalizeLocale`, detección navegador |
 | `src/i18n/LocaleProvider.tsx` | Contexto + `localStorage` (`superpelu-locale`) + `<html lang>` y meta SEO |
 | `src/i18n/useTranslation.ts` | Hook `{ t, locale, setLocale }` |
-| `src/i18n/helpers.ts` | Helpers UI (nav, galería, marketing, WhatsApp URL) — **solo frontend**; el server no debe importarlo (usa `@/` y assets) |
-| `src/i18n/localeHelpers.ts` | *(pendiente)* `appointmentLocale`, `serviceDisplayName` — extraer aquí lo que el server necesita, sin `@/` |
+| `src/i18n/helpers.ts` | Helpers compartidos (nav, galería, marketing, `serviceDisplayName`, `appointmentLocale`) — usable desde server vía `@/i18n/helpers` si no importa assets React |
+| `src/i18n/localeHelpers.ts` | *(pendiente)* extraer aquí lo compartido server/web si `helpers.ts` crece demasiado |
 | `src/i18n/whatsappAppointment.ts` | Plantillas mensajes WhatsApp al cliente |
 | `server/customerPages.ts` | HTML de `/c/:code` y `/m/:code` traducido |
 | `src/components/layout/LanguageSwitcher.tsx` | Toggle ES \| EN en header y `/reservar` |
@@ -86,18 +86,36 @@ Servicios en UI: `serviceDisplayName(service, locale)` → `nameEs` / `nameEn`. 
 - **`GET /m/:code/confirm`** — confirmar cambio.
 - Textos en `translations.customerPages`; shell en `server/customerPages.ts`.
 
-### Regla crítica: imports server ↔ src
+### Aliases de importación
 
-**Producción arranca con `tsx server/index.ts`**. El alias `@/` (Vite) **no funciona** en runtime Node → `ERR_MODULE_NOT_FOUND: Cannot find package '@/…'`.
+El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `../src/` ni `./` entre módulos del server).
 
-| Contexto | Regla |
-|----------|--------|
-| `server/*.ts` importando `src/` | Rutas relativas con extensión: `../src/lib/dates.ts` |
-| Módulos en `src/` usados desde **server** | **Prohibido** `@/`; solo rutas relativas (`../data/content.ts`) |
-| Módulos solo frontend (React) | Puede usar `@/` |
-| Código compartido server + web | Archivo aparte sin imports de assets (`@/assets/*`) ni `@/` |
+| Alias | Resuelve a | Dónde |
+|-------|------------|-------|
+| `@/*` | `src/*` | React (`src/`), código compartido importado desde `server/` |
+| `@server/*` | `server/*` | Imports internos del API |
 
-Si el server importa un módulo que a su vez importa `@/` o imágenes `.webp`, el contenedor **no arranca** (healthcheck unhealthy en Coolify).
+**Configuración:**
+
+| Archivo | Rol |
+|---------|-----|
+| `tsconfig.app.json` | Paths `@/` y `@server/` para el frontend (`tsc -b`) |
+| `tsconfig.server.json` | Paths para el API; lo usa `tsx` en `dev:api` y `start` |
+| `vite.config.ts` | Alias `@` y `@server` en dev/build Vite |
+
+**Convenciones:**
+
+| Contexto | Ejemplo |
+|----------|---------|
+| Frontend (`src/`) | `import { Button } from '@/components/ui/Button'` — sin extensión |
+| Mismo directorio en `src/` | `./translations` (opcional; se permite) |
+| Server → server | `import { sql } from '@server/db.js'` — extensión `.js` (ESM TypeScript) |
+| Server → src compartido | `import { formatDisplayDate } from '@/lib/dates'` — sin extensión |
+| Src → tipos server | `import type { AppointmentRow } from '@server/pg/types'` |
+
+**Producción:** `npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`. Los alias funcionan en runtime gracias a `tsx` + `tsconfig.server.json`.
+
+**Evitar desde `server/`:** imports de `@/assets/*`, componentes React (`.tsx` de UI) o cualquier módulo que dependa del bundler Vite. Si un módulo en `src/` arrastra esos imports, el contenedor puede fallar al arrancar.
 
 **Verificar antes de desplegar:** `npm run build && npm start` (no solo `npm run dev`).
 
@@ -230,7 +248,7 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/components/sections/Services.tsx` | Grid servicios en home |
 | `src/components/sections/ServiceDetailModal.tsx` | Modal detalle servicio (home) |
 
-**Importante:** ver sección **Internacionalización → Regla crítica: imports server ↔ src**. Resumen: `server/` → `../src/...` con extensión; nunca `@/` en módulos que el server cargue.
+**Importante:** ver sección **Internacionalización → Aliases de importación**. Resumen: `@/` en `src/` y código compartido; `@server/` entre módulos del API; `npm start` con `tsx --tsconfig tsconfig.server.json`.
 
 ## Añadir al calendario (confirmación de reserva)
 
@@ -262,7 +280,7 @@ Al cambiar especialidad se limpia el tratamiento pero la categoría elegida se g
 ```bash
 npm install
 cp .env.example .env
-npm run dev            # Vite :5173 + API :3001
+npm run dev            # Vite :5173 + API :3001 (tsx con tsconfig.server.json)
 npm run build && npm start
 ```
 
@@ -347,10 +365,11 @@ Ver [deploy-coolify.md](deploy-coolify.md).
 | Móvil no abre la web (HTTPS) | Dominio en `http://` o `sslip.io` → certificado autofirmado; usar subdominio propio con `https://` |
 | No llega recordatorio 24h | OpenWA no configurado, cita `< 24h`, o `REMINDERS_ENABLED=false` |
 | No llega el email de aviso | `EMAIL_ENABLED`/`SMTP_*` ausentes en el contenedor; en local, reiniciar `npm run dev` (no recarga `.env`); con Gmail, usar contraseña de aplicación |
-| Contenedor unhealthy al desplegar | Logs: `Cannot find package '@/…'` — módulo en cadena de imports del server usa alias `@/`; usar rutas relativas y `npm start` local |
+| Contenedor unhealthy al desplegar | Logs: `Cannot find package '@/…'` — falta `--tsconfig tsconfig.server.json` en `start`, o módulo server importa assets React/Vite; probar `npm run build && npm start` |
 
 ## Convenciones
 
+- **Imports:** `@/` para `src/`; `@server/` para módulos del API; no usar `../src/` ni `./` entre archivos de `server/`.
 - Cambios mínimos; UI crema/dorado/carbón (`typography`).
 - En UI: cualquier elemento interactivo tipo **botón** debe usar `cursor-pointer` (y mantener `:focus` visible con `focus:ring`/`focus:outline-none`).
 - Usar radio sutil unificado `ui-rounded` (token `--radius-subtle`) en botones y contenedores para mantener consistencia visual.

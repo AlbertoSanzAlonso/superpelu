@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
-import type { AppointmentRow } from './db.js'
+import type { AppointmentRow } from '@server/db.js'
 import { appointmentLocale } from '@/i18n/helpers'
 import type { Locale } from '@/i18n/types'
 

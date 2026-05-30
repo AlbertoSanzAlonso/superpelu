@@ -16,10 +16,10 @@
 
 ### Contenedor unhealthy — `ERR_MODULE_NOT_FOUND '@/…'`
 
-Si el healthcheck falla y en logs aparece `Cannot find package '@/…'` al arrancar:
+Si el healthcheck falla y en logs aparece `Cannot find package '@/…'` (o `@server/…`) al arrancar:
 
-1. Algún módulo en la cadena `server/` → `src/` usa el alias Vite `@/` (solo funciona en build frontend, no en `tsx server/index.ts`).
-2. Corregir: rutas relativas con extensión (`../src/i18n/types.ts`) y separar helpers de servidor (sin imports de `@/assets/*`).
+1. **`npm start` debe usar `tsx --tsconfig tsconfig.server.json`** (ya configurado en `package.json`). Sin ese flag, los alias no se resuelven en runtime Node.
+2. Revisar que el módulo importado **exista** y que la cadena de imports no arrastre assets de Vite (`@/assets/*`) ni componentes React desde `server/`.
 3. **Probar local:** `npm run build && npm start` antes de push/redeploy.
 
 ## Container Labels (Caddy)

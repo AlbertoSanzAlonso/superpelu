@@ -1,11 +1,11 @@
-import type { AppointmentRow } from './db.js'
+import type { AppointmentRow } from '@server/db.js'
 import { buildWhatsAppAppointmentMessage } from '@/i18n/whatsappAppointment'
 import {
   getOpenWaConfig,
   openWaSendText,
   phoneToWhatsAppChatId,
-} from './openwa.js'
-import { buildBookingUrl, buildManageUrl } from './appointmentLinks.js'
+} from '@server/openwa.js'
+import { buildBookingUrl, buildManageUrl } from '@server/appointmentLinks.js'
 
 export function buildAppointmentConfirmationMessage(row: AppointmentRow): string {
   return buildWhatsAppAppointmentMessage(row, 'confirmation', {

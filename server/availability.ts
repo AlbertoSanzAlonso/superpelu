@@ -1,5 +1,5 @@
-import { sql } from './db.js'
-import { schedule } from './config.js'
+import { sql } from '@server/db.js'
+import { schedule } from '@server/config.js'
 import { dayOfWeekFromDateString, isSalonOpenDay } from '@/lib/dates'
 
 export type StaffDayWindow = {

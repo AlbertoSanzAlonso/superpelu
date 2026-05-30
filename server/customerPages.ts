@@ -1,5 +1,5 @@
-import type { AppointmentRow } from './pg/types.js'
-import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl } from './appointmentLinks.js'
+import type { AppointmentRow } from '@server/pg/types.js'
+import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl } from '@server/appointmentLinks.js'
 import { appointmentLocale } from '@/i18n/helpers'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'

@@ -1,4 +1,4 @@
-import { sql, type CustomerRow } from './db.js'
+import { sql, type CustomerRow } from '@server/db.js'
 import {
   formatCustomerDisplayName,
   splitCustomerName,

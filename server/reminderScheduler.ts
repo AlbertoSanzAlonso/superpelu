@@ -1,6 +1,6 @@
-import { listAppointmentsDueForReminder, markReminderSent } from './appointments.js'
-import { sendAppointmentReminder } from './appointmentWhatsApp.js'
-import { isOpenWaConfigured } from './openwa.js'
+import { listAppointmentsDueForReminder, markReminderSent } from '@server/appointments.js'
+import { sendAppointmentReminder } from '@server/appointmentWhatsApp.js'
+import { isOpenWaConfigured } from '@server/openwa.js'
 import { hoursUntilAppointment } from '@/lib/dates'
 
 function envFlag(name: string, fallback: boolean): boolean {

@@ -1,28 +1,28 @@
 import { randomUUID } from 'node:crypto'
-import { sql, type AppointmentRow } from './db.js'
-import { getService } from './services.js'
+import { sql, type AppointmentRow } from '@server/db.js'
+import { getService } from '@server/services.js'
 import { serviceDisplayName } from '@/i18n/helpers'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { getStaffDayWindow, isStaffWorkingOnDate } from './availability.js'
-import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from './staffBlocks.js'
-import { getStaff, staffCanPerformService } from './staff.js'
-import { schedule } from './config.js'
+import { getStaffDayWindow, isStaffWorkingOnDate } from '@server/availability.js'
+import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from '@server/staffBlocks.js'
+import { getStaff, staffCanPerformService } from '@server/staff.js'
+import { schedule } from '@server/config.js'
 import {
   customerNameSnapshot,
   getCustomer,
   resolveCustomerFromInput,
   upsertCustomer,
-} from './customers.js'
+} from '@server/customers.js'
 import {
   notifyAppointmentCreated,
   notifyAppointmentCancelled,
   notifyAppointmentRescheduled,
-} from './appointmentWhatsApp.js'
+} from '@server/appointmentWhatsApp.js'
 import {
   notifyAdminAppointmentCancelled,
   notifyAdminAppointmentCreated,
   notifyAdminAppointmentUpdated,
-} from './appointmentEmail.js'
+} from '@server/appointmentEmail.js'
 import {
   addDaysToDateString,
   hoursUntilAppointment,

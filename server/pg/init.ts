@@ -1,5 +1,5 @@
-import { applySchema, sql } from './client.js'
-import { runSeed } from './seed.js'
+import { applySchema, sql } from '@server/pg/client.js'
+import { runSeed } from '@server/pg/seed.js'
 
 let initialized = false
 

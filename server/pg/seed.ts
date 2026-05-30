@@ -6,8 +6,8 @@ import {
   salonStaffMembers,
 } from '@/data/salonStaff'
 import { salonSchedule } from '@/data/schedule'
-import { hashPassword } from '../password.js'
-import { sql } from './client.js'
+import { sql } from '@server/pg/client.js'
+import { hashPassword } from '@server/password.js'
 
 function nowIso(): string {
   return new Date().toISOString()

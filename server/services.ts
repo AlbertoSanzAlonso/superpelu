@@ -1,4 +1,4 @@
-import { sql, type ServiceRow } from './db.js'
+import { sql, type ServiceRow } from '@server/db.js'
 
 export type PublicService = {
   id: string

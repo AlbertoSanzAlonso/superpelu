@@ -3,11 +3,11 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import fs from 'node:fs'
 import path from 'node:path'
-import { listActiveServiceCategories } from './serviceCategories.js'
-import { listActiveServices } from './services.js'
-import { listStaffForService, getStaff } from './staff.js'
-import { me } from './me.js'
-import { listStaffDaySchedules } from './staffSchedule.js'
+import { listActiveServiceCategories } from '@server/serviceCategories.js'
+import { listActiveServices } from '@server/services.js'
+import { listStaffForService, getStaff } from '@server/staff.js'
+import { me } from '@server/me.js'
+import { listStaffDaySchedules } from '@server/staffSchedule.js'
 import {
   cancelAppointment,
   createAppointment,
@@ -17,7 +17,7 @@ import {
   rescheduleAppointmentByCustomer,
   rowToPublic,
   updateAppointmentForAdmin,
-} from './appointments.js'
+} from '@server/appointments.js'
 import {
   buildIcs,
   buildLinkPreviewMetaTags,
@@ -26,7 +26,7 @@ import {
   injectSpaLinkPreviewMeta,
   publicBaseUrl,
   verifyCancelToken,
-} from './appointmentLinks.js'
+} from '@server/appointmentLinks.js'
 import {
   appointmentDetailHtml,
   backToManageLink,
@@ -37,7 +37,7 @@ import {
   renderInvalidLinkPage,
   renderNotFoundPage,
   resolvePageLocale,
-} from './customerPages.js'
+} from '@server/customerPages.js'
 import { getTranslation } from '@/i18n/translations'
 import type { Locale } from '@/i18n/types'
 import {
@@ -47,7 +47,7 @@ import {
   isWithinSalonBookingWindow,
   todaySalon,
 } from '@/lib/dates'
-import { schedule } from './config.js'
+import { schedule } from '@server/config.js'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import {
   createStaffBlock,
@@ -56,15 +56,15 @@ import {
   rowBlockToPublic,
   type BlockScope,
   type DeleteBlockMode,
-} from './staffBlocks.js'
-import { listServicesForStaff } from './staff.js'
+} from '@server/staffBlocks.js'
+import { listServicesForStaff } from '@server/staff.js'
 import {
   getCustomer,
   listCustomerAppointments,
   listCustomers,
   updateCustomer,
-} from './customers.js'
-import { initDatabase, sql } from './db.js'
+} from '@server/customers.js'
+import { initDatabase, sql } from '@server/db.js'
 import {
   getOpenWaAdminConfig,
   isOpenWaConfigured,
@@ -77,9 +77,9 @@ import {
   openWaSessionName,
   openWaStartSession,
   startOpenWaKeepAlive,
-} from './openwa.js'
-import { processDueReminders, startReminderScheduler } from './reminderScheduler.js'
-import { logEmailStartup } from './appointmentEmail.js'
+} from '@server/openwa.js'
+import { processDueReminders, startReminderScheduler } from '@server/reminderScheduler.js'
+import { logEmailStartup } from '@server/appointmentEmail.js'
 
 const app = new Hono()
 

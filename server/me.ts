@@ -6,9 +6,9 @@ import {
   listAppointmentsForStaff,
   rowToPublic,
   updateAppointmentForStaff,
-} from './appointments.js'
-import { getStaffDaySchedule } from './staffSchedule.js'
-import { listServicesForStaff } from './staff.js'
+} from '@server/appointments.js'
+import { getStaffDaySchedule } from '@server/staffSchedule.js'
+import { listServicesForStaff } from '@server/staff.js'
 import {
   createStaffBlock,
   deleteStaffBlock,
@@ -17,9 +17,9 @@ import {
   rowBlockToPublic,
   type BlockScope,
   type DeleteBlockMode,
-} from './staffBlocks.js'
-import { loginStaff, logoutStaff, resolveStaffSession } from './staffAuth.js'
-import type { StaffRow } from './db.js'
+} from '@server/staffBlocks.js'
+import { loginStaff, logoutStaff, resolveStaffSession } from '@server/staffAuth.js'
+import type { StaffRow } from '@server/db.js'
 
 const me = new Hono()
 

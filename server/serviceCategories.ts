@@ -1,4 +1,4 @@
-import { sql, type ServiceCategoryRow } from './db.js'
+import { sql, type ServiceCategoryRow } from '@server/db.js'
 import { priceEurToCents, serviceCategories } from '@/data/serviceCategories'
 
 export type PublicServiceCategory = {

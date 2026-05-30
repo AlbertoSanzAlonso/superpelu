@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { sql, type StaffRow } from './db.js'
-import { verifyPassword } from './password.js'
+import { sql, type StaffRow } from '@server/db.js'
+import { verifyPassword } from '@server/password.js'
 
 const SESSION_DAYS = 14
 

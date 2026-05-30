@@ -1,9 +1,9 @@
 /** Avisos por email al administrador del negocio (cita nueva o cancelada). */
 
 import nodemailer, { type Transporter } from 'nodemailer'
-import type { AppointmentRow } from './db.js'
+import type { AppointmentRow } from '@server/db.js'
 import { formatDisplayDate } from '@/lib/dates'
-import { adminAgendaUrl } from './appointmentLinks.js'
+import { adminAgendaUrl } from '@server/appointmentLinks.js'
 
 export type AppointmentEmailEvent = 'created' | 'cancelled' | 'updated'
 

@@ -1,10 +1,10 @@
-import { getStaffDayWindow } from './availability.js'
-import { getAvailableSlots } from './appointments.js'
-import { sql } from './db.js'
-import { schedule } from './config.js'
-import { getBlocksForStaffOnDate, rowBlockToPublic } from './staffBlocks.js'
-import { getStaff, listActiveStaff } from './staff.js'
-import type { AppointmentRow } from './db.js'
+import { getStaffDayWindow } from '@server/availability.js'
+import { getAvailableSlots } from '@server/appointments.js'
+import { sql } from '@server/db.js'
+import { schedule } from '@server/config.js'
+import { getBlocksForStaffOnDate, rowBlockToPublic } from '@server/staffBlocks.js'
+import { getStaff, listActiveStaff } from '@server/staff.js'
+import type { AppointmentRow } from '@server/db.js'
 import {
   appointmentOccupiedSlots,
   getOccupiedSegmentsForAppointment,

@@ -4,8 +4,8 @@ import {
   dayOfWeekFromDateString,
   isSalonOpenDay,
 } from '@/lib/dates'
-import { isStaffWorkingOnDate } from './availability.js'
-import { sql, type StaffBlockRow } from './db.js'
+import { isStaffWorkingOnDate } from '@server/availability.js'
+import { sql, type StaffBlockRow } from '@server/db.js'
 
 export type BlockScope = 'single' | 'range' | 'weekly'
 
