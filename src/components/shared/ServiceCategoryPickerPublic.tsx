@@ -13,7 +13,6 @@ import {
   getAllServiceCategories,
   servicesInCategory,
 } from '@/lib/servicePicker'
-import { usesColorSplitBooking } from '@/lib/bookingOccupancy'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -211,9 +210,7 @@ export function ServiceCategoryPickerPublic({
                       {serviceDisplayName(service, locale)}
                     </span>
                     <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
-                      {usesColorSplitBooking(service.id)
-                        ? labels.colorDuration
-                        : labels.minutes(service.durationMinutes)}
+                      {labels.minutes(service.durationMinutes)}
                     </span>
                   </span>
                 </label>

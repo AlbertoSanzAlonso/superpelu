@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
@@ -36,6 +36,7 @@ function FilterChevron({ expanded }: { expanded: boolean }) {
 }
 
 export function CustomerHistoryPage() {
+  const navigate = useNavigate()
   const { phone: phoneParam } = useParams<{ phone: string }>()
   const phone = phoneParam ? decodeURIComponent(phoneParam) : ''
 
@@ -317,7 +318,17 @@ export function CustomerHistoryPage() {
 
       <CustomerAppointmentDetailModal
         appointment={selectedAppointment}
+        adminToken={adminToken ?? ''}
         onClose={() => setSelectedAppointment(null)}
+        onChanged={({ id, action }) => {
+          if (action === 'deleted') {
+            setAppointments((rows) => rows.filter((a) => a.id !== id))
+          } else {
+            setAppointments((rows) =>
+              rows.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)),
+            )
+          }
+        }}
       />
 
       <CustomerEditModal
@@ -338,6 +349,7 @@ export function CustomerHistoryPage() {
               : prev,
           )
         }}
+        onDeleted={() => navigate('/clientes', { replace: true })}
       />
     </AgendaWorkspaceShell>
   )

@@ -564,6 +564,14 @@ export async function rescheduleAppointmentByCustomer(
   return row
 }
 
+/** Borrado definitivo (admin). No envía avisos. */
+export async function deleteAppointmentById(appointmentId: string): Promise<boolean> {
+  const existing = await getAppointmentById(appointmentId)
+  if (!existing) return false
+  const result = await sql`DELETE FROM appointments WHERE id = ${appointmentId}`
+  return result.count > 0
+}
+
 export async function cancelAppointment(
   id: string,
   options?: { notifyCustomer?: boolean },

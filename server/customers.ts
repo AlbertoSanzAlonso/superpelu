@@ -187,6 +187,14 @@ export async function listCustomers(
   )
 }
 
+/** Elimina la ficha del cliente (las citas en agenda/historial se conservan). */
+export async function deleteCustomer(phone: string): Promise<boolean> {
+  const normalized = normalizePhone(phone)
+  if (!normalized) return false
+  const result = await sql`DELETE FROM customers WHERE phone = ${normalized}`
+  return result.count > 0
+}
+
 export async function listCustomerAppointments(phone: string) {
   const normalized = normalizePhone(phone)
   if (!normalized) return []

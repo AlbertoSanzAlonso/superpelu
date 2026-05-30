@@ -11,6 +11,7 @@ import { listStaffDaySchedules } from '@server/staffSchedule.js'
 import {
   cancelAppointment,
   createAppointment,
+  deleteAppointmentById,
   getAppointmentById,
   getAvailableSlots,
   listAppointments,
@@ -59,6 +60,7 @@ import {
 } from '@server/staffBlocks.js'
 import { listServicesForStaff } from '@server/staff.js'
 import {
+  deleteCustomer,
   getCustomer,
   listCustomerAppointments,
   listCustomers,
@@ -396,6 +398,17 @@ app.patch('/api/customers/:phone', async (c) => {
   }
 })
 
+app.delete('/api/customers/:phone', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  const phone = decodeURIComponent(c.req.param('phone'))
+  if (!(await deleteCustomer(phone))) {
+    return c.json({ error: 'Cliente no encontrado' }, 404)
+  }
+  return c.json({ ok: true })
+})
+
 app.get('/api/appointments', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) {
@@ -612,6 +625,19 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
   }
 
   return c.json({ appointment: rowToPublic(row) })
+})
+
+app.delete('/api/appointments/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) {
+    return c.json({ error: 'No autorizado' }, 401)
+  }
+
+  if (!(await deleteAppointmentById(c.req.param('id')))) {
+    return c.json({ error: 'Cita no encontrada' }, 404)
+  }
+
+  return c.json({ ok: true })
 })
 
 function customerPage(

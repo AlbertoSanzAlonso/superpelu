@@ -171,6 +171,9 @@ export function CustomersPage() {
             ),
           )
         }}
+        onDeleted={(deletedPhone) => {
+          setCustomers((rows) => rows.filter((row) => row.phone !== deletedPhone))
+        }}
       />
     </AgendaWorkspaceShell>
   )

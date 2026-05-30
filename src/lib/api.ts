@@ -127,6 +127,13 @@ export function cancelAppointment(id: string, adminToken: string) {
   })
 }
 
+export function deleteAppointment(id: string, adminToken: string) {
+  return request<{ ok: true }>(`/appointments/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${adminToken}` },
+  })
+}
+
 function adminHeaders(adminToken: string) {
   return { Authorization: `Bearer ${adminToken}` }
 }
@@ -243,6 +250,13 @@ export function updateCustomer(
       body: JSON.stringify(payload),
     },
   )
+}
+
+export function deleteCustomer(adminToken: string, phone: string) {
+  return request<{ ok: true }>(`/customers/${encodeURIComponent(phone)}`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
+  })
 }
 
 export function deleteAdminBlock(
