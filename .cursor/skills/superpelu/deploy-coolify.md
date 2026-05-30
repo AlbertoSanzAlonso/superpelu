@@ -19,7 +19,7 @@
 Si el healthcheck falla y en logs aparece `Cannot find package '@/…'` (o `@server/…`) al arrancar:
 
 1. **`npm start` debe usar `tsx --tsconfig tsconfig.server.json`** (ya configurado en `package.json`). Sin ese flag, los alias no se resuelven en runtime Node.
-2. Revisar que el módulo importado **exista** y que la cadena de imports no arrastre assets de Vite (`@/assets/*`) ni componentes React desde `server/`.
+2. Revisar que el módulo importado **exista** y que la cadena de imports no arrastre assets de Vite (`@/assets/*`, `@/i18n/helpers` con `.webp`) ni componentes React desde `server/`. Desde el API usar `@/i18n/localeHelpers`.
 3. **Probar local:** `npm run build && npm start` antes de push/redeploy.
 
 ## Container Labels (Caddy)

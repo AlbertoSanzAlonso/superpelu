@@ -2,7 +2,7 @@ import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import type { AppointmentRow } from '@server/pg/types'
 import { getTranslation } from './translations'
-import { appointmentLocale } from './helpers'
+import { appointmentLocale } from './localeHelpers'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'

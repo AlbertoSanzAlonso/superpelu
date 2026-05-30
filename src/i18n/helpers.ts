@@ -1,21 +1,12 @@
 import { brand } from '@/data/content'
 import { galleryImageAssets, type GalleryImageId } from '@/data/galleryImages'
 import { marketingServiceAssets, type MarketingServiceId } from '@/data/marketingServices'
-import type { BookableService } from '@/types/booking'
 import type { ServiceCategoryId } from '@/data/serviceCategories'
 import { getTranslation } from './translations'
-import { normalizeLocale, type Locale } from './types'
+import { appointmentLocale, serviceDisplayName } from './localeHelpers'
+import type { Locale } from './types'
 
-export function serviceDisplayName(
-  service: Pick<BookableService, 'nameEs' | 'nameEn'>,
-  locale: Locale,
-): string {
-  return locale === 'en' ? service.nameEn : service.nameEs
-}
-
-export function appointmentLocale(row: { locale?: string | null }): Locale {
-  return normalizeLocale(row.locale)
-}
+export { appointmentLocale, serviceDisplayName }
 
 export function categoryLabelForLocale(
   categoryId: string | null | undefined,

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { sql, type AppointmentRow } from '@server/db.js'
 import { getService } from '@server/services.js'
-import { serviceDisplayName } from '@/i18n/helpers'
+import { serviceDisplayName } from '@/i18n/localeHelpers'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { getStaffDayWindow, isStaffWorkingOnDate } from '@server/availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from '@server/staffBlocks.js'

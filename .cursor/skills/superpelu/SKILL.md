@@ -62,8 +62,8 @@ Sitio **público** bilingüe. **Agenda admin/profesional** sigue solo en españo
 | `src/i18n/types.ts` | `Locale`, `normalizeLocale`, detección navegador |
 | `src/i18n/LocaleProvider.tsx` | Contexto + `localStorage` (`superpelu-locale`) + `<html lang>` y meta SEO |
 | `src/i18n/useTranslation.ts` | Hook `{ t, locale, setLocale }` |
-| `src/i18n/helpers.ts` | Helpers compartidos (nav, galería, marketing, `serviceDisplayName`, `appointmentLocale`) — usable desde server vía `@/i18n/helpers` si no importa assets React |
-| `src/i18n/localeHelpers.ts` | *(pendiente)* extraer aquí lo compartido server/web si `helpers.ts` crece demasiado |
+| `src/i18n/localeHelpers.ts` | `serviceDisplayName`, `appointmentLocale` — **importar desde `server/`** (sin assets Vite) |
+| `src/i18n/helpers.ts` | Helpers UI (nav, galería, marketing, WhatsApp URL) — solo frontend; reexporta `localeHelpers` |
 | `src/i18n/whatsappAppointment.ts` | Plantillas mensajes WhatsApp al cliente |
 | `server/customerPages.ts` | HTML de `/c/:code` y `/m/:code` traducido |
 | `src/components/layout/LanguageSwitcher.tsx` | Toggle ES \| EN en header y `/reservar` |
@@ -115,7 +115,7 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 
 **Producción:** `npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`. Los alias funcionan en runtime gracias a `tsx` + `tsconfig.server.json`.
 
-**Evitar desde `server/`:** imports de `@/assets/*`, componentes React (`.tsx` de UI) o cualquier módulo que dependa del bundler Vite. Si un módulo en `src/` arrastra esos imports, el contenedor puede fallar al arrancar.
+**Evitar desde `server/`:** imports de `@/i18n/helpers` (arrastra `.webp`), `@/assets/*`, componentes React (`.tsx` de UI). Usar `@/i18n/localeHelpers` para `serviceDisplayName` / `appointmentLocale`.
 
 **Verificar antes de desplegar:** `npm run build && npm start` (no solo `npm run dev`).
 
