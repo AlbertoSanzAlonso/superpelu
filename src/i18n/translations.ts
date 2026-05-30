@@ -45,7 +45,7 @@ const es = {
       'En Super Pelu Hair Studio te ayudamos a cuidar tu imagen con tratamientos capilares, técnicas de coloración avanzada y servicios adaptados a cada cliente. Trabajamos con productos profesionales para resultados naturales, duraderos y a tu estilo.',
   },
   servicesSection: {
-    eyebrow: 'Nuestros servicios',
+    eyebrow: 'Coloración · Cortes · Tratamientos',
     scriptAccent: 'Servicios',
     title: 'Peluquería y estética a tu medida',
     subtitle:
@@ -75,7 +75,7 @@ const es = {
     'Ambiente cómodo y moderno',
   ],
   gallerySection: {
-    eyebrow: 'Nuestra galería',
+    eyebrow: 'Nuestro trabajo',
     scriptAccent: 'Galería',
     title: 'Resultados reales en coloración y cuidado capilar',
     subtitle:
@@ -526,7 +526,7 @@ const en = {
       'At Super Pelu Hair Studio we help you look after your image with hair treatments, advanced colouring techniques and services tailored to each client. We work with professional products for natural, long-lasting results that suit your style.',
   },
   servicesSection: {
-    eyebrow: 'Our services',
+    eyebrow: 'Colour · Cuts · Treatments',
     scriptAccent: 'Services',
     title: 'Hair and beauty tailored to you',
     subtitle:
@@ -556,7 +556,7 @@ const en = {
     'Comfortable, modern atmosphere',
   ],
   gallerySection: {
-    eyebrow: 'Our gallery',
+    eyebrow: 'Our work',
     scriptAccent: 'Gallery',
     title: 'Real results in colour and hair care',
     subtitle:
