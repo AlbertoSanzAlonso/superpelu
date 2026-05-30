@@ -201,6 +201,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [hintDismissed, setHintDismissed] = useState(false)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
   const [canScrollRight, setCanScrollRight] = useState(true)
 
   const updateScrollState = useCallback(() => {
@@ -208,6 +209,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
     if (!el || el.children.length === 0) return
 
     if (!hintDismissed && el.scrollLeft > 8) setHintDismissed(true)
+    setCanScrollLeft(el.scrollLeft > 8)
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 8)
 
     const firstCard = el.children[0] as HTMLElement
@@ -250,6 +252,12 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
       )}
 
       <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2">
+        {canScrollLeft && (
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-12 bg-gradient-to-r from-cream via-cream/70 to-transparent"
+            aria-hidden
+          />
+        )}
         {canScrollRight && (
           <div
             className="pointer-events-none absolute inset-y-0 right-0 z-10 w-12 bg-gradient-to-l from-cream via-cream/70 to-transparent"
