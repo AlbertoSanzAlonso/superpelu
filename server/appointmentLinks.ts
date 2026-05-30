@@ -118,10 +118,12 @@ export function injectSpaLinkPreviewMeta(html: string, pagePath: string): string
     pageUrl,
   })
 
-  return html.replace(
-    /<meta\s+name="description"[\s\S]*?<title>[^<]*<\/title>/,
-    meta,
+  // Solo <meta> de preview (description, OG, Twitter). No incluir <link> de fuentes ni <title>.
+  const withMeta = html.replace(
+    /<meta\s+name="description"[\s\S]*?(?=<link\s|<title>)/,
+    `${meta}\n    `,
   )
+  return withMeta.replace(/\s*<title>[^<]*<\/title>/, '')
 }
 
 /** URL pública base de Superpelu (sin barra final). Vacío si no se puede determinar. */
