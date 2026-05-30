@@ -7,6 +7,7 @@ import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 import { typography } from '@/styles/typography'
 
 type PageShellProps = {
+  eyebrow?: string
   title: string
   subtitle?: string
   titleClassName?: string
@@ -16,6 +17,7 @@ type PageShellProps = {
 }
 
 export function PageShell({
+  eyebrow,
   title,
   subtitle,
   titleClassName,
@@ -47,7 +49,9 @@ export function PageShell({
 
       <main className={`mx-auto ${contentMax} px-6 py-12 md:px-10 md:py-16`}>
         <header className="mb-10 text-center">
-          <p className={`${typography.script} mb-2 text-gold`}>{t.common.agendaEyebrow}</p>
+          {eyebrow && (
+            <p className={`${typography.script} mb-2 text-gold`}>{eyebrow}</p>
+          )}
           <h1 className={titleClassName ?? typography.h1}>{title}</h1>
           {subtitle && (
             <p className={`${typography.body} mx-auto mt-4 max-w-lg ${subtitleClassName ?? ''}`}>

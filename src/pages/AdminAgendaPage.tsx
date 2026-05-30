@@ -114,7 +114,8 @@ export function AdminAgendaPage() {
   if (!isAdmin && !isStaff) {
     return (
       <PageShell
-        title="Agenda"
+        eyebrow="Agenda"
+        title="Gestión del salón"
         subtitle="Acceso para el equipo: cada profesional gestiona lo suyo; administración ve todo el salón."
       >
         <div className="mx-auto mb-8 flex max-w-md justify-center gap-2">
