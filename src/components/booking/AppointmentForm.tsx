@@ -6,6 +6,8 @@ import {
   useAppointmentForm,
   type AppointmentFormOptions,
 } from '@/hooks/useAppointmentForm'
+import { serviceDisplayName } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate, getBookableDates } from '@/lib/dates'
 import { countServicesInCategory } from '@/lib/servicePicker'
@@ -13,14 +15,6 @@ import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 const bookableDates = getBookableDates(35)
-
-const BOOKING_STEPS = [
-  '¿Qué te apetece hoy?',
-  'Tu tratamiento',
-  'Profesional',
-  'Día y Hora',
-  'Datos y confirmación',
-] as const
 
 /** Título de paso visible solo en móvil (sustituye al h2 grande). */
 const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`
@@ -31,11 +25,15 @@ type AppointmentFormProps = AppointmentFormOptions & {
 }
 
 export function AppointmentForm({
-  submitLabel = 'Confirmar cita',
+  submitLabel,
   onConfirmed,
   onSuccess,
   ...formOptions
 }: AppointmentFormProps) {
+  const { locale, t } = useTranslation()
+  const bookingSteps = t.booking.steps
+  const b = t.booking
+
   const form = useAppointmentForm({
     ...formOptions,
     onSuccess: (apt) => {
@@ -98,6 +96,8 @@ export function AppointmentForm({
     onCategoryChange: setPickedCategoryId,
   }
 
+  const confirmLabel = submitLabel ?? b.confirm
+
   return (
     <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
       {step > 0 && (
@@ -105,7 +105,7 @@ export function AppointmentForm({
           type="button"
           onClick={goPrev}
           className="ui-rounded absolute left-0 top-0 flex h-9 w-9 cursor-pointer items-center justify-center border border-gold/30 text-lg leading-none text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 focus:outline-none focus:ring-2 focus:ring-gold/70"
-          aria-label="Paso anterior"
+          aria-label={b.prevStep}
         >
           ‹
         </button>
@@ -113,11 +113,11 @@ export function AppointmentForm({
 
       <div className={`mb-6 text-center md:mb-8 ${step > 0 ? 'pt-1' : ''}`}>
         <p className={`${typography.caption} mb-2 hidden md:block`}>
-          Paso {step + 1} de {BOOKING_STEPS.length}
+          {b.stepProgress(step + 1, bookingSteps.length)}
         </p>
-        <h2 className={`${typography.h2} hidden md:block`}>{BOOKING_STEPS[step]}</h2>
+        <h2 className={`${typography.h2} hidden md:block`}>{bookingSteps[step]}</h2>
         <div className="flex justify-center gap-2 md:mt-5" aria-hidden>
-          {BOOKING_STEPS.map((_, index) => (
+          {bookingSteps.map((_, index) => (
             <span
               key={index}
               className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -148,18 +148,18 @@ export function AppointmentForm({
         {step === 2 && (
           <fieldset className="space-y-3">
             <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-              Profesional
+              {b.staff}
             </legend>
             {!form.serviceId ? (
-              <p className={`${typography.caption} text-center`}>Primero elige tu tratamiento</p>
+              <p className={`${typography.caption} text-center`}>{b.chooseStaffFirst}</p>
             ) : form.loadingStaff ? (
-              <p className={`${typography.caption} text-center`}>Cargando equipo…</p>
+              <p className={`${typography.caption} text-center`}>{b.loadingStaff}</p>
             ) : form.staffOptions.length === 0 ? (
               <p
                 className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
                 role="status"
               >
-                {form.staffError || 'No hay profesionales para este servicio.'}
+                {form.staffError || b.noStaff}
               </p>
             ) : (
               <div className="grid gap-3">
@@ -196,9 +196,9 @@ export function AppointmentForm({
             <div>
               <label
                 htmlFor="apt-date"
-                className={`${typography.label} mb-2 block md:hidden`}
+                className={`${typography.label} mb-2 block w-full text-center md:hidden`}
               >
-                Día
+                {b.day}
               </label>
               <select
                 id="apt-date"
@@ -208,10 +208,10 @@ export function AppointmentForm({
                 onChange={(e) => form.setDate(e.target.value)}
                 className="w-full border border-gold/30 bg-cream px-4 py-3 font-sans text-sm text-charcoal outline-none focus:border-gold disabled:opacity-50"
               >
-                <option value="">Selecciona un día</option>
+                <option value="">{b.selectDay}</option>
                 {bookableDates.map((d) => (
                   <option key={d} value={d}>
-                    {formatDisplayDate(d)}
+                    {formatDisplayDate(d, locale)}
                   </option>
                 ))}
               </select>
@@ -219,20 +219,20 @@ export function AppointmentForm({
 
             <fieldset className="space-y-3">
               <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-                Hora
+                {b.hour}
               </legend>
               {!form.date || !form.staffId ? (
                 <p className={`${typography.caption} text-center`}>
-                  {!form.staffId ? 'Elige un profesional' : 'Primero elige un día'}
+                  {!form.staffId ? b.chooseDayFirst : b.chooseDay}
                 </p>
               ) : form.loadingSlots ? (
-                <p className={`${typography.caption} text-center`}>Cargando horarios…</p>
+                <p className={`${typography.caption} text-center`}>{b.loadingSlots}</p>
               ) : form.slots.length === 0 ? (
                 <p
                   className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
                   role="status"
                 >
-                  {form.slotsError || 'No hay huecos ese día.'}
+                  {form.slotsError || b.noSlots}
                 </p>
               ) : (
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
@@ -260,6 +260,7 @@ export function AppointmentForm({
                             form.selectedService.id,
                             slot,
                             form.selectedService.durationMinutes,
+                            locale,
                           )}
                         </span>
                       )}
@@ -273,16 +274,16 @@ export function AppointmentForm({
 
         {step === 4 && (
           <div className="space-y-4">
-            <p className={stepLegendMobile}>{BOOKING_STEPS[4]}</p>
+            <p className={stepLegendMobile}>{bookingSteps[4]}</p>
             <Input
-              label="Nombre completo"
+              label={b.fullName}
               required
               value={form.customerName}
               onChange={(e) => form.setCustomerName(e.target.value)}
               autoComplete="name"
             />
             <Input
-              label="Teléfono"
+              label={b.phone}
               type="tel"
               required
               value={form.customerPhone}
@@ -291,26 +292,26 @@ export function AppointmentForm({
               placeholder="600 000 000"
             />
             <Input
-              label="Email (opcional)"
+              label={b.emailOptional}
               type="email"
               value={form.customerEmail}
               onChange={(e) => form.setCustomerEmail(e.target.value)}
               autoComplete="email"
             />
             <Textarea
-              label="Notas (opcional)"
+              label={b.notesOptional}
               value={form.notes}
               onChange={(e) => form.setNotes(e.target.value)}
-              placeholder="Mechas, alergias, preferencias…"
+              placeholder={b.notesPlaceholder}
             />
 
             {form.selectedStaff && form.selectedService && (
               <p className={`${typography.caption} text-center`}>
-                {form.selectedStaff.name} · {form.selectedService.nameEs}
+                {form.selectedStaff.name} · {serviceDisplayName(form.selectedService, locale)}
                 {form.date && form.startTime && (
                   <>
                     {' '}
-                    · {formatDisplayDate(form.date)} · {form.startTime}
+                    · {formatDisplayDate(form.date, locale)} · {form.startTime}
                   </>
                 )}
               </p>
@@ -325,7 +326,7 @@ export function AppointmentForm({
         </p>
       )}
 
-      {step === BOOKING_STEPS.length - 1 && (
+      {step === bookingSteps.length - 1 && (
         <Button
           type="submit"
           variant="solid"
@@ -333,7 +334,7 @@ export function AppointmentForm({
           className="mt-10 w-full"
           disabled={form.submitting || !form.canSubmit}
         >
-          {form.submitting ? 'Guardando…' : submitLabel}
+          {form.submitting ? b.saving : confirmLabel}
         </Button>
       )}
     </form>

@@ -1,18 +1,21 @@
 import { Link } from 'react-router-dom'
-import { brand, footerLegal, navLinks } from '@/data/content'
+import { brand } from '@/data/content'
+import { getNavLinks, whatsappUrl } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Logo } from '@/components/ui/Logo'
 import { Divider } from '@/components/ui/Divider'
 import { SocialIcon } from '@/components/ui/SocialIcon'
 import { typography } from '@/styles/typography'
 
-const socialLinks = [
-  { id: 'instagram' as const, href: brand.instagram, label: 'Instagram' },
-  { id: 'facebook' as const, href: brand.facebook, label: 'Facebook' },
-  { id: 'tiktok' as const, href: brand.tiktok, label: 'TikTok' },
-  { id: 'whatsapp' as const, href: brand.whatsapp, label: 'WhatsApp' },
-]
-
 export function Footer() {
+  const { t, locale } = useTranslation()
+  const navLinks = getNavLinks(locale)
+  const socialLinks = [
+    { id: 'instagram' as const, href: brand.instagram, label: 'Instagram' },
+    { id: 'facebook' as const, href: brand.facebook, label: 'Facebook' },
+    { id: 'tiktok' as const, href: brand.tiktok, label: 'TikTok' },
+    { id: 'whatsapp' as const, href: whatsappUrl(locale), label: t.common.whatsapp },
+  ]
   const year = new Date().getFullYear()
 
   return (
@@ -30,7 +33,7 @@ export function Footer() {
           </a>
         </p>
 
-        <nav className="flex flex-wrap justify-center gap-6" aria-label="Enlaces del pie">
+        <nav className="flex flex-wrap justify-center gap-6" aria-label={t.footer.footerNavAria}>
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -42,7 +45,7 @@ export function Footer() {
           ))}
         </nav>
 
-        <div className="flex justify-center gap-4" role="list" aria-label="Redes sociales">
+        <div className="flex justify-center gap-4" role="list" aria-label={t.footer.socialAria}>
           {socialLinks.map((link) => (
             <a
               key={link.id}
@@ -61,19 +64,16 @@ export function Footer() {
         <Divider />
 
         <div className="flex flex-wrap justify-center gap-4">
-          {footerLegal.map((link) => (
-            <Link
-              key={link.href}
-              to={link.href}
-              className={`${typography.caption} hover:text-gold`}
-            >
-              {link.label}
-            </Link>
-          ))}
+          <Link
+            to="/politica-de-cookies"
+            className={`${typography.caption} hover:text-gold`}
+          >
+            {t.footer.cookiePolicy}
+          </Link>
         </div>
 
         <p className={typography.caption}>
-          © {year} {brand.name} {brand.tagline} · {brand.location}. Todos los derechos reservados.
+          © {year} {brand.name} {brand.tagline} · {brand.location}. {t.common.allRightsReserved}
         </p>
       </div>
     </footer>

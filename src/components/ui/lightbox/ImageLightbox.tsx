@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useTranslation } from '@/i18n/useTranslation'
 import { ScrollArea } from '@/components/ui/ScrollArea'
 import type { ImageLightboxProps, Size } from '@/components/ui/lightbox/types'
 import { computeCoverZoomSize, measureScrollArea } from '@/components/ui/lightbox/utils'
@@ -12,6 +13,7 @@ export function ImageLightbox({
   onPrev,
   onNext,
 }: ImageLightboxProps) {
+  const { t } = useTranslation()
   const dialogId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement | null>(null)
@@ -243,7 +245,7 @@ export function ImageLightbox({
 
   if (!open || !activeImage) return null
 
-  const label = activeImage.alt || 'Imagen ampliada'
+  const label = activeImage.alt || t.lightbox.enlarged
 
   const imageClassName =
     'ui-rounded block h-auto w-auto max-w-[calc(100vw-1rem)] select-none object-contain shadow-2xl transition-[width,height] duration-200 max-h-[85dvh] sm:max-w-full sm:max-h-[80dvh]'
@@ -290,9 +292,9 @@ export function ImageLightbox({
               ? 'right-3 top-3 sm:right-4 sm:top-4'
               : 'right-0 top-0 -translate-y-12 sm:-translate-y-12'
           }`}
-          aria-label="Cerrar imagen ampliada"
+          aria-label={t.lightbox.close}
         >
-          Cerrar
+          {t.common.close}
         </button>
 
         {hasNav && !zoomed && !isMobileViewport && (
@@ -301,7 +303,7 @@ export function ImageLightbox({
               type="button"
               onClick={onPrev}
               className="absolute left-0 top-1/2 z-10 -translate-x-3 -translate-y-1/2 cursor-pointer rounded-full bg-cream/10 p-3 text-cream backdrop-blur hover:bg-cream/15 focus:outline-none focus:ring-2 focus:ring-gold/70"
-              aria-label="Imagen anterior"
+              aria-label={t.lightbox.prev}
             >
               ‹
             </button>
@@ -309,7 +311,7 @@ export function ImageLightbox({
               type="button"
               onClick={onNext}
               className="absolute right-0 top-1/2 z-10 translate-x-3 -translate-y-1/2 cursor-pointer rounded-full bg-cream/10 p-3 text-cream backdrop-blur hover:bg-cream/15 focus:outline-none focus:ring-2 focus:ring-gold/70"
-              aria-label="Imagen siguiente"
+              aria-label={t.lightbox.next}
             >
               ›
             </button>
@@ -355,7 +357,7 @@ export function ImageLightbox({
               onTouchEnd={handleTouchEnd}
               onTouchCancel={handleTouchCancel}
               className="mx-auto inline-flex shrink-0 cursor-zoom-in touch-none justify-center focus:outline-none focus:ring-2 focus:ring-gold/70"
-              aria-label="Ampliar imagen"
+              aria-label={t.lightbox.zoom}
             >
               <img
                 ref={imageRef}

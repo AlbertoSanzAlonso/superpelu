@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { useTranslation } from '@/i18n/useTranslation'
 import {
   addAppointmentToCalendar,
   buildGoogleCalendarUrl,
@@ -33,6 +34,8 @@ const menuItemClass =
   'block w-full cursor-pointer px-4 py-3 text-left font-sans text-xs uppercase tracking-wide text-charcoal transition-colors hover:bg-gold/10 hover:text-gold-dark focus:bg-gold/10 focus:text-gold-dark focus:outline-none'
 
 export function AddToCalendarButton({ appointment }: Props) {
+  const { locale, t } = useTranslation()
+  const cal = t.calendar
   const isDesktop = useIsDesktop()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -55,21 +58,19 @@ export function AddToCalendarButton({ appointment }: Props) {
     }
   }, [open])
 
-  // Móvil: un solo botón con detección de dispositivo (Android → Google, iPhone → .ics nativo).
   if (!isDesktop) {
     return (
       <Button
         variant="solid"
         size="md"
         className="w-full"
-        onClick={() => addAppointmentToCalendar(appointment)}
+        onClick={() => addAppointmentToCalendar(appointment, locale)}
       >
-        Añadir al calendario
+        {cal.add}
       </Button>
     )
   }
 
-  // Escritorio: menú con opciones de calendario.
   return (
     <div ref={containerRef} className="relative">
       <Button
@@ -80,7 +81,7 @@ export function AddToCalendarButton({ appointment }: Props) {
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        Añadir al calendario
+        {cal.add}
       </Button>
       {open && (
         <div
@@ -88,25 +89,25 @@ export function AddToCalendarButton({ appointment }: Props) {
           className="ui-rounded absolute left-1/2 z-20 mt-2 w-64 -translate-x-1/2 overflow-hidden border border-gold/25 bg-cream shadow-[0_18px_40px_-20px_rgba(31,31,31,0.45)]"
         >
           <a
-            href={buildGoogleCalendarUrl(appointment)}
+            href={buildGoogleCalendarUrl(appointment, locale)}
             target="_blank"
             rel="noopener noreferrer"
             role="menuitem"
             className={menuItemClass}
             onClick={() => setOpen(false)}
           >
-            Google Calendar
+            {cal.google}
           </a>
           <button
             type="button"
             role="menuitem"
             className={`${menuItemClass} border-t border-gold/15`}
             onClick={() => {
-              downloadAppointmentIcs(appointment)
+              downloadAppointmentIcs(appointment, locale)
               setOpen(false)
             }}
           >
-            Apple Calendar / Outlook (.ics)
+            {cal.ics}
           </button>
         </div>
       )}

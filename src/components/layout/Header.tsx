@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
-import { brand, navLinks } from '@/data/content'
+import { brand } from '@/data/content'
+import { getNavLinks } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
+import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
 
 const SCROLL_THRESHOLD = 12
 
 export function Header() {
+  const { t, locale } = useTranslation()
+  const navLinks = getNavLinks(locale)
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -25,11 +30,11 @@ export function Header() {
       className={`fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow,backdrop-filter] duration-300 ease-premium ${shellClass}`}
     >
       <div className="mx-auto flex h-[4.5rem] max-w-6xl items-center justify-between px-6 md:px-10">
-        <a href="/#inicio" className="transition-opacity hover:opacity-80" aria-label={`${brand.name} — inicio`}>
+        <a href="/#inicio" className="transition-opacity hover:opacity-80" aria-label={t.nav.homeAria(brand.name)}>
           <Logo size="sm" variant="mark" />
         </a>
 
-        <nav className="hidden items-center gap-10 md:flex" aria-label="Principal">
+        <nav className="hidden items-center gap-8 md:flex" aria-label="Principal">
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -39,25 +44,29 @@ export function Header() {
               {link.label}
             </a>
           ))}
+          <LanguageSwitcher />
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-4 md:flex">
           <Button href={brand.bookingOnline} variant="outline" size="sm">
-            Reservar
+            {t.nav.book}
           </Button>
         </div>
 
-        <button
-          type="button"
-          className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 md:hidden"
-          aria-expanded={open}
-          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
-          onClick={() => setOpen(!open)}
-        >
-          <span className={`h-px w-6 bg-gold transition-transform ${open ? 'translate-y-2 rotate-45' : ''}`} />
-          <span className={`h-px w-6 bg-gold transition-opacity ${open ? 'opacity-0' : ''}`} />
-          <span className={`h-px w-6 bg-gold transition-transform ${open ? '-translate-y-2 -rotate-45' : ''}`} />
-        </button>
+        <div className="flex items-center gap-3 md:hidden">
+          <LanguageSwitcher compact />
+          <button
+            type="button"
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1.5"
+            aria-expanded={open}
+            aria-label={open ? t.nav.closeMenu : t.nav.openMenu}
+            onClick={() => setOpen(!open)}
+          >
+            <span className={`h-px w-6 bg-gold transition-transform ${open ? 'translate-y-2 rotate-45' : ''}`} />
+            <span className={`h-px w-6 bg-gold transition-opacity ${open ? 'opacity-0' : ''}`} />
+            <span className={`h-px w-6 bg-gold transition-transform ${open ? '-translate-y-2 -rotate-45' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {open && (
@@ -81,7 +90,7 @@ export function Header() {
             ))}
             <li>
               <Button href={brand.bookingOnline} variant="solid" size="md">
-                Reservar cita
+                {t.nav.bookAppointment}
               </Button>
             </li>
           </ul>

@@ -1,21 +1,8 @@
-import { serviceCategories, type ServiceCategoryId } from '@/data/serviceCategories'
+import { serviceCategories } from '@/data/serviceCategories'
 import type { BookableService } from '@/types/booking'
 
-/** Nombre corto y natural para el salón (evita MAYÚSCULAS técnicas del catálogo). */
-export const salonCategoryLabels: Record<ServiceCategoryId, string> = {
-  'gentleman-haircut': 'Corte caballero y niño',
-  color: 'Coloración',
-  highlights: 'Mechas y balayage',
-  bleaching: 'Decoloración',
-  'haircut-blowdry': 'Corte y brushing',
-  haircut: 'Corte',
-  blowdry: 'Peinado y brushing',
-  perm: 'Permanente',
-  keratin: 'Alisado de keratina',
-  'hair-treatments': 'Tratamientos capilares',
-  'beauty-hands-feet': 'Manos y pies',
-  'beauty-facial': 'Estética facial',
-}
+import { categoryLabelForLocale } from '@/i18n/helpers'
+import type { Locale } from '@/i18n/types'
 
 export const servicePickerLabels = {
   staff: {
@@ -27,22 +14,13 @@ export const servicePickerLabels = {
     loading: 'Cargando catálogo…',
     emptyCategory: 'No hay tratamientos en esta especialidad.',
   },
-  public: {
-    category: '¿Qué te apetece hoy?',
-    categoryPlaceholder: 'Elige una opción…',
-    service: 'Tu tratamiento',
-    servicePlaceholder: 'Elige el tratamiento…',
-    serviceHint: 'Elige primero el tipo de cita y después el tratamiento.',
-    loading: 'Cargando tratamientos…',
-    emptyCategory: 'Reserva este tipo de cita por teléfono o WhatsApp.',
-  },
 } as const
 
 export type ServicePickerVariant = keyof typeof servicePickerLabels
 
-export function categoryLabelFor(id: string | null | undefined): string {
-  if (!id) return 'Otros'
-  return salonCategoryLabels[id as ServiceCategoryId] ?? id
+/** @deprecated Usar categoryLabelForLocale(id, locale) */
+export function categoryLabelFor(id: string | null | undefined, locale: Locale = 'es'): string {
+  return categoryLabelForLocale(id, locale)
 }
 
 export function getOrderedCategoriesForServices(services: BookableService[]) {

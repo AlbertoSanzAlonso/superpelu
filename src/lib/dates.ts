@@ -90,9 +90,9 @@ export function hoursUntilAppointment(dateStr: string, startTime: string): numbe
   return (aptMs - salonNowWallMs()) / 3_600_000
 }
 
-export function formatDisplayDate(dateStr: string): string {
+export function formatDisplayDate(dateStr: string, locale: 'es' | 'en' = 'es'): string {
   const [y, m, d] = dateStr.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString('es-ES', {
+  return new Date(y, m - 1, d).toLocaleDateString(locale === 'en' ? 'en-GB' : 'es-ES', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

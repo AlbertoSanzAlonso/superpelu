@@ -5,46 +5,48 @@ import { AppointmentForm } from '@/components/booking/AppointmentForm'
 import { AddToCalendarButton } from '@/components/booking/AddToCalendarButton'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
+import { useTranslation } from '@/i18n/useTranslation'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 export function BookingPage() {
+  const { t, locale } = useTranslation()
   const [confirmed, setConfirmed] = useState<Appointment | null>(null)
 
   if (confirmed) {
+    const labels = t.booking.summaryLabels
     return (
-      <PageShell title="¡Cita confirmada!" subtitle="Te esperamos en Superpelu Hair Studio">
+      <PageShell title={t.booking.confirmedTitle} subtitle={t.booking.confirmedSubtitle}>
         <div className="mx-auto max-w-lg border border-gold/25 bg-cream p-10 text-center">
-          <p className={`${typography.body} mb-6`}>
-            Hemos registrado tu cita. Si necesitas cambiarla, llámanos o escríbenos por WhatsApp.
-          </p>
+          <p className={`${typography.body} mb-6`}>{t.booking.confirmedBody}</p>
           <dl className={`${typography.body} space-y-3 text-left`}>
             <div>
-              <dt className={typography.label}>Servicio</dt>
+              <dt className={typography.label}>{labels.service}</dt>
               <dd>{confirmed.serviceName}</dd>
             </div>
             {confirmed.staffName && (
               <div>
-                <dt className={typography.label}>Profesional</dt>
+                <dt className={typography.label}>{labels.staff}</dt>
                 <dd>{confirmed.staffName}</dd>
               </div>
             )}
             <div>
-              <dt className={typography.label}>Fecha</dt>
-              <dd className="capitalize">{formatDisplayDate(confirmed.date)}</dd>
+              <dt className={typography.label}>{labels.date}</dt>
+              <dd className="capitalize">{formatDisplayDate(confirmed.date, locale)}</dd>
             </div>
             <div>
-              <dt className={typography.label}>Horario</dt>
+              <dt className={typography.label}>{labels.schedule}</dt>
               <dd>
                 {formatAppointmentTimeRange(
                   confirmed.serviceId,
                   confirmed.startTime,
                   confirmed.durationMinutes,
+                  locale,
                 )}
               </dd>
             </div>
             <div>
-              <dt className={typography.label}>Nombre</dt>
+              <dt className={typography.label}>{labels.name}</dt>
               <dd>{confirmed.customerName}</dd>
             </div>
           </dl>
@@ -52,10 +54,10 @@ export function BookingPage() {
             <AddToCalendarButton appointment={confirmed} />
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Button href="/" variant="outline" size="md">
-                Inicio
+                {t.common.home}
               </Button>
               <Button href="/reservar" variant="outline" size="md">
-                Nueva cita
+                {t.booking.newAppointment}
               </Button>
             </div>
           </div>
@@ -66,8 +68,8 @@ export function BookingPage() {
 
   return (
     <PageShell
-      title="Reserva tu cita"
-      subtitle="Elige servicio, profesional, día y hora. Martes a sábado de 10:00 a 20:00."
+      title={t.booking.pageTitle}
+      subtitle={t.booking.pageSubtitle}
       titleClassName="font-serif text-2xl uppercase tracking-brand text-charcoal md:text-4xl"
       subtitleClassName="hidden md:block"
     >

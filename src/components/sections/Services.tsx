@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { marketingServices } from '@/data/marketingServices'
-import { servicesSection } from '@/data/content'
+import { useMemo, useState } from 'react'
+import type { MarketingService } from '@/data/marketingServices'
+import { getMarketingServices } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Section } from '@/components/ui/Section'
 import { BRAND_MARK_SRC } from '@/components/ui/Logo'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
@@ -8,16 +9,18 @@ import { ServiceDetailModal } from '@/components/sections/ServiceDetailModal'
 import { typography } from '@/styles/typography'
 
 export function Services() {
-  const [selected, setSelected] = useState<(typeof marketingServices)[number] | null>(null)
+  const { locale, t } = useTranslation()
+  const marketingServices = useMemo(() => getMarketingServices(locale), [locale])
+  const [selected, setSelected] = useState<MarketingService | null>(null)
 
   return (
     <>
       <Section
         id="servicios"
-        eyebrow={servicesSection.eyebrow}
-        scriptAccent={servicesSection.scriptAccent}
-        title={servicesSection.title}
-        subtitle={servicesSection.subtitle}
+        eyebrow={t.servicesSection.eyebrow}
+        scriptAccent={t.servicesSection.scriptAccent}
+        title={t.servicesSection.title}
+        subtitle={t.servicesSection.subtitle}
         className="relative overflow-hidden"
       >
         <img

@@ -1,17 +1,22 @@
 import type { ReactNode } from 'react'
-import { bookingOptions, brand, contactSection } from '@/data/content'
+import { brand } from '@/data/content'
+import { getBookingOptions, whatsappUrl } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export function Contact() {
+  const { t, locale } = useTranslation()
+  const bookingOptions = getBookingOptions(locale)
+
   return (
     <Section
       id="contacto"
-      eyebrow={contactSection.eyebrow}
-      scriptAccent={contactSection.scriptAccent}
-      title={contactSection.title}
-      subtitle={contactSection.subtitle}
+      eyebrow={t.contactSection.eyebrow}
+      scriptAccent={t.contactSection.scriptAccent}
+      title={t.contactSection.title}
+      subtitle={t.contactSection.subtitle}
       className="bg-cream-dark"
     >
       <div className="mb-12 grid gap-6 md:grid-cols-3">
@@ -31,7 +36,7 @@ export function Contact() {
 
       <div className="mx-auto max-w-xl border border-gold/25 bg-cream p-10 text-center md:p-14">
         <div className="space-y-6">
-          <ContactRow label="Teléfono">
+          <ContactRow label={t.contactSection.phone}>
             <a
               href={brand.phoneHref}
               className="font-serif text-lg text-gold transition-colors hover:text-gold-dark"
@@ -40,9 +45,9 @@ export function Contact() {
             </a>
           </ContactRow>
 
-          <ContactRow label="WhatsApp">
+          <ContactRow label={t.common.whatsapp}>
             <a
-              href={brand.whatsapp}
+              href={whatsappUrl(locale)}
               className="font-serif text-lg text-gold transition-colors hover:text-gold-dark"
               target="_blank"
               rel="noopener noreferrer"
@@ -51,7 +56,7 @@ export function Contact() {
             </a>
           </ContactRow>
 
-          <ContactRow label="Email">
+          <ContactRow label={t.contactSection.email}>
             <a
               href={`mailto:${brand.email}`}
               className={`${typography.body} hover:text-gold`}
@@ -60,7 +65,7 @@ export function Contact() {
             </a>
           </ContactRow>
 
-          <ContactRow label="Ubicación">
+          <ContactRow label={t.contactSection.location}>
             <p className={typography.body}>{brand.address}</p>
             <a
               href={brand.maps}
@@ -68,17 +73,17 @@ export function Contact() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Ver en Google Maps
+              {t.studioSection.viewOnMaps}
             </a>
           </ContactRow>
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
           <Button href={brand.bookingOnline} variant="solid" size="lg">
-            Reservar cita online
+            {t.nav.bookAppointmentOnline}
           </Button>
-          <Button href={brand.whatsapp} variant="outline" size="lg">
-            WhatsApp
+          <Button href={whatsappUrl(locale)} variant="outline" size="lg">
+            {t.common.whatsapp}
           </Button>
         </div>
       </div>

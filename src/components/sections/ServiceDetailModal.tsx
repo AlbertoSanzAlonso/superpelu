@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import type { MarketingService } from '@/data/marketingServices'
 import { brand } from '@/data/content'
+import { whatsappUrl } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
@@ -10,6 +12,8 @@ type Props = {
 }
 
 export function ServiceDetailModal({ service, onClose }: Props) {
+  const { t, locale } = useTranslation()
+
   useEffect(() => {
     if (!service) return
 
@@ -55,7 +59,7 @@ export function ServiceDetailModal({ service, onClose }: Props) {
             type="button"
             onClick={onClose}
             className="absolute right-3 top-3 z-10 cursor-pointer border border-gold/40 bg-cream/95 px-2.5 py-1.5 text-sm text-charcoal-muted backdrop-blur-sm transition-colors hover:border-gold hover:text-gold md:hidden"
-            aria-label="Cerrar"
+            aria-label={t.common.close}
           >
             ✕
           </button>
@@ -66,7 +70,7 @@ export function ServiceDetailModal({ service, onClose }: Props) {
             type="button"
             onClick={onClose}
             className="absolute right-3 top-3 z-10 hidden cursor-pointer border border-gold/40 bg-cream/95 px-2.5 py-1.5 text-sm text-charcoal-muted backdrop-blur-sm transition-colors hover:border-gold hover:text-gold md:block"
-            aria-label="Cerrar"
+            aria-label={t.common.close}
           >
             ✕
           </button>
@@ -79,10 +83,10 @@ export function ServiceDetailModal({ service, onClose }: Props) {
           <p className={`${typography.body} mb-6 text-sm leading-snug md:mb-5`}>{service.detail}</p>
           <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:justify-center md:mt-0 md:justify-start">
             <Button href={brand.bookingOnline} variant="solid" size="md">
-              Reservar cita
+              {t.nav.bookAppointment}
             </Button>
-            <Button href={brand.whatsapp} variant="outline" size="md">
-              WhatsApp
+            <Button href={whatsappUrl(locale)} variant="outline" size="md">
+              {t.common.whatsapp}
             </Button>
           </div>
         </div>

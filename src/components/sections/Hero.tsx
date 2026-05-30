@@ -1,9 +1,12 @@
-import { brand, hero } from '@/data/content'
+import { brand } from '@/data/content'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export function Hero() {
+  const { t } = useTranslation()
+
   return (
     <section
       id="inicio"
@@ -28,23 +31,23 @@ export function Hero() {
         <p className={`${typography.label} animate-fade-up-delay mb-6`}>{brand.location}</p>
 
         <p className={`${typography.script} animate-fade-up-delay mb-4`}>
-          Tu belleza, nuestro arte
+          {t.hero.tagline}
         </p>
 
         <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl font-medium text-charcoal md:mb-4`}>
-          {hero.lead}
+          {t.hero.lead}
         </p>
 
         <p className={`${typography.body} animate-fade-up-delay mx-auto mb-10 max-w-2xl hidden md:block`}>
-          {hero.body}
+          {t.hero.body}
         </p>
 
         <div className="animate-fade-up-delay flex flex-col items-center justify-center gap-4 sm:flex-row">
           <Button href={brand.bookingOnline} variant="solid" size="lg">
-            Reservar cita
+            {t.nav.bookAppointment}
           </Button>
           <Button href="#servicios" variant="outline" size="lg">
-            Ver servicios
+            {t.nav.viewServices}
           </Button>
         </div>
       </div>

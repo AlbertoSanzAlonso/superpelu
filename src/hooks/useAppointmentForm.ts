@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useTranslation } from '@/i18n/useTranslation'
 import {
   createAppointment,
   fetchServices,
@@ -17,6 +18,8 @@ export type AppointmentFormOptions = {
 }
 
 export function useAppointmentForm(options: AppointmentFormOptions = {}) {
+  const { t } = useTranslation()
+  const errors = t.booking.errors
   const onSuccess = options.onSuccess
 
   const [services, setServices] = useState<BookableService[]>([])
@@ -56,19 +59,17 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       .then((res) => {
         setServices(res.services)
         if (res.services.length === 0) {
-          setServicesError('No hay tratamientos disponibles online en este momento.')
+          setServicesError(errors.noServicesOnline)
         }
       })
       .catch((err) => {
         setServices([])
         setServicesError(
-          err instanceof ApiError
-            ? err.message
-            : 'No se pudo conectar con el servidor. Si estás en local, ejecuta npm run dev y recarga.',
+          err instanceof ApiError ? err.message : errors.serverConnection,
         )
       })
       .finally(() => setServicesLoading(false))
-  }, [])
+  }, [errors.noServicesOnline, errors.serverConnection])
 
   useEffect(() => {
     void loadServices()
@@ -100,17 +101,15 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           setStaffId('')
         }
         if (res.staff.length === 0) {
-          setStaffError('No hay profesionales para este servicio.')
+          setStaffError(errors.noStaff)
         }
       })
       .catch((err) => {
         setStaffOptions([])
-        setStaffError(
-          err instanceof ApiError ? err.message : 'No se pudo cargar el equipo.',
-        )
+        setStaffError(err instanceof ApiError ? err.message : errors.loadStaff)
       })
       .finally(() => setLoadingStaff(false))
-  }, [serviceId, options.initialStaffId, options.initialDate, staffId])
+  }, [serviceId, options.initialStaffId, options.initialDate, staffId, errors.noStaff, errors.loadStaff])
 
   useEffect(() => {
     if (!date || !serviceId || !staffId) {
@@ -129,15 +128,15 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           setStartTime(options.initialStartTime)
         }
         if (res.slots.length === 0) {
-          setSlotsError('No quedan huecos libres ese día con este profesional.')
+          setSlotsError(errors.noSlots)
         }
       })
       .catch((err) => {
         setSlots([])
-        setSlotsError(err instanceof ApiError ? err.message : 'No se pudieron cargar horarios.')
+        setSlotsError(err instanceof ApiError ? err.message : errors.loadSlots)
       })
       .finally(() => setLoadingSlots(false))
-  }, [date, serviceId, staffId, options.initialStartTime])
+  }, [date, serviceId, staffId, options.initialStartTime, errors.noSlots, errors.loadSlots])
 
   const resetForm = useCallback(() => {
     setServiceId('')
@@ -172,7 +171,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       onSuccess?.(appointment)
       return appointment
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear la cita')
+      setError(err instanceof Error ? err.message : errors.createFailed)
       return null
     } finally {
       setSubmitting(false)
@@ -188,6 +187,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     customerEmail,
     notes,
     onSuccess,
+    errors.createFailed,
   ])
 
   return {

@@ -82,6 +82,7 @@ export function formatAppointmentTimeRange(
   serviceId: string,
   startTime: string,
   durationMinutes: number,
+  locale: 'es' | 'en' = 'es',
 ): string {
   if (!usesColorSplitBooking(serviceId)) {
     const start = timeToMinutes(startTime)
@@ -91,7 +92,8 @@ export function formatAppointmentTimeRange(
   const seg1End = start + COLOR_SPLIT_SEGMENT_MINUTES
   const seg2Start = start + COLOR_SPLIT_SEGMENT_MINUTES + COLOR_SPLIT_GAP_MINUTES
   const seg2End = start + COLOR_SPLIT_TOTAL_SPAN_MINUTES
-  return `${startTime}–${minutesToTime(seg1End)} y ${minutesToTime(seg2Start)}–${minutesToTime(seg2End)}`
+  const connector = locale === 'en' ? 'and' : 'y'
+  return `${startTime}–${minutesToTime(seg1End)} ${connector} ${minutesToTime(seg2Start)}–${minutesToTime(seg2End)}`
 }
 
 export type AppointmentOccupiedSlot = {

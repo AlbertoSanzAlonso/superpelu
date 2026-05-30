@@ -16,7 +16,27 @@ import rubioCenizaLiso from '@/assets/gallery/rubio-ceniza-liso-melena-benalmade
 import balayageCrema from '@/assets/gallery/balayage-rubio-crema-ondas-benalmadena.webp'
 import balayageRizos from '@/assets/gallery/balayage-rubio-rizos-melena-benalmadena.webp'
 
+export type GalleryImageId =
+  | 'peinadoBoda'
+  | 'coloracionMagenta'
+  | 'balayageBob'
+  | 'balayageMelena'
+  | 'balayageSalon'
+  | 'rubioPlatino'
+  | 'balayageCeniza'
+  | 'mechasBalayage'
+  | 'balayageMedio'
+  | 'balayageMielLarga'
+  | 'balayageMielPlaya'
+  | 'balayageCaramelo'
+  | 'balayageDorado'
+  | 'mechasDorado'
+  | 'rubioCenizaLiso'
+  | 'balayageCrema'
+  | 'balayageRizos'
+
 export type GalleryImage = {
+  id: GalleryImageId
   src: string
   alt: string
   /** Clases Tailwind extra en la celda (p. ej. imagen destacada). */
@@ -28,74 +48,33 @@ function assetUrl(url: string): string {
   return url.startsWith('/') ? url : `/${url}`
 }
 
-export const galleryImages: GalleryImage[] = [
+/** Recursos estáticos; textos alt en src/i18n/translations.ts → gallery.alts */
+export const galleryImageAssets: Omit<GalleryImage, 'alt'>[] = [
   {
+    id: 'peinadoBoda',
     src: assetUrl(peinadoBoda),
-    alt: 'Peinados de boda con orquídeas para madre e hijas — Superpelu Benalmádena',
     span: 'sm:col-span-2 lg:col-span-2 lg:row-span-2',
   },
-  {
-    src: assetUrl(coloracionMagenta),
-    alt: 'Coloración magenta borgoña con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageBob),
-    alt: 'Balayage rubio en bob liso — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageMelena),
-    alt: 'Balayage rubio en melena con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageSalon),
-    alt: 'Balayage rubio con ondas en el salón — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(rubioPlatino),
-    alt: 'Rubio platino con ondas y raíz difuminada — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageCeniza),
-    alt: 'Balayage de rubio ceniza a dorado con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(mechasBalayage),
-    alt: 'Mechas balayage rubio con ondas suaves — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageMedio),
-    alt: 'Balayage rubio en pelo medio con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageMielLarga),
-    alt: 'Balayage rubio miel en melena larga — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageMielPlaya),
-    alt: 'Balayage rubio miel con ondas playeras — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageCaramelo),
-    alt: 'Balayage caramelo con ondas voluminosas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageDorado),
-    alt: 'Balayage rubio dorado en melena con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(mechasDorado),
-    alt: 'Mechas rubio dorado con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(rubioCenizaLiso),
-    alt: 'Rubio ceniza liso en melena — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageCrema),
-    alt: 'Balayage rubio crema con ondas — Superpelu Benalmádena',
-  },
-  {
-    src: assetUrl(balayageRizos),
-    alt: 'Balayage rubio con rizos en melena — Superpelu Benalmádena',
-  },
+  { id: 'coloracionMagenta', src: assetUrl(coloracionMagenta) },
+  { id: 'balayageBob', src: assetUrl(balayageBob) },
+  { id: 'balayageMelena', src: assetUrl(balayageMelena) },
+  { id: 'balayageSalon', src: assetUrl(balayageSalon) },
+  { id: 'rubioPlatino', src: assetUrl(rubioPlatino) },
+  { id: 'balayageCeniza', src: assetUrl(balayageCeniza) },
+  { id: 'mechasBalayage', src: assetUrl(mechasBalayage) },
+  { id: 'balayageMedio', src: assetUrl(balayageMedio) },
+  { id: 'balayageMielLarga', src: assetUrl(balayageMielLarga) },
+  { id: 'balayageMielPlaya', src: assetUrl(balayageMielPlaya) },
+  { id: 'balayageCaramelo', src: assetUrl(balayageCaramelo) },
+  { id: 'balayageDorado', src: assetUrl(balayageDorado) },
+  { id: 'mechasDorado', src: assetUrl(mechasDorado) },
+  { id: 'rubioCenizaLiso', src: assetUrl(rubioCenizaLiso) },
+  { id: 'balayageCrema', src: assetUrl(balayageCrema) },
+  { id: 'balayageRizos', src: assetUrl(balayageRizos) },
 ]
+
+/** @deprecated Usar getGalleryImages(locale) desde src/i18n/helpers.ts */
+export const galleryImages: GalleryImage[] = galleryImageAssets.map((item) => ({
+  ...item,
+  alt: '',
+}))

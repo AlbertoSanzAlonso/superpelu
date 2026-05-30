@@ -2,19 +2,20 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { brand } from '@/data/content'
 import {
-  categoryIdForService,
-  categoryLabelFor,
+  categoryLabelForLocale,
+  serviceDisplayName,
+  whatsappUrl,
+} from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
+import {
   countServicesInCategory,
+  categoryIdForService,
   getAllServiceCategories,
-  servicePickerLabels,
   servicesInCategory,
 } from '@/lib/servicePicker'
 import { usesColorSplitBooking } from '@/lib/bookingOccupancy'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
-
-const WHATSAPP_HIGHLIGHTS =
-  'https://wa.me/34604808312?text=Hola%2C+quiero+reservar+mechas+o+balayage+en+SuperPelu+Benalm%C3%A1dena'
 
 type Props = {
   services: BookableService[]
@@ -43,7 +44,8 @@ export function ServiceCategoryPickerPublic({
   onCategorySelected,
   onServiceSelected,
 }: Props) {
-  const labels = servicePickerLabels.public
+  const { locale, t } = useTranslation()
+  const labels = t.servicePicker.public
 
   const categories = useMemo(() => getAllServiceCategories(), [])
 
@@ -91,8 +93,7 @@ export function ServiceCategoryPickerPublic({
           className={`text-sm ${error ? 'text-amber-950' : 'text-charcoal-muted'}`}
           role={error ? 'alert' : undefined}
         >
-          {error ||
-            'No hay tratamientos disponibles. Llámanos al 952 44 36 86.'}
+          {error || labels.noServices(brand.phone)}
         </p>
         {onRetry && error && (
           <button
@@ -100,7 +101,7 @@ export function ServiceCategoryPickerPublic({
             onClick={onRetry}
             className="border border-gold/40 px-4 py-2 text-sm text-gold hover:border-gold"
           >
-            Reintentar
+            {t.common.retry}
           </button>
         )}
       </div>
@@ -120,10 +121,10 @@ export function ServiceCategoryPickerPublic({
             const count = countServicesInCategory(services, cat.id)
             const countLabel =
               count === 0
-                ? 'Solo teléfono / WhatsApp'
+                ? labels.phoneOnly
                 : count === 1
-                  ? '1 tratamiento'
-                  : `${count} tratamientos`
+                  ? labels.oneTreatment
+                  : labels.treatments(count)
             return (
               <button
                 key={cat.id}
@@ -136,7 +137,9 @@ export function ServiceCategoryPickerPublic({
                     : 'border-gold/20 hover:border-gold/40',
                 ].join(' ')}
               >
-                <span className="block font-medium leading-snug">{categoryLabelFor(cat.id)}</span>
+                <span className="block font-medium leading-snug">
+                  {categoryLabelForLocale(cat.id, locale)}
+                </span>
                 <span
                   className={[
                     'mt-1 block font-normal leading-tight',
@@ -166,14 +169,18 @@ export function ServiceCategoryPickerPublic({
               <p className={typography.caption}>{labels.emptyCategory}</p>
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
                 <Button href={brand.phoneHref} variant="solid" size="md">
-                  Llamar al {brand.phone}
+                  {labels.callPhone(brand.phone)}
                 </Button>
                 <Button
-                  href={selectedCategoryId === 'highlights' ? WHATSAPP_HIGHLIGHTS : brand.whatsapp}
+                  href={
+                    selectedCategoryId === 'highlights'
+                      ? whatsappUrl(locale, 'highlights')
+                      : whatsappUrl(locale)
+                  }
                   variant="outline"
                   size="md"
                 >
-                  Escribir por WhatsApp
+                  {labels.writeWhatsApp}
                 </Button>
               </div>
             </div>
@@ -201,12 +208,12 @@ export function ServiceCategoryPickerPublic({
                   />
                   <span className="min-w-0 flex-1 text-left">
                     <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
-                      {service.nameEs}
+                      {serviceDisplayName(service, locale)}
                     </span>
                     <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
                       {usesColorSplitBooking(service.id)
-                        ? '90 min (color + pausa + lavado)'
-                        : `${service.durationMinutes} min`}
+                        ? labels.colorDuration
+                        : labels.minutes(service.durationMinutes)}
                     </span>
                   </span>
                 </label>

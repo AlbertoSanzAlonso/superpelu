@@ -1,8 +1,9 @@
-import { gallerySection } from '@/data/content'
-import { galleryImages, type GalleryImage } from '@/data/galleryImages'
+import { useMemo, useCallback, useEffect, useRef, useState } from 'react'
+import type { GalleryImage } from '@/data/galleryImages'
+import { getGalleryImages } from '@/i18n/helpers'
+import { useTranslation } from '@/i18n/useTranslation'
 import { Section } from '@/components/ui/Section'
 import { ImageLightbox } from '@/components/ui/lightbox'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { typography } from '@/styles/typography'
 
 const SLIDE_SIZE = 5
@@ -22,6 +23,7 @@ type GalleryFigureProps = {
 }
 
 function GalleryFigure({ image, index, onOpen, className = '', imageClassName = '' }: GalleryFigureProps) {
+  const { t } = useTranslation()
   return (
     <figure
       className={`group ui-rounded relative cursor-pointer overflow-hidden ${className}`}
@@ -30,7 +32,7 @@ function GalleryFigure({ image, index, onOpen, className = '', imageClassName = 
         type="button"
         onClick={() => onOpen(index)}
         className="block h-full w-full cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold/70"
-        aria-label={`Ampliar imagen: ${image.alt}`}
+        aria-label={t.gallery.ariaExpand(image.alt)}
       >
         <img
           src={image.src}
@@ -69,6 +71,7 @@ type GalleryDesktopCarouselProps = {
 }
 
 function GalleryDesktopCarousel({ slides, onOpen, paused }: GalleryDesktopCarouselProps) {
+  const { t } = useTranslation()
   const [slideIndex, setSlideIndex] = useState(0)
   const [hovering, setHovering] = useState(false)
 
@@ -110,7 +113,7 @@ function GalleryDesktopCarousel({ slides, onOpen, paused }: GalleryDesktopCarous
         className="relative min-h-[min(52vw,520px)] lg:min-h-[480px]"
         aria-live="polite"
         aria-atomic="true"
-        aria-label={`Galería, grupo ${slideIndex + 1} de ${slides.length}`}
+        aria-label={t.gallery.ariaGroup(slideIndex + 1, slides.length)}
       >
         {slides.map((slide, index) => {
           const [featured, ...rest] = slide
@@ -153,7 +156,7 @@ function GalleryDesktopCarousel({ slides, onOpen, paused }: GalleryDesktopCarous
             type="button"
             onClick={goPrev}
             className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gold/40 bg-cream/95 text-2xl leading-none text-gold shadow-md backdrop-blur-sm transition-colors hover:border-gold/70 hover:bg-cream focus:outline-none focus:ring-2 focus:ring-gold/70"
-            aria-label="Grupo anterior de la galería"
+            aria-label={t.gallery.ariaPrevGroup}
           >
             ‹
           </button>
@@ -161,19 +164,19 @@ function GalleryDesktopCarousel({ slides, onOpen, paused }: GalleryDesktopCarous
             type="button"
             onClick={goNext}
             className="absolute right-0 top-1/2 z-10 flex h-11 w-11 translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-gold/40 bg-cream/95 text-2xl leading-none text-gold shadow-md backdrop-blur-sm transition-colors hover:border-gold/70 hover:bg-cream focus:outline-none focus:ring-2 focus:ring-gold/70"
-            aria-label="Grupo siguiente de la galería"
+            aria-label={t.gallery.ariaNextGroup}
           >
             ›
           </button>
 
-          <div className="mt-6 flex justify-center gap-2" role="tablist" aria-label="Grupos de la galería">
+          <div className="mt-6 flex justify-center gap-2" role="tablist" aria-label={t.gallery.ariaGroupsTablist}>
             {slides.map((_, index) => (
               <button
                 key={index}
                 type="button"
                 role="tab"
                 aria-selected={index === slideIndex}
-                aria-label={`Grupo ${index + 1}`}
+                aria-label={t.gallery.ariaGroupTab(index + 1)}
                 onClick={() => goTo(index)}
                 className={`h-2.5 cursor-pointer rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-gold/70 ${
                   index === slideIndex ? 'w-7 bg-gold' : 'w-2.5 bg-gold/30 hover:bg-gold/50'
@@ -194,6 +197,7 @@ type GalleryMobileCarouselProps = {
 }
 
 function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCarouselProps) {
+  const { t } = useTranslation()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const [hintDismissed, setHintDismissed] = useState(false)
@@ -238,7 +242,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
           <span aria-hidden className={reduceMotion ? '' : 'motion-safe:animate-pulse'}>
             ←
           </span>
-          Desliza para ver más fotos
+          {t.gallery.swipeHint}
           <span aria-hidden className={reduceMotion ? '' : 'motion-safe:animate-pulse'}>
             →
           </span>
@@ -256,7 +260,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
         <div
           ref={scrollRef}
           className="flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth px-[7.5vw] pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          aria-label="Galería de imágenes"
+          aria-label={t.gallery.ariaGallery}
           aria-describedby={hintDismissed ? undefined : 'gallery-swipe-hint'}
         >
           {images.map((image, index) => (
@@ -274,7 +278,7 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
 
       {images.length > 1 && (
         <p className={`${typography.caption} mt-3 text-center normal-case tracking-normal`}>
-          {activeIndex + 1} de {images.length}
+          {t.gallery.counter(activeIndex + 1, images.length)}
         </p>
       )}
     </div>
@@ -282,15 +286,17 @@ function GalleryMobileCarousel({ images, onOpen, reduceMotion }: GalleryMobileCa
 }
 
 export function Gallery() {
+  const { locale, t } = useTranslation()
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [reduceMotion, setReduceMotion] = useState(false)
 
-  const slides = useMemo(() => buildSlides(galleryImages), [])
+  const galleryImages = useMemo(() => getGalleryImages(locale), [locale])
+  const slides = useMemo(() => buildSlides(galleryImages), [galleryImages])
 
   const images = useMemo(
     () => galleryImages.map((img) => ({ src: img.src, alt: img.alt })),
-    [],
+    [galleryImages],
   )
 
   useEffect(() => {
@@ -325,10 +331,10 @@ export function Gallery() {
   return (
     <Section
       id="galeria"
-      eyebrow={gallerySection.eyebrow}
-      scriptAccent={gallerySection.scriptAccent}
-      title={gallerySection.title}
-      subtitle={gallerySection.subtitle}
+      eyebrow={t.gallerySection.eyebrow}
+      scriptAccent={t.gallerySection.scriptAccent}
+      title={t.gallerySection.title}
+      subtitle={t.gallerySection.subtitle}
     >
       <GalleryMobileCarousel images={galleryImages} onOpen={openAt} reduceMotion={reduceMotion} />
 

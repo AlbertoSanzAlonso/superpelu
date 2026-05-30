@@ -1,3 +1,5 @@
+import { getTranslation } from '@/i18n/translations'
+import type { Locale } from '@/i18n/types'
 import type { Appointment } from '@/types/booking'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
@@ -34,7 +36,8 @@ function isAndroid(): boolean {
 }
 
 /** Genera el contenido .ics de una cita (hora Europe/Madrid). */
-export function buildAppointmentIcs(apt: Appointment): string {
+export function buildAppointmentIcs(apt: Appointment, locale: Locale = 'es'): string {
+  const t = getTranslation(locale).calendar
   const { start, end } = localStamps(apt)
   const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 
@@ -66,8 +69,8 @@ export function buildAppointmentIcs(apt: Appointment): string {
     `DTSTAMP:${dtStamp}`,
     `DTSTART;TZID=Europe/Madrid:${start}`,
     `DTEND;TZID=Europe/Madrid:${end}`,
-    `SUMMARY:${icsEscape(`Cita Superpelu — ${apt.serviceName}`)}`,
-    `DESCRIPTION:${icsEscape(`Cita con ${apt.staffName ?? 'Superpelu'}. Tel: ${SALON_PHONE}`)}`,
+    `SUMMARY:${icsEscape(t.eventTitle(apt.serviceName))}`,
+    `DESCRIPTION:${icsEscape(t.eventDetails(apt.staffName ?? 'Superpelu', SALON_PHONE))}`,
     `LOCATION:${icsEscape(SALON_ADDRESS)}`,
     'STATUS:CONFIRMED',
     'END:VEVENT',
@@ -79,13 +82,14 @@ export function buildAppointmentIcs(apt: Appointment): string {
  * URL de Google Calendar con el evento prerellenado. En Android abre la app de
  * Google Calendar (o la web), que es el flujo más fiable para guardar la cita.
  */
-export function buildGoogleCalendarUrl(apt: Appointment): string {
+export function buildGoogleCalendarUrl(apt: Appointment, locale: Locale = 'es'): string {
+  const t = getTranslation(locale).calendar
   const { start, end } = localStamps(apt)
   const params = new URLSearchParams({
     action: 'TEMPLATE',
-    text: `Cita Superpelu — ${apt.serviceName}`,
+    text: t.eventTitle(apt.serviceName),
     dates: `${start}/${end}`,
-    details: `Cita con ${apt.staffName ?? 'Superpelu'}. Tel: ${SALON_PHONE}`,
+    details: t.eventDetails(apt.staffName ?? 'Superpelu', SALON_PHONE),
     location: SALON_ADDRESS,
     ctz: 'Europe/Madrid',
   })
@@ -93,13 +97,14 @@ export function buildGoogleCalendarUrl(apt: Appointment): string {
 }
 
 /** Descarga el .ics de la cita; el SO abre el calendario nativo para guardarla. */
-export function downloadAppointmentIcs(apt: Appointment): void {
-  const ics = buildAppointmentIcs(apt)
+export function downloadAppointmentIcs(apt: Appointment, locale: Locale = 'es'): void {
+  const t = getTranslation(locale).calendar
+  const ics = buildAppointmentIcs(apt, locale)
   const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = 'cita-superpelu.ics'
+  link.download = t.fileName
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
@@ -111,10 +116,10 @@ export function downloadAppointmentIcs(apt: Appointment): void {
  * - Android → Google Calendar con el evento prerellenado (más fiable que descargar .ics).
  * - iPhone/iPad y escritorio → descarga .ics, que abre el calendario nativo (Apple/Outlook…).
  */
-export function addAppointmentToCalendar(apt: Appointment): void {
+export function addAppointmentToCalendar(apt: Appointment, locale: Locale = 'es'): void {
   if (isAndroid() && !isIOS()) {
-    window.open(buildGoogleCalendarUrl(apt), '_blank', 'noopener,noreferrer')
+    window.open(buildGoogleCalendarUrl(apt, locale), '_blank', 'noopener,noreferrer')
     return
   }
-  downloadAppointmentIcs(apt)
+  downloadAppointmentIcs(apt, locale)
 }

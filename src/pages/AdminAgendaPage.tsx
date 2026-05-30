@@ -16,7 +16,11 @@ import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
 import { staffLogin, verifyStaffToken, type StaffSession } from '@/lib/staffApi'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
+import { salonStaffMembers } from '@/data/salonStaff'
 import { typography } from '@/styles/typography'
+
+const staffLoginSelectClass =
+  'w-full cursor-pointer border border-gold/30 bg-cream px-4 py-3 font-sans text-sm text-charcoal outline-none transition-colors focus:border-gold'
 
 const ADMIN_TOKEN_KEY = 'superpelu-admin-token'
 const STAFF_TOKEN_KEY = 'superpelu-staff-token'
@@ -25,7 +29,7 @@ const STAFF_USER_KEY = 'superpelu-staff-user'
 type LoginMode = 'admin' | 'staff'
 
 export function AdminAgendaPage() {
-  const [loginMode, setLoginMode] = useState<LoginMode>('staff')
+  const [loginMode, setLoginMode] = useState<LoginMode>('admin')
   const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? '')
   const [staffToken, setStaffToken] = useState(() => sessionStorage.getItem(STAFF_TOKEN_KEY) ?? '')
   const [staffUser, setStaffUser] = useState<StaffSession | null>(() => {
@@ -117,20 +121,6 @@ export function AdminAgendaPage() {
           <button
             type="button"
             onClick={() => {
-              setLoginMode('staff')
-              setLoginError('')
-            }}
-            className={`px-4 py-2 text-sm ${
-              loginMode === 'staff'
-                ? 'border border-gold bg-gold/10 text-gold'
-                : 'border border-gold/20 text-charcoal-muted'
-            }`}
-          >
-            Soy profesional
-          </button>
-          <button
-            type="button"
-            onClick={() => {
               setLoginMode('admin')
               setLoginError('')
             }}
@@ -142,6 +132,20 @@ export function AdminAgendaPage() {
           >
             Administración
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setLoginMode('staff')
+              setLoginError('')
+            }}
+            className={`px-4 py-2 text-sm ${
+              loginMode === 'staff'
+                ? 'border border-gold bg-gold/10 text-gold'
+                : 'border border-gold/20 text-charcoal-muted'
+            }`}
+          >
+            Soy profesional
+          </button>
         </div>
 
         {loginMode === 'staff' ? (
@@ -149,14 +153,24 @@ export function AdminAgendaPage() {
             onSubmit={handleStaffLogin}
             className="mx-auto max-w-sm space-y-4 border border-gold/25 bg-cream p-8"
           >
-            <Input
-              label="Tu nombre"
-              required
-              value={staffName}
-              onChange={(e) => setStaffName(e.target.value)}
-              placeholder="Tu nombre"
-              autoComplete="username"
-            />
+            <label className="block text-left" htmlFor="staff-login-name">
+              <span className={`${typography.label} mb-2 block`}>Profesional</span>
+              <select
+                id="staff-login-name"
+                required
+                value={staffName}
+                onChange={(e) => setStaffName(e.target.value)}
+                className={staffLoginSelectClass}
+                autoComplete="username"
+              >
+                <option value="">Elige tu nombre</option>
+                {salonStaffMembers.map((member) => (
+                  <option key={member.id} value={member.name}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Input
               label="Contraseña"
               type="password"
