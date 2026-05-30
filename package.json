@@ -17,6 +17,7 @@
     "openwa:down": "docker compose -f deploy/openwa-local.compose.yml down",
     "openwa:logs": "docker compose -f deploy/openwa-local.compose.yml logs -f",
     "openwa:setup": "node scripts/openwa-local.mjs",
+    "openwa:prod": "bash scripts/openwa-prod.sh",
     "docker:install": "bash scripts/install-docker.sh"
   },
   "dependencies": {

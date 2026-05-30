@@ -18,6 +18,23 @@ import { typography } from '@/styles/typography'
 const fieldClass =
   'w-full border border-gold/30 bg-cream px-3 py-2 font-sans text-sm text-charcoal outline-none focus:border-gold'
 
+function FilterChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      className={`h-5 w-5 shrink-0 text-gold transition-transform ${expanded ? 'rotate-180' : ''}`}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
 export function CustomerHistoryPage() {
   const { phone: phoneParam } = useParams<{ phone: string }>()
   const phone = phoneParam ? decodeURIComponent(phoneParam) : ''
@@ -36,6 +53,7 @@ export function CustomerHistoryPage() {
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const loadDetail = useCallback(async () => {
     if (!adminToken || !phone) return
@@ -158,8 +176,31 @@ export function CustomerHistoryPage() {
         )}
 
         <div className="border-b border-gold/15 bg-cream/90 px-3 py-3">
-          <p className={`${typography.label} mb-3`}>Filtrar historial</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="customer-history-filters"
+            className="flex w-full items-center justify-between gap-3 text-left sm:hidden"
+          >
+            <span className={typography.label}>
+              Filtrar historial
+              {hasFilters && (
+                <span className="ml-2 font-normal text-charcoal-muted">· activos</span>
+              )}
+            </span>
+            <FilterChevron expanded={filtersOpen} />
+          </button>
+          <p className={`${typography.label} mb-3 hidden sm:block`}>
+            Filtrar historial
+            {hasFilters && (
+              <span className="ml-2 font-normal text-charcoal-muted">· activos</span>
+            )}
+          </p>
+          <div
+            id="customer-history-filters"
+            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
+          >
             <label className="block text-left">
               <span className={`${typography.caption} mb-1 block`}>Desde</span>
               <input
@@ -224,7 +265,7 @@ export function CustomerHistoryPage() {
               </button>
             </div>
           </div>
-          <p className={`${typography.caption} mt-2`}>
+          <p className={`${typography.caption} mt-3`}>
             {filteredAppointments.length} de {appointments.length} citas
           </p>
         </div>

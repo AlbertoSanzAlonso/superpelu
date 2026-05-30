@@ -5,6 +5,8 @@ dist-ssr
 .DS_Store
 /data/
 .env
+scripts/openwa-prod.env
+openwa-prod-qr.html
 
 # OpenWA (clon aparte: git clone https://github.com/rmyndharis/OpenWA.git openwa)
 /openwa/
