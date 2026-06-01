@@ -5,7 +5,12 @@ import { serviceDisplayName } from '@/i18n/localeHelpers'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { getStaffDayWindow, isStaffWorkingOnDate } from '@server/availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from '@server/staffBlocks.js'
-import { getStaff, staffCanPerformService } from '@server/staff.js'
+import {
+  getStaff,
+  listStaffForService,
+  staffCanPerformService,
+  type PublicStaff,
+} from '@server/staff.js'
 import { schedule } from '@server/config.js'
 import {
   customerNameSnapshot,
@@ -44,6 +49,11 @@ import {
   COLOR_SPLIT_SEGMENT_MINUTES,
   type OccupiedSegment,
 } from '@/lib/bookingOccupancy'
+import {
+  lockStaffDayForBooking,
+  lockStaffDaysForBooking,
+  type DbClient,
+} from '@server/bookingLock.js'
 import {
   insertColorBookingGroup,
   prepareColorBookingGroupIds,
@@ -87,24 +97,30 @@ function nowSalonMinutesFromSchedule(): number {
   return hour * 60 + minute
 }
 
-async function getExcludedColorGroupId(appointmentId?: string): Promise<string | null> {
+async function getExcludedColorGroupId(
+  query: DbClient,
+  appointmentId?: string,
+): Promise<string | null> {
   if (!appointmentId) return null
-  const row = await getAppointmentById(appointmentId)
-  return row?.color_group_id ?? null
+  const rows = await query<AppointmentRow[]>`
+    SELECT color_group_id FROM appointments WHERE id = ${appointmentId}
+  `
+  return rows[0]?.color_group_id ?? null
 }
 
 async function getOccupiedAppointmentsForStaffOnDate(
+  query: DbClient,
   date: string,
   staffId: string,
   excludeAppointmentId?: string,
 ): Promise<AppointmentRow[]> {
-  const rows = await sql<AppointmentRow[]>`
+  const rows = await query<AppointmentRow[]>`
     SELECT * FROM appointments
     WHERE appointment_date = ${date} AND staff_id = ${staffId} AND status != 'cancelled'
     ORDER BY start_time ASC
   `
 
-  const excludeGroupId = await getExcludedColorGroupId(excludeAppointmentId)
+  const excludeGroupId = await getExcludedColorGroupId(query, excludeAppointmentId)
   return rows.filter((row) => {
     if (excludeAppointmentId && row.id === excludeAppointmentId) return false
     if (excludeGroupId && row.color_group_id === excludeGroupId) return false
@@ -122,6 +138,7 @@ async function isSegmentBlocked(
 }
 
 async function isBookingUnavailable(
+  query: DbClient,
   staffId: string,
   date: string,
   segments: OccupiedSegment[],
@@ -134,6 +151,7 @@ async function isBookingUnavailable(
   }
 
   const occupied = await getOccupiedAppointmentsForStaffOnDate(
+    query,
     date,
     staffId,
     excludeAppointmentId,
@@ -150,6 +168,18 @@ async function isBookingUnavailable(
     }
   }
   return false
+}
+
+async function assertBookingAvailable(
+  query: DbClient,
+  staffId: string,
+  date: string,
+  segments: OccupiedSegment[],
+  excludeAppointmentId?: string,
+): Promise<void> {
+  if (await isBookingUnavailable(query, staffId, date, segments, excludeAppointmentId)) {
+    throw new Error('HORARIO_NO_DISPONIBLE')
+  }
 }
 
 export type SlotOptions = {
@@ -190,12 +220,46 @@ export async function getAvailableSlots(
     start += schedule.slotMinutes
   ) {
     const segments = getOccupiedSegmentsForBooking(service.id, start, service.durationMinutes)
-    if (!(await isBookingUnavailable(staffId, date, segments, options.excludeAppointmentId))) {
+    if (
+      !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+    ) {
       slots.push(minutesToTime(start))
     }
   }
 
   return filterPastSlotsForToday(date, slots)
+}
+
+/** Huecos del día con al menos un profesional libre (reserva pública). */
+export async function getServiceDaySlots(
+  date: string,
+  serviceId: string,
+  options: SlotOptions = {},
+): Promise<string[]> {
+  const staffList = await listStaffForService(serviceId)
+  const merged = new Set<string>()
+  await Promise.all(
+    staffList.map(async (member) => {
+      const memberSlots = await getAvailableSlots(date, serviceId, member.id, options)
+      for (const slot of memberSlots) merged.add(slot)
+    }),
+  )
+  return [...merged].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
+}
+
+export async function getStaffAvailableAtSlot(
+  date: string,
+  serviceId: string,
+  startTime: string,
+  options: SlotOptions = {},
+): Promise<PublicStaff[]> {
+  const staffList = await listStaffForService(serviceId)
+  const available: PublicStaff[] = []
+  for (const member of staffList) {
+    const slots = await getAvailableSlots(date, serviceId, member.id, options)
+    if (slots.includes(startTime)) available.push(member)
+  }
+  return available
 }
 
 export type CreateAppointmentInput = {
@@ -267,48 +331,61 @@ export async function createAppointment(
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
 
   const colorGroup = await prepareColorBookingGroupIds(service.id)
-  let primaryId: string
+  const bookingSegments = getOccupiedSegmentsForBooking(
+    service.id,
+    timeToMinutes(input.startTime),
+    service.durationMinutes,
+  )
 
-  if (colorGroup) {
-    const washServiceName = await resolveWashServiceName(locale)
-    await insertColorBookingGroup({
-      groupId: colorGroup.groupId,
-      colorId: colorGroup.colorId,
-      washId: colorGroup.washId,
-      staffId: staff.id,
-      staffName: staff.name,
-      colorServiceId: service.id,
-      colorServiceName: serviceName,
-      washServiceName,
-      date: input.date,
-      colorStartTime: input.startTime,
-      durationMinutes: service.durationMinutes,
-      customerName: nameSnapshot,
-      customerPhone: customer.phone,
-      customerEmail: input.customerEmail?.trim() || null,
-      notes: input.notes?.trim() || null,
-      createdAt,
-      reminderSentAt,
-      locale,
-    })
-    primaryId = colorGroup.colorId
-  } else {
-    primaryId = randomUUID()
+  const primaryId = await sql.begin(async (tx) => {
+    await lockStaffDayForBooking(tx, staff.id, input.date)
+    await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+
+    if (colorGroup) {
+      const washServiceName = await resolveWashServiceName(locale)
+      await insertColorBookingGroup(
+        {
+          groupId: colorGroup.groupId,
+          colorId: colorGroup.colorId,
+          washId: colorGroup.washId,
+          staffId: staff.id,
+          staffName: staff.name,
+          colorServiceId: service.id,
+          colorServiceName: serviceName,
+          washServiceName,
+          date: input.date,
+          colorStartTime: input.startTime,
+          durationMinutes: service.durationMinutes,
+          customerName: nameSnapshot,
+          customerPhone: customer.phone,
+          customerEmail: input.customerEmail?.trim() || null,
+          notes: input.notes?.trim() || null,
+          createdAt,
+          reminderSentAt,
+          locale,
+        },
+        tx,
+      )
+      return colorGroup.colorId
+    }
+
+    const id = randomUUID()
     const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
-    await sql`
+    await tx`
       INSERT INTO appointments (
         id, staff_id, staff_name, service_id, service_name, duration_minutes,
         appointment_date, start_time,
         customer_name, customer_phone, customer_email, notes,
         status, created_at, reminder_sent_at, locale
       ) VALUES (
-        ${primaryId}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
+        ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
         ${input.date}, ${input.startTime},
         ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
         ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale}
       )
     `
-  }
+    return id
+  })
 
   const row = (await getAppointmentById(primaryId))!
   void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
@@ -403,9 +480,11 @@ export async function updateAppointmentForStaff(
   } else {
     segments = getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
   }
-  if (await isBookingUnavailable(targetStaffId, date, segments, appointmentId)) {
-    throw new Error('HORARIO_NO_DISPONIBLE')
-  }
+  const scheduleChanging =
+    date !== existing.appointment_date ||
+    startTime !== existing.start_time ||
+    targetStaffId !== existing.staff_id ||
+    serviceId !== existing.service_id
 
   const storedDuration = isColorGroupWashRow(existing.color_group_role)
     ? COLOR_SPLIT_SEGMENT_MINUTES
@@ -472,63 +551,81 @@ export async function updateAppointmentForStaff(
   const appointmentNotes =
     input.notes !== undefined ? input.notes?.trim() || null : existing.notes
 
-  if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
-    const washStart = minutesToTime(getWashPhaseStartMinutes(timeToMinutes(startTime)))
-    await sql`
-      UPDATE appointments SET
-        staff_id = ${targetStaffId},
-        service_id = ${service.id},
-        service_name = ${serviceName},
-        duration_minutes = ${storedDuration},
-        appointment_date = ${date},
-        start_time = ${startTime},
-        customer_name = ${nameSnapshot},
-        customer_phone = ${customerPhone},
-        customer_email = ${customerEmail},
-        notes = ${appointmentNotes},
-        staff_name = ${staff.name},
-        reminder_sent_at = ${reminderSentAt}
-      WHERE id = ${appointmentId}
-    `
-    if (dateOrTimeChanged) {
-      await sql`
+  const persistUpdates = async (query: DbClient) => {
+    if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
+      const washStart = minutesToTime(getWashPhaseStartMinutes(timeToMinutes(startTime)))
+      await query`
         UPDATE appointments SET
+          staff_id = ${targetStaffId},
+          service_id = ${service.id},
+          service_name = ${serviceName},
+          duration_minutes = ${storedDuration},
           appointment_date = ${date},
-          start_time = ${washStart},
+          start_time = ${startTime},
           customer_name = ${nameSnapshot},
           customer_phone = ${customerPhone},
           customer_email = ${customerEmail},
+          notes = ${appointmentNotes},
+          staff_name = ${staff.name},
           reminder_sent_at = ${reminderSentAt}
-        WHERE color_group_id = ${existing.color_group_id}
-          AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+        WHERE id = ${appointmentId}
       `
-    } else if (hasCustomerPatch) {
-      await sql`
+      if (dateOrTimeChanged) {
+        await query`
+          UPDATE appointments SET
+            appointment_date = ${date},
+            start_time = ${washStart},
+            customer_name = ${nameSnapshot},
+            customer_phone = ${customerPhone},
+            customer_email = ${customerEmail},
+            reminder_sent_at = ${reminderSentAt}
+          WHERE color_group_id = ${existing.color_group_id}
+            AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+        `
+      } else if (hasCustomerPatch) {
+        await query`
+          UPDATE appointments SET
+            customer_name = ${nameSnapshot},
+            customer_phone = ${customerPhone},
+            customer_email = ${customerEmail}
+          WHERE color_group_id = ${existing.color_group_id}
+            AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+        `
+      }
+    } else {
+      await query`
         UPDATE appointments SET
+          staff_id = ${targetStaffId},
+          service_id = ${service.id},
+          service_name = ${serviceName},
+          duration_minutes = ${storedDuration},
+          appointment_date = ${date},
+          start_time = ${startTime},
           customer_name = ${nameSnapshot},
           customer_phone = ${customerPhone},
-          customer_email = ${customerEmail}
-        WHERE color_group_id = ${existing.color_group_id}
-          AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+          customer_email = ${customerEmail},
+          notes = ${appointmentNotes},
+          staff_name = ${staff.name},
+          reminder_sent_at = ${reminderSentAt}
+        WHERE id = ${appointmentId}
       `
     }
+  }
+
+  if (scheduleChanging) {
+    const lockKeys: Array<{ staffId: string; date: string }> = [
+      { staffId: targetStaffId, date },
+    ]
+    if (existing.staff_id) {
+      lockKeys.push({ staffId: existing.staff_id, date: existing.appointment_date })
+    }
+    await sql.begin(async (tx) => {
+      await lockStaffDaysForBooking(tx, lockKeys)
+      await assertBookingAvailable(tx, targetStaffId, date, segments, appointmentId)
+      await persistUpdates(tx)
+    })
   } else {
-    await sql`
-      UPDATE appointments SET
-        staff_id = ${targetStaffId},
-        service_id = ${service.id},
-        service_name = ${serviceName},
-        duration_minutes = ${storedDuration},
-        appointment_date = ${date},
-        start_time = ${startTime},
-        customer_name = ${nameSnapshot},
-        customer_phone = ${customerPhone},
-        customer_email = ${customerEmail},
-        notes = ${appointmentNotes},
-        staff_name = ${staff.name},
-        reminder_sent_at = ${reminderSentAt}
-      WHERE id = ${appointmentId}
-    `
+    await persistUpdates(sql)
   }
 
   const updated = (await getAppointmentById(appointmentId))!
@@ -679,40 +776,61 @@ export async function rescheduleAppointmentByCustomer(
       : null
     : existing.reminder_sent_at
 
-  if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
-    const washStart = minutesToTime(getWashPhaseStartMinutes(timeToMinutes(startTime)))
-    await sql`
-      UPDATE appointments SET
-        staff_id = ${staffId},
-        staff_name = ${staff.name},
-        appointment_date = ${date},
-        start_time = ${startTime},
-        reminder_sent_at = ${reminderSentAt}
-      WHERE id = ${appointmentId}
-    `
-    await sql`
-      UPDATE appointments SET
-        staff_id = ${staffId},
-        staff_name = ${staff.name},
-        appointment_date = ${date},
-        start_time = ${washStart},
-        reminder_sent_at = ${reminderSentAt}
-      WHERE color_group_id = ${existing.color_group_id}
-        AND color_group_role = ${COLOR_GROUP_ROLE.wash}
-    `
-  } else {
-    const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
-    await sql`
-      UPDATE appointments SET
-        staff_id = ${staffId},
-        staff_name = ${staff.name},
-        duration_minutes = ${storedDuration},
-        appointment_date = ${date},
-        start_time = ${startTime},
-        reminder_sent_at = ${reminderSentAt}
-      WHERE id = ${appointmentId}
-    `
+  const startMinutes = timeToMinutes(startTime)
+  const bookingSegments =
+    existing.color_group_id && isColorGroupColorRow(existing.color_group_role)
+      ? getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
+      : [
+          {
+            startMinutes,
+            durationMinutes: getBookingSpanMinutes(service.id, service.durationMinutes),
+          },
+        ]
+
+  const lockKeys: Array<{ staffId: string; date: string }> = [{ staffId, date }]
+  if (existing.staff_id && (existing.staff_id !== staffId || existing.appointment_date !== date)) {
+    lockKeys.push({ staffId: existing.staff_id, date: existing.appointment_date })
   }
+
+  await sql.begin(async (tx) => {
+    await lockStaffDaysForBooking(tx, lockKeys)
+    await assertBookingAvailable(tx, staffId, date, bookingSegments, appointmentId)
+
+    if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
+      const washStart = minutesToTime(getWashPhaseStartMinutes(startMinutes))
+      await tx`
+        UPDATE appointments SET
+          staff_id = ${staffId},
+          staff_name = ${staff.name},
+          appointment_date = ${date},
+          start_time = ${startTime},
+          reminder_sent_at = ${reminderSentAt}
+        WHERE id = ${appointmentId}
+      `
+      await tx`
+        UPDATE appointments SET
+          staff_id = ${staffId},
+          staff_name = ${staff.name},
+          appointment_date = ${date},
+          start_time = ${washStart},
+          reminder_sent_at = ${reminderSentAt}
+        WHERE color_group_id = ${existing.color_group_id}
+          AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+      `
+    } else {
+      const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+      await tx`
+        UPDATE appointments SET
+          staff_id = ${staffId},
+          staff_name = ${staff.name},
+          duration_minutes = ${storedDuration},
+          appointment_date = ${date},
+          start_time = ${startTime},
+          reminder_sent_at = ${reminderSentAt}
+        WHERE id = ${appointmentId}
+      `
+    }
+  })
 
   const row = (await getAppointmentById(appointmentId))!
   if (scheduleChanged) {

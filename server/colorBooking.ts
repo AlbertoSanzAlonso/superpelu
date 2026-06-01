@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { sql, type AppointmentRow } from '@server/db.js'
+import type { DbClient } from '@server/bookingLock.js'
 import { getService } from '@server/services.js'
 import { serviceDisplayName } from '@/i18n/localeHelpers'
 import type { Locale } from '@/i18n/types'
@@ -64,11 +65,14 @@ export type InsertColorGroupParams = {
   locale: Locale
 }
 
-export async function insertColorBookingGroup(params: InsertColorGroupParams): Promise<void> {
+export async function insertColorBookingGroup(
+  params: InsertColorGroupParams,
+  query: DbClient = sql,
+): Promise<void> {
   const washStartMinutes = getWashPhaseStartMinutes(timeToMinutes(params.colorStartTime))
   const washStartTime = minutesToTime(washStartMinutes)
 
-  await sql`
+  await query`
     INSERT INTO appointments (
       id, staff_id, staff_name, service_id, service_name, duration_minutes,
       appointment_date, start_time,
@@ -85,7 +89,7 @@ export async function insertColorBookingGroup(params: InsertColorGroupParams): P
     )
   `
 
-  await sql`
+  await query`
     INSERT INTO appointments (
       id, staff_id, staff_name, service_id, service_name, duration_minutes,
       appointment_date, start_time,

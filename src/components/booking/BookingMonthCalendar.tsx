@@ -6,6 +6,7 @@ import { typography } from '@/styles/typography'
 type Props = {
   bookableDates: ReadonlySet<string>
   locale: Locale
+  selectedDate?: string
   onSelect: (dateStr: string) => void
   disabled?: boolean
   prevMonthLabel: string
@@ -64,6 +65,7 @@ function weekdayLabels(locale: Locale): string[] {
 export function BookingMonthCalendar({
   bookableDates,
   locale,
+  selectedDate = '',
   onSelect,
   disabled = false,
   prevMonthLabel,
@@ -156,6 +158,7 @@ export function BookingMonthCalendar({
 
           const bookable = bookableDates.has(dateStr)
           const isToday = dateStr === today
+          const isSelected = selectedDate === dateStr
           const dayNum = parseYmd(dateStr).day
 
           return (
@@ -166,11 +169,13 @@ export function BookingMonthCalendar({
               onClick={() => onSelect(dateStr)}
               className={`aspect-square cursor-pointer text-sm transition-colors ${
                 bookable
-                  ? 'border border-gold/25 text-charcoal hover:border-gold hover:bg-gold/10'
+                  ? isSelected
+                    ? 'border-2 border-gold bg-gold/15 font-semibold text-gold'
+                    : 'border border-gold/25 text-charcoal hover:border-gold hover:bg-gold/10'
                   : 'cursor-not-allowed border border-transparent text-charcoal-muted/40'
-              } ${isToday && bookable ? 'ring-1 ring-gold/50' : ''}`}
+              } ${isToday && bookable && !isSelected ? 'ring-1 ring-gold/50' : ''}`}
               aria-label={dateStr}
-              aria-pressed={false}
+              aria-pressed={isSelected}
             >
               {dayNum}
             </button>

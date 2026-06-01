@@ -201,7 +201,7 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/service-categories` | Con precios |
 | GET | `/api/staff?serviceId=` | Profesionales del servicio |
 | GET | `/api/slots?date=&serviceId=&staffId=` | Respeta tramos de coloración |
-| POST | `/api/appointments` | Crear cita; `customerName`, `customerPhone`, opcional `locale` (`es`\|`en`) |
+| POST | `/api/appointments` | Crear cita; `customerName`, `customerPhone`, opcional `locale` (`es`\|`en`). Concurrencia: bloqueo por profesional+día + comprobación en transacción (`server/bookingLock.ts`); si el hueco se ocupó → `409` `HORARIO_NO_DISPONIBLE` |
 
 ### Admin (`Authorization: Bearer ADMIN_SECRET`)
 

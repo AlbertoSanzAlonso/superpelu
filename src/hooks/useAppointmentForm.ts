@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from '@/i18n/useTranslation'
 import {
   createAppointment,
+  fetchServiceDaySlots,
   fetchServices,
-  fetchSlots,
-  fetchStaffForService,
+  fetchStaffAtSlot,
   ApiError,
 } from '@/lib/api'
 import { isValidSpanishPhone } from '@/lib/phone'
@@ -26,17 +26,17 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [services, setServices] = useState<BookableService[]>([])
   const [servicesLoading, setServicesLoading] = useState(true)
   const [servicesError, setServicesError] = useState('')
-  const [serviceId, setServiceId] = useState(options.initialServiceId ?? '')
-  const [staffOptions, setStaffOptions] = useState<StaffMember[]>([])
-  const [staffId, setStaffId] = useState(options.initialStaffId ?? '')
-  const [date, setDate] = useState(options.initialDate ?? '')
-  const [startTime, setStartTime] = useState(options.initialStartTime ?? '')
+  const [serviceId, setServiceIdState] = useState(options.initialServiceId ?? '')
+  const [staffId, setStaffIdState] = useState(options.initialStaffId ?? '')
+  const [date, setDateState] = useState(options.initialDate ?? '')
+  const [startTime, setStartTimeState] = useState(options.initialStartTime ?? '')
   const [slots, setSlots] = useState<string[]>([])
+  const [staffAtSlot, setStaffAtSlot] = useState<StaffMember[]>([])
 
-  const [loadingStaff, setLoadingStaff] = useState(false)
   const [loadingSlots, setLoadingSlots] = useState(false)
-  const [staffError, setStaffError] = useState('')
+  const [loadingStaffAtSlot, setLoadingStaffAtSlot] = useState(false)
   const [slotsError, setSlotsError] = useState('')
+  const [staffAtSlotError, setStaffAtSlotError] = useState('')
 
   const [customerName, setCustomerNameState] = useState('')
   const [customerPhone, setCustomerPhoneState] = useState('')
@@ -58,7 +58,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [submitting, setSubmitting] = useState(false)
 
   const selectedService = services.find((s) => s.id === serviceId)
-  const selectedStaff = staffOptions.find((s) => s.id === staffId)
+  const selectedStaff = staffAtSlot.find((s) => s.id === staffId)
 
   const canSubmit = Boolean(
     serviceId && staffId && date && startTime && customerName.trim() && customerPhone.trim(),
@@ -87,57 +87,74 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     void loadServices()
   }, [loadServices])
 
+  const setServiceId = useCallback(
+    (id: string) => {
+      setServiceIdState(id)
+      if (!options.initialDate) {
+        setDateState('')
+        setStartTimeState('')
+        setStaffIdState('')
+        setSlots([])
+        setStaffAtSlot([])
+      }
+    },
+    [options.initialDate],
+  )
+
+  const setDate = useCallback(
+    (value: string) => {
+      setDateState(value)
+      setStartTimeState('')
+      setStaffIdState('')
+      setStaffAtSlot([])
+      setStaffAtSlotError('')
+    },
+    [],
+  )
+
+  const setStartTime = useCallback((value: string) => {
+    setStartTimeState(value)
+    setStaffIdState('')
+    setStaffAtSlot([])
+    setStaffAtSlotError('')
+  }, [])
+
+  const setStaffId = useCallback((id: string) => {
+    setStaffIdState(id)
+  }, [])
+
   useEffect(() => {
     if (!serviceId) {
-      setStaffOptions([])
-      if (!options.initialStaffId) setStaffId('')
+      setSlots([])
+      setStaffAtSlot([])
       return
     }
-
-    setLoadingStaff(true)
-    setStaffError('')
     if (!options.initialDate) {
-      setDate('')
-      setStartTime('')
+      setDateState('')
+      setStartTimeState('')
+      setStaffIdState('')
       setSlots([])
+      setStaffAtSlot([])
     }
-
-    fetchStaffForService(serviceId)
-      .then((res) => {
-        setStaffOptions(res.staff)
-        if (options.initialStaffId && res.staff.some((s) => s.id === options.initialStaffId)) {
-          setStaffId(options.initialStaffId)
-        } else if (res.staff.length === 1) {
-          setStaffId(res.staff[0].id)
-        } else if (!res.staff.some((s) => s.id === staffId)) {
-          setStaffId('')
-        }
-        if (res.staff.length === 0) {
-          setStaffError(errors.noStaff)
-        }
-      })
-      .catch((err) => {
-        setStaffOptions([])
-        setStaffError(err instanceof ApiError ? err.message : errors.loadStaff)
-      })
-      .finally(() => setLoadingStaff(false))
-  }, [serviceId, options.initialStaffId, options.initialDate, staffId, errors.noStaff, errors.loadStaff])
+  }, [serviceId, options.initialDate])
 
   useEffect(() => {
-    if (!date || !serviceId || !staffId) {
+    if (!date || !serviceId) {
       setSlots([])
       return
     }
 
     setLoadingSlots(true)
-    if (!options.initialStartTime) setStartTime('')
+    if (!options.initialStartTime) setStartTimeState('')
     setSlotsError('')
+    setStaffAtSlot([])
+    if (!options.initialStaffId) setStaffIdState('')
 
-    fetchSlots(date, serviceId, staffId)
+    fetchServiceDaySlots(date, serviceId)
       .then((res) => {
         setSlots(res.slots)
         if (options.initialStartTime && res.slots.includes(options.initialStartTime)) {
-          setStartTime(options.initialStartTime)
+          setStartTimeState(options.initialStartTime)
         }
         if (res.slots.length === 0) {
           setSlotsError(errors.noSlots)
@@ -148,21 +165,48 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         setSlotsError(err instanceof ApiError ? err.message : errors.loadSlots)
       })
       .finally(() => setLoadingSlots(false))
-  }, [date, serviceId, staffId, options.initialStartTime, errors.noSlots, errors.loadSlots])
+  }, [date, serviceId, options.initialStartTime, options.initialStaffId, errors.noSlots, errors.loadSlots])
+
+  useEffect(() => {
+    if (!date || !serviceId || !startTime) {
+      setStaffAtSlot([])
+      return
+    }
+
+    setLoadingStaffAtSlot(true)
+    if (!options.initialStaffId) setStaffIdState('')
+    setStaffAtSlotError('')
+
+    fetchStaffAtSlot(date, serviceId, startTime)
+      .then((res) => {
+        setStaffAtSlot(res.staff)
+        if (options.initialStaffId && res.staff.some((s) => s.id === options.initialStaffId)) {
+          setStaffIdState(options.initialStaffId)
+        } else if (res.staff.length === 0) {
+          setStaffAtSlotError(errors.noStaffAtSlot)
+        }
+      })
+      .catch((err) => {
+        setStaffAtSlot([])
+        setStaffAtSlotError(err instanceof ApiError ? err.message : errors.loadStaff)
+      })
+      .finally(() => setLoadingStaffAtSlot(false))
+  }, [date, serviceId, startTime, options.initialStaffId, errors.noStaffAtSlot, errors.loadStaff])
 
   const resetForm = useCallback(() => {
-    setServiceId('')
-    setStaffId('')
-    setDate('')
-    setStartTime('')
+    setServiceIdState('')
+    setStaffIdState('')
+    setDateState('')
+    setStartTimeState('')
     setSlots([])
+    setStaffAtSlot([])
     setError('')
     setFieldErrors({})
     setCustomerName('')
     setCustomerPhone('')
     setCustomerEmail('')
     setNotes('')
-  }, [services])
+  }, [])
 
   const validateCustomerFields = useCallback(() => {
     const next: { name?: string; phone?: string } = {}
@@ -228,7 +272,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     loadServices,
     serviceId,
     setServiceId,
-    staffOptions,
+    staffAtSlot,
     staffId,
     setStaffId,
     date,
@@ -236,9 +280,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     startTime,
     setStartTime,
     slots,
-    loadingStaff,
+    loadingStaffAtSlot,
     loadingSlots,
-    staffError,
+    staffAtSlotError,
     slotsError,
     customerName,
     setCustomerName,

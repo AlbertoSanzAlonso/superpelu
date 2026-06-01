@@ -191,7 +191,7 @@ function ClientPanelView({
               <button
                 type="button"
                 onClick={onEditClient}
-                className="text-charcoal-muted hover:text-gold"
+                className="inline-flex cursor-pointer items-center justify-center rounded p-0.5 text-lg leading-none text-charcoal/80 transition-colors hover:bg-gold/10 hover:text-gold"
                 aria-label="Editar cliente"
                 title="Editar datos del cliente"
               >

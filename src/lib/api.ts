@@ -94,6 +94,20 @@ export function fetchSlots(date: string, serviceId: string, staffId: string) {
   }))
 }
 
+export function fetchServiceDaySlots(date: string, serviceId: string) {
+  const params = new URLSearchParams({ date, serviceId })
+  return request<{ slots?: string[] }>(`/slots?${params}`).then((res) => ({
+    slots: Array.isArray(res.slots) ? res.slots : [],
+  }))
+}
+
+export function fetchStaffAtSlot(date: string, serviceId: string, startTime: string) {
+  const params = new URLSearchParams({ date, serviceId, startTime })
+  return request<{ staff?: StaffMember[] }>(`/staff?${params}`).then((res) => ({
+    staff: Array.isArray(res.staff) ? res.staff : [],
+  }))
+}
+
 export function createAppointment(payload: CreateAppointmentPayload) {
   return request<{ appointment: Appointment }>('/appointments', {
     method: 'POST',

@@ -14,6 +14,8 @@ import {
   deleteAppointmentById,
   getAppointmentById,
   getAvailableSlots,
+  getServiceDaySlots,
+  getStaffAvailableAtSlot,
   listAppointments,
   rescheduleAppointmentByCustomer,
   rowToPublic,
@@ -254,6 +256,13 @@ app.get('/api/staff', async (c) => {
   if (!serviceId) {
     return c.json({ error: 'Falta serviceId' }, 400)
   }
+  const date = c.req.query('date')
+  const startTime = c.req.query('startTime')
+  if (date && startTime) {
+    return c.json({
+      staff: await getStaffAvailableAtSlot(date, serviceId, startTime),
+    })
+  }
   return c.json({ staff: await listStaffForService(serviceId) })
 })
 
@@ -262,8 +271,16 @@ app.get('/api/slots', async (c) => {
   const serviceId = c.req.query('serviceId')
   const staffId = c.req.query('staffId')
 
-  if (!date || !serviceId || !staffId) {
-    return c.json({ error: 'Faltan date, serviceId o staffId' }, 400)
+  if (!date || !serviceId) {
+    return c.json({ error: 'Faltan date o serviceId' }, 400)
+  }
+
+  if (!staffId) {
+    return c.json({
+      date,
+      serviceId,
+      slots: await getServiceDaySlots(date, serviceId),
+    })
   }
 
   return c.json({

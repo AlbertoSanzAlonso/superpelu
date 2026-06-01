@@ -42,8 +42,13 @@ export function verifyCancelToken(id: string, token: string | undefined): boolea
   return timingSafeEqual(a, b)
 }
 
-/** Imagen del logo para vistas previa (WhatsApp, redes). Debe estar en `public/`. */
-export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-hero-logo.webp'
+/**
+ * Logo para vistas previa (WhatsApp, redes). JPEG en `public/` — WhatsApp no renderiza bien WebP en og:image.
+ * El hero de la web sigue en WebP (`superpelu-hair-studio-hero-logo.webp`).
+ */
+export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-og.jpg'
+export const LINK_PREVIEW_IMAGE_WIDTH = 512
+export const LINK_PREVIEW_IMAGE_HEIGHT = 341
 
 const LINK_PREVIEW_DESCRIPTION =
   'Superpelu Hair Studio — peluquería en Benalmádena especialista en color y estética.'
@@ -81,9 +86,12 @@ export function buildLinkPreviewMetaTags(options: {
   if (base) {
     const imageUrl = `${base}${LINK_PREVIEW_IMAGE_PATH}`
     tags.push(
+      `<link rel="image_src" href="${escapeHtmlAttr(imageUrl)}">`,
       `<meta property="og:image" content="${escapeHtmlAttr(imageUrl)}">`,
       `<meta property="og:image:secure_url" content="${escapeHtmlAttr(imageUrl)}">`,
-      '<meta property="og:image:type" content="image/webp">',
+      '<meta property="og:image:type" content="image/jpeg">',
+      `<meta property="og:image:width" content="${LINK_PREVIEW_IMAGE_WIDTH}">`,
+      `<meta property="og:image:height" content="${LINK_PREVIEW_IMAGE_HEIGHT}">`,
       '<meta property="og:image:alt" content="Superpelu Hair Studio">',
       `<meta name="twitter:image" content="${escapeHtmlAttr(imageUrl)}">`,
     )
