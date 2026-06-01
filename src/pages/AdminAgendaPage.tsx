@@ -8,6 +8,7 @@ import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaCont
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
 import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCalendar'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
+import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
 import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
 import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
@@ -276,6 +277,7 @@ export function AdminAgendaPage() {
               formStaffId={agenda.formStaffId}
               onToggleSlot={agenda.toggleSlot}
               onEditAppointment={agenda.openAppointmentDetail}
+              onOpenBlock={agenda.openBlockDetail}
             />
             </div>
           </>
@@ -290,7 +292,22 @@ export function AdminAgendaPage() {
           staffName={agenda.selection.staffName}
           busy={agenda.gridActionsBusy}
           onClose={agenda.cancelBlockModal}
-          onConfirm={(scope, endDate) => void agenda.confirmBlockWithScope(scope, endDate)}
+          onConfirm={(scope, endDate, note) => void agenda.confirmBlockWithScope(scope, endDate, note)}
+        />
+      )}
+
+      {agenda.viewingBlock && (
+        <BlockDetailModal
+          open
+          date={selectedDate}
+          staffName={agenda.viewingBlock.staffName}
+          block={agenda.viewingBlock.block}
+          series={agenda.viewingBlockSeries}
+          seriesLoading={agenda.viewingBlockSeriesLoading}
+          busy={agenda.blockDetailBusy}
+          onClose={agenda.closeBlockDetail}
+          onSave={agenda.saveBlockNote}
+          onDelete={agenda.deleteViewingBlock}
         />
       )}
 

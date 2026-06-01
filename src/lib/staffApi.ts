@@ -1,4 +1,5 @@
 import type { Appointment, BookableService, StaffDaySchedule } from '@/types/booking'
+import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import { ApiError } from '@/lib/api'
 
 const API_BASE = '/api'
@@ -148,7 +149,14 @@ export function fetchMyBlocks(token: string, from: string, to: string) {
 
 export function createMyBlock(
   token: string,
-  payload: { date: string; startTime: string; endTime: string; note?: string },
+  payload: {
+    date: string
+    startTime: string
+    endTime: string
+    note?: string
+    scope?: BlockScope
+    endDate?: string
+  },
 ) {
   return staffRequest<{ block: TimeBlock }>('/me/blocks', token, {
     method: 'POST',
@@ -156,6 +164,29 @@ export function createMyBlock(
   })
 }
 
-export function deleteMyBlock(token: string, id: string) {
-  return staffRequest<{ ok: true }>(`/me/blocks/${id}`, token, { method: 'DELETE' })
+export function fetchMyBlockSeries(token: string, blockId: string) {
+  return staffRequest<{ series: BlockSeriesMeta }>(
+    `/me/blocks/${blockId}/series`,
+    token,
+  ).then((r) => r.series)
+}
+
+export function updateMyBlock(
+  token: string,
+  blockId: string,
+  payload: { note?: string | null; mode?: 'single' | 'series' },
+) {
+  return staffRequest<{ block: TimeBlock }>(`/me/blocks/${blockId}`, token, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function deleteMyBlock(
+  token: string,
+  id: string,
+  mode: 'single' | 'series' = 'single',
+) {
+  const params = new URLSearchParams({ mode })
+  return staffRequest<{ ok: true }>(`/me/blocks/${id}?${params}`, token, { method: 'DELETE' })
 }

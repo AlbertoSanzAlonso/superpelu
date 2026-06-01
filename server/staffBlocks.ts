@@ -231,6 +231,46 @@ export async function getBlockSeriesMeta(
 }
 
 export type DeleteBlockMode = 'single' | 'series'
+export type UpdateBlockNoteMode = 'single' | 'series'
+
+export async function updateStaffBlockNote(
+  blockId: string,
+  note: string | null,
+  mode: UpdateBlockNoteMode = 'single',
+  staffId?: string,
+): Promise<StaffBlockRow | null> {
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  const row = rows[0]
+  if (!row) return null
+  if (staffId != null && row.staff_id !== staffId) return null
+
+  const trimmed = note?.trim() || null
+
+  if (mode === 'series' && row.series_id) {
+    if (staffId != null) {
+      await sql`
+        UPDATE staff_time_blocks SET note = ${trimmed}
+        WHERE series_id = ${row.series_id} AND staff_id = ${staffId}
+      `
+    } else {
+      await sql`
+        UPDATE staff_time_blocks SET note = ${trimmed}
+        WHERE series_id = ${row.series_id}
+      `
+    }
+  } else {
+    await sql`
+      UPDATE staff_time_blocks SET note = ${trimmed} WHERE id = ${blockId}
+    `
+  }
+
+  const updated = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  return updated[0] ?? null
+}
 
 export async function deleteStaffBlock(
   blockId: string,

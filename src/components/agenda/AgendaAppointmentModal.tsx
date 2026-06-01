@@ -55,25 +55,91 @@ function ServiceBlocks({
   staffName: string
   services: BookableService[]
 }) {
-  const serviceEn =
-    services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
+  const linked = appointment.colorGroupLinked
+  const colorRole = appointment.colorGroupRole === 'color'
+  const washRole = appointment.colorGroupRole === 'wash'
 
-  const blocks =
-    appointment.occupiedSlots.length > 0
-      ? appointment.occupiedSlots.map((slot) => ({
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-        }))
-      : [{ startTime: appointment.startTime, endTime: appointment.endTime }]
+  type Block = {
+    startTime: string
+    endTime: string
+    serviceName: string
+    serviceId: string
+    categoryId: string | null
+    staffLabel: string
+    nameEn?: string
+  }
+
+  const blocks: Block[] = []
+
+  if (colorRole && linked) {
+    const colorEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
+    const washEn = services.find((s) => s.id === linked.serviceId)?.nameEn ?? ''
+    blocks.push({
+      startTime: appointment.startTime,
+      endTime: appointment.occupiedSlots[0]?.endTime ?? appointment.endTime,
+      serviceName: appointment.serviceName,
+      serviceId: appointment.serviceId,
+      categoryId: appointment.categoryId,
+      staffLabel: staffName,
+      nameEn: colorEn,
+    })
+    blocks.push({
+      startTime: linked.startTime,
+      endTime: linked.endTime,
+      serviceName: linked.serviceName,
+      serviceId: linked.serviceId,
+      categoryId: linked.categoryId,
+      staffLabel: linked.staffName,
+      nameEn: washEn,
+    })
+  } else if (washRole && linked) {
+    const colorEn = services.find((s) => s.id === linked.serviceId)?.nameEn ?? ''
+    const washEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
+    blocks.push({
+      startTime: linked.startTime,
+      endTime: linked.endTime,
+      serviceName: linked.serviceName,
+      serviceId: linked.serviceId,
+      categoryId: linked.categoryId,
+      staffLabel: linked.staffName,
+      nameEn: colorEn,
+    })
+    blocks.push({
+      startTime: appointment.startTime,
+      endTime: appointment.occupiedSlots[0]?.endTime ?? appointment.endTime,
+      serviceName: appointment.serviceName,
+      serviceId: appointment.serviceId,
+      categoryId: appointment.categoryId,
+      staffLabel: staffName,
+      nameEn: washEn,
+    })
+  } else {
+    const serviceEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
+    const slots =
+      appointment.occupiedSlots.length > 0
+        ? appointment.occupiedSlots
+        : [{ startTime: appointment.startTime, endTime: appointment.endTime }]
+    for (const slot of slots) {
+      blocks.push({
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        serviceName: appointment.serviceName,
+        serviceId: appointment.serviceId,
+        categoryId: appointment.categoryId,
+        staffLabel: staffName,
+        nameEn: serviceEn,
+      })
+    }
+  }
 
   return (
     <ul className="space-y-2">
       {blocks.map((block, i) => (
         <li
-          key={`${block.startTime}-${i}`}
+          key={`${block.startTime}-${block.serviceId}-${i}`}
           className={`rounded px-3 py-2 text-sm font-medium leading-snug ${appointmentBlockBarClass(
-            appointment.categoryId,
-            appointment.serviceId,
+            block.categoryId,
+            block.serviceId,
           )}`}
         >
           <span className="tabular-nums">
@@ -81,8 +147,8 @@ function ServiceBlocks({
             {block.endTime !== block.startTime ? ` – ${block.endTime}` : ''}
           </span>
           {' — '}
-          {appointment.serviceName}
-          {serviceEn ? ` - ${serviceEn}` : ''} ({staffName})
+          {block.serviceName}
+          {block.nameEn ? ` - ${block.nameEn}` : ''} ({block.staffLabel})
         </li>
       ))}
     </ul>

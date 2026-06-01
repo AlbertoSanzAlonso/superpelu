@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { Textarea } from '@/components/ui/Input'
 import { formatDisplayDate } from '@/lib/dates'
 import type { BlockScope } from '@/types/blocks'
 import { typography } from '@/styles/typography'
@@ -11,7 +12,7 @@ type Props = {
   groups: { startTime: string; endTime: string }[]
   staffName: string
   onClose: () => void
-  onConfirm: (scope: BlockScope, endDate?: string) => void
+  onConfirm: (scope: BlockScope, endDate?: string, note?: string) => void
   busy?: boolean
 }
 
@@ -26,18 +27,21 @@ export function BlockScopeModal({
 }: Props) {
   const [scope, setScope] = useState<BlockScope>('single')
   const [endDate, setEndDate] = useState(anchorDate)
+  const [note, setNote] = useState('')
 
   useEffect(() => {
     if (!open) return
     setScope('single')
     setEndDate(anchorDate)
+    setNote('')
   }, [open, anchorDate])
 
   if (!open) return null
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onConfirm(scope, scope === 'range' ? endDate : undefined)
+    const trimmed = note.trim()
+    onConfirm(scope, scope === 'range' ? endDate : undefined, trimmed || undefined)
   }
 
   return (
@@ -124,6 +128,15 @@ export function BlockScopeModal({
               />
             </div>
           )}
+
+          <Textarea
+            id="block-scope-note"
+            label="Observaciones (opcional)"
+            rows={3}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Motivo del bloqueo, avisos internos…"
+          />
 
           <div className="flex flex-wrap gap-2 pt-2">
             <Button type="submit" variant="solid" size="sm" disabled={busy}>

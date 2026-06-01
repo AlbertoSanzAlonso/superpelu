@@ -42,6 +42,7 @@ export function BookingPage() {
                   confirmed.startTime,
                   confirmed.durationMinutes,
                   locale,
+                  { colorGroupRole: confirmed.colorGroupRole },
                 )}
               </dd>
             </div>

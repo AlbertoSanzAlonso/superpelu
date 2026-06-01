@@ -96,6 +96,8 @@ export function CustomerAppointmentDetailModal({
                   appointment.serviceId,
                   appointment.startTime,
                   appointment.durationMinutes,
+                  'es',
+                  { colorGroupRole: appointment.colorGroupRole },
                 )}
               </dd>
             </div>

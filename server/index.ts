@@ -55,8 +55,10 @@ import {
   deleteStaffBlockById,
   getBlockSeriesMeta,
   rowBlockToPublic,
+  updateStaffBlockNote,
   type BlockScope,
   type DeleteBlockMode,
+  type UpdateBlockNoteMode,
 } from '@server/staffBlocks.js'
 import { listServicesForStaff } from '@server/staff.js'
 import {
@@ -600,6 +602,19 @@ app.post('/api/schedule/blocks', async (c) => {
   }
 })
 
+app.patch('/api/schedule/blocks/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const body = await c.req.json<{ note?: string | null; mode?: UpdateBlockNoteMode }>()
+  const mode = body.mode ?? 'single'
+  if (mode !== 'single' && mode !== 'series') {
+    return c.json({ error: 'mode debe ser single o series' }, 400)
+  }
+  const row = await updateStaffBlockNote(c.req.param('id'), body.note ?? null, mode)
+  if (!row) return c.json({ error: 'Bloqueo no encontrado' }, 404)
+  return c.json({ block: rowBlockToPublic(row) })
+})
+
 app.delete('/api/schedule/blocks/:id', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
@@ -794,7 +809,9 @@ app.get('/m/:code/confirm', async (c) => {
   const staffName = escapeHtml(staff?.name ?? row.staff_name ?? '')
   const dateLabel = escapeHtml(formatDisplayDate(date, locale))
   const timeRange = escapeHtml(
-    formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes, locale),
+    formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes, locale, {
+      colorGroupRole: row.color_group_role,
+    }),
   )
   const service = escapeHtml(row.service_name)
   const langSuffix = locale === 'en' ? '&lang=en' : ''
@@ -918,7 +935,9 @@ app.get('/m/:code', async (c) => {
 
   const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
   const timeRange = escapeHtml(
-    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale),
+    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale, {
+      colorGroupRole: row.color_group_role,
+    }),
   )
   const service = escapeHtml(row.service_name)
 
@@ -987,7 +1006,9 @@ app.post('/m/:code', async (c) => {
     const t = cp(locale).updated
     const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
     const timeRange = escapeHtml(
-      formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale),
+      formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale, {
+        colorGroupRole: row.color_group_role,
+      }),
     )
 
     return replyCustomerPage(

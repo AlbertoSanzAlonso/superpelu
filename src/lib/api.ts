@@ -217,6 +217,18 @@ export function createAdminBlock(
   })
 }
 
+export function updateAdminBlock(
+  adminToken: string,
+  blockId: string,
+  payload: { note?: string | null; mode?: 'single' | 'series' },
+) {
+  return request<{ block: { id: string; note: string | null } }>(`/schedule/blocks/${blockId}`, {
+    method: 'PATCH',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(payload),
+  })
+}
+
 export function fetchCustomers(adminToken: string, q?: string) {
   const params = new URLSearchParams()
   if (q?.trim()) params.set('q', q.trim())

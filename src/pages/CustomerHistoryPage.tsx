@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
@@ -64,7 +64,9 @@ export function CustomerHistoryPage() {
       const detail = await fetchCustomerDetail(adminToken, phone)
       setCustomer({
         ...detail.customer,
-        appointmentCount: detail.appointments.filter((a) => a.status !== 'cancelled').length,
+        appointmentCount: detail.appointments.filter(
+          (a) => a.status !== 'cancelled' && !isColorGroupWashRow(a.colorGroupRole),
+        ).length,
         lastAppointmentDate: detail.appointments[0]?.date ?? null,
       })
       setAppointments(detail.appointments)
@@ -103,6 +105,7 @@ export function CustomerHistoryPage() {
 
   const filteredAppointments = useMemo(() => {
     return appointments.filter((apt) => {
+      if (isColorGroupWashRow(apt.colorGroupRole)) return false
       if (dateFrom && apt.date < dateFrom) return false
       if (dateTo && apt.date > dateTo) return false
       if (serviceFilter && apt.serviceId !== serviceFilter) return false
@@ -295,6 +298,8 @@ export function CustomerHistoryPage() {
                         apt.serviceId,
                         apt.startTime,
                         apt.durationMinutes,
+                        'es',
+                        { colorGroupRole: apt.colorGroupRole },
                       )}
                     </p>
                   </div>

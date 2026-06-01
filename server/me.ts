@@ -15,8 +15,10 @@ import {
   getBlockSeriesMeta,
   getBlocksForStaffBetween,
   rowBlockToPublic,
+  updateStaffBlockNote,
   type BlockScope,
   type DeleteBlockMode,
+  type UpdateBlockNoteMode,
 } from '@server/staffBlocks.js'
 import { loginStaff, logoutStaff, resolveStaffSession } from '@server/staffAuth.js'
 import type { StaffRow } from '@server/db.js'
@@ -228,6 +230,24 @@ me.post('/me/blocks', async (c) => {
     const code = err instanceof Error ? err.message : 'ERROR'
     return c.json({ error: errorMessages[code] ?? 'No se pudo bloquear' }, 409)
   }
+})
+
+me.patch('/me/blocks/:id', async (c) => {
+  const { error, staff } = await requireStaff(c)
+  if (error) return error
+  const body = await c.req.json<{ note?: string | null; mode?: UpdateBlockNoteMode }>()
+  const mode = body.mode ?? 'single'
+  if (mode !== 'single' && mode !== 'series') {
+    return c.json({ error: 'mode debe ser single o series' }, 400)
+  }
+  const row = await updateStaffBlockNote(
+    c.req.param('id'),
+    body.note ?? null,
+    mode,
+    staff!.id,
+  )
+  if (!row) return c.json({ error: 'Bloqueo no encontrado' }, 404)
+  return c.json({ block: rowBlockToPublic(row) })
 })
 
 me.delete('/me/blocks/:id', async (c) => {

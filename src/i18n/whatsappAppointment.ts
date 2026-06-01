@@ -33,7 +33,7 @@ export function buildWhatsAppAppointmentMessage(
     row.start_time,
     row.duration_minutes,
     locale,
-    { rangeSeparator: 'word' },
+    { rangeSeparator: 'word', colorGroupRole: row.color_group_role },
   )
 
   const lines = [

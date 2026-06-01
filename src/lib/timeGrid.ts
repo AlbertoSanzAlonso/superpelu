@@ -66,6 +66,7 @@ export function buildStaffDayGrid(
         a.serviceId,
         timeToMinutes(a.startTime),
         a.durationMinutes,
+        { colorGroupRole: a.colorGroupRole },
       )
       return occupiedSegmentsOverlap([slotSegment], aptSegments)
     })
@@ -75,6 +76,7 @@ export function buildStaffDayGrid(
         apt.serviceId,
         timeToMinutes(apt.startTime),
         apt.durationMinutes,
+        { colorGroupRole: apt.colorGroupRole },
       )
       const isSegmentStart = aptSegments.some((seg) => seg.startMinutes === slotStart)
       cells.push({

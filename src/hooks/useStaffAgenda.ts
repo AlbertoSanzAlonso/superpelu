@@ -10,7 +10,9 @@ import {
   createMyBlock,
   deleteMyAppointment,
   deleteMyBlock,
+  fetchMyBlockSeries,
   fetchMySchedule,
+  updateMyBlock,
   fetchMyServices,
   fetchMySlots,
   updateMyAppointment,
@@ -22,7 +24,13 @@ import {
   summarizeGridSelection,
 } from '@/lib/timeGrid'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
-import type { BookableService, DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
+import type {
+  BookableService,
+  DayScheduleAppointment,
+  DayScheduleBlock,
+  StaffDaySchedule,
+} from '@/types/booking'
+import type { BlockSeriesMeta, PendingBlockGroup } from '@/types/blocks'
 
 export function useStaffAgenda(token: string) {
   const { date, setDate } = useAgendaDate()
@@ -37,6 +45,12 @@ export function useStaffAgenda(token: string) {
 
   const [selectedGridTimes, setSelectedGridTimes] = useState<Set<string>>(() => new Set())
   const [gridActionsBusy, setGridActionsBusy] = useState(false)
+  const [blockCreateModalOpen, setBlockCreateModalOpen] = useState(false)
+  const [pendingBlockGroups, setPendingBlockGroups] = useState<PendingBlockGroup[]>([])
+  const [viewingBlock, setViewingBlock] = useState<DayScheduleBlock | null>(null)
+  const [viewingBlockSeries, setViewingBlockSeries] = useState<BlockSeriesMeta | null>(null)
+  const [viewingBlockSeriesLoading, setViewingBlockSeriesLoading] = useState(false)
+  const [blockDetailBusy, setBlockDetailBusy] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
 
@@ -118,31 +132,103 @@ export function useStaffAgenda(token: string) {
     [clearGridSelection, services],
   )
 
-  const blockSelectedGridSlots = useCallback(async () => {
+  const requestBlockSelectedGridSlots = useCallback(() => {
     if (!schedule) return
     const cells = buildStaffDayGrid(schedule, date)
     const { freeTimes, hasAppointment } = summarizeGridSelection(selectedGridTimes, cells)
     if (hasAppointment || freeTimes.length === 0) return
+    const groups = groupContiguousSlotTimes(freeTimes)
+    setPendingBlockGroups(groups)
+    setBlockCreateModalOpen(true)
+  }, [schedule, date, selectedGridTimes])
 
-    setGridActionsBusy(true)
-    setError('')
-    try {
-      const ranges = groupContiguousSlotTimes(freeTimes)
-      for (const range of ranges) {
-        await createMyBlock(token, {
-          date,
-          startTime: range.startTime,
-          endTime: range.endTime,
-        })
+  const cancelBlockCreateModal = useCallback(() => {
+    setBlockCreateModalOpen(false)
+    setPendingBlockGroups([])
+  }, [])
+
+  const confirmBlockWithNote = useCallback(
+    async (note?: string) => {
+      if (pendingBlockGroups.length === 0) return
+      setGridActionsBusy(true)
+      setError('')
+      try {
+        for (const range of pendingBlockGroups) {
+          await createMyBlock(token, {
+            date,
+            startTime: range.startTime,
+            endTime: range.endTime,
+            note,
+          })
+        }
+        setBlockCreateModalOpen(false)
+        setPendingBlockGroups([])
+        clearGridSelection()
+        await load()
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo bloquear')
+      } finally {
+        setGridActionsBusy(false)
       }
+    },
+    [pendingBlockGroups, token, date, clearGridSelection, load],
+  )
+
+  const openBlockDetail = useCallback(
+    (block: DayScheduleBlock) => {
       clearGridSelection()
-      await load()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudo bloquear')
-    } finally {
-      setGridActionsBusy(false)
-    }
-  }, [schedule, date, selectedGridTimes, token, clearGridSelection, load])
+      setViewingBlock(block)
+      setViewingBlockSeries(null)
+      setViewingBlockSeriesLoading(true)
+      void fetchMyBlockSeries(token, block.id)
+        .then(setViewingBlockSeries)
+        .catch(() => setViewingBlockSeries(null))
+        .finally(() => setViewingBlockSeriesLoading(false))
+    },
+    [token, clearGridSelection],
+  )
+
+  const closeBlockDetail = useCallback(() => {
+    setViewingBlock(null)
+    setViewingBlockSeries(null)
+    setViewingBlockSeriesLoading(false)
+  }, [])
+
+  const saveBlockNote = useCallback(
+    async (note: string, mode: 'single' | 'series') => {
+      if (!viewingBlock) return
+      setBlockDetailBusy(true)
+      setError('')
+      try {
+        await updateMyBlock(token, viewingBlock.id, { note, mode })
+        closeBlockDetail()
+        await load()
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo guardar')
+      } finally {
+        setBlockDetailBusy(false)
+      }
+    },
+    [viewingBlock, token, closeBlockDetail, load],
+  )
+
+  const deleteViewingBlock = useCallback(
+    async (mode: 'single' | 'series') => {
+      if (!viewingBlock) return
+      setBlockDetailBusy(true)
+      setError('')
+      try {
+        await deleteMyBlock(token, viewingBlock.id, mode)
+        closeBlockDetail()
+        await load()
+      } catch {
+        setError('No se pudo quitar el bloqueo')
+      } finally {
+        setBlockDetailBusy(false)
+      }
+    },
+    [viewingBlock, token, closeBlockDetail, load],
+  )
 
   const unblockSelectedGridSlots = useCallback(async () => {
     if (!schedule) return
@@ -273,7 +359,19 @@ export function useStaffAgenda(token: string) {
     selectedGridTimes,
     toggleGridSlot,
     clearGridSelection,
-    blockSelectedGridSlots,
+    blockCreateModalOpen,
+    pendingBlockGroups,
+    requestBlockSelectedGridSlots,
+    cancelBlockCreateModal,
+    confirmBlockWithNote,
+    viewingBlock,
+    viewingBlockSeries,
+    viewingBlockSeriesLoading,
+    blockDetailBusy,
+    openBlockDetail,
+    closeBlockDetail,
+    saveBlockNote,
+    deleteViewingBlock,
     unblockSelectedGridSlots,
     createAppointmentFromGridSelection,
     gridActionsBusy,

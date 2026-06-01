@@ -59,6 +59,18 @@ export type DayScheduleAppointment = {
   notes: string | null
   createdAt: string
   occupiedSlots: { startTime: string; endTime: string }[]
+  colorGroupId: string | null
+  colorGroupRole: string | null
+  colorGroupLinked: {
+    id: string
+    startTime: string
+    endTime: string
+    serviceId: string
+    serviceName: string
+    staffId: string
+    staffName: string
+    categoryId: string | null
+  } | null
 }
 
 export type DayScheduleBlock = {
@@ -112,6 +124,7 @@ export async function getStaffDaySchedule(
       row.service_id,
       row.start_time,
       row.duration_minutes,
+      { colorGroupRole: row.color_group_role },
     )
     return {
       id: row.id,
@@ -127,6 +140,9 @@ export async function getStaffDaySchedule(
       notes: row.notes,
       createdAt: row.created_at,
       occupiedSlots,
+      colorGroupId: row.color_group_id,
+      colorGroupRole: row.color_group_role,
+      colorGroupLinked: null,
     }
   })
 
@@ -142,6 +158,7 @@ export async function getStaffDaySchedule(
         apt.service_id,
         timeToMinutes(apt.start_time),
         apt.duration_minutes,
+        { colorGroupRole: apt.color_group_role },
       )
       return occupiedSegmentsOverlap([slotSegment], aptSegments)
     })
@@ -171,12 +188,71 @@ export async function getStaffDaySchedule(
 
 export { rowBlockToPublic }
 
+function enrichColorGroupLinks(schedules: StaffDaySchedule[]): StaffDaySchedule[] {
+  const byGroup = new Map<
+    string,
+    { color?: DayScheduleAppointment; wash?: DayScheduleAppointment }
+  >()
+
+  for (const schedule of schedules) {
+    for (const apt of schedule.appointments) {
+      if (!apt.colorGroupId) continue
+      const entry = byGroup.get(apt.colorGroupId) ?? {}
+      if (apt.colorGroupRole === 'color') entry.color = apt
+      if (apt.colorGroupRole === 'wash') entry.wash = apt
+      byGroup.set(apt.colorGroupId, entry)
+    }
+  }
+
+  function staffForAppointmentId(aptId: string): { staffId: string; staffName: string } | null {
+    for (const s of schedules) {
+      if (s.appointments.some((a) => a.id === aptId)) {
+        return { staffId: s.staffId, staffName: s.staffName }
+      }
+    }
+    return null
+  }
+
+  const toLinked = (
+    sibling: DayScheduleAppointment | undefined,
+  ): DayScheduleAppointment['colorGroupLinked'] => {
+    if (!sibling) return null
+    const staff = staffForAppointmentId(sibling.id)
+    if (!staff) return null
+    return {
+      id: sibling.id,
+      startTime: sibling.startTime,
+      endTime: sibling.endTime,
+      serviceId: sibling.serviceId,
+      serviceName: sibling.serviceName,
+      staffId: staff.staffId,
+      staffName: staff.staffName,
+      categoryId: sibling.categoryId,
+    }
+  }
+
+  return schedules.map((schedule) => ({
+    ...schedule,
+    appointments: schedule.appointments.map((apt) => {
+      if (!apt.colorGroupId) return apt
+      const group = byGroup.get(apt.colorGroupId)
+      if (!group) return apt
+      const sibling = apt.colorGroupRole === 'color' ? group.wash : group.color
+      return {
+        ...apt,
+        colorGroupLinked: toLinked(sibling),
+      }
+    }),
+  }))
+}
+
 export async function listStaffDaySchedules(date: string) {
   const members = await listActiveStaff()
   const schedules = await Promise.all(
     members.map((member) => getStaffDaySchedule(member.id, date)),
   )
-  return schedules.filter((s): s is StaffDaySchedule => s !== null)
+  const filtered = schedules.filter((s): s is StaffDaySchedule => s !== null)
+  return enrichColorGroupLinks(filtered)
 }
 
 export { getAvailableSlots }

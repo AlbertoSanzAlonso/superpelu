@@ -23,6 +23,7 @@ type Props = {
   formStaffId: string | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
+  onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
 }
 
 function StaffInitial({ name }: { name: string }) {
@@ -85,7 +86,7 @@ function SlotLayer({
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
-  onCellClick: (cell: TimeGridCell) => void
+  onCellClick: (cell: TimeGridCell, shiftKey: boolean) => void
 }) {
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
 
@@ -118,7 +119,7 @@ function SlotLayer({
             key={cell.time}
             type="button"
             aria-pressed={isSelected}
-            onClick={() => onCellClick(cell)}
+            onClick={(e) => onCellClick(cell, e.shiftKey)}
             className={[
               'absolute inset-x-0 z-[15] border border-transparent transition-colors',
               cell.status === 'free' ? 'cursor-pointer hover:bg-gold/10' : 'cursor-pointer',
@@ -169,7 +170,9 @@ function AppointmentBlock({
                   {apt.customerName} — {apt.serviceName}
                 </span>
                 <span className="mt-0.5 block opacity-80 tabular-nums">
-                  {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes)}
+                  {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', {
+                    colorGroupRole: apt.colorGroupRole,
+                  })}
                 </span>
               </>
             )}
@@ -185,19 +188,33 @@ function timeToMinutes(time: string): number {
   return h * 60 + m
 }
 
-function BlockEvent({ block, range }: { block: DayScheduleBlock; range: CalendarDayRange }) {
+function BlockEvent({
+  block,
+  range,
+  onOpen,
+}: {
+  block: DayScheduleBlock
+  range: CalendarDayRange
+  onOpen: () => void
+}) {
   const duration = blockDurationMinutes(block.startTime, block.endTime)
   const top = eventTopPx(block.startTime, range)
   const height = eventHeightPx(duration, range)
 
   return (
-    <div
-      className={`pointer-events-none absolute inset-x-1 z-10 overflow-hidden border border-dashed px-2 py-1 text-left text-xs ${blockEventClass()}`}
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        onOpen()
+      }}
+      className={`absolute inset-x-1 z-20 overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 ${blockEventClass()}`}
       style={{ top, height: Math.max(height - 2, 22) }}
+      title={block.note ? `Bloqueado — ${block.note}` : 'Bloqueado — ver observaciones'}
     >
       <span className="font-medium">Bloqueado</span>
       {block.note && <span className="mt-0.5 block truncate opacity-80">{block.note}</span>}
-    </div>
+    </button>
   )
 }
 
@@ -233,6 +250,7 @@ function StaffColumn({
   formStaffId,
   onToggleSlot,
   onEditAppointment,
+  onOpenBlock,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -243,12 +261,18 @@ function StaffColumn({
   formStaffId: string | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
+  onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
 }) {
-  function handleCellClick(cell: TimeGridCell) {
+  function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
     if (cell.status === 'appointment' && cell.appointmentId) {
       const apt = schedule.appointments.find((a) => a.id === cell.appointmentId)
       if (apt) onEditAppointment(schedule.staffId, apt)
+      return
+    }
+    if (cell.status === 'block' && cell.blockId && !shiftKey) {
+      const block = schedule.blocks.find((b) => b.id === cell.blockId)
+      if (block) onOpenBlock(schedule.staffId, block)
       return
     }
     if (cell.status === 'free' || cell.status === 'block') {
@@ -288,7 +312,12 @@ function StaffColumn({
         ))}
 
         {schedule.blocks.map((block) => (
-          <BlockEvent key={block.id} block={block} range={range} />
+          <BlockEvent
+            key={block.id}
+            block={block}
+            range={range}
+            onOpen={() => onOpenBlock(schedule.staffId, block)}
+          />
         ))}
 
         {nowLineTop !== null && (
@@ -311,6 +340,7 @@ export function AdminSalonDayCalendar({
   formStaffId,
   onToggleSlot,
   onEditAppointment,
+  onOpenBlock,
 }: Props) {
   const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
@@ -343,6 +373,7 @@ export function AdminSalonDayCalendar({
               formStaffId={formStaffId}
               onToggleSlot={onToggleSlot}
               onEditAppointment={onEditAppointment}
+              onOpenBlock={onOpenBlock}
             />
           ))}
         </div>

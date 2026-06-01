@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import type { AppointmentRow } from '@server/db.js'
 import { appointmentLocale } from '@/i18n/localeHelpers'
+import { getCustomerFacingDurationMinutes } from '@/lib/bookingOccupancy'
 import type { Locale } from '@/i18n/types'
 
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
@@ -183,7 +184,12 @@ export function buildCalendarUrl(row: AppointmentRow): string {
   const [y, m, d] = row.appointment_date.split('-').map(Number)
   const [hh, mm] = row.start_time.split(':').map(Number)
   const startTotal = hh * 60 + mm
-  const endTotal = startTotal + row.duration_minutes
+  const duration = getCustomerFacingDurationMinutes(
+    row.service_id,
+    row.duration_minutes,
+    row.color_group_role,
+  )
+  const endTotal = startTotal + duration
 
   const startStr = `${y}${pad(m)}${pad(d)}T${pad(Math.floor(startTotal / 60))}${pad(startTotal % 60)}00`
   const endStr = `${y}${pad(m)}${pad(d)}T${pad(Math.floor(endTotal / 60))}${pad(endTotal % 60)}00`
@@ -219,7 +225,12 @@ export function buildIcs(row: AppointmentRow): string {
   const [y, m, d] = row.appointment_date.split('-').map(Number)
   const [hh, mm] = row.start_time.split(':').map(Number)
   const startTotal = hh * 60 + mm
-  const endTotal = startTotal + row.duration_minutes
+  const duration = getCustomerFacingDurationMinutes(
+    row.service_id,
+    row.duration_minutes,
+    row.color_group_role,
+  )
+  const endTotal = startTotal + duration
 
   const local = (totalMin: number) =>
     `${y}${pad(m)}${pad(d)}T${pad(Math.floor(totalMin / 60))}${pad(totalMin % 60)}00`

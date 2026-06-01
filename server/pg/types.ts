@@ -25,6 +25,10 @@ export type AppointmentRow = {
   created_at: string
   reminder_sent_at: string | null
   locale: string
+  /** Par color + lavado: mismo UUID en ambas filas. */
+  color_group_id: string | null
+  /** `color` = fase de coloración; `wash` = lavar color. */
+  color_group_role: string | null
 }
 
 export type StaffRow = {

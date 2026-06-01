@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import type { DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -37,7 +37,8 @@ export function StaffAppointmentList({
   onEdit,
   onDelete,
 }: Props) {
-  const count = appointments.length
+  const visibleAppointments = appointments.filter((a) => !isColorGroupWashRow(a.colorGroupRole))
+  const count = visibleAppointments.length
 
   return (
     <section
@@ -68,14 +69,16 @@ export function StaffAppointmentList({
             <p className={typography.caption}>Sin citas este día.</p>
           ) : (
             <ul className="space-y-2">
-              {appointments.map((apt) => (
+              {visibleAppointments.map((apt) => (
                 <li
                   key={apt.id}
                   className="flex flex-col gap-2 border border-gold/25 bg-cream px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div>
                     <p className="font-medium text-gold">
-                      {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes)}
+                      {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', {
+                        colorGroupRole: apt.colorGroupRole,
+                      })}
                     </p>
                     <p className="text-sm">
                       {apt.serviceName} · {apt.customerName} · {apt.customerPhone}

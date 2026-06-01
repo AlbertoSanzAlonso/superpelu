@@ -29,7 +29,8 @@ export const salonServices: SalonService[] = [
   s('svc-boys-haircut', 'gentleman-haircut', 'Corte de NIÑO', 'Boys Haircut', 30, 1),
 
   // COLOR
-  s('svc-wash-color', 'color', 'LAVAR COLOR', 'WASH COLOR', 20, 0),
+  /** Solo agenda (pareja con coloración); no reservable online. */
+  s('svc-wash-color', 'color', 'LAVAR COLOR', 'WASH COLOR', 20, 0, false),
   /** 90 min en agenda: 30 color + 30 pausa + 30 lavado/acabado (ver bookingOccupancy). */
   s('svc-root-color', 'color', 'Color en raíz', 'Root Color', 90, 1),
   s('svc-complete-color', 'color', 'Color completo', 'Complete Color', 90, 2),

@@ -4,6 +4,8 @@ import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { StaffAppointmentList } from '@/components/agenda/staff/StaffAppointmentList'
+import { BlockCreateNoteModal } from '@/components/agenda/BlockCreateNoteModal'
+import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { StaffTimeGrid } from '@/components/agenda/staff/StaffTimeGrid'
 import { useStaffAgenda } from '@/hooks/useStaffAgenda'
 import { buildStaffDayGrid, summarizeGridSelection } from '@/lib/timeGrid'
@@ -66,7 +68,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
           onLogout={onLogout}
           selectionCount={agenda.selectedGridTimes.size}
           selectionSummary={agenda.selectedGridTimes.size > 0 ? selectionSummary ?? undefined : undefined}
-          onBlockSelection={() => void agenda.blockSelectedGridSlots()}
+          onBlockSelection={agenda.requestBlockSelectedGridSlots}
           onUnblockSelection={() => void agenda.unblockSelectedGridSlots()}
           onClearSelection={agenda.clearGridSelection}
           onCreateAppointmentFromSelection={() => {
@@ -104,6 +106,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
               }
               onToggleSlot={agenda.toggleGridSlot}
               onSelectAppointment={(apt) => openAppointmentForm({ edit: apt })}
+              onOpenBlock={agenda.openBlockDetail}
             />
 
             <StaffAppointmentList
@@ -132,6 +135,31 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
             : undefined
         }
       />
+
+      <BlockCreateNoteModal
+        open={agenda.blockCreateModalOpen}
+        date={agenda.date}
+        staffName={staff.name}
+        groups={agenda.pendingBlockGroups}
+        busy={agenda.gridActionsBusy}
+        onClose={agenda.cancelBlockCreateModal}
+        onConfirm={(note) => void agenda.confirmBlockWithNote(note)}
+      />
+
+      {agenda.viewingBlock && (
+        <BlockDetailModal
+          open
+          date={agenda.date}
+          staffName={staff.name}
+          block={agenda.viewingBlock}
+          series={agenda.viewingBlockSeries}
+          seriesLoading={agenda.viewingBlockSeriesLoading}
+          busy={agenda.blockDetailBusy}
+          onClose={agenda.closeBlockDetail}
+          onSave={agenda.saveBlockNote}
+          onDelete={agenda.deleteViewingBlock}
+        />
+      )}
 
       <ConfirmDialog
         open={agenda.confirmDialog != null}

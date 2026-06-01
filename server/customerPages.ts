@@ -75,7 +75,9 @@ export function appointmentDetailHtml(row: AppointmentRow, locale: Locale): stri
   const t = cp(locale)
   const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
   const timeRange = escapeHtml(
-    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale),
+    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale, {
+      colorGroupRole: row.color_group_role,
+    }),
   )
   const service = escapeHtml(row.service_name)
   const staff = row.staff_name ? `<p>${escapeHtml(t.withStaff(row.staff_name))}</p>` : ''

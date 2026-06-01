@@ -6,7 +6,7 @@ import {
   appointmentEventClass,
   blockEventClass,
 } from '@/lib/serviceCategoryColors'
-import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
+import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 type Props = {
@@ -16,6 +16,7 @@ type Props = {
   formSlotTime: string | null
   onToggleSlot: (time: string) => void
   onSelectAppointment: (apt: DayScheduleAppointment) => void
+  onOpenBlock: (block: DayScheduleBlock) => void
 }
 
 const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, string> = {
@@ -39,14 +40,21 @@ export function StaffTimeGrid({
   formSlotTime,
   onToggleSlot,
   onSelectAppointment,
+  onOpenBlock,
 }: Props) {
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
-  function handleCellClick(cell: TimeGridCell) {
+  function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
 
     if (cell.status === 'appointment' && cell.appointmentId) {
       const apt = findAppointment(schedule, cell.appointmentId)
       if (apt) onSelectAppointment(apt)
+      return
+    }
+
+    if (cell.status === 'block' && cell.blockId && !shiftKey) {
+      const block = schedule.blocks.find((b) => b.id === cell.blockId)
+      if (block) onOpenBlock(block)
       return
     }
 
@@ -91,7 +99,7 @@ export function StaffTimeGrid({
               key={cell.time}
               type="button"
               disabled={cell.status === 'past'}
-              onClick={() => handleCellClick(cell)}
+              onClick={(e) => handleCellClick(cell, e.shiftKey)}
               aria-pressed={isMultiSelected}
               className={[
                 'min-h-[4.5rem] border px-2 py-2 text-left text-sm transition-colors',

@@ -12,6 +12,7 @@ import {
   createAdminBlock,
   deleteAdminBlock,
   fetchAdminBlockSeries,
+  updateAdminBlock,
   fetchAdminSlots,
   fetchDaySchedule,
   fetchCustomerDetail,
@@ -24,7 +25,12 @@ import {
   groupContiguousSlotTimes,
   summarizeGridSelection,
 } from '@/lib/timeGrid'
-import type { BookableService, DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
+import type {
+  BookableService,
+  DayScheduleAppointment,
+  DayScheduleBlock,
+  StaffDaySchedule,
+} from '@/types/booking'
 
 export type AdminColumnSelection = {
   staffId: string
@@ -60,6 +66,14 @@ export function useAdminAgenda(adminToken: string, date: string) {
     blockIds: string[]
     series: BlockSeriesMeta
   } | null>(null)
+  const [viewingBlock, setViewingBlock] = useState<{
+    staffId: string
+    staffName: string
+    block: DayScheduleBlock
+  } | null>(null)
+  const [viewingBlockSeries, setViewingBlockSeries] = useState<BlockSeriesMeta | null>(null)
+  const [viewingBlockSeriesLoading, setViewingBlockSeriesLoading] = useState(false)
+  const [blockDetailBusy, setBlockDetailBusy] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
 
@@ -256,7 +270,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
   }, [])
 
   const confirmBlockWithScope = useCallback(
-    async (scope: BlockScope, endDate?: string) => {
+    async (scope: BlockScope, endDate?: string, note?: string) => {
       if (!selection || !adminToken || pendingBlockGroups.length === 0) return
       setGridActionsBusy(true)
       setError('')
@@ -269,6 +283,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
             endTime: group.endTime,
             scope,
             endDate,
+            note,
           })
         }
         setBlockModalOpen(false)
@@ -454,17 +469,61 @@ export function useAdminAgenda(adminToken: string, date: string) {
     [adminToken, load, resetAppointmentForm, closeAppointmentDetail],
   )
 
-  const deleteBlockById = useCallback(
-    async (id: string) => {
+  const openBlockDetail = useCallback(
+    (staffId: string, block: DayScheduleBlock) => {
+      const staffName = schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
+      setSelection(null)
+      setViewingBlock({ staffId, staffName, block })
+      setViewingBlockSeries(null)
+      setViewingBlockSeriesLoading(true)
+      void fetchAdminBlockSeries(adminToken, block.id)
+        .then(setViewingBlockSeries)
+        .catch(() => setViewingBlockSeries(null))
+        .finally(() => setViewingBlockSeriesLoading(false))
+    },
+    [adminToken, schedules],
+  )
+
+  const closeBlockDetail = useCallback(() => {
+    setViewingBlock(null)
+    setViewingBlockSeries(null)
+    setViewingBlockSeriesLoading(false)
+  }, [])
+
+  const saveBlockNote = useCallback(
+    async (note: string, mode: 'single' | 'series') => {
+      if (!viewingBlock || !adminToken) return
+      setBlockDetailBusy(true)
       setError('')
       try {
-        await deleteAdminBlock(id, adminToken)
+        await updateAdminBlock(adminToken, viewingBlock.block.id, { note, mode })
+        closeBlockDetail()
+        await load()
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo guardar')
+      } finally {
+        setBlockDetailBusy(false)
+      }
+    },
+    [viewingBlock, adminToken, closeBlockDetail, load],
+  )
+
+  const deleteViewingBlock = useCallback(
+    async (mode: 'single' | 'series') => {
+      if (!viewingBlock || !adminToken) return
+      setBlockDetailBusy(true)
+      setError('')
+      try {
+        await deleteAdminBlock(viewingBlock.block.id, adminToken, mode)
+        closeBlockDetail()
         await load()
       } catch {
         setError('No se pudo quitar el bloqueo')
+      } finally {
+        setBlockDetailBusy(false)
       }
     },
-    [adminToken, load],
+    [viewingBlock, adminToken, closeBlockDetail, load],
   )
 
   return {
@@ -511,7 +570,14 @@ export function useAdminAgenda(adminToken: string, date: string) {
     changeDetailStaff,
     saveAppointment,
     cancelAppointmentById,
-    deleteBlockById,
+    viewingBlock,
+    viewingBlockSeries,
+    viewingBlockSeriesLoading,
+    blockDetailBusy,
+    openBlockDetail,
+    closeBlockDetail,
+    saveBlockNote,
+    deleteViewingBlock,
     confirmDialog,
     confirmBusy,
     closeConfirmDialog,

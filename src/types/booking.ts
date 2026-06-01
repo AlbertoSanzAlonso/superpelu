@@ -35,6 +35,7 @@ export type Appointment = {
   serviceName: string
   durationMinutes: number
   occupiedSlots?: AppointmentOccupiedSlot[]
+  colorGroupRole?: string | null
   date: string
   startTime: string
   customerName: string
@@ -43,6 +44,17 @@ export type Appointment = {
   notes: string | null
   status: string
   createdAt: string
+}
+
+export type ColorGroupLinkedPhase = {
+  id: string
+  startTime: string
+  endTime: string
+  serviceId: string
+  serviceName: string
+  staffId: string
+  staffName: string
+  categoryId: string | null
 }
 
 export type DayScheduleAppointment = {
@@ -59,6 +71,10 @@ export type DayScheduleAppointment = {
   notes: string | null
   createdAt: string
   occupiedSlots: AppointmentOccupiedSlot[]
+  colorGroupId?: string | null
+  colorGroupRole?: string | null
+  /** Fase enlazada (lavado si esta fila es color, o color si esta fila es lavado). */
+  colorGroupLinked?: ColorGroupLinkedPhase | null
 }
 
 export type DayScheduleBlock = {
