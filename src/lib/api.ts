@@ -120,10 +120,17 @@ export function fetchAppointments(from: string, to: string, adminToken: string) 
   }))
 }
 
-export function cancelAppointment(id: string, adminToken: string) {
+export function cancelAppointment(
+  id: string,
+  adminToken: string,
+  options?: { notifyCustomerWhatsApp?: boolean },
+) {
   return request<{ appointment: Appointment }>(`/appointments/${id}/cancel`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({
+      notifyCustomerWhatsApp: options?.notifyCustomerWhatsApp === true,
+    }),
   })
 }
 

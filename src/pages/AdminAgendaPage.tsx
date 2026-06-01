@@ -378,6 +378,7 @@ export function AdminAgendaPage() {
 
       <WhatsAppNotifyDialog
         open={agenda.whatsAppNotifyDialogOpen}
+        context={agenda.whatsAppNotifyContext}
         busy={agenda.whatsAppNotifyBusy}
         onClose={agenda.closeWhatsAppNotifyDialog}
         onNotify={agenda.confirmSaveWithWhatsAppNotify}

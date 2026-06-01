@@ -12,9 +12,12 @@ import { blockEventClass } from '@/lib/serviceCategoryColors'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
 import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
 import {
-  DraggableAppointmentBlock,
-  type AppointmentDragEndPayload,
-} from '@/components/agenda/admin/DraggableAppointmentBlock'
+  AppointmentDragProvider,
+  AppointmentDragSnapSlot,
+  useAppointmentDrag,
+} from '@/components/agenda/admin/AppointmentDragContext'
+import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
+import { DraggableAppointmentBlock } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
@@ -210,12 +213,10 @@ function StaffColumn({
   pendingMoveSummary,
   dragEnabled,
   columnRef,
-  resolveStaffIdAtPoint,
   columnTopFromClientY,
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
-  onProposeAppointmentMove,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -227,13 +228,14 @@ function StaffColumn({
   pendingMoveSummary: PendingMoveSummary
   dragEnabled: boolean
   columnRef: (el: HTMLDivElement | null) => void
-  resolveStaffIdAtPoint: (clientX: number) => string | null
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
-  onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
 }) {
+  const { activeDrag } = useAppointmentDrag()
+  const isDropTarget = activeDrag?.targetStaffId === schedule.staffId
+
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
     if (cell.status === 'appointment' && cell.appointmentId) {
@@ -269,10 +271,14 @@ function StaffColumn({
       <div
         ref={columnRef}
         data-staff-column-id={schedule.staffId}
-        className="relative"
+        className={[
+          'relative transition-colors duration-150',
+          isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
+        ].join(' ')}
         style={{ height: range.totalHeightPx }}
       >
         <ColumnGrid range={range} />
+        <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
         <SlotLayer
           schedule={schedule}
           date={date}
@@ -291,10 +297,7 @@ function StaffColumn({
             range={range}
             pendingVisual={getPendingVisualForAppointment(pendingMoveSummary, apt.id)}
             dragEnabled={dragEnabled}
-            resolveStaffIdAtPoint={resolveStaffIdAtPoint}
             columnTopFromClientY={columnTopFromClientY}
-            onDragEnd={onProposeAppointmentMove}
-            onClick={() => onEditAppointment(schedule.staffId, apt)}
           />
         ))}
 
@@ -316,10 +319,7 @@ function StaffColumn({
               range={range}
               pendingVisual={visual}
               dragEnabled={dragEnabled}
-              resolveStaffIdAtPoint={resolveStaffIdAtPoint}
               columnTopFromClientY={columnTopFromClientY}
-              onDragEnd={onProposeAppointmentMove}
-              onClick={() => onEditAppointment(schedule.staffId, latest.appointment)}
             />
           )
         })}
@@ -384,45 +384,69 @@ export function AdminSalonDayCalendar({
 
   const dragEnabled = !moveBusy
 
+  const handleClickWithoutDrag = useCallback(
+    (appointmentId: string) => {
+      for (const s of schedules) {
+        const apt = s.appointments.find((a) => a.id === appointmentId)
+        if (apt) {
+          onEditAppointment(s.staffId, apt)
+          return
+        }
+      }
+      const entry = pendingMoveSummary.byAppointmentId.get(appointmentId)
+      if (entry) {
+        onEditAppointment(entry.latest.toStaffId, entry.latest.appointment)
+      }
+    },
+    [schedules, pendingMoveSummary, onEditAppointment],
+  )
+
   if (schedules.length === 0) {
     return <p className={`${typography.caption} text-center`}>No hay personal activo.</p>
   }
 
   return (
-    <div className="h-full min-h-0 overflow-auto border border-gold/25 bg-cream">
-      <div className="flex min-w-max">
-        <div className="sticky left-0 z-20 shrink-0 bg-cream">
-          <div
-            className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
-            aria-hidden
-          />
-          <TimeGutter range={range} />
-        </div>
-
-        <div className="flex flex-1">
-          {schedules.map((schedule) => (
-            <StaffColumn
-              key={schedule.staffId}
-              schedule={schedule}
-              date={date}
-              range={range}
-              nowLineTop={nowLineTop}
-              selection={selection}
-              formSlotTime={formSlotTime}
-              formStaffId={formStaffId}
-              pendingMoveSummary={pendingMoveSummary}
-              dragEnabled={dragEnabled}
-              columnRef={(el) => setColumnRef(schedule.staffId, el)}
-              resolveStaffIdAtPoint={resolveStaffIdAtPoint}
-              columnTopFromClientY={columnTopFromClientY}
-              onToggleSlot={onToggleSlot}
-              onEditAppointment={onEditAppointment}
-              onOpenBlock={onOpenBlock}
-              onProposeAppointmentMove={onProposeAppointmentMove}
+    <AppointmentDragProvider
+      range={range}
+      dragEnabled={dragEnabled}
+      resolveStaffIdAtPoint={resolveStaffIdAtPoint}
+      getColumnRect={(staffId) => columnRefs.current.get(staffId)?.getBoundingClientRect() ?? null}
+      onDragEnd={onProposeAppointmentMove}
+      onClickWithoutDrag={handleClickWithoutDrag}
+    >
+      <div className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream">
+        <div className="flex min-w-max">
+          <div className="sticky left-0 z-20 shrink-0 bg-cream">
+            <div
+              className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+              aria-hidden
             />
-          ))}
+            <TimeGutter range={range} />
+          </div>
+
+          <div className="flex flex-1">
+            {schedules.map((schedule) => (
+              <StaffColumn
+                key={schedule.staffId}
+                schedule={schedule}
+                date={date}
+                range={range}
+                nowLineTop={nowLineTop}
+                selection={selection}
+                formSlotTime={formSlotTime}
+                formStaffId={formStaffId}
+                pendingMoveSummary={pendingMoveSummary}
+                dragEnabled={dragEnabled}
+                columnRef={(el) => setColumnRef(schedule.staffId, el)}
+                columnTopFromClientY={columnTopFromClientY}
+                onToggleSlot={onToggleSlot}
+                onEditAppointment={onEditAppointment}
+                onOpenBlock={onOpenBlock}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </AppointmentDragProvider>
   )
 }

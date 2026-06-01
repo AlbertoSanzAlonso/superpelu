@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { Appointment } from '@/types/booking'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { cancelAppointment, deleteAppointment, ApiError } from '@/lib/api'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
@@ -27,6 +28,7 @@ export function CustomerAppointmentDetailModal({
   onChanged,
 }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [whatsAppOpen, setWhatsAppOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,21 +37,37 @@ export function CustomerAppointmentDetailModal({
   const isCancelled = appointment.status === 'cancelled'
 
   async function handleConfirmDelete() {
+    if (isCancelled) {
+      setBusy(true)
+      setError('')
+      try {
+        await deleteAppointment(appointment!.id, adminToken)
+        onChanged({ id: appointment!.id, action: 'deleted' })
+        setConfirmOpen(false)
+        onClose()
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo eliminar la cita')
+        setConfirmOpen(false)
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+
+    setConfirmOpen(false)
+    setWhatsAppOpen(true)
+  }
+
+  async function persistCancel(notifyCustomerWhatsApp: boolean) {
     setBusy(true)
     setError('')
     try {
-      if (isCancelled) {
-        await deleteAppointment(appointment!.id, adminToken)
-        onChanged({ id: appointment!.id, action: 'deleted' })
-      } else {
-        await cancelAppointment(appointment!.id, adminToken)
-        onChanged({ id: appointment!.id, action: 'cancelled' })
-      }
-      setConfirmOpen(false)
+      await cancelAppointment(appointment!.id, adminToken, { notifyCustomerWhatsApp })
+      onChanged({ id: appointment!.id, action: 'cancelled' })
+      setWhatsAppOpen(false)
       onClose()
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'No se pudo eliminar la cita')
-      setConfirmOpen(false)
+      setError(err instanceof ApiError ? err.message : 'No se pudo cancelar la cita')
     } finally {
       setBusy(false)
     }
@@ -172,14 +190,23 @@ export function CustomerAppointmentDetailModal({
         message={
           isCancelled
             ? 'La cita se borrará definitivamente del historial de este cliente.'
-            : 'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.'
+            : 'La cita quedará cancelada. El salón recibirá un aviso por email. Si era mañana, no se enviará el recordatorio automático al cliente.'
         }
-        confirmLabel={isCancelled ? 'Eliminar' : 'Cancelar cita'}
+        confirmLabel={isCancelled ? 'Eliminar' : 'Continuar'}
         cancelLabel="Volver"
         destructive
         busy={busy}
         onClose={() => setConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
+      />
+
+      <WhatsAppNotifyDialog
+        open={whatsAppOpen}
+        context="cancel"
+        busy={busy}
+        onClose={() => setWhatsAppOpen(false)}
+        onNotify={() => persistCancel(true)}
+        onSaveWithoutNotify={() => persistCancel(false)}
       />
     </>
   )

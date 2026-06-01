@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import {
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
@@ -19,18 +18,21 @@ import {
 } from '@/lib/staffApi'
 import { ApiError } from '@/lib/api'
 import {
-  buildStaffDayGrid,
-  groupContiguousSlotTimes,
-  summarizeGridSelection,
-} from '@/lib/timeGrid'
+  blockGroupsFromGridSummary,
+  singleFreeTimeFromGridSummary,
+  summarizeScheduleGridSelection,
+} from '@/lib/agendaGridSelection'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
+import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
+import { useAgendaGridTimes } from '@/hooks/agenda/useAgendaGridTimes'
+import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBlockCreate'
+import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
 import type {
   BookableService,
   DayScheduleAppointment,
   DayScheduleBlock,
   StaffDaySchedule,
 } from '@/types/booking'
-import type { BlockSeriesMeta, PendingBlockGroup } from '@/types/blocks'
 
 export function useStaffAgenda(token: string) {
   const { date, setDate } = useAgendaDate()
@@ -39,20 +41,14 @@ export function useStaffAgenda(token: string) {
   const [slots, setSlots] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [gridActionsBusy, setGridActionsBusy] = useState(false)
+
+  const gridSelection = useAgendaGridTimes(date)
+  const blockCreate = useAgendaPendingBlockCreate()
+  const confirmUi = useAgendaConfirm()
 
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
-
-  const [selectedGridTimes, setSelectedGridTimes] = useState<Set<string>>(() => new Set())
-  const [gridActionsBusy, setGridActionsBusy] = useState(false)
-  const [blockCreateModalOpen, setBlockCreateModalOpen] = useState(false)
-  const [pendingBlockGroups, setPendingBlockGroups] = useState<PendingBlockGroup[]>([])
-  const [viewingBlock, setViewingBlock] = useState<DayScheduleBlock | null>(null)
-  const [viewingBlockSeries, setViewingBlockSeries] = useState<BlockSeriesMeta | null>(null)
-  const [viewingBlockSeriesLoading, setViewingBlockSeriesLoading] = useState(false)
-  const [blockDetailBusy, setBlockDetailBusy] = useState(false)
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
-  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -75,13 +71,17 @@ export function useStaffAgenda(token: string) {
     }
   }, [date, token])
 
+  const blockDetail = useAgendaBlockDetailView<DayScheduleBlock>({
+    fetchSeries: (blockId) => fetchMyBlockSeries(token, blockId),
+    updateNote: (blockId, note, mode) => updateMyBlock(token, blockId, { note, mode }),
+    remove: (blockId, mode) => deleteMyBlock(token, blockId, mode),
+    reload: load,
+    setError,
+  })
+
   useEffect(() => {
     void load()
   }, [load])
-
-  useEffect(() => {
-    setSelectedGridTimes(new Set())
-  }, [date])
 
   useEffect(() => {
     if (!aptDraft.serviceId || !date) {
@@ -99,61 +99,45 @@ export function useStaffAgenda(token: string) {
       ...EMPTY_APPOINTMENT_DRAFT,
       serviceId: keepServiceId ? d.serviceId : '',
     }))
-  }, [services])
+  }, [])
 
   const startEditAppointment = useCallback((apt: DayScheduleAppointment) => {
     setEditingId(apt.id)
     setAptDraft(appointmentToDraft(apt))
   }, [])
 
-  const clearGridSelection = useCallback(() => {
-    setSelectedGridTimes(new Set())
-  }, [])
-
-  const toggleGridSlot = useCallback((time: string) => {
-    setSelectedGridTimes((prev) => {
-      const next = new Set(prev)
-      if (next.has(time)) next.delete(time)
-      else next.add(time)
-      return next
-    })
-  }, [])
-
   const selectFreeSlot = useCallback(
     (time: string) => {
       setEditingId(null)
-      clearGridSelection()
+      gridSelection.clear()
       setAptDraft((d) => ({
         ...EMPTY_APPOINTMENT_DRAFT,
         serviceId: d.serviceId || '',
         startTime: time,
       }))
     },
-    [clearGridSelection, services],
+    [gridSelection],
   )
 
-  const requestBlockSelectedGridSlots = useCallback(() => {
-    if (!schedule) return
-    const cells = buildStaffDayGrid(schedule, date)
-    const { freeTimes, hasAppointment } = summarizeGridSelection(selectedGridTimes, cells)
-    if (hasAppointment || freeTimes.length === 0) return
-    const groups = groupContiguousSlotTimes(freeTimes)
-    setPendingBlockGroups(groups)
-    setBlockCreateModalOpen(true)
-  }, [schedule, date, selectedGridTimes])
+  const gridSummary = useCallback(() => {
+    if (!schedule) {
+      return { freeTimes: [], blockIds: [], hasAppointment: false }
+    }
+    return summarizeScheduleGridSelection(schedule, date, gridSelection.times)
+  }, [schedule, date, gridSelection.times])
 
-  const cancelBlockCreateModal = useCallback(() => {
-    setBlockCreateModalOpen(false)
-    setPendingBlockGroups([])
-  }, [])
+  const requestBlockSelectedGridSlots = useCallback(() => {
+    const groups = blockGroupsFromGridSummary(gridSummary())
+    if (groups) blockCreate.openWithGroups(groups)
+  }, [gridSummary, blockCreate])
 
   const confirmBlockWithNote = useCallback(
     async (note?: string) => {
-      if (pendingBlockGroups.length === 0) return
+      if (blockCreate.pendingGroups.length === 0) return
       setGridActionsBusy(true)
       setError('')
       try {
-        for (const range of pendingBlockGroups) {
+        for (const range of blockCreate.pendingGroups) {
           await createMyBlock(token, {
             date,
             startTime: range.startTime,
@@ -161,9 +145,8 @@ export function useStaffAgenda(token: string) {
             note,
           })
         }
-        setBlockCreateModalOpen(false)
-        setPendingBlockGroups([])
-        clearGridSelection()
+        blockCreate.closeAfterSuccess()
+        gridSelection.clear()
         await load()
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'No se pudo bloquear')
@@ -171,72 +154,37 @@ export function useStaffAgenda(token: string) {
         setGridActionsBusy(false)
       }
     },
-    [pendingBlockGroups, token, date, clearGridSelection, load],
+    [blockCreate, token, date, gridSelection, load],
   )
 
   const openBlockDetail = useCallback(
     (block: DayScheduleBlock) => {
-      clearGridSelection()
-      setViewingBlock(block)
-      setViewingBlockSeries(null)
-      setViewingBlockSeriesLoading(true)
-      void fetchMyBlockSeries(token, block.id)
-        .then(setViewingBlockSeries)
-        .catch(() => setViewingBlockSeries(null))
-        .finally(() => setViewingBlockSeriesLoading(false))
+      blockDetail.open(block, block.id, gridSelection.clear)
     },
-    [token, clearGridSelection],
+    [blockDetail, gridSelection.clear],
   )
-
-  const closeBlockDetail = useCallback(() => {
-    setViewingBlock(null)
-    setViewingBlockSeries(null)
-    setViewingBlockSeriesLoading(false)
-  }, [])
 
   const saveBlockNote = useCallback(
     async (note: string, mode: 'single' | 'series') => {
-      if (!viewingBlock) return
-      setBlockDetailBusy(true)
-      setError('')
-      try {
-        await updateMyBlock(token, viewingBlock.id, { note, mode })
-        closeBlockDetail()
-        await load()
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'No se pudo guardar')
-      } finally {
-        setBlockDetailBusy(false)
-      }
+      if (!blockDetail.viewing) return
+      await blockDetail.saveNote(blockDetail.viewing.id, note, mode)
     },
-    [viewingBlock, token, closeBlockDetail, load],
+    [blockDetail],
   )
 
   const deleteViewingBlock = useCallback(
     async (mode: 'single' | 'series') => {
-      if (!viewingBlock) return
-      setBlockDetailBusy(true)
-      setError('')
-      try {
-        await deleteMyBlock(token, viewingBlock.id, mode)
-        closeBlockDetail()
-        await load()
-      } catch {
-        setError('No se pudo quitar el bloqueo')
-      } finally {
-        setBlockDetailBusy(false)
-      }
+      if (!blockDetail.viewing) return
+      await blockDetail.deleteBlock(blockDetail.viewing.id, mode)
     },
-    [viewingBlock, token, closeBlockDetail, load],
+    [blockDetail],
   )
 
   const unblockSelectedGridSlots = useCallback(async () => {
-    if (!schedule) return
-    const cells = buildStaffDayGrid(schedule, date)
-    const { blockIds } = summarizeGridSelection(selectedGridTimes, cells)
+    const { blockIds } = gridSummary()
     if (blockIds.length === 0) return
 
-    if (!confirm(`¿Quitar ${blockIds.length} bloqueo(s) seleccionado(s)?`)) return
+    if (!window.confirm(`¿Quitar ${blockIds.length} bloqueo(s) seleccionado(s)?`)) return
 
     setGridActionsBusy(true)
     setError('')
@@ -244,22 +192,18 @@ export function useStaffAgenda(token: string) {
       for (const id of blockIds) {
         await deleteMyBlock(token, id)
       }
-      clearGridSelection()
+      gridSelection.clear()
       await load()
     } catch {
       setError('No se pudo quitar el bloqueo')
     } finally {
       setGridActionsBusy(false)
     }
-  }, [schedule, date, selectedGridTimes, token, clearGridSelection, load])
+  }, [gridSummary, token, gridSelection, load])
 
   const createAppointmentFromGridSelection = useCallback((): string | undefined => {
-    if (!schedule) return undefined
-    const cells = buildStaffDayGrid(schedule, date)
-    const { freeTimes } = summarizeGridSelection(selectedGridTimes, cells)
-    if (freeTimes.length !== 1) return undefined
-    return freeTimes[0]
-  }, [schedule, date, selectedGridTimes])
+    return singleFreeTimeFromGridSummary(gridSummary())
+  }, [gridSummary])
 
   const saveAppointment = useCallback(
     async (e: React.FormEvent): Promise<boolean> => {
@@ -302,25 +246,9 @@ export function useStaffAgenda(token: string) {
     [aptDraft, date, editingId, load, resetAppointmentForm, token],
   )
 
-  const closeConfirmDialog = useCallback(() => {
-    if (confirmBusy) return
-    setConfirmDialog(null)
-  }, [confirmBusy])
-
-  const runConfirmDialog = useCallback(async () => {
-    if (!confirmDialog) return
-    setConfirmBusy(true)
-    try {
-      await confirmDialog.onConfirm()
-      setConfirmDialog(null)
-    } finally {
-      setConfirmBusy(false)
-    }
-  }, [confirmDialog])
-
   const removeAppointment = useCallback(
     (id: string, onSuccess?: () => void) => {
-      setConfirmDialog({
+      confirmUi.setConfirmDialog({
         title: '¿Eliminar esta cita?',
         message:
           'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
@@ -339,7 +267,7 @@ export function useStaffAgenda(token: string) {
         },
       })
     },
-    [editingId, load, resetAppointmentForm, token],
+    [editingId, load, resetAppointmentForm, token, confirmUi],
   )
 
   return {
@@ -356,20 +284,20 @@ export function useStaffAgenda(token: string) {
     saveAppointment,
     startEditAppointment,
     selectFreeSlot,
-    selectedGridTimes,
-    toggleGridSlot,
-    clearGridSelection,
-    blockCreateModalOpen,
-    pendingBlockGroups,
+    selectedGridTimes: gridSelection.times,
+    toggleGridSlot: gridSelection.toggle,
+    clearGridSelection: gridSelection.clear,
+    blockCreateModalOpen: blockCreate.modalOpen,
+    pendingBlockGroups: blockCreate.pendingGroups,
     requestBlockSelectedGridSlots,
-    cancelBlockCreateModal,
+    cancelBlockCreateModal: blockCreate.cancel,
     confirmBlockWithNote,
-    viewingBlock,
-    viewingBlockSeries,
-    viewingBlockSeriesLoading,
-    blockDetailBusy,
+    viewingBlock: blockDetail.viewing,
+    viewingBlockSeries: blockDetail.series,
+    viewingBlockSeriesLoading: blockDetail.seriesLoading,
+    blockDetailBusy: blockDetail.busy,
     openBlockDetail,
-    closeBlockDetail,
+    closeBlockDetail: blockDetail.close,
     saveBlockNote,
     deleteViewingBlock,
     unblockSelectedGridSlots,
@@ -377,9 +305,9 @@ export function useStaffAgenda(token: string) {
     gridActionsBusy,
     removeAppointment,
     resetAppointmentForm,
-    confirmDialog,
-    confirmBusy,
-    closeConfirmDialog,
-    runConfirmDialog,
+    confirmDialog: confirmUi.confirmDialog,
+    confirmBusy: confirmUi.confirmBusy,
+    closeConfirmDialog: confirmUi.closeConfirmDialog,
+    runConfirmDialog: confirmUi.runConfirmDialog,
   }
 }
