@@ -1,8 +1,15 @@
+import {
+  isColorGroupWashRow,
+  WASH_COLOR_SERVICE_ID,
+} from '@/lib/bookingOccupancy'
+
 /**
  * Colores de citas en agenda — alineados con la app anterior (BUK).
  *
- * Azul: cortes · Rojo: coloración/decoloración · Verde agua: peinado, lavado, manos/pies, matiz
+ * Azul: cortes · Rojo: coloración/decoloración · Verde agua: peinado, lavado suelto, manos/pies, matiz
  * Morado: mechas, keratina, permanente, maquillaje/micro · Marrón: tratamientos capilares y facial
+ *
+ * Lavado enlazado a coloración (color_group_role wash): mismo rojo que la color, borde discontinuo + icono.
  */
 
 export type AgendaColorKey = 'blue' | 'red' | 'teal' | 'purple' | 'brown' | 'maroon'
@@ -54,9 +61,8 @@ const categoryColorKey: Record<string, AgendaColorKey> = {
   'beauty-facial': 'brown',
 }
 
-/** Excepciones por servicio (p. ej. lavar color suelto vs coloración completa). */
+/** Excepciones por servicio (p. ej. matiz, maquillaje). */
 const serviceColorKey: Record<string, AgendaColorKey> = {
-  'svc-wash-color': 'teal',
   'svc-toner': 'teal',
   'svc-highlight-toner': 'purple',
   'svc-event-makeup': 'purple',
@@ -71,7 +77,14 @@ const blockStyle = 'bg-charcoal/5 border-charcoal/20 border-l-4 border-l-charcoa
 export function resolveAgendaColorKey(
   categoryId: string | null | undefined,
   serviceId?: string | null,
+  colorGroupRole?: string | null,
 ): AgendaColorKey {
+  if (serviceId === WASH_COLOR_SERVICE_ID) {
+    if (isColorGroupWashRow(colorGroupRole)) {
+      return categoryColorKey.color ?? 'red'
+    }
+    return 'teal'
+  }
   if (serviceId && serviceColorKey[serviceId]) {
     return serviceColorKey[serviceId]
   }
@@ -84,17 +97,20 @@ export function resolveAgendaColorKey(
 export function appointmentEventClass(
   categoryId: string | null | undefined,
   serviceId?: string | null,
+  colorGroupRole?: string | null,
 ): string {
-  const key = resolveAgendaColorKey(categoryId, serviceId)
-  return palettes[key].event
+  const key = resolveAgendaColorKey(categoryId, serviceId, colorGroupRole)
+  const washAccent = isColorGroupWashRow(colorGroupRole) ? ' border-dashed' : ''
+  return palettes[key].event + washAccent
 }
 
 /** Barra sólida en modal de detalle de cita (estilo BUK). */
 export function appointmentBlockBarClass(
   categoryId: string | null | undefined,
   serviceId?: string | null,
+  colorGroupRole?: string | null,
 ): string {
-  const key = resolveAgendaColorKey(categoryId, serviceId)
+  const key = resolveAgendaColorKey(categoryId, serviceId, colorGroupRole)
   const bar: Record<AgendaColorKey, string> = {
     blue: 'bg-[#3498DB] text-white',
     red: 'bg-[#C0392B] text-white',
@@ -118,8 +134,9 @@ export function blockEventClass(): string {
 export function agendaLegendSwatchClass(
   categoryId: string | null | undefined,
   serviceId?: string | null,
+  colorGroupRole?: string | null,
 ): string {
-  const key = resolveAgendaColorKey(categoryId, serviceId)
+  const key = resolveAgendaColorKey(categoryId, serviceId, colorGroupRole)
   return palettes[key].swatch
 }
 

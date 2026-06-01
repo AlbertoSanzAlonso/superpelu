@@ -1,6 +1,10 @@
 import { salonSchedule } from '@/data/schedule'
 import { nowSalonMinutes, todaySalon } from '@/lib/dates'
-import { getOccupiedSegmentsForAppointment, occupiedSegmentsOverlap } from '@/lib/bookingOccupancy'
+import {
+  getOccupiedSegmentsForAppointment,
+  isColorGroupWashRow,
+  occupiedSegmentsOverlap,
+} from '@/lib/bookingOccupancy'
 import type { StaffDaySchedule } from '@/types/booking'
 
 export type TimeGridCellStatus = 'free' | 'appointment' | 'block' | 'past'
@@ -14,6 +18,7 @@ export type TimeGridCell = {
   categoryId?: string | null
   serviceId?: string
   blockId?: string
+  colorGroupRole?: string | null
 }
 
 function timeToMinutes(time: string): number {
@@ -85,8 +90,13 @@ export function buildStaffDayGrid(
         appointmentId: apt.id,
         categoryId: apt.categoryId,
         serviceId: apt.serviceId,
+        colorGroupRole: apt.colorGroupRole,
         title: isSegmentStart ? apt.customerName : undefined,
-        subtitle: isSegmentStart ? apt.serviceName : undefined,
+        subtitle: isSegmentStart
+          ? isColorGroupWashRow(apt.colorGroupRole)
+            ? 'Lavar color'
+            : apt.serviceName
+          : undefined,
       })
       continue
     }

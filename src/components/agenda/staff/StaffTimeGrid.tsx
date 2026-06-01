@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
+import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import {
   agendaColorLegend,
   agendaColorLegendSwatch,
   appointmentEventClass,
   blockEventClass,
 } from '@/lib/serviceCategoryColors'
+import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -26,7 +28,7 @@ const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, strin
 }
 
 function appointmentCellClass(cell: TimeGridCell): string {
-  return `${appointmentEventClass(cell.categoryId, cell.serviceId)} cursor-pointer hover:brightness-[0.97]`
+  return `${appointmentEventClass(cell.categoryId, cell.serviceId, cell.colorGroupRole)} cursor-pointer hover:brightness-[0.97]`
 }
 
 function findAppointment(schedule: StaffDaySchedule, id: string) {
@@ -115,8 +117,11 @@ export function StaffTimeGrid({
                 <span className="mt-1 block truncate text-xs leading-tight">{cell.title}</span>
               )}
               {cell.subtitle && (
-                <span className="block truncate text-[10px] leading-tight opacity-80">
-                  {cell.subtitle}
+                <span className="flex items-center gap-1 truncate text-[10px] leading-tight opacity-80">
+                  {isColorGroupWashRow(cell.colorGroupRole) && (
+                    <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
+                  )}
+                  <span className="truncate">{cell.subtitle}</span>
                 </span>
               )}
             </button>

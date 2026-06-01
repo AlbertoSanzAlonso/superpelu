@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import {
   blockDurationMinutes,
   CALENDAR_SLOT_HEIGHT_PX,
@@ -8,10 +8,13 @@ import {
   resolveCalendarDayRange,
   type CalendarDayRange,
 } from '@/lib/adminCalendar'
-import { appointmentEventClass, blockEventClass } from '@/lib/serviceCategoryColors'
+import { blockEventClass } from '@/lib/serviceCategoryColors'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
-import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
+import type { AdminColumnSelection, AppointmentMoveDraft } from '@/hooks/useAdminAgenda'
+import {
+  DraggableAppointmentBlock,
+  type AppointmentDragEndPayload,
+} from '@/components/agenda/admin/DraggableAppointmentBlock'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -21,9 +24,11 @@ type Props = {
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
+  pendingMove: AppointmentMoveDraft | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
+  onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
 }
 
 function StaffInitial({ name }: { name: string }) {
@@ -137,57 +142,6 @@ function SlotLayer({
   )
 }
 
-function AppointmentBlock({
-  apt,
-  range,
-}: {
-  apt: DayScheduleAppointment
-  range: CalendarDayRange
-}) {
-  const slots =
-    apt.occupiedSlots.length > 0
-      ? apt.occupiedSlots
-      : [{ startTime: apt.startTime, endTime: apt.endTime }]
-
-  return (
-    <>
-      {slots.map((slot, index) => {
-        const duration =
-          timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime)
-        const top = eventTopPx(slot.startTime, range)
-        const height = eventHeightPx(duration, range)
-
-        return (
-          <div
-            key={`${apt.id}-${index}`}
-            className={`pointer-events-none absolute inset-x-1 z-10 overflow-hidden border px-2 py-1 text-left text-xs leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId)}`}
-            style={{ top, height: Math.max(height - 2, 22) }}
-            title={`${apt.customerName} — ${apt.serviceName}`}
-          >
-            {index === 0 && (
-              <>
-                <span className="block font-medium">
-                  {apt.customerName} — {apt.serviceName}
-                </span>
-                <span className="mt-0.5 block opacity-80 tabular-nums">
-                  {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', {
-                    colorGroupRole: apt.colorGroupRole,
-                  })}
-                </span>
-              </>
-            )}
-          </div>
-        )
-      })}
-    </>
-  )
-}
-
-function timeToMinutes(time: string): number {
-  const [h, m] = time.split(':').map(Number)
-  return h * 60 + m
-}
-
 function BlockEvent({
   block,
   range,
@@ -248,9 +202,15 @@ function StaffColumn({
   selection,
   formSlotTime,
   formStaffId,
+  pendingMove,
+  dragEnabled,
+  columnRef,
+  resolveStaffIdAtPoint,
+  columnTopFromClientY,
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
+  onProposeAppointmentMove,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -259,9 +219,15 @@ function StaffColumn({
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
+  pendingMove: AppointmentMoveDraft | null
+  dragEnabled: boolean
+  columnRef: (el: HTMLDivElement | null) => void
+  resolveStaffIdAtPoint: (clientX: number) => string | null
+  columnTopFromClientY: (clientY: number, staffId: string) => number | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
+  onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
 }) {
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
@@ -295,7 +261,12 @@ function StaffColumn({
     <div className="min-w-[11rem] flex-1 border-l border-gold/20">
       <StaffColumnHeader schedule={schedule} />
 
-      <div className="relative" style={{ height: range.totalHeightPx }}>
+      <div
+        ref={columnRef}
+        data-staff-column-id={schedule.staffId}
+        className="relative"
+        style={{ height: range.totalHeightPx }}
+      >
         <ColumnGrid range={range} />
         <SlotLayer
           schedule={schedule}
@@ -308,8 +279,37 @@ function StaffColumn({
         />
 
         {schedule.appointments.map((apt) => (
-          <AppointmentBlock key={apt.id} apt={apt} range={range} />
+          <DraggableAppointmentBlock
+            key={apt.id}
+            apt={apt}
+            staffId={schedule.staffId}
+            range={range}
+            pendingMove={pendingMove}
+            dragEnabled={dragEnabled}
+            resolveStaffIdAtPoint={resolveStaffIdAtPoint}
+            columnTopFromClientY={columnTopFromClientY}
+            onDragEnd={onProposeAppointmentMove}
+            onClick={() => onEditAppointment(schedule.staffId, apt)}
+          />
         ))}
+
+        {pendingMove &&
+          pendingMove.toStaffId === schedule.staffId &&
+          pendingMove.fromStaffId !== schedule.staffId && (
+            <DraggableAppointmentBlock
+              key={`${pendingMove.appointment.id}-preview`}
+              apt={pendingMove.appointment}
+              staffId={schedule.staffId}
+              range={range}
+              pendingMove={pendingMove}
+              dragEnabled={false}
+              previewOnly
+              resolveStaffIdAtPoint={resolveStaffIdAtPoint}
+              columnTopFromClientY={columnTopFromClientY}
+              onDragEnd={onProposeAppointmentMove}
+              onClick={() => {}}
+            />
+          )}
 
         {schedule.blocks.map((block) => (
           <BlockEvent
@@ -338,12 +338,37 @@ export function AdminSalonDayCalendar({
   selection,
   formSlotTime,
   formStaffId,
+  pendingMove,
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
+  onProposeAppointmentMove,
 }: Props) {
   const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
+  const columnRefs = useRef(new Map<string, HTMLDivElement>())
+
+  const setColumnRef = useCallback((staffId: string, el: HTMLDivElement | null) => {
+    if (el) columnRefs.current.set(staffId, el)
+    else columnRefs.current.delete(staffId)
+  }, [])
+
+  const resolveStaffIdAtPoint = useCallback((clientX: number): string | null => {
+    for (const [staffId, el] of columnRefs.current) {
+      const rect = el.getBoundingClientRect()
+      if (clientX >= rect.left && clientX <= rect.right) return staffId
+    }
+    return null
+  }, [])
+
+  const columnTopFromClientY = useCallback((clientY: number, staffId: string): number | null => {
+    const el = columnRefs.current.get(staffId)
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    return clientY - rect.top
+  }, [])
+
+  const dragEnabled = pendingMove === null
 
   if (schedules.length === 0) {
     return <p className={`${typography.caption} text-center`}>No hay personal activo.</p>
@@ -371,9 +396,15 @@ export function AdminSalonDayCalendar({
               selection={selection}
               formSlotTime={formSlotTime}
               formStaffId={formStaffId}
+              pendingMove={pendingMove}
+              dragEnabled={dragEnabled}
+              columnRef={(el) => setColumnRef(schedule.staffId, el)}
+              resolveStaffIdAtPoint={resolveStaffIdAtPoint}
+              columnTopFromClientY={columnTopFromClientY}
               onToggleSlot={onToggleSlot}
               onEditAppointment={onEditAppointment}
               onOpenBlock={onOpenBlock}
+              onProposeAppointmentMove={onProposeAppointmentMove}
             />
           ))}
         </div>

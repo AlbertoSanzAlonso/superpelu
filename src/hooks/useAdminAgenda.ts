@@ -25,12 +25,27 @@ import {
   groupContiguousSlotTimes,
   summarizeGridSelection,
 } from '@/lib/timeGrid'
+import {
+  isSameAppointmentMove,
+  validateAppointmentMove,
+  type AppointmentMoveTarget,
+} from '@/lib/appointmentPlacement'
 import type {
   BookableService,
   DayScheduleAppointment,
   DayScheduleBlock,
   StaffDaySchedule,
 } from '@/types/booking'
+import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
+
+export type AppointmentMoveDraft = {
+  appointment: DayScheduleAppointment
+  fromStaffId: string
+  fromStaffName: string
+  toStaffId: string
+  toStaffName: string
+  toStartTime: string
+}
 
 export type AdminColumnSelection = {
   staffId: string
@@ -78,6 +93,9 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
   const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
+  const [whatsAppNotifyContext, setWhatsAppNotifyContext] = useState<'edit' | 'move'>('edit')
+  const [pendingMove, setPendingMove] = useState<AppointmentMoveDraft | null>(null)
+  const [moveBusy, setMoveBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -109,6 +127,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setDetailEditMode(false)
     setActiveStaffId(null)
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
+    setPendingMove(null)
   }, [date])
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
@@ -370,6 +389,85 @@ export function useAdminAgenda(adminToken: string, date: string) {
     openNewAppointment(selection.staffId, selection.staffName, freeTimes[0])
   }, [selection, schedules, date, openNewAppointment])
 
+  const proposeAppointmentMove = useCallback(
+    (payload: AppointmentDragEndPayload) => {
+      const fromStaffName =
+        schedules.find((s) => s.staffId === payload.fromStaffId)?.staffName ?? ''
+      const toStaffName =
+        schedules.find((s) => s.staffId === payload.toStaffId)?.staffName ?? ''
+      const target: AppointmentMoveTarget = {
+        staffId: payload.toStaffId,
+        staffName: toStaffName,
+        startTime: payload.toStartTime,
+      }
+
+      if (isSameAppointmentMove(payload.appointment, payload.fromStaffId, target)) {
+        return
+      }
+
+      const schedule = schedules.find((s) => s.staffId === payload.toStaffId)
+      if (!schedule) {
+        setError('Profesional no encontrado.')
+        return
+      }
+
+      const validation = validateAppointmentMove(schedule, date, payload.appointment, target)
+      if (!validation.ok) {
+        setError(validation.message)
+        return
+      }
+
+      setError('')
+      setSelection(null)
+      setPendingMove({
+        appointment: payload.appointment,
+        fromStaffId: payload.fromStaffId,
+        fromStaffName,
+        toStaffId: payload.toStaffId,
+        toStaffName,
+        toStartTime: payload.toStartTime,
+      })
+    },
+    [schedules, date],
+  )
+
+  const discardPendingMove = useCallback(() => {
+    setPendingMove(null)
+    setError('')
+  }, [])
+
+  const commitPendingMove = useCallback(
+    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
+      if (!pendingMove || !adminToken) return false
+      setError('')
+      setMoveBusy(true)
+      try {
+        await updateAdminAppointment(pendingMove.appointment.id, adminToken, {
+          staffId: pendingMove.toStaffId,
+          date,
+          startTime: pendingMove.toStartTime,
+          notifyCustomerWhatsApp,
+        })
+        setPendingMove(null)
+        setWhatsAppNotifyDialogOpen(false)
+        await load()
+        return true
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo mover la cita')
+        return false
+      } finally {
+        setMoveBusy(false)
+      }
+    },
+    [pendingMove, adminToken, date, load],
+  )
+
+  const requestSavePendingMove = useCallback(() => {
+    if (!pendingMove) return
+    setWhatsAppNotifyContext('move')
+    setWhatsAppNotifyDialogOpen(true)
+  }, [pendingMove])
+
   const persistAppointment = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
@@ -436,6 +534,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
       e.preventDefault()
       if (!activeStaffId || !adminToken) return false
       if (editingId) {
+        setWhatsAppNotifyContext('edit')
         setWhatsAppNotifyDialogOpen(true)
         return false
       }
@@ -452,20 +551,28 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const confirmSaveWithWhatsAppNotify = useCallback(async () => {
     setWhatsAppNotifyBusy(true)
     try {
-      await persistAppointment(true)
+      if (whatsAppNotifyContext === 'move') {
+        await commitPendingMove(true)
+      } else {
+        await persistAppointment(true)
+      }
     } finally {
       setWhatsAppNotifyBusy(false)
     }
-  }, [persistAppointment])
+  }, [whatsAppNotifyContext, commitPendingMove, persistAppointment])
 
   const confirmSaveWithoutWhatsAppNotify = useCallback(async () => {
     setWhatsAppNotifyBusy(true)
     try {
-      await persistAppointment(false)
+      if (whatsAppNotifyContext === 'move') {
+        await commitPendingMove(false)
+      } else {
+        await persistAppointment(false)
+      }
     } finally {
       setWhatsAppNotifyBusy(false)
     }
-  }, [persistAppointment])
+  }, [whatsAppNotifyContext, commitPendingMove, persistAppointment])
 
   const closeConfirmDialog = useCallback(() => {
     if (confirmBusy) return
@@ -629,5 +736,10 @@ export function useAdminAgenda(adminToken: string, date: string) {
     formSlotTime:
       appointmentFormOpen && !editingId && activeStaffId ? aptDraft.startTime || null : null,
     formStaffId: appointmentFormOpen && !editingId ? activeStaffId : null,
+    pendingMove,
+    proposeAppointmentMove,
+    discardPendingMove,
+    requestSavePendingMove,
+    moveBusy,
   }
 }

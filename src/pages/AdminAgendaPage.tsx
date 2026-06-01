@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
 import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCalendar'
+import { AppointmentMoveBar } from '@/components/agenda/admin/AppointmentMoveBar'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
@@ -275,14 +276,25 @@ export function AdminAgendaPage() {
               selection={agenda.selection}
               formSlotTime={agenda.formSlotTime}
               formStaffId={agenda.formStaffId}
+              pendingMove={agenda.pendingMove}
               onToggleSlot={agenda.toggleSlot}
               onEditAppointment={agenda.openAppointmentDetail}
               onOpenBlock={agenda.openBlockDetail}
+              onProposeAppointmentMove={agenda.proposeAppointmentMove}
             />
             </div>
           </>
         )}
       </main>
+
+      {agenda.pendingMove && (
+        <AppointmentMoveBar
+          draft={agenda.pendingMove}
+          busy={agenda.moveBusy || agenda.whatsAppNotifyBusy}
+          onSave={agenda.requestSavePendingMove}
+          onDiscard={agenda.discardPendingMove}
+        />
+      )}
 
       {agenda.selection && (
         <BlockScopeModal

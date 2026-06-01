@@ -7,6 +7,8 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
+import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
+import { COLOR_GROUP_ROLE, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
 import type { BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -65,6 +67,7 @@ function ServiceBlocks({
     serviceName: string
     serviceId: string
     categoryId: string | null
+    colorGroupRole?: string | null
     staffLabel: string
     nameEn?: string
   }
@@ -89,6 +92,7 @@ function ServiceBlocks({
       serviceName: linked.serviceName,
       serviceId: linked.serviceId,
       categoryId: linked.categoryId,
+      colorGroupRole: COLOR_GROUP_ROLE.wash,
       staffLabel: linked.staffName,
       nameEn: washEn,
     })
@@ -110,6 +114,7 @@ function ServiceBlocks({
       serviceName: appointment.serviceName,
       serviceId: appointment.serviceId,
       categoryId: appointment.categoryId,
+      colorGroupRole: COLOR_GROUP_ROLE.wash,
       staffLabel: staffName,
       nameEn: washEn,
     })
@@ -140,6 +145,7 @@ function ServiceBlocks({
           className={`rounded px-3 py-2 text-sm font-medium leading-snug ${appointmentBlockBarClass(
             block.categoryId,
             block.serviceId,
+            block.colorGroupRole,
           )}`}
         >
           <span className="tabular-nums">
@@ -147,7 +153,10 @@ function ServiceBlocks({
             {block.endTime !== block.startTime ? ` – ${block.endTime}` : ''}
           </span>
           {' — '}
-          {block.serviceName}
+          {isColorGroupWashRow(block.colorGroupRole) && (
+            <WashPhaseIcon className="mr-0.5 inline h-3.5 w-3.5 align-[-2px] opacity-90" title="Lavado" />
+          )}
+          {isColorGroupWashRow(block.colorGroupRole) ? 'Lavar color' : block.serviceName}
           {block.nameEn ? ` - ${block.nameEn}` : ''} ({block.staffLabel})
         </li>
       ))}
