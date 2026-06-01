@@ -8,6 +8,12 @@ import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorksp
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import {
+  CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS,
+  customerAppointmentStatusLabel,
+  matchesCustomerAppointmentStatusFilter,
+  type CustomerAppointmentStatusFilter,
+} from '@/lib/customerAppointmentStatus'
 import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
@@ -51,6 +57,7 @@ export function CustomerHistoryPage() {
   const [dateTo, setDateTo] = useState('')
   const [serviceFilter, setServiceFilter] = useState('')
   const [staffFilter, setStaffFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState<CustomerAppointmentStatusFilter | ''>('')
 
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [editOpen, setEditOpen] = useState(false)
@@ -110,11 +117,14 @@ export function CustomerHistoryPage() {
       if (dateTo && apt.date > dateTo) return false
       if (serviceFilter && apt.serviceId !== serviceFilter) return false
       if (staffFilter && apt.staffId !== staffFilter) return false
+      if (statusFilter && !matchesCustomerAppointmentStatusFilter(apt, statusFilter)) {
+        return false
+      }
       return true
     })
-  }, [appointments, dateFrom, dateTo, serviceFilter, staffFilter])
+  }, [appointments, dateFrom, dateTo, serviceFilter, staffFilter, statusFilter])
 
-  const hasFilters = Boolean(dateFrom || dateTo || serviceFilter || staffFilter)
+  const hasFilters = Boolean(dateFrom || dateTo || serviceFilter || staffFilter || statusFilter)
 
   if (!phone) {
     return <Navigate to="/clientes" replace />
@@ -203,8 +213,25 @@ export function CustomerHistoryPage() {
           </p>
           <div
             id="customer-history-filters"
-            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
+            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
           >
+            <label className="block text-left sm:col-span-2 lg:col-span-3 xl:col-span-2">
+              <span className={`${typography.caption} mb-1 block`}>Estado de la cita</span>
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as CustomerAppointmentStatusFilter | '')
+                }
+                className={fieldClass}
+              >
+                <option value="">Todos los estados</option>
+                {CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
             <label className="block text-left">
               <span className={`${typography.caption} mb-1 block`}>Desde</span>
               <input
@@ -253,7 +280,7 @@ export function CustomerHistoryPage() {
                 ))}
               </select>
             </label>
-            <div className="flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-1">
+            <div className="flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-2">
               <button
                 type="button"
                 disabled={!hasFilters}
@@ -262,6 +289,7 @@ export function CustomerHistoryPage() {
                   setDateTo('')
                   setServiceFilter('')
                   setStaffFilter('')
+                  setStatusFilter('')
                 }}
                 className="w-full border border-gold/30 px-3 py-2 text-sm text-charcoal-muted hover:border-gold disabled:opacity-40"
               >
@@ -308,11 +336,23 @@ export function CustomerHistoryPage() {
                     {apt.staffName && (
                       <p className={`${typography.caption} mt-0.5`}>{apt.staffName}</p>
                     )}
-                    {apt.status === 'cancelled' && (
-                      <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
-                        Cancelada
-                      </p>
-                    )}
+                    {(() => {
+                      const statusLabel = customerAppointmentStatusLabel(apt)
+                      if (!statusLabel) return null
+                      return (
+                        <p
+                          className={`${typography.caption} mt-0.5 ${
+                            apt.status === 'cancelled'
+                              ? 'text-charcoal-muted line-through'
+                              : statusLabel === 'Pendiente' || statusLabel === 'Aún no ha llegado'
+                                ? 'text-gold'
+                                : 'text-charcoal-muted'
+                          }`}
+                        >
+                          {statusLabel}
+                        </p>
+                      )
+                    })()}
                   </div>
                 </button>
               </li>
