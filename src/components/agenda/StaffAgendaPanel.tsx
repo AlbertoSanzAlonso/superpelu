@@ -70,7 +70,6 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
           selectionSummary={agenda.selectedGridTimes.size > 0 ? selectionSummary ?? undefined : undefined}
           onBlockSelection={agenda.requestBlockSelectedGridSlots}
           onUnblockSelection={() => void agenda.unblockSelectedGridSlots()}
-          onClearSelection={agenda.clearGridSelection}
           onCreateAppointmentFromSelection={() => {
             const time = agenda.createAppointmentFromGridSelection()
             if (time) openAppointmentForm({ time })

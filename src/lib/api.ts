@@ -170,6 +170,7 @@ export type AdminAppointmentPayload = {
   customerEmail?: string
   customerNotes?: string
   notes?: string
+  notifyCustomerWhatsApp?: boolean
 }
 
 export function createAdminAppointment(payload: AdminAppointmentPayload, adminToken: string) {

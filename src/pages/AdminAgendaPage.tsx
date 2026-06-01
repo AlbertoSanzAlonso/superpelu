@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
@@ -250,7 +251,6 @@ export function AdminAgendaPage() {
           selectionSummary={agenda.selection ? agenda.selectionSummary : undefined}
           onBlockSelection={agenda.requestBlockSelectedSlots}
           onUnblockSelection={() => void agenda.unblockSelectedSlots()}
-          onClearSelection={agenda.clearSelection}
           onCreateAppointmentFromSelection={agenda.createAppointmentFromSelection}
           selectionBusy={agenda.gridActionsBusy}
         />
@@ -361,6 +361,14 @@ export function AdminAgendaPage() {
           onClose={closeAppointmentForm}
         />
       )}
+
+      <WhatsAppNotifyDialog
+        open={agenda.whatsAppNotifyDialogOpen}
+        busy={agenda.whatsAppNotifyBusy}
+        onClose={agenda.closeWhatsAppNotifyDialog}
+        onNotify={agenda.confirmSaveWithWhatsAppNotify}
+        onSaveWithoutNotify={agenda.confirmSaveWithoutWhatsAppNotify}
+      />
 
       <ConfirmDialog
         open={agenda.confirmDialog != null}

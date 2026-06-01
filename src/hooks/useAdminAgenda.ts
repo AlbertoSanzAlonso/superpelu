@@ -76,6 +76,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const [blockDetailBusy, setBlockDetailBusy] = useState(false)
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null)
   const [confirmBusy, setConfirmBusy] = useState(false)
+  const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
+  const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -368,9 +370,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     openNewAppointment(selection.staffId, selection.staffName, freeTimes[0])
   }, [selection, schedules, date, openNewAppointment])
 
-  const saveAppointment = useCallback(
-    async (e: React.FormEvent): Promise<boolean> => {
-      e.preventDefault()
+  const persistAppointment = useCallback(
+    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
       setError('')
       try {
@@ -386,6 +387,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
+            notifyCustomerWhatsApp,
           })
         } else {
           await createAdminAppointment(
@@ -404,6 +406,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
             adminToken,
           )
         }
+        setWhatsAppNotifyDialogOpen(false)
         setAppointmentFormOpen(false)
         closeAppointmentDetail()
         resetAppointmentForm()
@@ -427,6 +430,42 @@ export function useAdminAgenda(adminToken: string, date: string) {
       load,
     ],
   )
+
+  const saveAppointment = useCallback(
+    async (e: React.FormEvent): Promise<boolean> => {
+      e.preventDefault()
+      if (!activeStaffId || !adminToken) return false
+      if (editingId) {
+        setWhatsAppNotifyDialogOpen(true)
+        return false
+      }
+      return persistAppointment()
+    },
+    [activeStaffId, adminToken, editingId, persistAppointment],
+  )
+
+  const closeWhatsAppNotifyDialog = useCallback(() => {
+    if (whatsAppNotifyBusy) return
+    setWhatsAppNotifyDialogOpen(false)
+  }, [whatsAppNotifyBusy])
+
+  const confirmSaveWithWhatsAppNotify = useCallback(async () => {
+    setWhatsAppNotifyBusy(true)
+    try {
+      await persistAppointment(true)
+    } finally {
+      setWhatsAppNotifyBusy(false)
+    }
+  }, [persistAppointment])
+
+  const confirmSaveWithoutWhatsAppNotify = useCallback(async () => {
+    setWhatsAppNotifyBusy(true)
+    try {
+      await persistAppointment(false)
+    } finally {
+      setWhatsAppNotifyBusy(false)
+    }
+  }, [persistAppointment])
 
   const closeConfirmDialog = useCallback(() => {
     if (confirmBusy) return
@@ -569,6 +608,11 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setDetailEditMode,
     changeDetailStaff,
     saveAppointment,
+    whatsAppNotifyDialogOpen,
+    whatsAppNotifyBusy,
+    closeWhatsAppNotifyDialog,
+    confirmSaveWithWhatsAppNotify,
+    confirmSaveWithoutWhatsAppNotify,
     cancelAppointmentById,
     viewingBlock,
     viewingBlockSeries,

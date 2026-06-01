@@ -332,6 +332,8 @@ export type UpdateAppointmentInput = {
   customerEmail?: string | null
   customerNotes?: string | null
   notes?: string | null
+  /** Si es `false`, no se envía WhatsApp de reprogramación (p. ej. elección del admin). */
+  notifyCustomerWhatsApp?: boolean
 }
 
 export async function getAppointmentById(
@@ -463,34 +465,85 @@ export async function updateAppointmentForStaff(
   const locale = normalizeLocale(existing.locale)
   const serviceName = serviceDisplayName(service, locale)
 
-  await sql`
-    UPDATE appointments SET
-      staff_id = ${targetStaffId},
-      service_id = ${service.id},
-      service_name = ${serviceName},
-      duration_minutes = ${storedDuration},
-      appointment_date = ${date},
-      start_time = ${startTime},
-      customer_name = ${nameSnapshot},
-      customer_phone = ${customerPhone},
-      customer_email = ${
-        input.customerEmail !== undefined
-          ? input.customerEmail?.trim() || null
-          : existing.customer_email
-      },
-      notes = ${input.notes !== undefined ? input.notes?.trim() || null : existing.notes},
-      staff_name = ${staff.name},
-      reminder_sent_at = ${reminderSentAt}
-    WHERE id = ${appointmentId}
-  `
+  const customerEmail =
+    input.customerEmail !== undefined
+      ? input.customerEmail?.trim() || null
+      : existing.customer_email
+  const appointmentNotes =
+    input.notes !== undefined ? input.notes?.trim() || null : existing.notes
+
+  if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
+    const washStart = minutesToTime(getWashPhaseStartMinutes(timeToMinutes(startTime)))
+    await sql`
+      UPDATE appointments SET
+        staff_id = ${targetStaffId},
+        service_id = ${service.id},
+        service_name = ${serviceName},
+        duration_minutes = ${storedDuration},
+        appointment_date = ${date},
+        start_time = ${startTime},
+        customer_name = ${nameSnapshot},
+        customer_phone = ${customerPhone},
+        customer_email = ${customerEmail},
+        notes = ${appointmentNotes},
+        staff_name = ${staff.name},
+        reminder_sent_at = ${reminderSentAt}
+      WHERE id = ${appointmentId}
+    `
+    if (dateOrTimeChanged) {
+      await sql`
+        UPDATE appointments SET
+          appointment_date = ${date},
+          start_time = ${washStart},
+          customer_name = ${nameSnapshot},
+          customer_phone = ${customerPhone},
+          customer_email = ${customerEmail},
+          reminder_sent_at = ${reminderSentAt}
+        WHERE color_group_id = ${existing.color_group_id}
+          AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+      `
+    } else if (hasCustomerPatch) {
+      await sql`
+        UPDATE appointments SET
+          customer_name = ${nameSnapshot},
+          customer_phone = ${customerPhone},
+          customer_email = ${customerEmail}
+        WHERE color_group_id = ${existing.color_group_id}
+          AND color_group_role = ${COLOR_GROUP_ROLE.wash}
+      `
+    }
+  } else {
+    await sql`
+      UPDATE appointments SET
+        staff_id = ${targetStaffId},
+        service_id = ${service.id},
+        service_name = ${serviceName},
+        duration_minutes = ${storedDuration},
+        appointment_date = ${date},
+        start_time = ${startTime},
+        customer_name = ${nameSnapshot},
+        customer_phone = ${customerPhone},
+        customer_email = ${customerEmail},
+        notes = ${appointmentNotes},
+        staff_name = ${staff.name},
+        reminder_sent_at = ${reminderSentAt}
+      WHERE id = ${appointmentId}
+    `
+  }
 
   const updated = (await getAppointmentById(appointmentId))!
   const scheduleChanged =
     dateOrTimeChanged || serviceId !== existing.service_id || staffChanged
+  const notifyCustomerReschedule =
+    scheduleChanged &&
+    !isColorGroupWashRow(existing.color_group_role) &&
+    input.notifyCustomerWhatsApp !== false
   if (scheduleChanged) {
-    void notifyAppointmentRescheduled(updated).catch((err) => {
-      console.error('Superpelu WhatsApp (cita reprogramada):', err)
-    })
+    if (notifyCustomerReschedule) {
+      void notifyAppointmentRescheduled(updated).catch((err) => {
+        console.error('Superpelu WhatsApp (cita reprogramada):', err)
+      })
+    }
     void notifyAdminAppointmentUpdated(existing, updated)
   }
   return updated

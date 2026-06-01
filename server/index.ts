@@ -544,6 +544,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     customerEmail?: string | null
     customerNotes?: string | null
     notes?: string | null
+    notifyCustomerWhatsApp?: boolean
   }>()
   try {
     const row = await updateAppointmentForAdmin(c.req.param('id'), body)

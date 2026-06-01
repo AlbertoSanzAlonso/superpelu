@@ -28,7 +28,6 @@ type Props = {
   selectionSummary?: GridSelectionSummary
   onBlockSelection?: () => void
   onUnblockSelection?: () => void
-  onClearSelection?: () => void
   onCreateAppointmentFromSelection?: () => void
   selectionBusy?: boolean
 }
@@ -66,7 +65,6 @@ export function AdminAgendaControlBar({
   selectionSummary,
   onBlockSelection,
   onUnblockSelection,
-  onClearSelection,
   onCreateAppointmentFromSelection,
   selectionBusy = false,
 }: Props) {
@@ -172,7 +170,6 @@ export function AdminAgendaControlBar({
             summary={selectionSummary}
             onBlock={onBlockSelection!}
             onUnblock={onUnblockSelection!}
-            onClear={onClearSelection!}
             onCreateAppointment={onCreateAppointmentFromSelection!}
             busy={selectionBusy}
           />

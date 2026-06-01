@@ -1,4 +1,5 @@
 import type { AppointmentRow } from '@server/db.js'
+import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { buildWhatsAppAppointmentMessage } from '@/i18n/whatsappAppointment'
 import {
   getOpenWaConfig,
@@ -54,6 +55,8 @@ export async function notifyAppointmentRescheduled(row: AppointmentRow): Promise
   const config = getOpenWaConfig()
   if (!config) return
   if (row.status === 'cancelled') return
+  // El lavado enlazado se gestiona en agenda; el cliente solo recibe aviso si cambia la coloración.
+  if (isColorGroupWashRow(row.color_group_role)) return
 
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentRescheduledMessage(row)
