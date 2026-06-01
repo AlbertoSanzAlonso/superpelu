@@ -23,6 +23,7 @@ type Props = {
   onBlockSelection?: () => void
   onUnblockSelection?: () => void
   onCreateAppointmentFromSelection?: () => void
+  onClearSelection?: () => void
   selectionBusy?: boolean
 }
 
@@ -58,6 +59,7 @@ export function StaffAgendaControlBar({
   onBlockSelection,
   onUnblockSelection,
   onCreateAppointmentFromSelection,
+  onClearSelection,
   selectionBusy = false,
 }: Props) {
   const isToday = date === todaySalon()
@@ -131,6 +133,7 @@ export function StaffAgendaControlBar({
             onBlock={onBlockSelection!}
             onUnblock={onUnblockSelection!}
             onCreateAppointment={onCreateAppointmentFromSelection!}
+            onClearSelection={onClearSelection!}
             busy={selectionBusy}
           />
         </div>

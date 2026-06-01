@@ -253,6 +253,7 @@ export function AdminAgendaPage() {
           onBlockSelection={agenda.requestBlockSelectedSlots}
           onUnblockSelection={() => void agenda.unblockSelectedSlots()}
           onCreateAppointmentFromSelection={agenda.createAppointmentFromSelection}
+          onClearSelection={agenda.clearSelection}
           selectionBusy={agenda.gridActionsBusy}
         />
 

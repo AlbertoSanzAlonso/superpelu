@@ -74,6 +74,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
             const time = agenda.createAppointmentFromGridSelection()
             if (time) openAppointmentForm({ time })
           }}
+          onClearSelection={agenda.clearGridSelection}
           selectionBusy={agenda.gridActionsBusy}
         />
 

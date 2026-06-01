@@ -6,6 +6,7 @@ type Props = {
   onBlock: () => void
   onUnblock: () => void
   onCreateAppointment: () => void
+  onClearSelection: () => void
   busy?: boolean
   /** Botones compactos para la barra superior de la agenda admin. */
   toolbar?: boolean
@@ -16,6 +17,7 @@ export function StaffGridSelectionActions({
   onBlock,
   onUnblock,
   onCreateAppointment,
+  onClearSelection,
   busy = false,
   toolbar = false,
 }: Props) {
@@ -63,6 +65,16 @@ export function StaffGridSelectionActions({
           Quitar bloqueo{summary.blockIds.length > 1 ? 's' : ''}
         </Button>
       )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={btnClass}
+        disabled={busy}
+        onClick={onClearSelection}
+      >
+        Desmarcar
+      </Button>
     </div>
   )
 }
