@@ -19,6 +19,9 @@ import {
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import { DraggableAppointmentBlock } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import {
+  pointerYInStaffGrid,
+} from '@/components/agenda/admin/staffColumnHitTest'
+import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
 } from '@/lib/pendingAppointmentMoves'
@@ -91,6 +94,7 @@ function SlotLayer({
   selection,
   formSlotTime,
   formStaffId,
+  pointerPassthrough,
   onCellClick,
 }: {
   schedule: StaffDaySchedule
@@ -99,6 +103,7 @@ function SlotLayer({
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
+  pointerPassthrough?: boolean
   onCellClick: (cell: TimeGridCell, shiftKey: boolean) => void
 }) {
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
@@ -135,6 +140,7 @@ function SlotLayer({
             onClick={(e) => onCellClick(cell, e.shiftKey)}
             className={[
               'absolute inset-x-0 z-[15] border border-transparent transition-colors',
+              pointerPassthrough ? 'pointer-events-none' : '',
               cell.status === 'free' ? 'cursor-pointer hover:bg-gold/10' : 'cursor-pointer',
               isSelected ? 'bg-gold/20 ring-2 ring-inset ring-gold' : '',
               isFormSlot ? 'ring-2 ring-inset ring-gold/50' : '',
@@ -265,18 +271,18 @@ function StaffColumn({
   }
 
   return (
-    <div className="min-w-[11rem] flex-1 border-l border-gold/20">
+    <div
+      ref={columnRef}
+      data-staff-column-id={schedule.staffId}
+      data-staff-column-working="true"
+      className={[
+        'min-w-[11rem] flex-1 border-l border-gold/20 transition-colors duration-150',
+        isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
+      ].join(' ')}
+    >
       <StaffColumnHeader schedule={schedule} />
 
-      <div
-        ref={columnRef}
-        data-staff-column-id={schedule.staffId}
-        className={[
-          'relative transition-colors duration-150',
-          isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
-        ].join(' ')}
-        style={{ height: range.totalHeightPx }}
-      >
+      <div className="relative" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
         <SlotLayer
@@ -286,6 +292,7 @@ function StaffColumn({
           selection={selection}
           formSlotTime={formSlotTime}
           formStaffId={formStaffId}
+          pointerPassthrough={activeDrag != null}
           onCellClick={handleCellClick}
         />
 
@@ -367,20 +374,12 @@ export function AdminSalonDayCalendar({
     else columnRefs.current.delete(staffId)
   }, [])
 
-  const resolveStaffIdAtPoint = useCallback((clientX: number): string | null => {
-    for (const [staffId, el] of columnRefs.current) {
-      const rect = el.getBoundingClientRect()
-      if (clientX >= rect.left && clientX <= rect.right) return staffId
-    }
-    return null
-  }, [])
-
-  const columnTopFromClientY = useCallback((clientY: number, staffId: string): number | null => {
-    const el = columnRefs.current.get(staffId)
-    if (!el) return null
-    const rect = el.getBoundingClientRect()
-    return clientY - rect.top
-  }, [])
+  const columnTopFromClientY = useCallback(
+    (clientY: number, staffId: string): number | null => {
+      return pointerYInStaffGrid(clientY, staffId, columnRefs.current, range.totalHeightPx)
+    },
+    [range.totalHeightPx],
+  )
 
   const dragEnabled = !moveBusy
 
@@ -409,8 +408,8 @@ export function AdminSalonDayCalendar({
     <AppointmentDragProvider
       range={range}
       dragEnabled={dragEnabled}
-      resolveStaffIdAtPoint={resolveStaffIdAtPoint}
-      getColumnRect={(staffId) => columnRefs.current.get(staffId)?.getBoundingClientRect() ?? null}
+      schedules={schedules}
+      columnRefs={columnRefs}
       onDragEnd={onProposeAppointmentMove}
       onClickWithoutDrag={handleClickWithoutDrag}
     >

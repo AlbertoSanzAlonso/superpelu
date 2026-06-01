@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from 'react'
 import {
   CALENDAR_SLOT_HEIGHT_PX,
@@ -18,7 +19,12 @@ import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { appointmentEventClass } from '@/lib/serviceCategoryColors'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
-import type { DayScheduleAppointment } from '@/types/booking'
+import {
+  pointerYInStaffGrid,
+  resolveStaffIdAtPointer,
+  STAFF_COLUMN_HEADER_PX,
+} from '@/components/agenda/admin/staffColumnHitTest'
+import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 const DRAG_THRESHOLD_PX = 5
 
@@ -30,6 +36,7 @@ export type ActiveAppointmentDrag = {
   clientX: number
   clientY: number
   targetStaffId: string
+  targetStaffName: string
   snappedStartTime: string
   snappedTopPx: number
   height: number
@@ -64,8 +71,8 @@ type ProviderProps = {
   children: ReactNode
   range: CalendarDayRange
   dragEnabled: boolean
-  resolveStaffIdAtPoint: (clientX: number) => string | null
-  getColumnRect: (staffId: string) => DOMRect | null
+  schedules: StaffDaySchedule[]
+  columnRefs: RefObject<Map<string, HTMLDivElement>>
   onDragEnd: (payload: AppointmentDragEndPayload) => void
   onClickWithoutDrag: (appointmentId: string) => void
 }
@@ -74,8 +81,8 @@ export function AppointmentDragProvider({
   children,
   range,
   dragEnabled,
-  resolveStaffIdAtPoint,
-  getColumnRect,
+  schedules,
+  columnRefs,
   onDragEnd,
   onClickWithoutDrag,
 }: ProviderProps) {
@@ -113,21 +120,25 @@ export function AppointmentDragProvider({
     [flushFrame],
   )
 
+  const staffName = useCallback(
+    (staffId: string) => schedules.find((s) => s.staffId === staffId)?.staffName ?? '',
+    [schedules],
+  )
+
   const computeDrag = useCallback(
     (clientX: number, clientY: number, session: NonNullable<typeof dragSessionRef.current>): ActiveAppointmentDrag => {
-      const targetStaffId = resolveStaffIdAtPoint(clientX) ?? session.fromStaffId
-      const columnRect = getColumnRect(targetStaffId)
+      const columns = columnRefs.current
+      const targetStaffId =
+        resolveStaffIdAtPointer(clientX, clientY, columns) ?? session.fromStaffId
       const height = session.height
+      const gridHeightPx = range.totalHeightPx
 
       let snappedTopPx = 0
       let snappedStartTime = session.appointment.startTime
 
-      if (columnRect) {
-        const yInColumn = clientY - columnRect.top
-        const smoothTop = Math.max(
-          0,
-          Math.min(columnRect.height - height, yInColumn - session.grabOffsetY),
-        )
+      const yInGrid = pointerYInStaffGrid(clientY, targetStaffId, columns, gridHeightPx)
+      if (yInGrid !== null) {
+        const smoothTop = Math.max(0, Math.min(gridHeightPx - height, yInGrid - session.grabOffsetY))
         snappedStartTime = snapStartTimeFromTop(smoothTop, range)
         snappedTopPx = eventTopPx(snappedStartTime, range)
       }
@@ -140,12 +151,13 @@ export function AppointmentDragProvider({
         clientX,
         clientY,
         targetStaffId,
+        targetStaffName: staffName(targetStaffId),
         snappedStartTime,
         snappedTopPx,
         height,
       }
     },
-    [getColumnRect, range, resolveStaffIdAtPoint],
+    [columnRefs, range, staffName],
   )
 
   const endDragSession = useCallback(() => {
@@ -245,7 +257,13 @@ export function AppointmentDragProvider({
   return (
     <AppointmentDragContext.Provider value={{ activeDrag, startDrag }}>
       {children}
-      {activeDrag && <AppointmentDragOverlay activeDrag={activeDrag} getColumnRect={getColumnRect} />}
+      {activeDrag && (
+        <AppointmentDragOverlay
+          activeDrag={activeDrag}
+          columnRefs={columnRefs}
+          gridHeightPx={range.totalHeightPx}
+        />
+      )}
     </AppointmentDragContext.Provider>
   )
 }
@@ -258,55 +276,60 @@ export function useAppointmentDrag() {
 
 function AppointmentDragOverlay({
   activeDrag,
-  getColumnRect,
+  columnRefs,
+  gridHeightPx,
 }: {
   activeDrag: ActiveAppointmentDrag
-  getColumnRect: (staffId: string) => DOMRect | null
+  columnRefs: RefObject<Map<string, HTMLDivElement>>
+  gridHeightPx: number
 }) {
   const apt = activeDrag.appointment
-  const columnRect = getColumnRect(activeDrag.targetStaffId)
-  if (!columnRect) return null
+  const columnEl = columnRefs.current?.get(activeDrag.targetStaffId)
+  if (!columnEl) return null
 
+  const columnRect = columnEl.getBoundingClientRect()
   const height = Math.max(activeDrag.height - 2, 22)
-  const yInColumn = activeDrag.clientY - columnRect.top
-  const smoothTop = Math.max(
-    0,
-    Math.min(columnRect.height - activeDrag.height, yInColumn - activeDrag.grabOffsetY),
-  )
-  const top = columnRect.top + smoothTop
+  const yInGrid =
+    pointerYInStaffGrid(
+      activeDrag.clientY,
+      activeDrag.targetStaffId,
+      columnRefs.current ?? new Map(),
+      gridHeightPx,
+    ) ?? 0
+  const smoothTop = Math.max(0, Math.min(gridHeightPx - activeDrag.height, yInGrid - activeDrag.grabOffsetY))
+  const top = columnRect.top + STAFF_COLUMN_HEADER_PX + smoothTop
   const left = columnRect.left + 4
   const width = Math.max(columnRect.width - 8, 48)
+  const crossStaff = activeDrag.targetStaffId !== activeDrag.fromStaffId
 
   return (
-    <>
-      <div
-        className={`agenda-drag-ghost pointer-events-none fixed z-[60] overflow-hidden border-2 border-gold px-2 py-1 text-left text-xs leading-tight shadow-lg ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole)}`}
-        style={{
-          top,
-          left,
-          width,
-          height,
-        }}
-      >
-        <span className="flex items-center gap-1 font-medium">
-          {isColorGroupWashRow(apt.colorGroupRole) && (
-            <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
-          )}
-          <span className="truncate">
-            {apt.customerName} —{' '}
-            {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
-          </span>
+    <div
+      className={`agenda-drag-ghost pointer-events-none fixed z-[60] overflow-hidden border-2 border-gold px-2 py-1 text-left text-xs leading-tight shadow-lg ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole)}`}
+      style={{ top, left, width, height }}
+    >
+      <span className="flex items-center gap-1 font-medium">
+        {isColorGroupWashRow(apt.colorGroupRole) && (
+          <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
+        )}
+        <span className="truncate">
+          {apt.customerName} —{' '}
+          {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
         </span>
-        <span className="mt-0.5 block font-medium text-gold tabular-nums">
-          {activeDrag.snappedStartTime}
+      </span>
+      {crossStaff && (
+        <span className="mt-0.5 block truncate text-[10px] font-medium text-gold">
+          → {activeDrag.targetStaffName}
         </span>
-        <span className="block opacity-70 tabular-nums">
-          {formatAppointmentTimeRange(apt.serviceId, activeDrag.snappedStartTime, apt.durationMinutes, 'es', {
-            colorGroupRole: apt.colorGroupRole,
-          })}
-        </span>
-      </div>
-    </>
+      )}
+      <span className="mt-0.5 block font-medium text-gold tabular-nums">
+        {activeDrag.snappedStartTime}
+      </span>
+      <span className="block opacity-70 tabular-nums">
+        {formatAppointmentTimeRange(apt.serviceId, activeDrag.snappedStartTime, apt.durationMinutes, 'es', {
+          colorGroupRole: apt.colorGroupRole,
+        })}
+      </span>
+    </div>
   )
 }
 

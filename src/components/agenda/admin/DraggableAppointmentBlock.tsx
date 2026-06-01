@@ -101,7 +101,6 @@ export function DraggableAppointmentBlock({
       e.stopPropagation()
       const yInColumn = columnTopFromClientY(e.clientY, staffId)
       if (yInColumn === null) return
-      e.currentTarget.setPointerCapture(e.pointerId)
       startDrag({
         appointment: apt,
         fromStaffId: staffId,
