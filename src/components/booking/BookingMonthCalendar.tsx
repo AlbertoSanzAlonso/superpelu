@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { Locale } from '@/i18n/types'
 import { toDateString, todaySalon } from '@/lib/dates'
 import { typography } from '@/styles/typography'
@@ -9,6 +9,8 @@ type Props = {
   selectedDate?: string
   onSelect: (dateStr: string) => void
   disabled?: boolean
+  /** Calendario reducido al elegir día (paso de horas). */
+  compact?: boolean
   prevMonthLabel: string
   nextMonthLabel: string
 }
@@ -68,11 +70,18 @@ export function BookingMonthCalendar({
   selectedDate = '',
   onSelect,
   disabled = false,
+  compact = false,
   prevMonthLabel,
   nextMonthLabel,
 }: Props) {
   const bounds = useMemo(() => monthBounds(bookableDates), [bookableDates])
   const [view, setView] = useState(() => initialViewMonth(bookableDates))
+
+  useEffect(() => {
+    if (!selectedDate) return
+    const { year, month } = parseYmd(selectedDate)
+    setView({ year, month })
+  }, [selectedDate])
 
   const cells = useMemo(() => buildMonthCells(view.year, view.month), [view.year, view.month])
   const weekdays = useMemo(() => weekdayLabels(locale), [locale])
@@ -116,36 +125,46 @@ export function BookingMonthCalendar({
 
   return (
     <div
-      className={`border border-gold/30 bg-cream p-4 ${disabled ? 'pointer-events-none opacity-50' : ''}`}
+      className={`border border-gold/30 bg-cream ${compact ? 'mx-auto max-w-[17rem] p-2' : 'p-4'} ${disabled ? 'pointer-events-none opacity-50' : ''}`}
       aria-disabled={disabled}
     >
-      <div className="mb-4 flex items-center justify-between gap-2">
+      <div className={`flex items-center justify-between gap-1 ${compact ? 'mb-2' : 'mb-4'}`}>
         <button
           type="button"
           onClick={goPrevMonth}
           disabled={!canPrev || disabled}
-          className="ui-rounded flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30"
+          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30 ${
+            compact ? 'h-7 w-7 text-sm' : 'h-9 w-9'
+          }`}
           aria-label={prevMonthLabel}
         >
           ‹
         </button>
-        <p className={`${typography.h3} flex-1 text-center capitalize text-gold`}>{monthTitle}</p>
+        <p
+          className={`flex-1 text-center capitalize text-gold ${
+            compact ? `${typography.caption} text-xs` : typography.h3
+          }`}
+        >
+          {monthTitle}
+        </p>
         <button
           type="button"
           onClick={goNextMonth}
           disabled={!canNext || disabled}
-          className="ui-rounded flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30"
+          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30 ${
+            compact ? 'h-7 w-7 text-sm' : 'h-9 w-9'
+          }`}
           aria-label={nextMonthLabel}
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={monthTitle}>
+      <div className={`grid grid-cols-7 ${compact ? 'gap-0.5' : 'gap-1'}`} role="grid" aria-label={monthTitle}>
         {weekdays.map((label) => (
           <div
             key={label}
-            className={`${typography.caption} py-1 text-center text-[10px] normal-case`}
+            className={`${typography.caption} text-center normal-case ${compact ? 'py-0.5 text-[9px]' : 'py-1 text-[10px]'}`}
             role="columnheader"
           >
             {label}
@@ -167,7 +186,7 @@ export function BookingMonthCalendar({
               type="button"
               disabled={!bookable || disabled}
               onClick={() => onSelect(dateStr)}
-              className={`aspect-square cursor-pointer text-sm transition-colors ${
+              className={`aspect-square cursor-pointer transition-colors ${compact ? 'text-xs' : 'text-sm'} ${
                 bookable
                   ? isSelected
                     ? 'border-2 border-gold bg-gold/15 font-semibold text-gold'

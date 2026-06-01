@@ -213,74 +213,26 @@ export function CustomerHistoryPage() {
           </p>
           <div
             id="customer-history-filters"
-            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
+            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
           >
-            <label className="block text-left sm:col-span-2 lg:col-span-3 xl:col-span-2">
-              <span className={`${typography.caption} mb-1 block`}>Estado de la cita</span>
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as CustomerAppointmentStatusFilter | '')
-                }
-                className={fieldClass}
-              >
-                <option value="">Todos los estados</option>
-                {CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-left">
-              <span className={`${typography.caption} mb-1 block`}>Desde</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className={fieldClass}
-              />
-            </label>
-            <label className="block text-left">
-              <span className={`${typography.caption} mb-1 block`}>Hasta</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className={fieldClass}
-              />
-            </label>
-            <label className="block text-left">
-              <span className={`${typography.caption} mb-1 block`}>Tratamiento</span>
-              <select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                className={fieldClass}
-              >
-                <option value="">Todos los tratamientos</option>
-                {serviceOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-left">
-              <span className={`${typography.caption} mb-1 block`}>Profesional</span>
-              <select
-                value={staffFilter}
-                onChange={(e) => setStaffFilter(e.target.value)}
-                className={fieldClass}
-              >
-                <option value="">Todos los profesionales</option>
-                {staffOptions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-2">
+            <div className="flex flex-col gap-3 sm:col-span-2">
+              <label className="block text-left">
+                <span className={`${typography.caption} mb-1 block`}>Estado de la cita</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) =>
+                    setStatusFilter(e.target.value as CustomerAppointmentStatusFilter | '')
+                  }
+                  className={fieldClass}
+                >
+                  <option value="">Todos los estados</option>
+                  {CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 disabled={!hasFilters}
@@ -295,6 +247,58 @@ export function CustomerHistoryPage() {
               >
                 Quitar filtros
               </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="block text-left">
+                <span className={`${typography.caption} mb-1 block`}>Desde</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className={fieldClass}
+                />
+              </label>
+              <label className="block text-left">
+                <span className={`${typography.caption} mb-1 block`}>Hasta</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className={fieldClass}
+                />
+              </label>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="block text-left">
+                <span className={`${typography.caption} mb-1 block`}>Tratamiento</span>
+                <select
+                  value={serviceFilter}
+                  onChange={(e) => setServiceFilter(e.target.value)}
+                  className={fieldClass}
+                >
+                  <option value="">Todos los tratamientos</option>
+                  {serviceOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-left">
+                <span className={`${typography.caption} mb-1 block`}>Profesional</span>
+                <select
+                  value={staffFilter}
+                  onChange={(e) => setStaffFilter(e.target.value)}
+                  className={fieldClass}
+                >
+                  <option value="">Todos los profesionales</option>
+                  {staffOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </div>
           <p className={`${typography.caption} mt-3`}>

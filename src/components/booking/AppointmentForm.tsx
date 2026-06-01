@@ -46,15 +46,33 @@ export function AppointmentForm({
   const [step, setStep] = useState(0)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
 
+  const scheduleStep = 2
+
   const goPrev = useCallback(() => {
+    if (step === scheduleStep && form.startTime) {
+      form.setStartTime('')
+      return
+    }
+    if (step === scheduleStep && form.date) {
+      form.setDate('')
+      return
+    }
     setStep((current) => {
-      if (current === 2 && pickedCategoryId) {
+      if (current === scheduleStep && pickedCategoryId) {
         const count = countServicesInCategory(form.services, pickedCategoryId)
         if (count === 1) return 0
       }
       return Math.max(current - 1, 0)
     })
-  }, [pickedCategoryId, form.services])
+  }, [
+    step,
+    form.startTime,
+    form.date,
+    form.setStartTime,
+    form.setDate,
+    pickedCategoryId,
+    form.services,
+  ])
 
   const handleCategorySelected = useCallback(
     (categoryId: string) => {
@@ -106,8 +124,20 @@ export function AppointmentForm({
     form.setDate('')
   }, [form.setDate])
 
-  const scheduleStep = 2
+  const handleChangeTime = useCallback(() => {
+    form.setStartTime('')
+  }, [form.setStartTime])
+
   const confirmStep = 3
+
+  const calendarProps = {
+    bookableDates,
+    locale,
+    selectedDate: form.date,
+    onSelect: form.setDate,
+    prevMonthLabel: b.prevMonth,
+    nextMonthLabel: b.nextMonth,
+  }
 
   return (
     <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
@@ -160,144 +190,133 @@ export function AppointmentForm({
           <div className="space-y-8">
             {!form.serviceId ? (
               <p className={`${typography.caption} text-center`}>{b.chooseServiceFirst}</p>
+            ) : !form.date ? (
+              <div>
+                <p className={`${typography.label} mb-4 block w-full text-center md:hidden`}>
+                  {b.day}
+                </p>
+                <BookingMonthCalendar {...calendarProps} />
+                <p className={`${typography.caption} mt-3 text-center`}>{b.selectDay}</p>
+              </div>
+            ) : !form.startTime ? (
+              <>
+                <BookingMonthCalendar {...calendarProps} compact />
+                <fieldset className="space-y-3">
+                  <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
+                    {b.hour}
+                  </legend>
+                  {form.loadingSlots ? (
+                    <p className={`${typography.caption} text-center`}>{b.loadingSlots}</p>
+                  ) : form.slots.length === 0 ? (
+                    <p
+                      className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                      role="status"
+                    >
+                      {form.slotsError || b.noSlots}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {form.slots.map((slot) => (
+                        <label
+                          key={slot}
+                          className="cursor-pointer border border-gold/20 py-2 text-center text-sm transition-colors hover:border-gold/50"
+                        >
+                          <input
+                            type="radio"
+                            name="time"
+                            value={slot}
+                            onChange={() => handleTimeSelected(slot)}
+                            className="sr-only"
+                          />
+                          {slot}
+                          {form.selectedService && (
+                            <span className="mt-0.5 block text-[10px] leading-tight text-charcoal-muted">
+                              {formatAppointmentTimeRange(
+                                form.selectedService.id,
+                                slot,
+                                form.selectedService.durationMinutes,
+                                locale,
+                              )}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </fieldset>
+              </>
             ) : (
               <>
-                <div>
-                  <p className={`${typography.label} mb-4 block w-full text-center md:hidden`}>
-                    {b.day}
+                <div className="space-y-2 text-center">
+                  <p className="font-sans text-sm capitalize text-charcoal">
+                    {formatDisplayDate(form.date, locale)} · {form.startTime}
                   </p>
-                  <BookingMonthCalendar
-                    bookableDates={bookableDates}
-                    locale={locale}
-                    selectedDate={form.date}
-                    onSelect={form.setDate}
-                    prevMonthLabel={b.prevMonth}
-                    nextMonthLabel={b.nextMonth}
-                  />
-                  {!form.date && (
-                    <p className={`${typography.caption} mt-3 text-center`}>{b.selectDay}</p>
-                  )}
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1">
+                    <button
+                      type="button"
+                      onClick={handleChangeDay}
+                      className={`${typography.caption} cursor-pointer text-gold underline-offset-2 hover:underline`}
+                    >
+                      {b.changeDay}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleChangeTime}
+                      className={`${typography.caption} cursor-pointer text-gold underline-offset-2 hover:underline`}
+                    >
+                      {b.changeTime}
+                    </button>
+                  </div>
                 </div>
 
-                {form.date && (
-                  <>
-                    <div className="text-center">
-                      <p className={`${typography.label} mb-1 md:hidden`}>{b.day}</p>
-                      <p className="font-sans text-sm capitalize text-charcoal">
-                        {formatDisplayDate(form.date, locale)}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={handleChangeDay}
-                        className={`${typography.caption} mt-2 cursor-pointer text-gold underline-offset-2 hover:underline`}
-                      >
-                        {b.changeDay}
-                      </button>
-                    </div>
-
-                    <fieldset className="space-y-3">
-                      <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-                        {b.hour}
-                      </legend>
-                      {form.loadingSlots ? (
-                        <p className={`${typography.caption} text-center`}>{b.loadingSlots}</p>
-                      ) : form.slots.length === 0 ? (
-                        <p
-                          className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
-                          role="status"
-                        >
-                          {form.slotsError || b.noSlots}
-                        </p>
-                      ) : (
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                          {form.slots.map((slot) => (
-                            <label
-                              key={slot}
-                              className={`cursor-pointer border py-2 text-center text-sm transition-colors ${
-                                form.startTime === slot
-                                  ? 'border-gold bg-gold/10 text-gold'
-                                  : 'border-gold/20 hover:border-gold/50'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name="time"
-                                value={slot}
-                                checked={form.startTime === slot}
-                                onChange={() => handleTimeSelected(slot)}
-                                className="sr-only"
-                              />
-                              {slot}
-                              {form.selectedService && (
-                                <span className="mt-0.5 block text-[10px] leading-tight text-charcoal-muted">
-                                  {formatAppointmentTimeRange(
-                                    form.selectedService.id,
-                                    slot,
-                                    form.selectedService.durationMinutes,
-                                    locale,
-                                  )}
-                                </span>
-                              )}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </fieldset>
-
-                    {form.startTime && (
-                      <fieldset className="space-y-3">
-                        <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-                          {b.staff}
-                        </legend>
-                        {form.loadingStaffAtSlot ? (
-                          <p className={`${typography.caption} text-center`}>{b.loadingStaff}</p>
-                        ) : form.staffAtSlot.length === 0 ? (
-                          <p
-                            className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
-                            role="status"
+                <fieldset className="space-y-3">
+                  <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
+                    {b.staff}
+                  </legend>
+                  {form.loadingStaffAtSlot ? (
+                    <p className={`${typography.caption} text-center`}>{b.loadingStaff}</p>
+                  ) : form.staffAtSlot.length === 0 ? (
+                    <p
+                      className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                      role="status"
+                    >
+                      {form.staffAtSlotError || b.noStaffAtSlot}
+                    </p>
+                  ) : (
+                    <>
+                      <p className={`${typography.caption} text-center`}>{b.chooseStaffForSlot}</p>
+                      <div className="grid gap-3">
+                        {form.staffAtSlot.map((member) => (
+                          <label
+                            key={member.id}
+                            className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${
+                              form.staffId === member.id
+                                ? 'border-gold bg-gold/5'
+                                : 'border-gold/20 hover:border-gold/40'
+                            }`}
                           >
-                            {form.staffAtSlotError || b.noStaffAtSlot}
-                          </p>
-                        ) : (
-                          <>
-                            <p className={`${typography.caption} text-center`}>
-                              {b.chooseStaffForSlot}
-                            </p>
-                            <div className="grid gap-3">
-                              {form.staffAtSlot.map((member) => (
-                                <label
-                                  key={member.id}
-                                  className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${
-                                    form.staffId === member.id
-                                      ? 'border-gold bg-gold/5'
-                                      : 'border-gold/20 hover:border-gold/40'
-                                  }`}
-                                >
-                                  <input
-                                    type="radio"
-                                    name="staff"
-                                    value={member.id}
-                                    checked={form.staffId === member.id}
-                                    onChange={() => handleStaffSelected(member.id)}
-                                    className="mt-1 accent-gold"
-                                  />
-                                  <span className="text-left">
-                                    <span className={`${typography.h3} block text-gold`}>
-                                      {member.name}
-                                    </span>
-                                    {member.role && (
-                                      <span className={typography.caption}>{member.role}</span>
-                                    )}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </fieldset>
-                    )}
-                  </>
-                )}
+                            <input
+                              type="radio"
+                              name="staff"
+                              value={member.id}
+                              checked={form.staffId === member.id}
+                              onChange={() => handleStaffSelected(member.id)}
+                              className="mt-1 accent-gold"
+                            />
+                            <span className="text-left">
+                              <span className={`${typography.h3} block text-gold`}>
+                                {member.name}
+                              </span>
+                              {member.role && (
+                                <span className={typography.caption}>{member.role}</span>
+                              )}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </fieldset>
               </>
             )}
           </div>
