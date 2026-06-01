@@ -1,4 +1,6 @@
-# Supabase — Superpelu
+# Supabase — Superpelu (legado)
+
+> **Producción actual:** PostgreSQL en el servidor con `DATABASE_URL` (ver `.cursor/skills/superpelu/deploy-coolify.md`). No hace falta proyecto Supabase cloud ni cliente JS en el frontend para citas/agenda.
 
 ## 1. Crear proyecto
 

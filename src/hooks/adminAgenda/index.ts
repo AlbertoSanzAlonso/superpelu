@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react'
+import { useAgendaPolling } from '@/hooks/agenda/useAgendaPolling'
 import { useAdminAgendaSchedule } from './useAdminAgendaSchedule'
 import { useAdminAgendaSelection } from './useAdminAgendaSelection'
 import { useAdminAgendaGridBlocks } from './useAdminAgendaGridBlocks'
@@ -55,6 +56,24 @@ export function useAdminAgenda(adminToken: string, date: string) {
   }, [date])
 
   const gridInteractionsLocked = moves.pendingMoves.length > 0
+
+  const pollPaused =
+    schedule.gridActionsBusy ||
+    gridInteractionsLocked ||
+    appointments.appointmentFormOpen ||
+    appointments.detailEditMode ||
+    appointments.whatsAppNotifyDialogOpen ||
+    appointments.whatsAppNotifyBusy ||
+    blocks.blockModalOpen ||
+    blocks.unblockModal != null ||
+    blocks.blockDetailBusy ||
+    confirm.confirmDialog != null ||
+    moves.moveBusy
+
+  useAgendaPolling(schedule.load, {
+    enabled: Boolean(adminToken),
+    paused: pollPaused,
+  })
 
   useEffect(() => {
     if (!gridInteractionsLocked) return

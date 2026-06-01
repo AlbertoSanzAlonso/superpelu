@@ -73,33 +73,25 @@ Rutas web admin con el mismo secreto: `/agenda`, `/clientes`, `/clientes/:phone`
 
 Si la clave correcta da 401 pero `superpelu-dev-admin` da 200, la variable no está aplicada en el contenedor.
 
-## Base de datos (Supabase)
+## Base de datos (PostgreSQL en el servidor)
 
-Variable de entorno **`DATABASE_URL`** (runtime): connection string de Supabase. Para este servidor Node persistente, usa el pooler en modo **Session** (puerto **5432**), no Transaction (6543). No hace falta volumen local para citas.
+La app **no** usa Supabase como producto en el navegador (sin Realtime ni cliente JS para citas). Postgres vive en el **servidor** (servicio Postgres en Coolify, contenedor aparte o host interno) y solo lo usa el proceso Node.
 
-**Error `password authentication failed for user "postgres"`:** la URI en Coolify es incorrecta. En el pooler el usuario **no** es `postgres`, sino `postgres.TU_PROJECT_REF` (lo muestra Supabase al copiar «Transaction»). Contraseña = la de *Project Settings → Database*, sin comillas en Coolify.
-
-Ejemplo correcto:
+Variable de entorno **`DATABASE_URL`** (runtime en Coolify), sin comillas:
 
 ```text
-postgresql://postgres.abcdefghijklmnop:TU_PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres
+postgresql://USUARIO:CONTRASEÑA@postgres:5432/superpelu
 ```
 
-**Arranca bien pero `/api/services` falla con `user "postgres"`:** suele ser Transaction (6543) + pool de conexiones. Cambia a Session (5432) en la URI o redeploy con el código actual (`max: 1`, `prepare: false` en pooler).
+Ajusta host (`postgres`, nombre del servicio en la red Docker de Coolify), usuario, contraseña y nombre de base. En logs de arranque debe salir `origen DATABASE_URL`.
 
-**Recomendado en Coolify** (evita pegar la URI y romper la contraseña con `+`, `@`, etc.):
+**Errores habituales**
 
-1. **Borra** `DATABASE_URL` de Coolify (si existe).
-2. Añade solo:
-   - `SUPABASE_PROJECT_REF` = id del proyecto (ej. `zskaxmjxskfznetfjcwz`, de `https://XXXX.supabase.co`)
-   - `SUPABASE_DB_PASSWORD` = contraseña **en texto plano** (la de *Reset database password*, sin URI)
-   - `SUPABASE_DB_PORT` = `5432`
-   - `NODE_ENV` = `production`
-3. Save → Redeploy.
+- `Falta … DATABASE_URL`: no está definida en variables de **runtime** del servicio Node.
+- `password authentication failed`: usuario/contraseña incorrectos o host que no resuelve dentro de la red Coolify.
+- Contraseña con `+`, `@`, `/`: el servidor reescapa la URI en `server/pg/client.ts`; si falla, regenera contraseña alfanumérica.
 
-El servidor monta la URI con `encodeURIComponent` en la contraseña. En logs debe salir `origen SUPABASE_*`.
-
-Si usas `DATABASE_URL`, tiene **menor prioridad** que `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD`.
+**Legado Supabase cloud:** si aún tienes `SUPABASE_PROJECT_REF` + `SUPABASE_DB_PASSWORD`, el servidor las usa **antes** que `DATABASE_URL`. Para Postgres propio, borra esas variables y deja solo `DATABASE_URL`.
 
 Migrar desde SQLite de producción antigua:
 

@@ -1,7 +1,7 @@
 ---
 name: superpelu
 description: >-
-  Superpelu Hair Studio — React + Hono + PostgreSQL (Supabase). Reservas (/reservar), agenda
+  Superpelu Hair Studio — React + Hono + PostgreSQL en servidor. Reservas (/reservar), agenda
   admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
@@ -14,7 +14,8 @@ description: >-
 
 - **Un proceso Node** (`npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
 - **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
-- **PostgreSQL (Supabase):** `DATABASE_URL` (connection string del proyecto). El servidor aplica `server/pg/schema.sql` y sincroniza catálogo al arrancar.
+- **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se sincroniza el catálogo.
+- **No** usar Supabase Realtime, Auth ni `supabase-js` para citas/agenda (`src/lib/supabaseClient.ts` es opcional y no se usa en flujos de reserva).
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
 - **Horario salón:** mar–sáb 10:00–20:00, slots cada 30 min (`salonSchedule.slotMinutes`).
 
@@ -36,9 +37,11 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 **Lavar color** (`svc-wash-color`): `bookableOnline: false` (no aparece en `/reservar`); solo agenda o como pareja al reservar coloración. En catálogo 20 min; en pareja con color ocupa **30 min** en agenda.
 
-## Base de datos (PostgreSQL / Supabase)
+## Base de datos (PostgreSQL en el servidor)
 
 Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+
+**Conexión:** `DATABASE_URL` en Coolify o `.env` local (Postgres del mismo stack o servicio dedicado). Variables `SUPABASE_*` son legado opcional en `server/pg/client.ts`; en producción suele bastar la URI al Postgres del servidor.
 
 Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-sqlite` (requiere `SQLITE_PATH` y `DATABASE_URL`).
 
@@ -171,6 +174,7 @@ Ambos modos usan `AgendaWorkspaceShell` (pantalla completa, **sin** logo ni `Pag
 - Bloqueos con alcance: `BlockScopeModal`, `UnblockScopeModal` (`server/staffBlocks.ts`).
 - Cita: `StaffAppointmentFormModal`.
 - `GET /api/schedule/day?date=` → `listStaffDaySchedules` (citas con `occupiedSlots` para coloración partida).
+- **Actualización automática:** `useAgendaPolling` (15 s, pestaña visible) + `useAdminAgendaSchedule.load({ silent: true })` — recarga en segundo plano sin «Cargando…». Se pausa con formularios, movimientos pendientes, modales o acciones en grilla; al volver a la pestaña recarga de inmediato.
 
 ## Colores en agenda (BUK)
 
@@ -241,6 +245,7 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/components/shared/ServiceCategoryPickerPublic.tsx` | Reserva pública — 12 categorías, grid 2×/4 col, tratamientos 3 col en desktop |
 | `src/hooks/useAdminSession.ts` | Token admin en `sessionStorage` para `/clientes` |
 | `src/hooks/useAdminAgenda.ts` | Lógica agenda admin |
+| `src/hooks/agenda/useAgendaPolling.ts` | Polling silencioso de agenda (admin) |
 | `src/hooks/useAppointmentForm.ts` | Reserva pública; `servicesError` + Reintentar si API cae |
 | `src/components/booking/AppointmentForm.tsx` | Formulario `/reservar` (sin enlace a `/agenda`) |
 | `src/components/booking/AddToCalendarButton.tsx` | Botón «Añadir al calendario» en la confirmación (`BookingPage`) |

@@ -8,21 +8,26 @@ export function useAdminAgendaSchedule(adminToken: string, date: string) {
   const [error, setError] = useState('')
   const [gridActionsBusy, setGridActionsBusy] = useState(false)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { silent?: boolean }) => {
     if (!adminToken) return
-    setLoading(true)
-    setError('')
+    const silent = opts?.silent === true
+    if (!silent) {
+      setLoading(true)
+      setError('')
+    }
     try {
       const res = await fetchDaySchedule(date, adminToken)
       setSchedules(res.schedules)
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) {
-        setError('Sesión de administración no válida.')
-      } else {
-        setError('No se pudo cargar la agenda.')
+      if (!silent) {
+        if (err instanceof ApiError && err.status === 401) {
+          setError('Sesión de administración no válida.')
+        } else {
+          setError('No se pudo cargar la agenda.')
+        }
       }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [adminToken, date])
 
