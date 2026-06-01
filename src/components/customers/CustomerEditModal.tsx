@@ -172,7 +172,7 @@ export function CustomerEditModal({
             />
 
             <Textarea
-              label="Observaciones"
+              label="Observaciones del cliente"
               placeholder="Preferencias, alergias, notas internas…"
               value={notes}
               onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setNotes(e.target.value)}

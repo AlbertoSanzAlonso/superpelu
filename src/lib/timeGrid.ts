@@ -5,6 +5,7 @@ import {
   isColorGroupWashRow,
   occupiedSegmentsOverlap,
 } from '@/lib/bookingOccupancy'
+import { truncateNotesPreview } from '@/lib/notes'
 import type { StaffDaySchedule } from '@/types/booking'
 
 export type TimeGridCellStatus = 'free' | 'appointment' | 'block' | 'past'
@@ -14,6 +15,8 @@ export type TimeGridCell = {
   status: TimeGridCellStatus
   title?: string
   subtitle?: string
+  /** Texto completo de observaciones de la cita (tooltip). */
+  appointmentNotes?: string
   appointmentId?: string
   categoryId?: string | null
   serviceId?: string
@@ -84,6 +87,11 @@ export function buildStaffDayGrid(
         { colorGroupRole: apt.colorGroupRole },
       )
       const isSegmentStart = aptSegments.some((seg) => seg.startMinutes === slotStart)
+      const serviceLabel = isColorGroupWashRow(apt.colorGroupRole)
+        ? 'Lavar color'
+        : apt.serviceName
+      const notesPreview = isSegmentStart ? truncateNotesPreview(apt.notes, 36) : undefined
+      const subtitleParts = [serviceLabel, notesPreview].filter(Boolean)
       cells.push({
         time,
         status: 'appointment',
@@ -92,11 +100,8 @@ export function buildStaffDayGrid(
         serviceId: apt.serviceId,
         colorGroupRole: apt.colorGroupRole,
         title: isSegmentStart ? apt.customerName : undefined,
-        subtitle: isSegmentStart
-          ? isColorGroupWashRow(apt.colorGroupRole)
-            ? 'Lavar color'
-            : apt.serviceName
-          : undefined,
+        subtitle: isSegmentStart && subtitleParts.length > 0 ? subtitleParts.join(' · ') : undefined,
+        appointmentNotes: isSegmentStart ? apt.notes?.trim() || undefined : undefined,
       })
       continue
     }

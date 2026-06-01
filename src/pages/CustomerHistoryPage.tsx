@@ -15,6 +15,7 @@ import {
   type CustomerAppointmentStatusFilter,
 } from '@/lib/customerAppointmentStatus'
 import { formatDisplayDate } from '@/lib/dates'
+import { truncateNotesPreview } from '@/lib/notes'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Appointment } from '@/types/booking'
@@ -171,10 +172,13 @@ export function CustomerHistoryPage() {
                 {formatPhoneDisplay(customer.phone)}
               </p>
               {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
-              {customer.notes && (
-                <p className={`${typography.caption} mt-2 whitespace-pre-wrap`}>
-                  {customer.notes}
-                </p>
+              {customer.notes?.trim() && (
+                <div className="mt-2">
+                  <p className={typography.label}>Observaciones del cliente</p>
+                  <p className={`${typography.caption} mt-0.5 whitespace-pre-wrap`}>
+                    {customer.notes}
+                  </p>
+                </div>
               )}
             </div>
             <Button
@@ -316,14 +320,16 @@ export function CustomerHistoryPage() {
           </p>
         ) : (
           <ul className="divide-y divide-gold/10">
-            {filteredAppointments.map((apt) => (
+            {filteredAppointments.map((apt) => {
+              const notesPreview = truncateNotesPreview(apt.notes)
+              return (
               <li key={apt.id}>
                 <button
                   type="button"
                   onClick={() => setSelectedAppointment(apt)}
                   className="flex w-full cursor-pointer flex-col gap-1 px-4 py-4 text-left transition-colors hover:bg-gold/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium capitalize">{formatDisplayDate(apt.date)}</p>
                     <p className="tabular-nums text-sm text-charcoal-muted">
                       {formatAppointmentTimeRange(
@@ -334,8 +340,13 @@ export function CustomerHistoryPage() {
                         { colorGroupRole: apt.colorGroupRole },
                       )}
                     </p>
+                    {notesPreview && (
+                      <p className={`${typography.caption} mt-1 line-clamp-2 text-charcoal-muted`}>
+                        {notesPreview}
+                      </p>
+                    )}
                   </div>
-                  <div className="sm:text-right">
+                  <div className="shrink-0 sm:text-right">
                     <p className="font-medium">{apt.serviceName}</p>
                     {apt.staffName && (
                       <p className={`${typography.caption} mt-0.5`}>{apt.staffName}</p>
@@ -360,7 +371,7 @@ export function CustomerHistoryPage() {
                   </div>
                 </button>
               </li>
-            ))}
+            )})}
           </ul>
         )}
       </main>

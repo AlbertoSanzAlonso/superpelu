@@ -101,6 +101,13 @@ export function StaffTimeGrid({
               key={cell.time}
               type="button"
               disabled={cell.status === 'past'}
+              title={
+                cell.appointmentNotes
+                  ? `${cell.title ?? ''} — ${cell.subtitle ?? ''}\n${cell.appointmentNotes}`
+                  : cell.title
+                    ? `${cell.title}${cell.subtitle ? ` — ${cell.subtitle}` : ''}`
+                    : undefined
+              }
               onClick={(e) => handleCellClick(cell, e.shiftKey)}
               aria-pressed={isMultiSelected}
               className={[

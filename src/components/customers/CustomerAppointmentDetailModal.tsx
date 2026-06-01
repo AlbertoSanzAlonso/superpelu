@@ -147,7 +147,7 @@ export function CustomerAppointmentDetailModal({
             </div>
             {appointment.notes?.trim() && (
               <div>
-                <dt className={typography.label}>Notas</dt>
+                <dt className={typography.label}>Observaciones de la cita</dt>
                 <dd className="mt-1 whitespace-pre-wrap text-charcoal-muted">{appointment.notes}</dd>
               </div>
             )}

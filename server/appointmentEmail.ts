@@ -118,7 +118,7 @@ export function buildAppointmentAdminEmail(
     { label: event === 'updated' ? 'Nueva fecha / hora' : 'Fecha / hora', value: dateTime },
     { label: 'Servicio(s) y colaborador(es)', value: serviceLine },
   )
-  if (notes) detailRows.push({ label: 'Notas', value: notes })
+  if (notes) detailRows.push({ label: 'Observaciones de la cita', value: notes })
 
   const text = [
     labels.intro,

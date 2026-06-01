@@ -275,8 +275,8 @@ const es = {
     fullName: 'Nombre completo',
     phone: 'Teléfono',
     emailOptional: 'Email (opcional)',
-    notesOptional: 'Notas (opcional)',
-    notesPlaceholder: 'Mechas, alergias, preferencias…',
+    notesOptional: 'Observaciones de la cita (opcional)',
+    notesPlaceholder: 'Mechas, alergias, preferencias para esta visita…',
     summaryLabels: {
       service: 'Servicio',
       staff: 'Profesional',
@@ -759,8 +759,8 @@ const en = {
     fullName: 'Full name',
     phone: 'Phone',
     emailOptional: 'Email (optional)',
-    notesOptional: 'Notes (optional)',
-    notesPlaceholder: 'Highlights, allergies, preferences…',
+    notesOptional: 'Appointment notes (optional)',
+    notesPlaceholder: 'Highlights, allergies, preferences for this visit…',
     summaryLabels: {
       service: 'Service',
       staff: 'Stylist',

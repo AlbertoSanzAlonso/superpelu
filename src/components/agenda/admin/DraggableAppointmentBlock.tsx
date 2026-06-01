@@ -126,7 +126,11 @@ export function DraggableAppointmentBlock({
       key={key}
       className={`agenda-appointment-block absolute inset-x-1 z-30 overflow-hidden border px-2 py-1 text-left text-xs leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole)} ${className}`}
       style={{ top, height: Math.max(height - 2, 22) }}
-      title={`${apt.customerName} — ${apt.serviceName}`}
+      title={
+        apt.notes?.trim()
+          ? `${apt.customerName} — ${apt.serviceName}\n${apt.notes.trim()}`
+          : `${apt.customerName} — ${apt.serviceName}`
+      }
       {...pointerHandlers}
     >
       <span className="flex items-center gap-1 font-medium">
@@ -143,6 +147,9 @@ export function DraggableAppointmentBlock({
           colorGroupRole: apt.colorGroupRole,
         })}
       </span>
+      {apt.notes?.trim() && height >= 44 && (
+        <span className="mt-0.5 block truncate opacity-75 italic">{apt.notes.trim()}</span>
+      )}
     </div>
   )
 

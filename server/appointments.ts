@@ -318,7 +318,9 @@ export async function createAppointment(
     lastName: customer.lastName,
     phone: customer.phone,
     email: input.customerEmail,
-    notes: input.customerNotes ?? input.notes,
+    ...(input.customerNotes !== undefined
+      ? { notes: input.customerNotes.trim() || null }
+      : {}),
   })
   const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
 

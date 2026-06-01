@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import { truncateNotesPreview } from '@/lib/notes'
 import type { DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -69,7 +70,9 @@ export function StaffAppointmentList({
             <p className={typography.caption}>Sin citas este día.</p>
           ) : (
             <ul className="space-y-2">
-              {visibleAppointments.map((apt) => (
+              {visibleAppointments.map((apt) => {
+                const notesPreview = truncateNotesPreview(apt.notes)
+                return (
                 <li
                   key={apt.id}
                   className="flex flex-col gap-2 border border-gold/25 bg-cream px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
@@ -83,6 +86,11 @@ export function StaffAppointmentList({
                     <p className="text-sm">
                       {apt.serviceName} · {apt.customerName} · {apt.customerPhone}
                     </p>
+                    {notesPreview && (
+                      <p className={`${typography.caption} mt-1 whitespace-pre-wrap text-charcoal-muted`}>
+                        {notesPreview}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" size="sm" onClick={() => onEdit(apt)}>
@@ -93,7 +101,7 @@ export function StaffAppointmentList({
                     </Button>
                   </div>
                 </li>
-              ))}
+              )})}
             </ul>
           )}
         </div>

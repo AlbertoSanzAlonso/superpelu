@@ -239,13 +239,13 @@ function ClientPanelView({
           <dd className="mt-0.5 break-all">{dash(draft.customerEmail)}</dd>
         </div>
         <div>
-          <dt className={typography.label}>Observaciones (cliente)</dt>
+          <dt className={typography.label}>Observaciones del cliente (ficha)</dt>
           <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">
             {dash(draft.customerNotes)}
           </dd>
         </div>
         <div>
-          <dt className={typography.label}>Notas de la cita</dt>
+          <dt className={typography.label}>Observaciones de la cita</dt>
           <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">{dash(draft.notes)}</dd>
         </div>
       </dl>
@@ -319,7 +319,7 @@ function ClientPanelEdit({
         />
       )}
       <Textarea
-        label="Notas de la cita"
+        label="Observaciones de la cita"
         rows={2}
         value={draft.notes}
         onChange={(e) => onDraftChange({ notes: e.target.value })}

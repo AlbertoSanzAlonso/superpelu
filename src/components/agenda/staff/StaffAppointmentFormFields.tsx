@@ -147,12 +147,17 @@ export function StaffAppointmentFormFields({
       </div>
 
       <Textarea
-        label="Notas"
+        label="Observaciones de la cita"
         rows={compact ? 2 : 3}
         value={draft.notes}
-        onChange={(e) =>
-          onDraftChange({ notes: e.target.value, customerNotes: e.target.value })
-        }
+        onChange={(e) => onDraftChange({ notes: e.target.value })}
+        className={compact ? fieldCompact : undefined}
+      />
+      <Textarea
+        label="Observaciones del cliente (ficha)"
+        rows={compact ? 2 : 2}
+        value={draft.customerNotes}
+        onChange={(e) => onDraftChange({ customerNotes: e.target.value })}
         className={compact ? fieldCompact : undefined}
       />
 

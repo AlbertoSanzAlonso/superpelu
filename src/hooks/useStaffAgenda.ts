@@ -231,7 +231,7 @@ export function useStaffAgenda(token: string) {
             customerLastName: aptDraft.customerLastName,
             customerPhone: aptDraft.customerPhone,
             customerEmail: aptDraft.customerEmail || undefined,
-            customerNotes: aptDraft.customerNotes || aptDraft.notes || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
           })
         }
