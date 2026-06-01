@@ -1,12 +1,23 @@
 import { timeToMinutes, minutesToTime } from '@/lib/adminCalendar'
 import {
+  COLOR_SPLIT_SEGMENT_MINUTES,
   getOccupiedSegmentsForAppointment,
+  getWashPhaseStartMinutes,
+  isColorGroupColorRow,
+  isColorGroupWashRow,
   occupiedSegmentsOverlap,
 } from '@/lib/bookingOccupancy'
-import { buildSchedulesWithPendingMoves } from '@/lib/pendingAppointmentMoves'
+import {
+  appointmentAtStartTime,
+  buildSchedulesWithPendingMoves,
+  getFinalMovesForSave,
+} from '@/lib/pendingAppointmentMoves'
 import { buildStaffDayGrid } from '@/lib/timeGrid'
 import type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
 import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
+
+const LINKED_WASH_PHASE_BLOCKED_MESSAGE =
+  'El tramo de aclarado/lavado quedaría en un horario ocupado. Elige otra hora para la aplicación del color.'
 
 export type AppointmentMoveTarget = {
   staffId: string
@@ -43,7 +54,142 @@ export function validateAppointmentMove(
     return { ok: false, message: 'Profesional no encontrado.' }
   }
 
-  return validateAppointmentMoveOnSchedule(schedule, date, appointment, target)
+  const result = validateAppointmentMoveOnSchedule(schedule, date, appointment, target)
+  if (!result.ok) return result
+
+  if (isColorGroupColorRow(appointment.colorGroupRole) && appointment.colorGroupId) {
+    return validateLinkedWashPhaseAfterColorMove(
+      schedules,
+      date,
+      appointment,
+      target,
+      pendingMoves,
+    )
+  }
+
+  return { ok: true }
+}
+
+export function validatePendingMovesForSave(
+  schedules: StaffDaySchedule[],
+  date: string,
+  pendingMoves: AppointmentMoveDraft[],
+): AppointmentMoveValidation {
+  const finalMoves = getFinalMovesForSave(pendingMoves)
+  for (const move of finalMoves) {
+    const result = validateAppointmentMove(
+      schedules,
+      date,
+      move.appointment,
+      {
+        staffId: move.toStaffId,
+        staffName: move.toStaffName,
+        startTime: move.toStartTime,
+      },
+      pendingMoves,
+    )
+    if (!result.ok) return result
+  }
+  return { ok: true }
+}
+
+function findWashAppointmentInGroup(
+  schedules: StaffDaySchedule[],
+  colorGroupId: string,
+): { wash: DayScheduleAppointment; staffId: string } | null {
+  for (const schedule of schedules) {
+    const wash = schedule.appointments.find(
+      (a) => a.colorGroupId === colorGroupId && isColorGroupWashRow(a.colorGroupRole),
+    )
+    if (wash) return { wash, staffId: schedule.staffId }
+  }
+  return null
+}
+
+function layoutWithColorAtTarget(
+  schedules: StaffDaySchedule[],
+  pendingMoves: AppointmentMoveDraft[],
+  colorAppointment: DayScheduleAppointment,
+  target: AppointmentMoveTarget,
+): StaffDaySchedule[] {
+  const layout = buildSchedulesWithPendingMoves(
+    schedules,
+    pendingMoves.filter((m) => m.appointment.id !== colorAppointment.id),
+  )
+  return layout.map((schedule) => {
+    const withoutColor = schedule.appointments.filter((a) => a.id !== colorAppointment.id)
+    if (schedule.staffId !== target.staffId) {
+      return { ...schedule, appointments: withoutColor }
+    }
+    return {
+      ...schedule,
+      appointments: [
+        ...withoutColor,
+        appointmentAtStartTime(colorAppointment, target.startTime),
+      ],
+    }
+  })
+}
+
+function validateLinkedWashPhaseAfterColorMove(
+  schedules: StaffDaySchedule[],
+  date: string,
+  colorAppointment: DayScheduleAppointment,
+  colorTarget: AppointmentMoveTarget,
+  pendingMoves: AppointmentMoveDraft[],
+): AppointmentMoveValidation {
+  const groupId = colorAppointment.colorGroupId
+  if (!groupId) return { ok: true }
+
+  const linked = findWashAppointmentInGroup(schedules, groupId)
+  if (!linked) return { ok: true }
+
+  const { wash, staffId: washStaffId } = linked
+  const washExplicitlyMoved = pendingMoves.some((m) => m.appointment.id === wash.id)
+  if (washExplicitlyMoved) return { ok: true }
+
+  const washStartTime = minutesToTime(
+    getWashPhaseStartMinutes(timeToMinutes(colorTarget.startTime)),
+  )
+
+  const layout = layoutWithColorAtTarget(schedules, pendingMoves, colorAppointment, colorTarget)
+  const washSchedule = layout.find((s) => s.staffId === washStaffId)
+  if (!washSchedule) {
+    return { ok: false, message: 'Profesional del lavado no encontrado.' }
+  }
+
+  const scheduleWithoutWash: StaffDaySchedule = {
+    ...washSchedule,
+    appointments: washSchedule.appointments.filter((a) => a.id !== wash.id),
+  }
+
+  const virtualWash: DayScheduleAppointment = {
+    ...wash,
+    durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES,
+    startTime: washStartTime,
+  }
+
+  const washResult = validateAppointmentMoveOnSchedule(
+    scheduleWithoutWash,
+    date,
+    virtualWash,
+    {
+      staffId: washStaffId,
+      staffName: washSchedule.staffName,
+      startTime: washStartTime,
+    },
+  )
+  if (!washResult.ok) {
+    if (
+      washResult.message === 'Ese horario ya tiene otra cita.' ||
+      washResult.message === 'Ese horario está bloqueado.'
+    ) {
+      return { ok: false, message: LINKED_WASH_PHASE_BLOCKED_MESSAGE }
+    }
+    return washResult
+  }
+
+  return { ok: true }
 }
 
 function validateAppointmentMoveOnSchedule(

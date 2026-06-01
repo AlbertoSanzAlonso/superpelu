@@ -54,6 +54,43 @@ export function useAdminAgenda(adminToken: string, date: string) {
     moves.resetMoves()
   }, [date])
 
+  const gridInteractionsLocked = moves.pendingMoves.length > 0
+
+  useEffect(() => {
+    if (!gridInteractionsLocked) return
+    selectionState.clearSelection()
+    appointments.setAppointmentFormOpen(false)
+    appointments.resetAppointmentForm()
+  }, [gridInteractionsLocked])
+
+  const toggleSlot = useCallback(
+    (staffId: string, staffName: string, time: string) => {
+      if (gridInteractionsLocked) return
+      selectionState.toggleSlot(staffId, staffName, time)
+    },
+    [gridInteractionsLocked, selectionState.toggleSlot],
+  )
+
+  const requestBlockSelectedSlots = useCallback(() => {
+    if (gridInteractionsLocked) return
+    blocks.requestBlockSelectedSlots()
+  }, [gridInteractionsLocked, blocks.requestBlockSelectedSlots])
+
+  const unblockSelectedSlots = useCallback(async () => {
+    if (gridInteractionsLocked) return
+    await blocks.unblockSelectedSlots()
+  }, [gridInteractionsLocked, blocks.unblockSelectedSlots])
+
+  const createAppointmentFromSelection = useCallback(() => {
+    if (gridInteractionsLocked) return
+    appointments.createAppointmentFromSelection()
+  }, [gridInteractionsLocked, appointments.createAppointmentFromSelection])
+
+  const openNewAppointmentForActiveStaff = useCallback(() => {
+    if (gridInteractionsLocked) return
+    appointments.openNewAppointmentForActiveStaff()
+  }, [gridInteractionsLocked, appointments.openNewAppointmentForActiveStaff])
+
   const requestSavePendingMoves = useCallback(() => {
     if (!moves.requestSavePendingMoves()) return
     appointments.setWhatsAppNotifyContext('move')
@@ -98,19 +135,20 @@ export function useAdminAgenda(adminToken: string, date: string) {
     load: schedule.load,
     selection: selectionState.selection,
     selectionSummary: selectionState.selectionSummary(),
-    toggleSlot: selectionState.toggleSlot,
+    toggleSlot,
     clearSelection: selectionState.clearSelection,
+    gridInteractionsLocked,
     gridActionsBusy: schedule.gridActionsBusy,
     blockModalOpen: blocks.blockModalOpen,
     pendingBlockGroups: blocks.pendingBlockGroups,
-    requestBlockSelectedSlots: blocks.requestBlockSelectedSlots,
+    requestBlockSelectedSlots,
     cancelBlockModal: blocks.cancelBlockModal,
     confirmBlockWithScope: blocks.confirmBlockWithScope,
     unblockModal: blocks.unblockModal,
     cancelUnblockModal: blocks.cancelUnblockModal,
     confirmUnblockWithMode: blocks.confirmUnblockWithMode,
-    unblockSelectedSlots: blocks.unblockSelectedSlots,
-    createAppointmentFromSelection: appointments.createAppointmentFromSelection,
+    unblockSelectedSlots,
+    createAppointmentFromSelection,
     appointmentFormOpen: appointments.appointmentFormOpen,
     setAppointmentFormOpen: appointments.setAppointmentFormOpen,
     activeStaffId: appointments.activeStaffId,
@@ -123,7 +161,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     resetAppointmentForm: appointments.resetAppointmentForm,
     selectStaff: appointments.selectStaff,
     openNewAppointment: appointments.openNewAppointment,
-    openNewAppointmentForActiveStaff: appointments.openNewAppointmentForActiveStaff,
+    openNewAppointmentForActiveStaff,
     viewingAppointment: appointments.viewingAppointment,
     detailEditMode: appointments.detailEditMode,
     detailCustomerRegistered: appointments.detailCustomerRegistered,

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   isSameAppointmentMove,
   validateAppointmentMove,
+  validatePendingMovesForSave,
   type AppointmentMoveTarget,
 } from '@/lib/appointmentPlacement'
 import {
@@ -107,6 +108,11 @@ export function useAdminAgendaMoves({
   const commitPendingMoves = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
       if (pendingMoves.length === 0 || !adminToken) return false
+      const validation = validatePendingMovesForSave(schedules, date, pendingMoves)
+      if (!validation.ok) {
+        setError(validation.message)
+        return false
+      }
       setError('')
       setMoveBusy(true)
       try {
@@ -129,13 +135,18 @@ export function useAdminAgendaMoves({
         setMoveBusy(false)
       }
     },
-    [pendingMoves, adminToken, date, load, setError, onMovesCommitted],
+    [pendingMoves, adminToken, date, schedules, load, setError, onMovesCommitted],
   )
 
   const requestSavePendingMoves = useCallback(() => {
     if (pendingMoves.length === 0) return false
+    const validation = validatePendingMovesForSave(schedules, date, pendingMoves)
+    if (!validation.ok) {
+      setError(validation.message)
+      return false
+    }
     return true
-  }, [pendingMoves.length])
+  }, [pendingMoves, schedules, date, setError])
 
   const resetMoves = useCallback(() => {
     setPendingMoves([])

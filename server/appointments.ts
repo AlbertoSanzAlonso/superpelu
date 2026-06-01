@@ -560,6 +560,16 @@ export async function updateAppointmentForAdmin(
   return updateAppointmentForStaff(appointmentId, existing.staff_id, input)
 }
 
+async function deleteAppointmentsInColorGroup(
+  existing: AppointmentRow,
+): Promise<{ deleted: boolean }> {
+  if (!existing.color_group_id) return { deleted: false }
+  const result = await sql`
+    DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}
+  `
+  return { deleted: result.count > 0 }
+}
+
 export async function deleteAppointmentForStaff(
   appointmentId: string,
   staffId: string,
@@ -567,17 +577,15 @@ export async function deleteAppointmentForStaff(
   const existing = await getAppointmentById(appointmentId)
   if (!existing || existing.staff_id !== staffId) return false
 
-  if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
-    const result = await sql`
-      DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}
-    `
-    if (result.count > 0 && existing.status !== 'cancelled') {
+  if (existing.color_group_id) {
+    const { deleted } = await deleteAppointmentsInColorGroup(existing)
+    if (deleted && existing.status !== 'cancelled') {
       void notifyAdminAppointmentCancelled(existing)
       void notifyAppointmentCancelled(existing).catch((err) => {
         console.error('Superpelu WhatsApp (cita cancelada):', err)
       })
     }
-    return result.count > 0
+    return deleted
   }
 
   const result = await sql`
@@ -720,11 +728,9 @@ export async function rescheduleAppointmentByCustomer(
 export async function deleteAppointmentById(appointmentId: string): Promise<boolean> {
   const existing = await getAppointmentById(appointmentId)
   if (!existing) return false
-  if (existing.color_group_id && isColorGroupColorRow(existing.color_group_role)) {
-    const result = await sql`
-      DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}
-    `
-    return result.count > 0
+  if (existing.color_group_id) {
+    const { deleted } = await deleteAppointmentsInColorGroup(existing)
+    return deleted
   }
   const result = await sql`DELETE FROM appointments WHERE id = ${appointmentId}`
   return result.count > 0

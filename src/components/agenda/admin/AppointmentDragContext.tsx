@@ -54,6 +54,8 @@ type DragStartInput = {
 
 type ContextValue = {
   activeDrag: ActiveAppointmentDrag | null
+  /** Desde pointerdown en una cita hasta soltar o cancelar el arrastre. */
+  isDragSessionActive: boolean
   startDrag: (input: DragStartInput) => void
 }
 
@@ -87,6 +89,7 @@ export function AppointmentDragProvider({
   onClickWithoutDrag,
 }: ProviderProps) {
   const [activeDrag, setActiveDrag] = useState<ActiveAppointmentDrag | null>(null)
+  const [isDragSessionActive, setIsDragSessionActive] = useState(false)
   const activeDragRef = useRef<ActiveAppointmentDrag | null>(null)
   const dragSessionRef = useRef<{
     pointerId: number
@@ -169,6 +172,7 @@ export function AppointmentDragProvider({
     }
     activeDragRef.current = null
     setActiveDrag(null)
+    setIsDragSessionActive(false)
   }, [])
 
   useEffect(() => {
@@ -191,6 +195,7 @@ export function AppointmentDragProvider({
         grabOffsetY: input.grabOffsetY,
         height: input.height,
       }
+      setIsDragSessionActive(true)
 
       const onPointerMove = (e: PointerEvent) => {
         const session = dragSessionRef.current
@@ -255,7 +260,7 @@ export function AppointmentDragProvider({
   )
 
   return (
-    <AppointmentDragContext.Provider value={{ activeDrag, startDrag }}>
+    <AppointmentDragContext.Provider value={{ activeDrag, isDragSessionActive, startDrag }}>
       {children}
       {activeDrag && (
         <AppointmentDragOverlay

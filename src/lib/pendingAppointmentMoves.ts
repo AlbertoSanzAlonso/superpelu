@@ -68,7 +68,7 @@ export function getEffectivePlacement(
   return { staffId: visual.targetStaffId, startTime: visual.targetStartTime }
 }
 
-function appointmentAtStartTime(
+export function appointmentAtStartTime(
   apt: DayScheduleAppointment,
   startTime: string,
 ): DayScheduleAppointment {

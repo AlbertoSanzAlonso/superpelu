@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { BookingMonthCalendar } from '@/components/booking/BookingMonthCalendar'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPickerPublic } from '@/components/shared/ServiceCategoryPickerPublic'
@@ -14,7 +15,7 @@ import { countServicesInCategory } from '@/lib/servicePicker'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
-const bookableDates = getBookableDates(35)
+const bookableDatesList = getBookableDates(35)
 
 /** Título de paso visible solo en móvil (sustituye al h2 grande). */
 const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`
@@ -97,6 +98,12 @@ export function AppointmentForm({
   }
 
   const confirmLabel = submitLabel ?? b.confirm
+  const bookableDates = useMemo(() => new Set(bookableDatesList), [])
+
+  const handleChangeDay = useCallback(() => {
+    form.setDate('')
+    form.setStartTime('')
+  }, [form.setDate, form.setStartTime])
 
   return (
     <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
@@ -193,82 +200,89 @@ export function AppointmentForm({
 
         {step === 3 && (
           <div className="space-y-8">
-            <div>
-              <label
-                htmlFor="apt-date"
-                className={`${typography.label} mb-2 block w-full text-center md:hidden`}
-              >
-                {b.day}
-              </label>
-              <select
-                id="apt-date"
-                required
-                disabled={!form.staffId}
-                value={form.date}
-                onChange={(e) => form.setDate(e.target.value)}
-                className="w-full border border-gold/30 bg-cream px-4 py-3 font-sans text-sm text-charcoal outline-none focus:border-gold disabled:opacity-50"
-              >
-                <option value="">{b.selectDay}</option>
-                {bookableDates.map((d) => (
-                  <option key={d} value={d}>
-                    {formatDisplayDate(d, locale)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <fieldset className="space-y-3">
-              <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-                {b.hour}
-              </legend>
-              {!form.date || !form.staffId ? (
-                <p className={`${typography.caption} text-center`}>
-                  {!form.staffId ? b.chooseDayFirst : b.chooseDay}
+            {!form.date ? (
+              <div>
+                <p className={`${typography.label} mb-4 block w-full text-center md:hidden`}>
+                  {b.day}
                 </p>
-              ) : form.loadingSlots ? (
-                <p className={`${typography.caption} text-center`}>{b.loadingSlots}</p>
-              ) : form.slots.length === 0 ? (
-                <p
-                  className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
-                  role="status"
-                >
-                  {form.slotsError || b.noSlots}
-                </p>
-              ) : (
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {form.slots.map((slot) => (
-                    <label
-                      key={slot}
-                      className={`cursor-pointer border py-2 text-center text-sm transition-colors ${
-                        form.startTime === slot
-                          ? 'border-gold bg-gold/10 text-gold'
-                          : 'border-gold/20 hover:border-gold/50'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="time"
-                        value={slot}
-                        checked={form.startTime === slot}
-                        onChange={() => handleTimeSelected(slot)}
-                        className="sr-only"
-                      />
-                      {slot}
-                      {form.selectedService && (
-                        <span className="mt-0.5 block text-[10px] leading-tight text-charcoal-muted">
-                          {formatAppointmentTimeRange(
-                            form.selectedService.id,
-                            slot,
-                            form.selectedService.durationMinutes,
-                            locale,
-                          )}
-                        </span>
-                      )}
-                    </label>
-                  ))}
+                {!form.staffId ? (
+                  <p className={`${typography.caption} text-center`}>{b.chooseDayFirst}</p>
+                ) : (
+                  <BookingMonthCalendar
+                    bookableDates={bookableDates}
+                    locale={locale}
+                    onSelect={form.setDate}
+                    prevMonthLabel={b.prevMonth}
+                    nextMonthLabel={b.nextMonth}
+                  />
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="text-center">
+                  <p className={`${typography.label} mb-1 md:hidden`}>{b.day}</p>
+                  <p className="font-sans text-sm capitalize text-charcoal">
+                    {formatDisplayDate(form.date, locale)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleChangeDay}
+                    className={`${typography.caption} mt-2 cursor-pointer text-gold underline-offset-2 hover:underline`}
+                  >
+                    {b.changeDay}
+                  </button>
                 </div>
-              )}
-            </fieldset>
+
+                <fieldset className="space-y-3">
+                  <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
+                    {b.hour}
+                  </legend>
+                  {form.loadingSlots ? (
+                    <p className={`${typography.caption} text-center`}>{b.loadingSlots}</p>
+                  ) : form.slots.length === 0 ? (
+                    <p
+                      className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                      role="status"
+                    >
+                      {form.slotsError || b.noSlots}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {form.slots.map((slot) => (
+                        <label
+                          key={slot}
+                          className={`cursor-pointer border py-2 text-center text-sm transition-colors ${
+                            form.startTime === slot
+                              ? 'border-gold bg-gold/10 text-gold'
+                              : 'border-gold/20 hover:border-gold/50'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="time"
+                            value={slot}
+                            checked={form.startTime === slot}
+                            onChange={() => handleTimeSelected(slot)}
+                            className="sr-only"
+                          />
+                          {slot}
+                          {form.selectedService && (
+                            <span className="mt-0.5 block text-[10px] leading-tight text-charcoal-muted">
+                              {formatAppointmentTimeRange(
+                                form.selectedService.id,
+                                slot,
+                                form.selectedService.durationMinutes,
+                                locale,
+                              )}
+                            </span>
+                          )}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </fieldset>
+              </>
+            )}
           </div>
         )}
 

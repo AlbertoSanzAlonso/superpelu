@@ -8,6 +8,8 @@ type Props = {
   onCreateAppointment: () => void
   onClearSelection: () => void
   busy?: boolean
+  /** Movimientos de cita sin guardar u otra acción que bloquea la grilla. */
+  interactionsLocked?: boolean
   /** Botones compactos para la barra superior de la agenda admin. */
   toolbar?: boolean
 }
@@ -19,8 +21,10 @@ export function StaffGridSelectionActions({
   onCreateAppointment,
   onClearSelection,
   busy = false,
+  interactionsLocked = false,
   toolbar = false,
 }: Props) {
+  const locked = busy || interactionsLocked
   const canBlock = summary.freeTimes.length > 0 && !summary.hasAppointment
   const canUnblock = summary.blockIds.length > 0
   const canCreate = summary.freeTimes.length === 1 && !summary.hasAppointment
@@ -35,7 +39,7 @@ export function StaffGridSelectionActions({
           variant="solid"
           size="sm"
           className={btnClass}
-          disabled={busy}
+          disabled={locked}
           onClick={onCreateAppointment}
         >
           Crear cita
@@ -47,7 +51,7 @@ export function StaffGridSelectionActions({
           variant="outline"
           size="sm"
           className={btnClass}
-          disabled={busy}
+          disabled={locked}
           onClick={onBlock}
         >
           Bloquear
@@ -59,7 +63,7 @@ export function StaffGridSelectionActions({
           variant="outline"
           size="sm"
           className={btnClass}
-          disabled={busy}
+          disabled={locked}
           onClick={onUnblock}
         >
           Quitar bloqueo{summary.blockIds.length > 1 ? 's' : ''}

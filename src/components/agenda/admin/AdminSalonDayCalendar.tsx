@@ -36,6 +36,8 @@ type Props = {
   formStaffId: string | null
   pendingMoveSummary: PendingMoveSummary
   moveBusy: boolean
+  /** Citas desplazadas sin guardar: no crear citas ni bloquear en la grilla. */
+  gridInteractionsLocked: boolean
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
@@ -159,10 +161,12 @@ function SlotLayer({
 function BlockEvent({
   block,
   range,
+  interactionsLocked,
   onOpen,
 }: {
   block: DayScheduleBlock
   range: CalendarDayRange
+  interactionsLocked: boolean
   onOpen: () => void
 }) {
   const duration = blockDurationMinutes(block.startTime, block.endTime)
@@ -172,11 +176,13 @@ function BlockEvent({
   return (
     <button
       type="button"
+      disabled={interactionsLocked}
       onClick={(e) => {
         e.stopPropagation()
+        if (interactionsLocked) return
         onOpen()
       }}
-      className={`absolute inset-x-1 z-20 overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 ${blockEventClass()}`}
+      className={`absolute inset-x-1 z-20 overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 disabled:cursor-not-allowed disabled:opacity-60 ${blockEventClass()}`}
       style={{ top, height: Math.max(height - 2, 22) }}
       title={block.note ? `Bloqueado — ${block.note}` : 'Bloqueado — ver observaciones'}
     >
@@ -217,6 +223,7 @@ function StaffColumn({
   formSlotTime,
   formStaffId,
   pendingMoveSummary,
+  gridInteractionsLocked,
   dragEnabled,
   columnRef,
   columnTopFromClientY,
@@ -232,6 +239,7 @@ function StaffColumn({
   formSlotTime: string | null
   formStaffId: string | null
   pendingMoveSummary: PendingMoveSummary
+  gridInteractionsLocked: boolean
   dragEnabled: boolean
   columnRef: (el: HTMLDivElement | null) => void
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
@@ -239,11 +247,13 @@ function StaffColumn({
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
 }) {
-  const { activeDrag } = useAppointmentDrag()
+  const { activeDrag, isDragSessionActive } = useAppointmentDrag()
   const isDropTarget = activeDrag?.targetStaffId === schedule.staffId
+  const slotsLocked = gridInteractionsLocked || isDragSessionActive
 
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
+    if (slotsLocked && cell.status !== 'appointment') return
     if (cell.status === 'appointment' && cell.appointmentId) {
       const apt = schedule.appointments.find((a) => a.id === cell.appointmentId)
       if (apt) onEditAppointment(schedule.staffId, apt)
@@ -292,7 +302,7 @@ function StaffColumn({
           selection={selection}
           formSlotTime={formSlotTime}
           formStaffId={formStaffId}
-          pointerPassthrough={activeDrag != null}
+          pointerPassthrough={slotsLocked}
           onCellClick={handleCellClick}
         />
 
@@ -336,6 +346,7 @@ function StaffColumn({
             key={block.id}
             block={block}
             range={range}
+            interactionsLocked={slotsLocked}
             onOpen={() => onOpenBlock(schedule.staffId, block)}
           />
         ))}
@@ -360,6 +371,7 @@ export function AdminSalonDayCalendar({
   formStaffId,
   pendingMoveSummary,
   moveBusy,
+  gridInteractionsLocked,
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
@@ -435,6 +447,7 @@ export function AdminSalonDayCalendar({
                 formSlotTime={formSlotTime}
                 formStaffId={formStaffId}
                 pendingMoveSummary={pendingMoveSummary}
+                gridInteractionsLocked={gridInteractionsLocked}
                 dragEnabled={dragEnabled}
                 columnRef={(el) => setColumnRef(schedule.staffId, el)}
                 columnTopFromClientY={columnTopFromClientY}

@@ -250,6 +250,7 @@ export function AdminAgendaPage() {
           onLogout={handleAdminLogout}
           selectionCount={agenda.selection?.times.size ?? 0}
           selectionSummary={agenda.selection ? agenda.selectionSummary : undefined}
+          gridInteractionsLocked={agenda.gridInteractionsLocked}
           onBlockSelection={agenda.requestBlockSelectedSlots}
           onUnblockSelection={() => void agenda.unblockSelectedSlots()}
           onCreateAppointmentFromSelection={agenda.createAppointmentFromSelection}
@@ -279,6 +280,7 @@ export function AdminAgendaPage() {
               formStaffId={agenda.formStaffId}
               pendingMoveSummary={agenda.pendingMoveSummary}
               moveBusy={agenda.moveBusy}
+              gridInteractionsLocked={agenda.gridInteractionsLocked}
               onToggleSlot={agenda.toggleSlot}
               onEditAppointment={agenda.openAppointmentDetail}
               onOpenBlock={agenda.openBlockDetail}

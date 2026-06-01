@@ -31,6 +31,8 @@ type Props = {
   onCreateAppointmentFromSelection?: () => void
   onClearSelection?: () => void
   selectionBusy?: boolean
+  /** Movimientos de cita sin guardar: deshabilita crear citas y bloquear. */
+  gridInteractionsLocked?: boolean
 }
 
 function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
@@ -69,6 +71,7 @@ export function AdminAgendaControlBar({
   onCreateAppointmentFromSelection,
   onClearSelection,
   selectionBusy = false,
+  gridInteractionsLocked = false,
 }: Props) {
   const isToday = date === todaySalon()
   const workingStaff = schedules.filter((s) => s.working)
@@ -175,6 +178,7 @@ export function AdminAgendaControlBar({
             onCreateAppointment={onCreateAppointmentFromSelection!}
             onClearSelection={onClearSelection!}
             busy={selectionBusy}
+            interactionsLocked={gridInteractionsLocked}
           />
         </div>
       ) : (
@@ -183,7 +187,7 @@ export function AdminAgendaControlBar({
           variant="outline"
           size="sm"
           className="h-8 px-2 text-xs"
-          disabled={!activeStaffId}
+          disabled={!activeStaffId || gridInteractionsLocked}
           onClick={onNewAppointment}
         >
           + Cita
