@@ -3,7 +3,9 @@ import {
   getOccupiedSegmentsForAppointment,
   occupiedSegmentsOverlap,
 } from '@/lib/bookingOccupancy'
+import { buildSchedulesWithPendingMoves } from '@/lib/pendingAppointmentMoves'
 import { buildStaffDayGrid } from '@/lib/timeGrid'
+import type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
 import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 export type AppointmentMoveTarget = {
@@ -26,6 +28,25 @@ function blockSegments(
 }
 
 export function validateAppointmentMove(
+  schedules: StaffDaySchedule[],
+  date: string,
+  appointment: DayScheduleAppointment,
+  target: AppointmentMoveTarget,
+  pendingMoves: AppointmentMoveDraft[] = [],
+): AppointmentMoveValidation {
+  const layout = buildSchedulesWithPendingMoves(
+    schedules,
+    pendingMoves.filter((m) => m.appointment.id !== appointment.id),
+  )
+  const schedule = layout.find((s) => s.staffId === target.staffId)
+  if (!schedule) {
+    return { ok: false, message: 'Profesional no encontrado.' }
+  }
+
+  return validateAppointmentMoveOnSchedule(schedule, date, appointment, target)
+}
+
+function validateAppointmentMoveOnSchedule(
   schedule: StaffDaySchedule,
   date: string,
   appointment: DayScheduleAppointment,
@@ -88,11 +109,9 @@ export function validateAppointmentMove(
 }
 
 export function isSameAppointmentMove(
-  appointment: DayScheduleAppointment,
   fromStaffId: string,
+  fromStartTime: string,
   target: AppointmentMoveTarget,
 ): boolean {
-  return (
-    fromStaffId === target.staffId && appointment.startTime === target.startTime
-  )
+  return fromStaffId === target.staffId && fromStartTime === target.startTime
 }

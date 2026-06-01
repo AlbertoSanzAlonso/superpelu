@@ -1,17 +1,24 @@
 import { Button } from '@/components/ui/Button'
-import type { AppointmentMoveDraft } from '@/hooks/useAdminAgenda'
+import type { PendingMoveSummary } from '@/lib/pendingAppointmentMoves'
 import { typography } from '@/styles/typography'
 
 type Props = {
-  draft: AppointmentMoveDraft
+  summary: PendingMoveSummary
   busy?: boolean
+  onUndo: () => void
   onSave: () => void
   onDiscard: () => void
 }
 
-export function AppointmentMoveBar({ draft, busy = false, onSave, onDiscard }: Props) {
-  const staffChanged = draft.fromStaffId !== draft.toStaffId
-  const timeChanged = draft.appointment.startTime !== draft.toStartTime
+export function AppointmentMoveBar({
+  summary,
+  busy = false,
+  onUndo,
+  onSave,
+  onDiscard,
+}: Props) {
+  const { count, byAppointmentId, lastMove } = summary
+  const appointmentCount = byAppointmentId.size
 
   return (
     <div
@@ -20,25 +27,42 @@ export function AppointmentMoveBar({ draft, busy = false, onSave, onDiscard }: P
       aria-live="polite"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className={`${typography.body} text-sm`}>
-          <span className="font-medium">{draft.appointment.customerName}</span>
-          {' — mover '}
-          {timeChanged && (
-            <span className="tabular-nums">
-              {draft.appointment.startTime} → {draft.toStartTime}
+        <div className={`${typography.body} min-w-0 text-sm`}>
+          <p>
+            <span className="font-medium tabular-nums">
+              {count} {count === 1 ? 'movimiento' : 'movimientos'}
             </span>
+            {appointmentCount > 0 && (
+              <span className="text-charcoal-muted">
+                {' '}
+                · {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
+              </span>
+            )}
+          </p>
+          {lastMove && (
+            <p className="mt-0.5 truncate text-charcoal-muted">
+              Último: {lastMove.appointment.customerName}
+              {' — '}
+              {lastMove.fromStartTime} → {lastMove.toStartTime}
+              {lastMove.fromStaffId !== lastMove.toStaffId && (
+                <span>
+                  {' '}
+                  · {lastMove.fromStaffName} → {lastMove.toStaffName}
+                </span>
+              )}
+            </p>
           )}
-          {staffChanged && (
-            <span>
-              {timeChanged ? ' · ' : ''}
-              {draft.fromStaffName} → {draft.toStaffName}
-            </span>
-          )}
-          {!timeChanged && !staffChanged && (
-            <span className="text-charcoal-muted">sin cambios</span>
-          )}
-        </p>
+        </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy || count === 0}
+            onClick={onUndo}
+          >
+            Deshacer
+          </Button>
           <Button
             type="button"
             variant="outline"
@@ -46,7 +70,7 @@ export function AppointmentMoveBar({ draft, busy = false, onSave, onDiscard }: P
             disabled={busy}
             onClick={onDiscard}
           >
-            Descartar
+            Descartar todo
           </Button>
           <Button
             type="button"
@@ -55,7 +79,7 @@ export function AppointmentMoveBar({ draft, busy = false, onSave, onDiscard }: P
             disabled={busy}
             onClick={onSave}
           >
-            {busy ? 'Guardando…' : 'Guardar cambio'}
+            {busy ? 'Guardando…' : 'Guardar cambios'}
           </Button>
         </div>
       </div>

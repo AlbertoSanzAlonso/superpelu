@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import {
   appointmentToDraft,
@@ -30,6 +30,12 @@ import {
   validateAppointmentMove,
   type AppointmentMoveTarget,
 } from '@/lib/appointmentPlacement'
+import {
+  getEffectivePlacement,
+  getFinalMovesForSave,
+  summarizePendingMoves,
+  type AppointmentMoveDraft,
+} from '@/lib/pendingAppointmentMoves'
 import type {
   BookableService,
   DayScheduleAppointment,
@@ -38,14 +44,7 @@ import type {
 } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 
-export type AppointmentMoveDraft = {
-  appointment: DayScheduleAppointment
-  fromStaffId: string
-  fromStaffName: string
-  toStaffId: string
-  toStaffName: string
-  toStartTime: string
-}
+export type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
 
 export type AdminColumnSelection = {
   staffId: string
@@ -94,8 +93,13 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
   const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
   const [whatsAppNotifyContext, setWhatsAppNotifyContext] = useState<'edit' | 'move'>('edit')
-  const [pendingMove, setPendingMove] = useState<AppointmentMoveDraft | null>(null)
+  const [pendingMoves, setPendingMoves] = useState<AppointmentMoveDraft[]>([])
   const [moveBusy, setMoveBusy] = useState(false)
+
+  const pendingMoveSummary = useMemo(
+    () => summarizePendingMoves(pendingMoves),
+    [pendingMoves],
+  )
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -127,7 +131,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setDetailEditMode(false)
     setActiveStaffId(null)
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
-    setPendingMove(null)
+    setPendingMoves([])
   }, [date])
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
@@ -391,8 +395,16 @@ export function useAdminAgenda(adminToken: string, date: string) {
 
   const proposeAppointmentMove = useCallback(
     (payload: AppointmentDragEndPayload) => {
+      const summary = summarizePendingMoves(pendingMoves)
+      const effective = getEffectivePlacement(summary, payload.appointment.id, {
+        staffId: payload.fromStaffId,
+        startTime: payload.appointment.startTime,
+      })
+
+      const fromStaffId = effective.staffId
+      const fromStartTime = effective.startTime
       const fromStaffName =
-        schedules.find((s) => s.staffId === payload.fromStaffId)?.staffName ?? ''
+        schedules.find((s) => s.staffId === fromStaffId)?.staffName ?? ''
       const toStaffName =
         schedules.find((s) => s.staffId === payload.toStaffId)?.staffName ?? ''
       const target: AppointmentMoveTarget = {
@@ -401,17 +413,17 @@ export function useAdminAgenda(adminToken: string, date: string) {
         startTime: payload.toStartTime,
       }
 
-      if (isSameAppointmentMove(payload.appointment, payload.fromStaffId, target)) {
+      if (isSameAppointmentMove(fromStaffId, fromStartTime, target)) {
         return
       }
 
-      const schedule = schedules.find((s) => s.staffId === payload.toStaffId)
-      if (!schedule) {
-        setError('Profesional no encontrado.')
-        return
-      }
-
-      const validation = validateAppointmentMove(schedule, date, payload.appointment, target)
+      const validation = validateAppointmentMove(
+        schedules,
+        date,
+        payload.appointment,
+        target,
+        pendingMoves,
+      )
       if (!validation.ok) {
         setError(validation.message)
         return
@@ -419,54 +431,65 @@ export function useAdminAgenda(adminToken: string, date: string) {
 
       setError('')
       setSelection(null)
-      setPendingMove({
-        appointment: payload.appointment,
-        fromStaffId: payload.fromStaffId,
-        fromStaffName,
-        toStaffId: payload.toStaffId,
-        toStaffName,
-        toStartTime: payload.toStartTime,
-      })
+      setPendingMoves((prev) => [
+        ...prev,
+        {
+          appointment: payload.appointment,
+          fromStaffId,
+          fromStaffName,
+          fromStartTime,
+          toStaffId: payload.toStaffId,
+          toStaffName,
+          toStartTime: payload.toStartTime,
+        },
+      ])
     },
-    [schedules, date],
+    [schedules, date, pendingMoves],
   )
 
-  const discardPendingMove = useCallback(() => {
-    setPendingMove(null)
+  const undoLastPendingMove = useCallback(() => {
+    setPendingMoves((prev) => (prev.length === 0 ? prev : prev.slice(0, -1)))
     setError('')
   }, [])
 
-  const commitPendingMove = useCallback(
+  const discardPendingMoves = useCallback(() => {
+    setPendingMoves([])
+    setError('')
+  }, [])
+
+  const commitPendingMoves = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
-      if (!pendingMove || !adminToken) return false
+      if (pendingMoves.length === 0 || !adminToken) return false
       setError('')
       setMoveBusy(true)
       try {
-        await updateAdminAppointment(pendingMove.appointment.id, adminToken, {
-          staffId: pendingMove.toStaffId,
-          date,
-          startTime: pendingMove.toStartTime,
-          notifyCustomerWhatsApp,
-        })
-        setPendingMove(null)
+        for (const move of getFinalMovesForSave(pendingMoves)) {
+          await updateAdminAppointment(move.appointment.id, adminToken, {
+            staffId: move.toStaffId,
+            date,
+            startTime: move.toStartTime,
+            notifyCustomerWhatsApp,
+          })
+        }
+        setPendingMoves([])
         setWhatsAppNotifyDialogOpen(false)
         await load()
         return true
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'No se pudo mover la cita')
+        setError(err instanceof ApiError ? err.message : 'No se pudo guardar los cambios')
         return false
       } finally {
         setMoveBusy(false)
       }
     },
-    [pendingMove, adminToken, date, load],
+    [pendingMoves, adminToken, date, load],
   )
 
-  const requestSavePendingMove = useCallback(() => {
-    if (!pendingMove) return
+  const requestSavePendingMoves = useCallback(() => {
+    if (pendingMoves.length === 0) return
     setWhatsAppNotifyContext('move')
     setWhatsAppNotifyDialogOpen(true)
-  }, [pendingMove])
+  }, [pendingMoves.length])
 
   const persistAppointment = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
@@ -552,27 +575,27 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setWhatsAppNotifyBusy(true)
     try {
       if (whatsAppNotifyContext === 'move') {
-        await commitPendingMove(true)
+        await commitPendingMoves(true)
       } else {
         await persistAppointment(true)
       }
     } finally {
       setWhatsAppNotifyBusy(false)
     }
-  }, [whatsAppNotifyContext, commitPendingMove, persistAppointment])
+  }, [whatsAppNotifyContext, commitPendingMoves, persistAppointment])
 
   const confirmSaveWithoutWhatsAppNotify = useCallback(async () => {
     setWhatsAppNotifyBusy(true)
     try {
       if (whatsAppNotifyContext === 'move') {
-        await commitPendingMove(false)
+        await commitPendingMoves(false)
       } else {
         await persistAppointment(false)
       }
     } finally {
       setWhatsAppNotifyBusy(false)
     }
-  }, [whatsAppNotifyContext, commitPendingMove, persistAppointment])
+  }, [whatsAppNotifyContext, commitPendingMoves, persistAppointment])
 
   const closeConfirmDialog = useCallback(() => {
     if (confirmBusy) return
@@ -736,10 +759,12 @@ export function useAdminAgenda(adminToken: string, date: string) {
     formSlotTime:
       appointmentFormOpen && !editingId && activeStaffId ? aptDraft.startTime || null : null,
     formStaffId: appointmentFormOpen && !editingId ? activeStaffId : null,
-    pendingMove,
+    pendingMoves,
+    pendingMoveSummary,
     proposeAppointmentMove,
-    discardPendingMove,
-    requestSavePendingMove,
+    undoLastPendingMove,
+    discardPendingMoves,
+    requestSavePendingMoves,
     moveBusy,
   }
 }

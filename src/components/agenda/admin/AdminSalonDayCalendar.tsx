@@ -10,11 +10,15 @@ import {
 } from '@/lib/adminCalendar'
 import { blockEventClass } from '@/lib/serviceCategoryColors'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
-import type { AdminColumnSelection, AppointmentMoveDraft } from '@/hooks/useAdminAgenda'
+import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
 import {
   DraggableAppointmentBlock,
   type AppointmentDragEndPayload,
 } from '@/components/agenda/admin/DraggableAppointmentBlock'
+import {
+  getPendingVisualForAppointment,
+  type PendingMoveSummary,
+} from '@/lib/pendingAppointmentMoves'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -24,7 +28,8 @@ type Props = {
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
-  pendingMove: AppointmentMoveDraft | null
+  pendingMoveSummary: PendingMoveSummary
+  moveBusy: boolean
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
@@ -202,7 +207,7 @@ function StaffColumn({
   selection,
   formSlotTime,
   formStaffId,
-  pendingMove,
+  pendingMoveSummary,
   dragEnabled,
   columnRef,
   resolveStaffIdAtPoint,
@@ -219,7 +224,7 @@ function StaffColumn({
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
-  pendingMove: AppointmentMoveDraft | null
+  pendingMoveSummary: PendingMoveSummary
   dragEnabled: boolean
   columnRef: (el: HTMLDivElement | null) => void
   resolveStaffIdAtPoint: (clientX: number) => string | null
@@ -284,7 +289,7 @@ function StaffColumn({
             apt={apt}
             staffId={schedule.staffId}
             range={range}
-            pendingMove={pendingMove}
+            pendingVisual={getPendingVisualForAppointment(pendingMoveSummary, apt.id)}
             dragEnabled={dragEnabled}
             resolveStaffIdAtPoint={resolveStaffIdAtPoint}
             columnTopFromClientY={columnTopFromClientY}
@@ -293,23 +298,31 @@ function StaffColumn({
           />
         ))}
 
-        {pendingMove &&
-          pendingMove.toStaffId === schedule.staffId &&
-          pendingMove.fromStaffId !== schedule.staffId && (
+        {[...pendingMoveSummary.byAppointmentId.values()].map(({ latest }) => {
+          const visual = getPendingVisualForAppointment(
+            pendingMoveSummary,
+            latest.appointment.id,
+          )
+          if (!visual) return null
+          if (visual.targetStaffId !== schedule.staffId) return null
+          if (visual.originStaffId === schedule.staffId) return null
+          if (schedule.appointments.some((a) => a.id === latest.appointment.id)) return null
+
+          return (
             <DraggableAppointmentBlock
-              key={`${pendingMove.appointment.id}-preview`}
-              apt={pendingMove.appointment}
+              key={`${latest.appointment.id}-relocated`}
+              apt={latest.appointment}
               staffId={schedule.staffId}
               range={range}
-              pendingMove={pendingMove}
-              dragEnabled={false}
-              previewOnly
+              pendingVisual={visual}
+              dragEnabled={dragEnabled}
               resolveStaffIdAtPoint={resolveStaffIdAtPoint}
               columnTopFromClientY={columnTopFromClientY}
               onDragEnd={onProposeAppointmentMove}
-              onClick={() => {}}
+              onClick={() => onEditAppointment(schedule.staffId, latest.appointment)}
             />
-          )}
+          )
+        })}
 
         {schedule.blocks.map((block) => (
           <BlockEvent
@@ -338,7 +351,8 @@ export function AdminSalonDayCalendar({
   selection,
   formSlotTime,
   formStaffId,
-  pendingMove,
+  pendingMoveSummary,
+  moveBusy,
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
@@ -368,7 +382,7 @@ export function AdminSalonDayCalendar({
     return clientY - rect.top
   }, [])
 
-  const dragEnabled = pendingMove === null
+  const dragEnabled = !moveBusy
 
   if (schedules.length === 0) {
     return <p className={`${typography.caption} text-center`}>No hay personal activo.</p>
@@ -396,7 +410,7 @@ export function AdminSalonDayCalendar({
               selection={selection}
               formSlotTime={formSlotTime}
               formStaffId={formStaffId}
-              pendingMove={pendingMove}
+              pendingMoveSummary={pendingMoveSummary}
               dragEnabled={dragEnabled}
               columnRef={(el) => setColumnRef(schedule.staffId, el)}
               resolveStaffIdAtPoint={resolveStaffIdAtPoint}

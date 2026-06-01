@@ -276,7 +276,8 @@ export function AdminAgendaPage() {
               selection={agenda.selection}
               formSlotTime={agenda.formSlotTime}
               formStaffId={agenda.formStaffId}
-              pendingMove={agenda.pendingMove}
+              pendingMoveSummary={agenda.pendingMoveSummary}
+              moveBusy={agenda.moveBusy}
               onToggleSlot={agenda.toggleSlot}
               onEditAppointment={agenda.openAppointmentDetail}
               onOpenBlock={agenda.openBlockDetail}
@@ -287,12 +288,13 @@ export function AdminAgendaPage() {
         )}
       </main>
 
-      {agenda.pendingMove && (
+      {agenda.pendingMoves.length > 0 && (
         <AppointmentMoveBar
-          draft={agenda.pendingMove}
+          summary={agenda.pendingMoveSummary}
           busy={agenda.moveBusy || agenda.whatsAppNotifyBusy}
-          onSave={agenda.requestSavePendingMove}
-          onDiscard={agenda.discardPendingMove}
+          onUndo={agenda.undoLastPendingMove}
+          onSave={agenda.requestSavePendingMoves}
+          onDiscard={agenda.discardPendingMoves}
         />
       )}
 

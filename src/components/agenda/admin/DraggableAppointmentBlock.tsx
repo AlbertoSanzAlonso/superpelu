@@ -14,7 +14,7 @@ import {
   appointmentOccupiedSlots,
   formatAppointmentTimeRange,
 } from '@/lib/bookingOccupancy'
-import type { AppointmentMoveDraft } from '@/hooks/useAdminAgenda'
+import type { PendingMoveVisual } from '@/lib/pendingAppointmentMoves'
 import type { DayScheduleAppointment } from '@/types/booking'
 
 const DRAG_THRESHOLD_PX = 6
@@ -30,7 +30,7 @@ type Props = {
   apt: DayScheduleAppointment
   staffId: string
   range: CalendarDayRange
-  pendingMove: AppointmentMoveDraft | null
+  pendingVisual: PendingMoveVisual | null
   dragEnabled: boolean
   /** Solo vista previa en columna destino (cambio de profesional). */
   previewOnly?: boolean
@@ -78,7 +78,7 @@ export function DraggableAppointmentBlock({
   apt,
   staffId,
   range,
-  pendingMove,
+  pendingVisual,
   dragEnabled,
   previewOnly = false,
   resolveStaffIdAtPoint,
@@ -86,14 +86,20 @@ export function DraggableAppointmentBlock({
   onDragEnd,
   onClick,
 }: Props) {
-  const bounds = appointmentVisualBounds(apt, range)
   const isPendingSource =
-    pendingMove?.appointment.id === apt.id && pendingMove.fromStaffId === staffId
+    pendingVisual != null && pendingVisual.originStaffId === staffId
   const isPendingTarget =
-    pendingMove?.appointment.id === apt.id && pendingMove.toStaffId === staffId
+    pendingVisual != null && pendingVisual.targetStaffId === staffId
+  const isRelocated = isPendingSource && isPendingTarget === false && pendingVisual != null
 
-  const displayStartTime = isPendingTarget ? pendingMove!.toStartTime : apt.startTime
+  const originStartTime = pendingVisual?.originStartTime ?? apt.startTime
+  const displayStartTime = isPendingTarget ? pendingVisual!.targetStartTime : apt.startTime
 
+  const bounds = appointmentVisualBounds(apt, range)
+  const originBounds =
+    isPendingSource && pendingVisual
+      ? appointmentVisualBounds(apt, range, originStartTime)
+      : bounds
   const displayBounds = isPendingTarget
     ? appointmentVisualBounds(apt, range, displayStartTime)
     : bounds
@@ -116,10 +122,11 @@ export function DraggableAppointmentBlock({
 
   const showAtOrigin =
     !previewOnly &&
+    (!isRelocated || isPendingSource) &&
     (!isPendingTarget || isPendingSource) &&
     (!isPendingSource || !liveDrag || liveDrag.staffId === staffId)
-  const originTop = bounds.top
-  const originHeight = bounds.height
+  const originTop = originBounds.top
+  const originHeight = originBounds.height
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -132,12 +139,12 @@ export function DraggableAppointmentBlock({
         pointerId: e.pointerId,
         startX: e.clientX,
         startY: e.clientY,
-        grabOffsetY: yInColumn - bounds.top,
+        grabOffsetY: yInColumn - (isPendingTarget ? displayBounds.top : originTop),
         moved: false,
         fromStaffId: staffId,
       }
     },
-    [dragEnabled, bounds.top, staffId, columnTopFromClientY],
+    [dragEnabled, displayBounds.top, isPendingTarget, originTop, staffId, columnTopFromClientY],
   )
 
   const handlePointerMove = useCallback(
@@ -247,7 +254,7 @@ export function DraggableAppointmentBlock({
           `${apt.id}-origin`,
           originTop,
           originHeight,
-          apt.startTime,
+          originStartTime,
           [
             isPendingSource ? 'opacity-35' : '',
             isLiveOnThisColumn && liveDrag ? 'opacity-20' : 'cursor-grab active:cursor-grabbing',
@@ -272,8 +279,21 @@ export function DraggableAppointmentBlock({
           displayBounds.top,
           displayBounds.height,
           displayStartTime,
-          'z-40 border-2 border-dashed border-gold ring-2 ring-gold/40',
-          { pointerEvents: 'none' },
+          [
+            'z-40 border-2 border-dashed border-gold ring-2 ring-gold/40',
+            isPendingTarget && !previewOnly ? 'cursor-grab active:cursor-grabbing' : '',
+          ]
+            .filter(Boolean)
+            .join(' '),
+          previewOnly ? { pointerEvents: 'none' } : {},
+          isPendingTarget && !previewOnly && dragEnabled
+            ? {
+                onPointerDown: handlePointerDown,
+                onPointerMove: handlePointerMove,
+                onPointerUp: finishDrag,
+                onPointerCancel: handlePointerCancel,
+              }
+            : undefined,
         )}
 
       {isLiveOnThisColumn &&
