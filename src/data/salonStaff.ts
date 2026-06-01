@@ -21,7 +21,7 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 0,
-    password: 'Pelu-Susana26',
+    password: 'Superpelu2026',
   },
   {
     id: 'monica',
@@ -30,7 +30,7 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 1,
-    password: 'Pelu-Monica26',
+    password: 'Superpelu2026',
   },
   {
     id: 'andrea',
@@ -39,7 +39,7 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 2,
-    password: 'Pelu-Andrea26',
+    password: 'Superpelu2026',
   },
   {
     id: 'olga',
@@ -48,7 +48,7 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 3,
-    password: 'Pelu-Olga26',
+    password: 'Superpelu2026',
   },
 ]
 

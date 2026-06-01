@@ -6,7 +6,7 @@ import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/Input'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
 import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCalendar'
@@ -222,9 +222,8 @@ export function AdminAgendaPage() {
                 ))}
               </select>
             </label>
-            <Input
+            <PasswordInput
               label="Contraseña"
-              type="password"
               required
               value={staffPassword}
               onChange={(e) => setStaffPassword(e.target.value)}
@@ -244,9 +243,8 @@ export function AdminAgendaPage() {
             onSubmit={handleAdminLogin}
             className="mx-auto max-w-sm space-y-4 border border-gold/25 bg-cream p-8"
           >
-            <Input
+            <PasswordInput
               label="Clave de administración"
-              type="password"
               required
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
