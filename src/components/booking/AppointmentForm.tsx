@@ -200,7 +200,18 @@ export function AppointmentForm({
               </div>
             ) : !form.startTime ? (
               <>
-                <BookingMonthCalendar {...calendarProps} compact />
+                <div className="space-y-2 text-center">
+                  <p className="font-sans text-sm capitalize text-charcoal">
+                    {formatDisplayDate(form.date, locale)}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleChangeDay}
+                    className={`${typography.caption} cursor-pointer text-gold underline-offset-2 hover:underline`}
+                  >
+                    {b.changeDay}
+                  </button>
+                </div>
                 <fieldset className="space-y-3">
                   <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
                     {b.hour}
