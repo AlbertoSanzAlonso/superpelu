@@ -266,7 +266,7 @@ export function AdminAgendaPage() {
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2">
-        {agenda.loading ? (
+        {agenda.loading && agenda.schedules.length === 0 ? (
           <p className={`${typography.caption} py-8 text-center`}>Cargando agenda…</p>
         ) : (
           <>
