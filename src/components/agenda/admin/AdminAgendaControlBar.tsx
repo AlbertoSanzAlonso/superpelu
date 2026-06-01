@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
+import { AdminAppointmentNotificationsBell } from '@/components/agenda/admin/AdminAppointmentNotificationsBell'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
+import type { AdminAppointmentNotificationItem } from '@/lib/adminAppointmentNotifications'
 import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/dates'
 import type { GridSelectionSummary } from '@/lib/timeGrid'
 import { Button } from '@/components/ui/Button'
@@ -33,6 +35,11 @@ type Props = {
   selectionBusy?: boolean
   /** Movimientos de cita sin guardar: deshabilita crear citas y bloquear. */
   gridInteractionsLocked?: boolean
+  notificationInbox?: AdminAppointmentNotificationItem[]
+  notificationBellOpen?: boolean
+  onNotificationBellOpen?: () => void
+  onNotificationBellClose?: () => void
+  onNotificationSelect?: (item: AdminAppointmentNotificationItem) => void
 }
 
 function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
@@ -72,6 +79,11 @@ export function AdminAgendaControlBar({
   onClearSelection,
   selectionBusy = false,
   gridInteractionsLocked = false,
+  notificationInbox = [],
+  notificationBellOpen = false,
+  onNotificationBellOpen,
+  onNotificationBellClose,
+  onNotificationSelect,
 }: Props) {
   const isToday = date === todaySalon()
   const workingStaff = schedules.filter((s) => s.working)
@@ -98,8 +110,22 @@ export function AdminAgendaControlBar({
     </div>
   )
 
+  const showNotifications =
+    onNotificationBellOpen != null &&
+    onNotificationBellClose != null &&
+    onNotificationSelect != null
+
   const accountActions = (
     <>
+      {showNotifications && (
+        <AdminAppointmentNotificationsBell
+          inbox={notificationInbox}
+          open={notificationBellOpen}
+          onOpen={onNotificationBellOpen}
+          onClose={onNotificationBellClose}
+          onSelect={onNotificationSelect}
+        />
+      )}
       <Link
         to="/clientes"
         className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"

@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { AdminAppointmentToastStack } from '@/components/agenda/admin/AdminAppointmentToastStack'
+import type { AdminAppointmentNotificationItem } from '@/lib/adminAppointmentNotifications'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
@@ -52,6 +54,51 @@ export function AdminAgendaPage() {
   const isStaff = Boolean(staffToken && staffUser)
 
   const agenda = useAdminAgenda(adminToken, selectedDate)
+  const {
+    schedules,
+    openAppointmentDetail,
+    appointmentNotifications: notifications,
+  } = agenda
+  const { closeBell, dismissToast, toasts } = notifications
+  const pendingAppointmentOpenRef = useRef<AdminAppointmentNotificationItem | null>(null)
+
+  const tryOpenPendingAppointment = useCallback(
+    (item: AdminAppointmentNotificationItem, daySchedules: typeof schedules) => {
+      for (const schedule of daySchedules) {
+        const apt = schedule.appointments.find((a) => a.id === item.id)
+        if (apt) {
+          openAppointmentDetail(item.staffId, apt)
+          return true
+        }
+      }
+      return false
+    },
+    [openAppointmentDetail],
+  )
+
+  const openAppointmentFromNotification = useCallback(
+    (item: AdminAppointmentNotificationItem) => {
+      closeBell()
+      for (const toast of toasts) {
+        if (toast.item.id === item.id) dismissToast(toast.key)
+      }
+      if (selectedDate === item.date && tryOpenPendingAppointment(item, schedules)) {
+        pendingAppointmentOpenRef.current = null
+        return
+      }
+      pendingAppointmentOpenRef.current = item
+      if (selectedDate !== item.date) setSelectedDate(item.date)
+    },
+    [closeBell, dismissToast, toasts, selectedDate, schedules, tryOpenPendingAppointment, setSelectedDate],
+  )
+
+  useEffect(() => {
+    const pending = pendingAppointmentOpenRef.current
+    if (!pending || selectedDate !== pending.date) return
+    if (tryOpenPendingAppointment(pending, schedules)) {
+      pendingAppointmentOpenRef.current = null
+    }
+  }, [selectedDate, schedules, tryOpenPendingAppointment])
 
   useEffect(() => {
     if (!staffToken) return
@@ -225,7 +272,7 @@ export function AdminAgendaPage() {
     )
   }
 
-  const totalAppointments = agenda.schedules.reduce((n, s) => n + s.appointments.length, 0)
+  const totalAppointments = schedules.reduce((n, s) => n + s.appointments.length, 0)
   const activeStaffName =
     agenda.schedules.find((s) => s.staffId === agenda.activeStaffId)?.staffName ?? ''
 
@@ -256,6 +303,11 @@ export function AdminAgendaPage() {
           onCreateAppointmentFromSelection={agenda.createAppointmentFromSelection}
           onClearSelection={agenda.clearSelection}
           selectionBusy={agenda.gridActionsBusy}
+          notificationInbox={notifications.inbox}
+          notificationBellOpen={notifications.bellOpen}
+          onNotificationBellOpen={notifications.openBell}
+          onNotificationBellClose={notifications.closeBell}
+          onNotificationSelect={openAppointmentFromNotification}
         />
 
         {agenda.error && (
@@ -386,6 +438,12 @@ export function AdminAgendaPage() {
         onClose={agenda.closeWhatsAppNotifyDialog}
         onNotify={agenda.confirmSaveWithWhatsAppNotify}
         onSaveWithoutNotify={agenda.confirmSaveWithoutWhatsAppNotify}
+      />
+
+      <AdminAppointmentToastStack
+        toasts={notifications.toasts}
+        onDismiss={notifications.dismissToast}
+        onSelect={openAppointmentFromNotification}
       />
 
       <ConfirmDialog

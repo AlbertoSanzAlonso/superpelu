@@ -35,6 +35,7 @@ type AppointmentsDeps = {
   load: () => Promise<void>
   setError: (message: string) => void
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
+  markAppointmentsKnown?: (ids: Iterable<string>) => void
 }
 
 export function useAdminAgendaAppointments({
@@ -47,6 +48,7 @@ export function useAdminAgendaAppointments({
   load,
   setError,
   setConfirmDialog,
+  markAppointmentsKnown,
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
@@ -201,7 +203,7 @@ export function useAdminAgendaAppointments({
       setError('')
       try {
         if (editingId) {
-          await updateAdminAppointment(editingId, adminToken, {
+          const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
             serviceId: aptDraft.serviceId,
             date,
@@ -214,8 +216,9 @@ export function useAdminAgendaAppointments({
             notes: aptDraft.notes || undefined,
             notifyCustomerWhatsApp,
           })
+          markAppointmentsKnown?.([appointment.id])
         } else {
-          await createAdminAppointment(
+          const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
               serviceId: aptDraft.serviceId,
@@ -230,6 +233,7 @@ export function useAdminAgendaAppointments({
             },
             adminToken,
           )
+          markAppointmentsKnown?.([appointment.id])
         }
         setWhatsAppNotifyDialogOpen(false)
         setAppointmentFormOpen(false)
@@ -254,6 +258,7 @@ export function useAdminAgendaAppointments({
       clearSelection,
       load,
       setError,
+      markAppointmentsKnown,
     ],
   )
 

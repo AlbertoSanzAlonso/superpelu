@@ -6,6 +6,7 @@ import { useAdminAgendaGridBlocks } from './useAdminAgendaGridBlocks'
 import { useAdminAgendaAppointments } from './useAdminAgendaAppointments'
 import { useAdminAgendaMoves } from './useAdminAgendaMoves'
 import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
+import { useAdminAppointmentNotifications } from './useAdminAppointmentNotifications'
 
 export type { AdminColumnSelection } from './types'
 export type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
@@ -14,6 +15,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const schedule = useAdminAgendaSchedule(adminToken, date)
   const selectionState = useAdminAgendaSelection(schedule.schedules, date)
   const confirm = useAgendaConfirm()
+  const notifications = useAdminAppointmentNotifications(adminToken)
 
   const appointments = useAdminAgendaAppointments({
     adminToken,
@@ -25,6 +27,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     load: schedule.load,
     setError: schedule.setError,
     setConfirmDialog: confirm.setConfirmDialog,
+    markAppointmentsKnown: notifications.markAppointmentsKnown,
   })
 
   const blocks = useAdminAgendaGridBlocks({
@@ -218,5 +221,6 @@ export function useAdminAgenda(adminToken: string, date: string) {
     discardPendingMoves: moves.discardPendingMoves,
     requestSavePendingMoves,
     moveBusy: moves.moveBusy,
+    appointmentNotifications: notifications,
   }
 }
