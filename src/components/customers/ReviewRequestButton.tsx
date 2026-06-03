@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { sendCustomerReviewRequest, ApiError } from '@/lib/api'
 import { canRequestGoogleReview } from '@/lib/reviewRequest'
@@ -11,6 +11,7 @@ type Props = {
   reviewRequestSentAt: string | null
   appointment?: Appointment | null
   compact?: boolean
+  inline?: boolean
   onSent?: (sentAt: string) => void
 }
 
@@ -20,11 +21,16 @@ export function ReviewRequestButton({
   reviewRequestSentAt,
   appointment,
   compact = false,
+  inline = false,
   onSent,
 }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [sentAt, setSentAt] = useState(reviewRequestSentAt)
+
+  useEffect(() => {
+    setSentAt(reviewRequestSentAt)
+  }, [reviewRequestSentAt])
 
   const effectiveSentAt = sentAt ?? reviewRequestSentAt
   const eligible = appointment ? canRequestGoogleReview(appointment) : true
@@ -51,6 +57,16 @@ export function ReviewRequestButton({
       dateStyle: 'medium',
       timeStyle: 'short',
     })
+    if (inline) {
+      return (
+        <span
+          className="inline-flex h-9 shrink-0 items-center text-xs text-charcoal-muted"
+          title={`Valoración enviada el ${label}`}
+        >
+          Valoración enviada
+        </span>
+      )
+    }
     return (
       <p
         className={`${typography.caption} rounded border border-amber-200/80 bg-amber-50/80 px-3 py-2 text-amber-950`}
@@ -62,10 +78,32 @@ export function ReviewRequestButton({
   }
 
   if (appointment && !eligible) {
+    if (inline) return null
     return (
       <p className={`${typography.caption} text-charcoal-muted`}>
         La valoración por WhatsApp está disponible cuando la cita ya ha pasado.
       </p>
+    )
+  }
+
+  if (inline) {
+    return (
+      <>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={busy || !phone.trim()}
+          className={`h-9 shrink-0 px-2.5 py-0 text-xs normal-case${error ? ' border-red-400' : ''}`}
+          title={error || 'Enviar WhatsApp pidiendo valoración en Google'}
+          onClick={(e) => {
+            e.stopPropagation()
+            void handleSend()
+          }}
+        >
+          {busy ? 'Enviando…' : 'Valoración WhatsApp'}
+        </Button>
+      </>
     )
   }
 

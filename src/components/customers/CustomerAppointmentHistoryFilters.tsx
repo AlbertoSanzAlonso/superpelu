@@ -5,7 +5,10 @@ import type { AppointmentHistoryFilters as Filters } from '@/lib/appointmentHist
 import { typography } from '@/styles/typography'
 
 const fieldClass =
-  'w-full border border-gold/30 bg-cream px-2.5 py-1.5 font-sans text-sm text-charcoal outline-none focus:border-gold'
+  'h-9 w-full border border-gold/30 bg-cream px-2.5 font-sans text-sm text-charcoal outline-none focus:border-gold'
+
+const buttonClass =
+  'inline-flex h-9 items-center border border-gold/30 bg-cream px-2.5 font-sans text-charcoal outline-none focus:border-gold hover:border-gold disabled:opacity-40'
 
 function FilterChevron({ expanded }: { expanded: boolean }) {
   return (
@@ -61,7 +64,7 @@ export function CustomerAppointmentHistoryFiltersBar({
           onClick={() => setFiltersOpen((open) => !open)}
           aria-expanded={filtersOpen}
           aria-controls="customer-history-filters"
-          className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 border border-gold/30 px-2.5 py-1.5 text-left text-xs text-charcoal hover:border-gold"
+          className={`${buttonClass} shrink-0 cursor-pointer gap-1.5 text-left text-xs`}
         >
           <span className={typography.label}>
             Filtros
@@ -168,7 +171,7 @@ export function CustomerAppointmentHistoryFiltersBar({
               type="button"
               disabled={!hasFilters}
               onClick={onClear}
-              className="h-[34px] border border-gold/30 px-3 text-xs text-charcoal-muted hover:border-gold disabled:opacity-40 sm:justify-self-end"
+              className={`${buttonClass} px-3 text-xs text-charcoal-muted sm:justify-self-end`}
             >
               Quitar filtros
             </button>

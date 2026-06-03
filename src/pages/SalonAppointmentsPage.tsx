@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { Navigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
 import { CustomerAppointmentHistoryFiltersBar } from '@/components/customers/CustomerAppointmentHistoryFilters'
@@ -59,14 +59,7 @@ export function SalonAppointmentsPage() {
         title="Historial de citas"
         backTo={{ label: 'Clientes', href: '/clientes' }}
         onLogout={handleLogout}
-      >
-        <Link
-          to="/agenda"
-          className="border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
-        >
-          Agenda
-        </Link>
-      </CustomersWorkspaceHeader>
+      />
 
       <p className={`${typography.caption} border-b border-gold/15 px-4 py-2 text-charcoal-muted`}>
         Todas las citas del salón en el rango de fechas. Pulsa una fila para ver el detalle.

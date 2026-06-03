@@ -5,6 +5,7 @@ type Props = {
   pageSize: number
   totalItems: number
   onPageChange: (page: number) => void
+  ariaLabel?: string
 }
 
 const navButtonClass =
@@ -15,6 +16,7 @@ export function CustomerAppointmentHistoryPagination({
   pageSize,
   totalItems,
   onPageChange,
+  ariaLabel = 'Paginación del historial',
 }: Props) {
   if (totalItems <= pageSize) return null
 
@@ -24,7 +26,7 @@ export function CustomerAppointmentHistoryPagination({
 
   return (
     <nav
-      aria-label="Paginación del historial"
+      aria-label={ariaLabel}
       className="flex flex-wrap items-center justify-between gap-3 border-t border-gold/15 px-4 py-3"
     >
       <p className={`${typography.caption} tabular-nums text-charcoal-muted`}>

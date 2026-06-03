@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
-import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
+import {
+  CustomersWorkspaceHeader,
+  customersWorkspaceButtonClass,
+  customersWorkspaceLinkClass,
+} from '@/components/customers/CustomersWorkspaceHeader'
+import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
+import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { fetchCustomers, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatDisplayDate } from '@/lib/dates'
@@ -12,6 +17,11 @@ import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
+
+const searchFieldClass =
+  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream px-2.5 font-sans text-sm text-charcoal outline-none focus:border-gold'
+
+const CUSTOMERS_PAGE_SIZE = 10
 
 export function CustomersPage() {
   const navigate = useNavigate()
@@ -23,6 +33,7 @@ export function CustomersPage() {
   const [error, setError] = useState('')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [page, setPage] = useState(1)
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
@@ -42,6 +53,18 @@ export function CustomersPage() {
     if (authOk) void loadCustomers()
   }, [authOk, loadCustomers])
 
+  const totalPages = Math.max(1, Math.ceil(customers.length / CUSTOMERS_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage)
+  }, [page, safePage])
+
+  const pagedCustomers = useMemo(() => {
+    const start = (safePage - 1) * CUSTOMERS_PAGE_SIZE
+    return customers.slice(start, start + CUSTOMERS_PAGE_SIZE)
+  }, [customers, safePage])
+
   if (authOk === false) {
     return <Navigate to="/agenda" replace />
   }
@@ -57,36 +80,38 @@ export function CustomersPage() {
   return (
     <AgendaWorkspaceShell>
       <CustomersWorkspaceHeader onLogout={handleLogout}>
-        <Link
-          to="/clientes/citas"
-          className="shrink-0 border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
-        >
+        <Link to="/clientes/citas" className={customersWorkspaceLinkClass}>
           Historial de citas
         </Link>
         <Button
           type="button"
           variant="solid"
           size="sm"
-          className="h-9 shrink-0"
+          className={customersWorkspaceButtonClass}
           onClick={() => setCreateOpen(true)}
         >
-          Crear nuevo
+          Cliente nuevo
         </Button>
         <form
           className="flex min-w-[12rem] flex-1 items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault()
+            setPage(1)
             void loadCustomers()
           }}
         >
-          <Input
-            label=""
+          <label className="sr-only" htmlFor="customers-search">
+            Buscar clientes
+          </label>
+          <input
+            id="customers-search"
+            type="search"
             placeholder="Buscar nombre, teléfono…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="py-1.5 text-sm"
+            className={searchFieldClass}
           />
-          <Button type="submit" variant="outline" size="sm" className="h-9 shrink-0">
+          <Button type="submit" variant="outline" size="sm" className={customersWorkspaceButtonClass}>
             Buscar
           </Button>
         </form>
@@ -118,7 +143,7 @@ export function CustomersPage() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((c) => {
+              {pagedCustomers.map((c) => {
                 const label = formatCustomerDisplayName(c.firstName, c.lastName)
                 return (
                   <tr
@@ -139,22 +164,41 @@ export function CustomersPage() {
                         : '—'}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <Button
                           type="button"
-                          className="cursor-pointer text-xs text-charcoal-muted hover:text-gold"
+                          variant="outline"
+                          size="sm"
+                          className={`${customersWorkspaceButtonClass} px-2.5 text-xs normal-case`}
                           onClick={(e) => {
                             e.stopPropagation()
                             setEditingCustomer(c)
                           }}
                         >
                           Editar
-                        </button>
+                        </Button>
+                        {adminToken && (
+                          <ReviewRequestButton
+                            adminToken={adminToken}
+                            phone={c.phone}
+                            reviewRequestSentAt={c.reviewRequestSentAt}
+                            inline
+                            onSent={(sentAt) =>
+                              setCustomers((rows) =>
+                                rows.map((row) =>
+                                  row.phone === c.phone
+                                    ? { ...row, reviewRequestSentAt: sentAt }
+                                    : row,
+                                ),
+                              )
+                            }
+                          />
+                        )}
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="h-8 px-2 text-xs"
+                          className={`${customersWorkspaceButtonClass} px-2.5 text-xs normal-case`}
                           onClick={(e) => {
                             e.stopPropagation()
                             navigate(`/clientes/${encodeURIComponent(c.phone)}`)
@@ -169,6 +213,16 @@ export function CustomersPage() {
               })}
             </tbody>
           </table>
+        )}
+
+        {!loading && customers.length > 0 && (
+          <CustomerAppointmentHistoryPagination
+            page={safePage}
+            pageSize={CUSTOMERS_PAGE_SIZE}
+            totalItems={customers.length}
+            ariaLabel="Paginación de clientes"
+            onPageChange={setPage}
+          />
         )}
       </main>
 
