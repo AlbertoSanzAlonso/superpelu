@@ -3,7 +3,7 @@ import type { MarketingService } from '@/data/marketingServices'
 import { getMarketingServices } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
 import { Section } from '@/components/ui/Section'
-import { BRAND_MARK_SRC } from '@/components/ui/Logo'
+import { BrandWatermark } from '@/components/ui/BrandWatermark'
 import { ServiceIcon } from '@/components/ui/ServiceIcon'
 import { ServiceDetailModal } from '@/components/sections/ServiceDetailModal'
 import { typography } from '@/styles/typography'
@@ -23,15 +23,7 @@ export function Services() {
         subtitle={t.servicesSection.subtitle}
         className="relative overflow-hidden"
       >
-        <img
-          src={BRAND_MARK_SRC}
-          alt=""
-          width={384}
-          height={384}
-          aria-hidden
-          decoding="async"
-          className="pointer-events-none absolute left-1/2 top-[61%] z-0 h-auto w-[min(92vw,36rem)] -translate-x-1/2 -translate-y-1/2 select-none opacity-[0.11] md:top-[66%]"
-        />
+        <BrandWatermark variant="section" />
         <div className="relative z-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {marketingServices.map((service, index) => (
             <button

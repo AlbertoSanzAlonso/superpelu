@@ -125,7 +125,7 @@ export function BookingMonthCalendar({
 
   return (
     <div
-      className={`border border-gold/30 bg-cream ${compact ? 'mx-auto max-w-[17rem] p-2' : 'p-4'} ${disabled ? 'pointer-events-none opacity-50' : ''}`}
+      className={`border border-gold/30 bg-cream/40 backdrop-blur-[2px] ${compact ? 'mx-auto max-w-[17rem] p-2' : 'p-4'} ${disabled ? 'pointer-events-none opacity-50' : ''}`}
       aria-disabled={disabled}
     >
       <div className={`flex items-center justify-between gap-1 ${compact ? 'mb-2' : 'mb-4'}`}>
@@ -133,7 +133,7 @@ export function BookingMonthCalendar({
           type="button"
           onClick={goPrevMonth}
           disabled={!canPrev || disabled}
-          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30 ${
+          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-gold backdrop-blur-[2px] transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-30 ${
             compact ? 'h-7 w-7 text-sm' : 'h-9 w-9'
           }`}
           aria-label={prevMonthLabel}
@@ -151,7 +151,7 @@ export function BookingMonthCalendar({
           type="button"
           onClick={goNextMonth}
           disabled={!canNext || disabled}
-          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold/60 hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-30 ${
+          className={`ui-rounded flex shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-gold backdrop-blur-[2px] transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-30 ${
             compact ? 'h-7 w-7 text-sm' : 'h-9 w-9'
           }`}
           aria-label={nextMonthLabel}
@@ -189,8 +189,8 @@ export function BookingMonthCalendar({
               className={`aspect-square cursor-pointer transition-colors ${compact ? 'text-xs' : 'text-sm'} ${
                 bookable
                   ? isSelected
-                    ? 'border-2 border-gold bg-gold/15 font-semibold text-gold'
-                    : 'border border-gold/25 text-charcoal hover:border-gold hover:bg-gold/10'
+                    ? 'border-2 border-gold bg-gold/20 font-semibold text-gold backdrop-blur-[1px]'
+                    : 'border border-gold/25 bg-cream/25 text-charcoal backdrop-blur-[1px] hover:border-gold hover:bg-gold/15'
                   : 'cursor-not-allowed border border-transparent text-charcoal-muted/40'
               } ${isToday && bookable && !isSelected ? 'ring-1 ring-gold/50' : ''}`}
               aria-label={dateStr}

@@ -5,10 +5,10 @@ import type { AppointmentHistoryFilters as Filters } from '@/lib/appointmentHist
 import { typography } from '@/styles/typography'
 
 const fieldClass =
-  'h-9 w-full border border-gold/30 bg-cream px-2.5 font-sans text-sm text-charcoal outline-none focus:border-gold'
+  'h-9 w-full border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
 const buttonClass =
-  'inline-flex h-9 items-center border border-gold/30 bg-cream px-2.5 font-sans text-charcoal outline-none focus:border-gold hover:border-gold disabled:opacity-40'
+  'inline-flex h-9 items-center border border-gold/30 bg-cream/40 px-2.5 font-sans text-charcoal outline-none backdrop-blur-[2px] hover:border-gold disabled:opacity-40'
 
 function FilterChevron({ expanded }: { expanded: boolean }) {
   return (
@@ -57,7 +57,7 @@ export function CustomerAppointmentHistoryFiltersBar({
   }, [hasFilters])
 
   return (
-    <div className="border-b border-gold/15 bg-cream/90 px-3 py-2">
+    <div className="border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"

@@ -145,7 +145,7 @@ export function AdminAgendaControlBar({
   )
 
   return (
-    <div className="flex flex-col gap-2 border-b border-gold/15 bg-cream px-3 py-2 md:gap-y-2">
+    <div className="flex flex-col gap-2 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px] md:gap-y-2">
       <div className="flex w-full items-center justify-between md:hidden">
         {dayNav}
         <div className="flex items-center gap-2">{accountActions}</div>

@@ -16,7 +16,11 @@ export function BookingPage() {
   if (confirmed) {
     const labels = t.booking.summaryLabels
     return (
-      <PageShell title={t.booking.confirmedTitle} subtitle={t.booking.confirmedSubtitle}>
+      <PageShell
+        title={t.booking.confirmedTitle}
+        subtitle={t.booking.confirmedSubtitle}
+        brandWatermark
+      >
         <div className="mx-auto max-w-lg border border-gold/25 bg-cream p-10 text-center">
           <p className={`${typography.body} mb-6`}>{t.booking.confirmedBody}</p>
           <dl className={`${typography.body} space-y-3 text-left`}>
@@ -73,6 +77,7 @@ export function BookingPage() {
       subtitle={t.booking.pageSubtitle}
       titleClassName="font-serif text-2xl uppercase tracking-brand text-charcoal md:text-4xl"
       subtitleClassName="hidden md:block"
+      brandWatermark
     >
       <AppointmentForm onConfirmed={setConfirmed} />
     </PageShell>

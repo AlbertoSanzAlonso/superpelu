@@ -19,7 +19,7 @@ import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
 const searchFieldClass =
-  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream px-2.5 font-sans text-sm text-charcoal outline-none focus:border-gold'
+  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
 const CUSTOMERS_PAGE_SIZE = 10
 
@@ -125,9 +125,11 @@ export function CustomersPage() {
 
   if (authOk === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-cream">
-        <p className={typography.caption}>Comprobando acceso…</p>
-      </div>
+      <AgendaWorkspaceShell>
+        <div className="flex flex-1 items-center justify-center">
+          <p className={typography.caption}>Comprobando acceso…</p>
+        </div>
+      </AgendaWorkspaceShell>
     )
   }
 
@@ -238,7 +240,7 @@ export function CustomersPage() {
             </ul>
 
             <table className="hidden w-full text-left text-sm md:table">
-              <thead className="sticky top-0 border-b border-gold/15 bg-cream">
+              <thead className="sticky top-0 border-b border-gold/15 bg-cream/55 backdrop-blur-[2px]">
                 <tr className={typography.caption}>
                   <th className="px-3 py-2 font-normal">Cliente</th>
                   <th className="px-3 py-2 font-normal">Teléfono</th>

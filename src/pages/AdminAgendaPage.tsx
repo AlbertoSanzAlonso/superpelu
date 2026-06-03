@@ -28,6 +28,15 @@ import { typography } from '@/styles/typography'
 const staffLoginSelectClass =
   'w-full cursor-pointer border border-gold/30 bg-cream px-4 py-3 font-sans text-sm text-charcoal outline-none transition-colors focus:border-gold'
 
+function loginModeButtonClass(active: boolean) {
+  return [
+    'cursor-pointer px-4 py-2 text-sm transition-colors',
+    active
+      ? 'border border-gold bg-gold/10 text-gold hover:border-gold/80 hover:bg-gold/15'
+      : 'border border-gold/20 text-charcoal-muted hover:border-gold/50 hover:bg-gold/5 hover:text-gold',
+  ].join(' ')
+}
+
 const ADMIN_TOKEN_KEY = 'superpelu-admin-token'
 const STAFF_TOKEN_KEY = 'superpelu-staff-token'
 const STAFF_USER_KEY = 'superpelu-staff-user'
@@ -168,6 +177,7 @@ export function AdminAgendaPage() {
         eyebrow="Agenda"
         title="Gestión del salón"
         subtitle="Acceso para el equipo: cada profesional gestiona lo suyo; administración ve todo el salón."
+        brandWatermark="viewport"
       >
         <div className="mx-auto mb-8 flex max-w-md justify-center gap-2">
           <button
@@ -176,11 +186,7 @@ export function AdminAgendaPage() {
               setLoginMode('admin')
               setLoginError('')
             }}
-            className={`px-4 py-2 text-sm ${
-              loginMode === 'admin'
-                ? 'border border-gold bg-gold/10 text-gold'
-                : 'border border-gold/20 text-charcoal-muted'
-            }`}
+            className={loginModeButtonClass(loginMode === 'admin')}
           >
             Administración
           </button>
@@ -190,11 +196,7 @@ export function AdminAgendaPage() {
               setLoginMode('staff')
               setLoginError('')
             }}
-            className={`px-4 py-2 text-sm ${
-              loginMode === 'staff'
-                ? 'border border-gold bg-gold/10 text-gold'
-                : 'border border-gold/20 text-charcoal-muted'
-            }`}
+            className={loginModeButtonClass(loginMode === 'staff')}
           >
             Soy profesional
           </button>

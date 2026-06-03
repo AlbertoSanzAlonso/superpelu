@@ -45,9 +45,11 @@ export function SalonAppointmentsPage() {
 
   if (authOk === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-cream">
-        <p className={typography.caption}>Comprobando acceso…</p>
-      </div>
+      <AgendaWorkspaceShell>
+        <div className="flex flex-1 items-center justify-center">
+          <p className={typography.caption}>Comprobando acceso…</p>
+        </div>
+      </AgendaWorkspaceShell>
     )
   }
 

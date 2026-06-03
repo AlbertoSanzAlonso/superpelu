@@ -22,7 +22,7 @@ type Props = {
 }
 
 const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, string> = {
-  free: 'border-gold/35 bg-cream hover:border-gold hover:bg-gold/10 cursor-pointer',
+  free: 'border-gold/35 bg-cream/25 backdrop-blur-[1px] hover:border-gold hover:bg-gold/15 cursor-pointer',
   block: `${blockEventClass()} hover:border-charcoal/40 cursor-pointer`,
   past: 'border-charcoal/10 bg-charcoal/5 text-charcoal-muted/70 cursor-not-allowed',
 }

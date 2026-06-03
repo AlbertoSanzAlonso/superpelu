@@ -59,13 +59,13 @@ function StaffInitial({ name }: { name: string }) {
 function TimeGutter({ range }: { range: CalendarDayRange }) {
   return (
     <div
-      className="relative z-10 w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream"
+      className="relative z-10 w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px]"
       style={{ height: range.totalHeightPx }}
     >
       {range.timeLabels.map((time) => (
         <div
           key={time}
-          className={`${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap border-b border-gold/10 bg-cream pr-2 pt-0.5 tabular-nums`}
+          className={`${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap border-b border-gold/10 bg-cream/25 pr-2 pt-0.5 tabular-nums backdrop-blur-[1px]`}
           style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
         >
           {time}
@@ -197,7 +197,7 @@ const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
   return (
     <div
-      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3`}
+      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream/55 px-3 backdrop-blur-[2px]`}
     >
       <StaffInitial name={schedule.staffName} />
       {schedule.working && schedule.window ? (
@@ -425,11 +425,11 @@ export function AdminSalonDayCalendar({
       onDragEnd={onProposeAppointmentMove}
       onClickWithoutDrag={handleClickWithoutDrag}
     >
-      <div className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream">
+      <div className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream/40 backdrop-blur-[2px]">
         <div className="flex min-w-max">
-          <div className="sticky left-0 z-40 isolate shrink-0 bg-cream">
+          <div className="sticky left-0 z-40 isolate shrink-0 bg-cream/40 backdrop-blur-[2px]">
             <div
-              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream/55 backdrop-blur-[2px]`}
               aria-hidden
             />
             <TimeGutter range={range} />

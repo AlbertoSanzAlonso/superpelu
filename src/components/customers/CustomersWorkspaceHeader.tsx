@@ -23,7 +23,7 @@ export function CustomersWorkspaceHeader({
   children,
 }: Props) {
   return (
-    <header className="shrink-0 border-b border-gold/15 bg-cream px-3 py-2">
+    <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
       <div className="flex min-w-0 items-center gap-2">
         {backTo ? (
           <Link to={backTo.href} className={headerLinkClass}>

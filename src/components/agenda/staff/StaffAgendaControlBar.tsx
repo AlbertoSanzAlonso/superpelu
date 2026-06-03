@@ -66,7 +66,7 @@ export function StaffAgendaControlBar({
   const hasSelection = selectionCount > 0 && selectionSummary != null
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gold/15 bg-cream px-3 py-2">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
       <p className={`${typography.label} shrink-0 text-gold`}>
         Hola, {staff.name}
         {staff.role ? (
