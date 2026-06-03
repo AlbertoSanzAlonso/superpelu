@@ -182,13 +182,14 @@ export function useAdminAgendaAppointments({
         .then((detail) => {
           setDetailCustomerRegistered(true)
           setDetailReviewRequestSentAt(detail.customer.reviewRequestSentAt ?? null)
-          setAptDraft(
-            appointmentToDraft(apt, {
+          setAptDraft((prev) => ({
+            ...appointmentToDraft(apt, {
               email: detail.customer.email,
               notes: detail.customer.notes,
               locale: detail.customer.locale,
             }),
-          )
+            notes: prev.notes,
+          }))
         })
         .catch(() => {
           setDetailCustomerRegistered(false)

@@ -3,19 +3,14 @@ import {
   CustomerAppointmentHistoryModal,
   customerHistoryModalTitle,
 } from '@/components/customers/CustomerAppointmentHistoryModal'
-import {
-  CustomerLocaleSelect,
-  customerLocaleLabel,
-} from '@/components/customers/CustomerLocaleSelect'
+import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
-import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
+import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
 import type { Appointment } from '@/types/booking'
-import type { CustomerDetail } from '@/types/customers'
-import { normalizeLocale } from '@/i18n/types'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
-import { Input, Textarea } from '@/components/ui/Input'
+import { Textarea } from '@/components/ui/Input'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
@@ -185,17 +180,6 @@ function ServiceBlocks({
   )
 }
 
-function applyCustomerToDraft(customer: CustomerDetail['customer']): Partial<AppointmentDraft> {
-  return {
-    customerFirstName: customer.firstName,
-    customerLastName: customer.lastName,
-    customerPhone: customer.phone,
-    customerEmail: customer.email ?? '',
-    customerNotes: customer.notes ?? '',
-    customerLocale: normalizeLocale(customer.locale),
-  }
-}
-
 function ClientPanelView({
   draft,
   customerRegistered,
@@ -321,7 +305,6 @@ function ClientPanelEdit({
   showCustomerHistory,
   adminToken,
   onDraftChange,
-  onCustomerRegisteredChange,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
@@ -337,59 +320,11 @@ function ClientPanelEdit({
       <p className={`${typography.label} text-gold`}>
         {customerRegistered ? 'Datos del cliente' : 'Datos del cliente en esta cita'}
       </p>
-      {showCustomerHistory && adminToken && (
-        <CustomerSearchPicker
-          adminToken={adminToken}
-          onSelect={(customer) => {
-            onDraftChange(applyCustomerToDraft(customer))
-            onCustomerRegisteredChange?.(true, customer.reviewRequestSentAt ?? null)
-          }}
-        />
-      )}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Input
-          label="Nombre"
-          required
-          value={draft.customerFirstName}
-          onChange={(e) => onDraftChange({ customerFirstName: e.target.value })}
-          className="!px-3 !py-2"
-        />
-        <Input
-          label="Apellidos"
-          value={draft.customerLastName}
-          onChange={(e) => onDraftChange({ customerLastName: e.target.value })}
-          className="!px-3 !py-2"
-        />
-        <Input
-          label="Móvil"
-          required
-          type="tel"
-          value={draft.customerPhone}
-          onChange={(e) => onDraftChange({ customerPhone: e.target.value })}
-          className="!px-3 !py-2"
-          autoComplete="tel"
-        />
-        <Input
-          label="Correo electrónico"
-          type="email"
-          value={draft.customerEmail}
-          onChange={(e) => onDraftChange({ customerEmail: e.target.value })}
-          className="!px-3 !py-2"
-        />
-      </div>
-      {customerRegistered && (
-        <Textarea
-          label="Observaciones (ficha cliente)"
-          rows={2}
-          value={draft.customerNotes}
-          onChange={(e) => onDraftChange({ customerNotes: e.target.value })}
-          className="!px-3 !py-2"
-        />
-      )}
-      <CustomerLocaleSelect
+      <AppointmentCustomerFields
+        draft={draft}
+        onDraftChange={onDraftChange}
         compact
-        value={draft.customerLocale}
-        onChange={(locale) => onDraftChange({ customerLocale: locale })}
+        phoneLabel="Móvil"
       />
       <Textarea
         label="Observaciones de la cita"

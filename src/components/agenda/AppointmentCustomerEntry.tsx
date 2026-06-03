@@ -1,15 +1,13 @@
 import { useState } from 'react'
-import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
+import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
 import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
-import { Input, Textarea } from '@/components/ui/Input'
+import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { normalizeLocale } from '@/i18n/types'
 import type { CustomerDetail } from '@/types/customers'
 import { typography } from '@/styles/typography'
-
-const fieldCompact = '!px-3 !py-2'
 
 const CLEAR_CUSTOMER_PATCH: Partial<AppointmentDraft> = {
   customerFirstName: '',
@@ -111,51 +109,10 @@ export function AppointmentCustomerEntry({
       >
         Buscar cliente existente
       </button>
-      <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2'}`}>
-        <Input
-          label="Nombre"
-          required
-          value={draft.customerFirstName}
-          onChange={(e) => onDraftChange({ customerFirstName: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="given-name"
-        />
-        <Input
-          label="Apellidos"
-          value={draft.customerLastName}
-          onChange={(e) => onDraftChange({ customerLastName: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="family-name"
-        />
-        <Input
-          label="Teléfono"
-          required
-          type="tel"
-          value={draft.customerPhone}
-          onChange={(e) => onDraftChange({ customerPhone: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="tel"
-        />
-        <Input
-          label="Email"
-          type="email"
-          value={draft.customerEmail}
-          onChange={(e) => onDraftChange({ customerEmail: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="email"
-        />
-      </div>
-      <Textarea
-        label="Observaciones del cliente (ficha)"
-        rows={compact ? 2 : 2}
-        value={draft.customerNotes}
-        onChange={(e) => onDraftChange({ customerNotes: e.target.value })}
-        className={compact ? fieldCompact : undefined}
-      />
-      <CustomerLocaleSelect
-        compact
-        value={draft.customerLocale}
-        onChange={(locale) => onDraftChange({ customerLocale: locale })}
+      <AppointmentCustomerFields
+        draft={draft}
+        onDraftChange={onDraftChange}
+        compact={compact}
       />
     </div>
   )

@@ -45,7 +45,7 @@ export function appointmentToDraft(
     customerLastName: lastName,
     customerPhone: apt.customerPhone,
     customerEmail: apt.customerEmail ?? customerProfile?.email ?? '',
-    customerNotes: customerProfile?.notes ?? '',
+    customerNotes: customerProfile?.notes ?? apt.customerNotes ?? '',
     notes: apt.notes ?? '',
     customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
   }
