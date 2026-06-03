@@ -311,7 +311,7 @@ export function useAdminAgendaAppointments({
             startTime: aptDraft.startTime,
           })
         if (scheduleChanged) {
-          setWhatsAppNotifyContext('move')
+          setWhatsAppNotifyContext('edit')
           setWhatsAppNotifyDialogOpen(true)
           return false
         }
@@ -452,6 +452,7 @@ export function useAdminAgendaAppointments({
     detailEditMode,
     setDetailEditMode,
     detailCustomerRegistered,
+    setDetailCustomerRegistered,
     detailReviewRequestSentAt,
     setDetailReviewRequestSentAt,
     openAppointmentDetail,

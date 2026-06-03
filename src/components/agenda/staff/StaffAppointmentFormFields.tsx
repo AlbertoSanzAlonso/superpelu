@@ -2,8 +2,10 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
+import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
+import { normalizeLocale } from '@/i18n/types'
 import { typography } from '@/styles/typography'
 
 const fieldCompact = '!px-3 !py-2'
@@ -23,7 +25,8 @@ type Props = {
   canMarkNoShow?: boolean
   isNoShow?: boolean
   hint?: string
-  /** Layout más denso para modal en escritorio (sin scroll). */
+  /** Admin: buscar cliente existente al crear cita. */
+  adminToken?: string
   compact?: boolean
 }
 
@@ -40,6 +43,7 @@ export function StaffAppointmentFormFields({
   canMarkNoShow = false,
   isNoShow = false,
   hint,
+  adminToken,
   compact = false,
 }: Props) {
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
@@ -116,6 +120,22 @@ export function StaffAppointmentFormFields({
             </select>
           </div>
         </>
+      )}
+
+      {adminToken && !editingId && (
+        <CustomerSearchPicker
+          adminToken={adminToken}
+          onSelect={(customer) =>
+            onDraftChange({
+              customerFirstName: customer.firstName,
+              customerLastName: customer.lastName,
+              customerPhone: customer.phone,
+              customerEmail: customer.email ?? '',
+              customerNotes: customer.notes ?? '',
+              customerLocale: normalizeLocale(customer.locale),
+            })
+          }
+        />
       )}
 
       <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2'}`}>

@@ -317,6 +317,24 @@ export function updateCustomer(
   )
 }
 
+export function createCustomer(
+  adminToken: string,
+  payload: {
+    phone: string
+    firstName: string
+    lastName?: string
+    email?: string | null
+    notes?: string | null
+    locale?: 'es' | 'en'
+  },
+) {
+  return request<{ customer: CustomerDetail['customer'] }>('/customers', {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(payload),
+  })
+}
+
 export function deleteCustomer(adminToken: string, phone: string) {
   return request<{ ok: true }>(`/customers/${encodeURIComponent(phone)}`, {
     method: 'DELETE',

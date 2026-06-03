@@ -22,6 +22,7 @@ export function CustomersPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
@@ -62,6 +63,15 @@ export function CustomersPage() {
         >
           Historial de citas
         </Link>
+        <Button
+          type="button"
+          variant="solid"
+          size="sm"
+          className="h-9 shrink-0"
+          onClick={() => setCreateOpen(true)}
+        >
+          Crear nuevo
+        </Button>
         <form
           className="flex min-w-[12rem] flex-1 items-center gap-2"
           onSubmit={(e) => {
@@ -163,7 +173,21 @@ export function CustomersPage() {
       </main>
 
       <CustomerEditModal
+        open={createOpen}
+        mode="create"
+        customer={null}
+        adminToken={adminToken ?? ''}
+        onClose={() => setCreateOpen(false)}
+        onSaved={(created) => {
+          setCreateOpen(false)
+          void loadCustomers()
+          navigate(`/clientes/${encodeURIComponent(created.phone)}`)
+        }}
+      />
+
+      <CustomerEditModal
         open={editingCustomer != null}
+        mode="edit"
         customer={editingCustomer}
         adminToken={adminToken ?? ''}
         onClose={() => setEditingCustomer(null)}

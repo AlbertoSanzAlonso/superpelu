@@ -417,6 +417,12 @@ export function AdminAgendaPage() {
           adminToken={adminToken}
           reviewRequestSentAt={agenda.detailReviewRequestSentAt}
           onReviewRequestSent={agenda.setDetailReviewRequestSentAt}
+          onCustomerRegisteredChange={(registered, reviewSentAt) => {
+            agenda.setDetailCustomerRegistered(registered)
+            if (reviewSentAt !== undefined) {
+              agenda.setDetailReviewRequestSentAt(reviewSentAt)
+            }
+          }}
         />
       )}
 
@@ -431,6 +437,7 @@ export function AdminAgendaPage() {
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}
+          adminToken={adminToken}
         />
       )}
 

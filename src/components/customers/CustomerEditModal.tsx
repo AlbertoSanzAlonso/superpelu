@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
-import { updateCustomer, deleteCustomer, ApiError } from '@/lib/api'
+import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { formatPhoneDisplay } from '@/lib/phone'
+import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -16,6 +16,7 @@ type CustomerFields = Pick<
 
 type Props = {
   open: boolean
+  mode?: 'edit' | 'create'
   customer: CustomerFields | null
   adminToken: string
   onClose: () => void
@@ -31,12 +32,15 @@ function isValidEmail(value: string): boolean {
 
 export function CustomerEditModal({
   open,
+  mode = 'edit',
   customer,
   adminToken,
   onClose,
   onSaved,
   onDeleted,
 }: Props) {
+  const isCreate = mode === 'create'
+  const [phoneInput, setPhoneInput] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
@@ -48,21 +52,31 @@ export function CustomerEditModal({
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!open || !customer) return
-    setFirstName(customer.firstName)
-    setLastName(customer.lastName)
-    setEmail(customer.email ?? '')
-    setNotes(customer.notes ?? '')
-    setLocale(normalizeLocale(customer.locale))
+    if (!open) return
+    if (isCreate) {
+      setPhoneInput('')
+      setFirstName('')
+      setLastName('')
+      setEmail('')
+      setNotes('')
+      setLocale('es')
+    } else if (customer) {
+      setPhoneInput(customer.phone)
+      setFirstName(customer.firstName)
+      setLastName(customer.lastName)
+      setEmail(customer.email ?? '')
+      setNotes(customer.notes ?? '')
+      setLocale(normalizeLocale(customer.locale))
+    }
     setError('')
     setSaving(false)
     setDeleting(false)
     setDeleteConfirmOpen(false)
-  }, [open, customer])
+  }, [open, customer, isCreate])
 
-  if (!open || !customer) return null
+  if (!open || (!isCreate && !customer)) return null
 
-  const phone = customer.phone
+  const phone = isCreate ? phoneInput : customer!.phone
   const busy = saving || deleting
 
   async function handleSubmit(e: React.FormEvent) {
@@ -75,18 +89,34 @@ export function CustomerEditModal({
       setError('El correo electrónico no es válido')
       return
     }
+    if (isCreate && !normalizePhone(phoneInput)) {
+      setError('Indica un teléfono válido')
+      return
+    }
 
     setSaving(true)
     setError('')
     try {
-      const { customer: updated } = await updateCustomer(adminToken, phone, {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        email: email.trim() || null,
-        notes: notes.trim() || null,
-        locale,
-      })
-      onSaved(updated)
+      if (isCreate) {
+        const { customer: created } = await createCustomer(adminToken, {
+          phone: phoneInput.trim(),
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim() || null,
+          notes: notes.trim() || null,
+          locale,
+        })
+        onSaved(created)
+      } else {
+        const { customer: updated } = await updateCustomer(adminToken, phone, {
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          email: email.trim() || null,
+          notes: notes.trim() || null,
+          locale,
+        })
+        onSaved(updated)
+      }
       onClose()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo guardar los cambios')
@@ -129,7 +159,7 @@ export function CustomerEditModal({
             <div className="pr-10">
               <p className={`${typography.caption} text-gold`}>Ficha de cliente</p>
               <h2 id="customer-edit-title" className={`${typography.h3} mt-0.5 text-charcoal`}>
-                Editar datos
+                {isCreate ? 'Nuevo cliente' : 'Editar datos'}
               </h2>
             </div>
             <button
@@ -144,12 +174,25 @@ export function CustomerEditModal({
           </header>
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-            <div className="rounded-lg border border-gold/25 bg-charcoal/[0.03] px-4 py-3">
-              <p className={`${typography.label} mb-1`}>Teléfono</p>
-              <p className="tabular-nums text-base font-medium text-charcoal">
-                {formatPhoneDisplay(customer.phone)}
-              </p>
-            </div>
+            {isCreate ? (
+              <Input
+                label="Teléfono"
+                required
+                type="tel"
+                autoComplete="tel"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                disabled={busy}
+                placeholder="+34…"
+              />
+            ) : (
+              <div className="rounded-lg border border-gold/25 bg-charcoal/[0.03] px-4 py-3">
+                <p className={`${typography.label} mb-1`}>Teléfono</p>
+                <p className="tabular-nums text-base font-medium text-charcoal">
+                  {formatPhoneDisplay(customer!.phone)}
+                </p>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
@@ -211,7 +254,7 @@ export function CustomerEditModal({
             >
               Cancelar
             </Button>
-            {onDeleted && (
+            {onDeleted && !isCreate && (
               <Button
                 type="button"
                 variant="outline"
@@ -230,7 +273,7 @@ export function CustomerEditModal({
               disabled={busy}
               className="w-full sm:w-auto"
             >
-              {saving ? 'Guardando…' : 'Guardar cambios'}
+              {saving ? 'Guardando…' : isCreate ? 'Crear cliente' : 'Guardar cambios'}
             </Button>
           </footer>
         </form>

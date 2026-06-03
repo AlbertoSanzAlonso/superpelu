@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
@@ -7,16 +7,37 @@ import {
   countListableAppointments,
   CustomerAppointmentHistoryList,
 } from '@/components/customers/CustomerAppointmentHistoryList'
+import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { useSalonAppointmentHistory } from '@/hooks/useSalonAppointmentHistory'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
+const APPOINTMENTS_PAGE_SIZE = 10
+
 export function SalonAppointmentsPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
   const history = useSalonAppointmentHistory(adminToken ?? '')
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+  const [page, setPage] = useState(1)
+
+  useEffect(() => {
+    setPage(1)
+  }, [history.filters])
+
+  const filteredCount = history.filteredAppointments.length
+  const totalPages = Math.max(1, Math.ceil(filteredCount / APPOINTMENTS_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+
+  useEffect(() => {
+    if (page !== safePage) setPage(safePage)
+  }, [page, safePage])
+
+  const pagedAppointments = useMemo(() => {
+    const start = (safePage - 1) * APPOINTMENTS_PAGE_SIZE
+    return history.filteredAppointments.slice(start, start + APPOINTMENTS_PAGE_SIZE)
+  }, [history.filteredAppointments, safePage])
 
   if (authOk === false) {
     return <Navigate to="/agenda" replace />
@@ -73,12 +94,21 @@ export function SalonAppointmentsPage() {
         />
 
         <CustomerAppointmentHistoryList
-          appointments={history.filteredAppointments}
+          appointments={pagedAppointments}
           totalAppointments={history.appointments}
           loading={history.loading}
           showCustomer
           onSelect={setSelectedAppointment}
         />
+
+        {!history.loading && filteredCount > 0 && (
+          <CustomerAppointmentHistoryPagination
+            page={safePage}
+            pageSize={APPOINTMENTS_PAGE_SIZE}
+            totalItems={filteredCount}
+            onPageChange={setPage}
+          />
+        )}
       </main>
 
       {adminToken && (

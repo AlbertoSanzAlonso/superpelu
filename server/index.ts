@@ -66,6 +66,7 @@ import {
 } from '@server/staffBlocks.js'
 import { listServicesForStaff } from '@server/staff.js'
 import {
+  createCustomer,
   deleteCustomer,
   getCustomer,
   listCustomerAppointments,
@@ -354,6 +355,40 @@ app.get('/api/customers', async (c) => {
   return c.json({ customers: await listCustomers({ q, limit }) })
 })
 
+app.post('/api/customers', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  const body = await c.req.json<{
+    phone: string
+    firstName: string
+    lastName?: string
+    email?: string | null
+    notes?: string | null
+    locale?: 'es' | 'en'
+  }>()
+
+  try {
+    const row = await createCustomer({
+      phone: body.phone,
+      firstName: body.firstName ?? '',
+      lastName: body.lastName,
+      email: body.email,
+      notes: body.notes,
+      locale: body.locale,
+    })
+    return c.json({ customer: customerToJson(row) }, 201)
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    const messages: Record<string, string> = {
+      TELEFONO_INVALIDO: 'Teléfono no válido',
+      NOMBRE_INVALIDO: 'Indica al menos el nombre',
+      CLIENTE_YA_EXISTE: 'Ya existe un cliente con ese teléfono',
+    }
+    return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
+  }
+})
+
 function customerToJson(customer: {
   phone: string
   first_name: string
@@ -361,6 +396,7 @@ function customerToJson(customer: {
   email: string | null
   notes: string | null
   locale?: string | null
+  review_request_sent_at?: string | null
   created_at: string
   updated_at: string
 }) {

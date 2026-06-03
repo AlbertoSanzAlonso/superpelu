@@ -128,7 +128,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
         await moves.commitPendingMoves(true)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
         await appointments.persistCancel(true)
-      } else {
+      } else if (appointments.whatsAppNotifyContext === 'edit') {
         await appointments.persistAppointment(true)
       }
     } finally {
@@ -143,7 +143,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
         await moves.commitPendingMoves(false)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
         await appointments.persistCancel(false)
-      } else {
+      } else if (appointments.whatsAppNotifyContext === 'edit') {
         await appointments.persistAppointment(false)
       }
     } finally {
@@ -189,6 +189,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     viewingAppointment: appointments.viewingAppointment,
     detailEditMode: appointments.detailEditMode,
     detailCustomerRegistered: appointments.detailCustomerRegistered,
+    setDetailCustomerRegistered: appointments.setDetailCustomerRegistered,
     detailReviewRequestSentAt: appointments.detailReviewRequestSentAt,
     setDetailReviewRequestSentAt: appointments.setDetailReviewRequestSentAt,
     openAppointmentDetail: appointments.openAppointmentDetail,

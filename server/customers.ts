@@ -99,6 +99,28 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   return rows[0]!
 }
 
+/** Crea ficha nueva; falla si el teléfono ya existe. */
+export async function createCustomer(input: CustomerInput): Promise<CustomerRow> {
+  const { firstName, lastName, phone } = resolveCustomerFromInput(input)
+  const existing = await getCustomer(phone)
+  if (existing) throw new Error('CLIENTE_YA_EXISTE')
+
+  const now = new Date().toISOString()
+  const email = input.email?.trim() || null
+  const notes = input.notes?.trim() || null
+  const locale = normalizeLocale(input.locale ?? 'es')
+
+  await sql`
+    INSERT INTO customers (phone, first_name, last_name, email, notes, locale, created_at, updated_at)
+    VALUES (${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes}, ${locale}, ${now}, ${now})
+  `
+
+  const rows = await sql<CustomerRow[]>`
+    SELECT * FROM customers WHERE phone = ${phone}
+  `
+  return rows[0]!
+}
+
 export type CustomerUpdateInput = {
   firstName: string
   lastName?: string

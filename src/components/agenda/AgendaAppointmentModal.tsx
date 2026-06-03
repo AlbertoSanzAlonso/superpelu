@@ -8,7 +8,10 @@ import {
   customerLocaleLabel,
 } from '@/components/customers/CustomerLocaleSelect'
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
+import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
 import type { Appointment } from '@/types/booking'
+import type { CustomerDetail } from '@/types/customers'
+import { normalizeLocale } from '@/i18n/types'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
@@ -53,6 +56,7 @@ type Props = {
   adminToken?: string
   reviewRequestSentAt?: string | null
   onReviewRequestSent?: (sentAt: string) => void
+  onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
 }
 
 function dash(value: string | null | undefined): string {
@@ -181,23 +185,28 @@ function ServiceBlocks({
   )
 }
 
+function applyCustomerToDraft(customer: CustomerDetail['customer']): Partial<AppointmentDraft> {
+  return {
+    customerFirstName: customer.firstName,
+    customerLastName: customer.lastName,
+    customerPhone: customer.phone,
+    customerEmail: customer.email ?? '',
+    customerNotes: customer.notes ?? '',
+    customerLocale: normalizeLocale(customer.locale),
+  }
+}
+
 function ClientPanelView({
   draft,
   customerRegistered,
   showCustomerHistory,
   adminToken,
-  appointmentForReview,
-  reviewRequestSentAt,
-  onReviewRequestSent,
   onEditClient,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
   showCustomerHistory: boolean
   adminToken?: string
-  appointmentForReview: Appointment | null
-  reviewRequestSentAt: string | null
-  onReviewRequestSent?: (sentAt: string) => void
   onEditClient: () => void
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -281,16 +290,7 @@ function ClientPanelView({
       </dl>
 
       {showCustomerHistory && phone && adminToken && (
-        <div className="mt-4 space-y-3">
-          <ReviewRequestButton
-            adminToken={adminToken}
-            phone={phone}
-            reviewRequestSentAt={reviewRequestSentAt}
-            appointment={appointmentForReview}
-            compact
-            onSent={onReviewRequestSent}
-          />
-          <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
@@ -309,7 +309,6 @@ function ClientPanelView({
             )}
             onClose={() => setHistoryOpen(false)}
           />
-          </div>
         </div>
       )}
     </div>
@@ -321,19 +320,15 @@ function ClientPanelEdit({
   customerRegistered,
   showCustomerHistory,
   adminToken,
-  appointmentForReview,
-  reviewRequestSentAt,
-  onReviewRequestSent,
   onDraftChange,
+  onCustomerRegisteredChange,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
   showCustomerHistory?: boolean
   adminToken?: string
-  appointmentForReview: Appointment | null
-  reviewRequestSentAt: string | null
-  onReviewRequestSent?: (sentAt: string) => void
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
+  onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const phone = draft.customerPhone
@@ -342,6 +337,15 @@ function ClientPanelEdit({
       <p className={`${typography.label} text-gold`}>
         {customerRegistered ? 'Datos del cliente' : 'Datos del cliente en esta cita'}
       </p>
+      {showCustomerHistory && adminToken && (
+        <CustomerSearchPicker
+          adminToken={adminToken}
+          onSelect={(customer) => {
+            onDraftChange(applyCustomerToDraft(customer))
+            onCustomerRegisteredChange?.(true, customer.reviewRequestSentAt ?? null)
+          }}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           label="Nombre"
@@ -395,15 +399,7 @@ function ClientPanelEdit({
         className="!px-3 !py-2"
       />
       {showCustomerHistory && phone && adminToken && (
-        <div className="space-y-3 border-t border-gold/15 pt-3">
-          <ReviewRequestButton
-            adminToken={adminToken}
-            phone={phone}
-            reviewRequestSentAt={reviewRequestSentAt}
-            appointment={appointmentForReview}
-            compact
-            onSent={onReviewRequestSent}
-          />
+        <div className="border-t border-gold/15 pt-3">
           <Button
             type="button"
             variant="outline"
@@ -453,6 +449,7 @@ export function AgendaAppointmentModal({
   adminToken,
   reviewRequestSentAt = null,
   onReviewRequestSent,
+  onCustomerRegisteredChange,
 }: Props) {
   const appointmentStatus = appointment.status ?? 'confirmed'
   const showNoShowAction =
@@ -554,16 +551,24 @@ export function AgendaAppointmentModal({
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
                     adminToken={adminToken}
-                    appointmentForReview={appointmentForReview}
-                    reviewRequestSentAt={reviewRequestSentAt ?? null}
-                    onReviewRequestSent={onReviewRequestSent}
                     onEditClient={() => onModeChange('edit')}
                   />
                 </section>
               </div>
             </div>
 
-            <footer className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-t border-gold/15 px-4 py-3 sm:px-5">
+            <footer className="flex shrink-0 flex-col gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
+              {showCustomerHistory && adminToken && draft.customerPhone.trim() && (
+                <ReviewRequestButton
+                  adminToken={adminToken}
+                  phone={draft.customerPhone}
+                  reviewRequestSentAt={reviewRequestSentAt ?? null}
+                  appointment={appointmentForReview}
+                  compact
+                  onSent={onReviewRequestSent}
+                />
+              )}
+              <div className="flex flex-wrap items-center justify-center gap-2">
               <Button type="button" variant="solid" size="sm" onClick={() => onModeChange('edit')}>
                 Editar
               </Button>
@@ -581,6 +586,7 @@ export function AgendaAppointmentModal({
                   Eliminar
                 </button>
               )}
+              </div>
             </footer>
           </>
         ) : (
@@ -645,16 +651,25 @@ export function AgendaAppointmentModal({
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
                     adminToken={adminToken}
-                    appointmentForReview={appointmentForReview}
-                    reviewRequestSentAt={reviewRequestSentAt ?? null}
-                    onReviewRequestSent={onReviewRequestSent}
                     onDraftChange={onDraftChange}
+                    onCustomerRegisteredChange={onCustomerRegisteredChange}
                   />
                 </section>
               </div>
             </div>
 
-            <footer className="flex shrink-0 flex-wrap items-center justify-center gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
+            <footer className="flex shrink-0 flex-col gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
+              {showCustomerHistory && adminToken && draft.customerPhone.trim() && (
+                <ReviewRequestButton
+                  adminToken={adminToken}
+                  phone={draft.customerPhone}
+                  reviewRequestSentAt={reviewRequestSentAt ?? null}
+                  appointment={appointmentForReview}
+                  compact
+                  onSent={onReviewRequestSent}
+                />
+              )}
+              <div className="flex flex-wrap items-center justify-center gap-2">
               <Button type="submit" variant="solid" size="sm" disabled={saving || services.length === 0}>
                 {saving ? 'Guardando…' : 'Guardar cambios'}
               </Button>
@@ -679,6 +694,7 @@ export function AgendaAppointmentModal({
                   Cancelar cita
                 </Button>
               )}
+              </div>
             </footer>
           </form>
         )}

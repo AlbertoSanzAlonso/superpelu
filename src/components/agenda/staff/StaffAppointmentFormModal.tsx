@@ -17,6 +17,7 @@ type Props = {
   onMarkNoShow?: () => void
   canMarkNoShow?: boolean
   isNoShow?: boolean
+  adminToken?: string
 }
 
 export function StaffAppointmentFormModal({
@@ -33,6 +34,7 @@ export function StaffAppointmentFormModal({
   onMarkNoShow,
   canMarkNoShow,
   isNoShow,
+  adminToken,
 }: Props) {
   if (!open) return null
 
@@ -90,6 +92,7 @@ export function StaffAppointmentFormModal({
             canMarkNoShow={canMarkNoShow}
             isNoShow={isNoShow}
             hint={hint}
+            adminToken={adminToken}
           />
         </div>
       </div>
