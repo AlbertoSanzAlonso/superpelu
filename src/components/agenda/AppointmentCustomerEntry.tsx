@@ -8,6 +8,8 @@ import { normalizeLocale } from '@/i18n/types'
 import type { CustomerDetail } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
+const customerEntryActionClass = `${typography.caption} flex w-full cursor-pointer items-center justify-center gap-1.5 border border-gold/30 bg-cream px-3 py-2 text-charcoal transition-colors hover:border-gold hover:bg-gold/10`
+
 const CLEAR_CUSTOMER_PATCH: Partial<AppointmentDraft> = {
   customerFirstName: '',
   customerLastName: '',
@@ -62,40 +64,55 @@ export function AppointmentCustomerEntry({
     onDraftChange(CLEAR_CUSTOMER_PATCH)
   }
 
+  function clearSelection() {
+    onDraftChange(CLEAR_CUSTOMER_PATCH)
+  }
+
   if (mode === 'search') {
     return (
       <div className="space-y-3">
-        <CustomerSearchPicker adminToken={adminToken} onSelect={selectExisting} />
-        {hasSelection && (
-          <p className={`${typography.caption} rounded border border-gold/20 bg-charcoal/[0.04] px-3 py-2 text-charcoal`}>
-            <span className="font-medium">{selectedLabel || 'Cliente'}</span>
-            {draft.customerPhone.trim() && (
-              <span className="tabular-nums text-charcoal-muted">
-                {' '}
-                · {formatPhoneDisplay(draft.customerPhone)}
-              </span>
-            )}
-          </p>
+        {hasSelection ? (
+          <div
+            className={`${typography.caption} flex items-start gap-2 rounded border border-gold/20 bg-charcoal/[0.04] px-3 py-2 text-charcoal`}
+          >
+            <p className="min-w-0 flex-1">
+              <span className="font-medium">{selectedLabel || 'Cliente'}</span>
+              {draft.customerPhone.trim() && (
+                <span className="tabular-nums text-charcoal-muted">
+                  {' '}
+                  · {formatPhoneDisplay(draft.customerPhone)}
+                </span>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="shrink-0 border border-gold/30 px-2 py-1 text-sm leading-none text-charcoal-muted transition-colors hover:border-gold hover:text-charcoal"
+              aria-label="Quitar cliente seleccionado"
+              title="Quitar cliente seleccionado"
+            >
+              ✕
+            </button>
+          </div>
+        ) : (
+          <>
+            <CustomerSearchPicker adminToken={adminToken} onSelect={selectExisting} />
+            <button type="button" onClick={openManual} className={customerEntryActionClass}>
+              <span className="text-base leading-none text-gold">+</span>
+              Añadir cliente nuevo
+            </button>
+          </>
         )}
-        <button
-          type="button"
-          onClick={openManual}
-          className={`${typography.caption} flex w-full cursor-pointer items-center justify-center gap-1 border border-gold/30 bg-cream px-3 py-2 text-charcoal transition-colors hover:border-gold hover:bg-gold/10`}
-        >
-          <span className="text-base leading-none text-gold">+</span>
-          Añadir cliente nuevo
-        </button>
       </div>
     )
   }
 
   return (
     <div className="space-y-3">
-      <button
-        type="button"
-        onClick={openSearch}
-        className={`${typography.caption} cursor-pointer text-gold underline-offset-2 hover:underline`}
-      >
+      <button type="button" onClick={openSearch} className={customerEntryActionClass}>
+        <span className="text-base leading-none text-gold" aria-hidden>
+          ←
+        </span>
         Buscar cliente existente
       </button>
       <AppointmentCustomerFields
