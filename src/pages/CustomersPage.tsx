@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
@@ -56,6 +56,12 @@ export function CustomersPage() {
   return (
     <AgendaWorkspaceShell>
       <CustomersWorkspaceHeader onLogout={handleLogout}>
+        <Link
+          to="/clientes/citas"
+          className="shrink-0 border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold"
+        >
+          Historial de citas
+        </Link>
         <form
           className="flex min-w-[12rem] flex-1 items-center gap-2"
           onSubmit={(e) => {

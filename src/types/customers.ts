@@ -9,6 +9,7 @@ export type Customer = {
   email: string | null
   notes: string | null
   locale: Locale
+  reviewRequestSentAt: string | null
   appointmentCount: number
   lastAppointmentDate: string | null
   createdAt: string
@@ -16,6 +17,8 @@ export type Customer = {
 }
 
 export type CustomerDetail = {
-  customer: Omit<Customer, 'appointmentCount' | 'lastAppointmentDate'>
+  customer: Omit<Customer, 'appointmentCount' | 'lastAppointmentDate'> & {
+    reviewRequestSentAt?: string | null
+  }
   appointments: Appointment[]
 }

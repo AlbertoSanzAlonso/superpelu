@@ -7,6 +7,8 @@ import {
   CustomerLocaleSelect,
   customerLocaleLabel,
 } from '@/components/customers/CustomerLocaleSelect'
+import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
+import type { Appointment } from '@/types/booking'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
@@ -49,6 +51,8 @@ type Props = {
   /** Historial de citas del cliente (solo administración). */
   showCustomerHistory?: boolean
   adminToken?: string
+  reviewRequestSentAt?: string | null
+  onReviewRequestSent?: (sentAt: string) => void
 }
 
 function dash(value: string | null | undefined): string {
@@ -182,12 +186,18 @@ function ClientPanelView({
   customerRegistered,
   showCustomerHistory,
   adminToken,
+  appointmentForReview,
+  reviewRequestSentAt,
+  onReviewRequestSent,
   onEditClient,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
   showCustomerHistory: boolean
   adminToken?: string
+  appointmentForReview: Appointment | null
+  reviewRequestSentAt: string | null
+  onReviewRequestSent?: (sentAt: string) => void
   onEditClient: () => void
 }) {
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -271,7 +281,16 @@ function ClientPanelView({
       </dl>
 
       {showCustomerHistory && phone && adminToken && (
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+        <div className="mt-4 space-y-3">
+          <ReviewRequestButton
+            adminToken={adminToken}
+            phone={phone}
+            reviewRequestSentAt={reviewRequestSentAt}
+            appointment={appointmentForReview}
+            compact
+            onSent={onReviewRequestSent}
+          />
+          <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
@@ -290,6 +309,7 @@ function ClientPanelView({
             )}
             onClose={() => setHistoryOpen(false)}
           />
+          </div>
         </div>
       )}
     </div>
@@ -299,12 +319,24 @@ function ClientPanelView({
 function ClientPanelEdit({
   draft,
   customerRegistered,
+  showCustomerHistory,
+  adminToken,
+  appointmentForReview,
+  reviewRequestSentAt,
+  onReviewRequestSent,
   onDraftChange,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
+  showCustomerHistory?: boolean
+  adminToken?: string
+  appointmentForReview: Appointment | null
+  reviewRequestSentAt: string | null
+  onReviewRequestSent?: (sentAt: string) => void
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
 }) {
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const phone = draft.customerPhone
   return (
     <div className="space-y-3 rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
       <p className={`${typography.label} text-gold`}>
@@ -362,6 +394,37 @@ function ClientPanelEdit({
         onChange={(e) => onDraftChange({ notes: e.target.value })}
         className="!px-3 !py-2"
       />
+      {showCustomerHistory && phone && adminToken && (
+        <div className="space-y-3 border-t border-gold/15 pt-3">
+          <ReviewRequestButton
+            adminToken={adminToken}
+            phone={phone}
+            reviewRequestSentAt={reviewRequestSentAt}
+            appointment={appointmentForReview}
+            compact
+            onSent={onReviewRequestSent}
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setHistoryOpen(true)}
+          >
+            Historial de citas del cliente
+          </Button>
+          <CustomerAppointmentHistoryModal
+            open={historyOpen}
+            adminToken={adminToken}
+            phone={phone}
+            customerLabel={customerHistoryModalTitle(
+              draft.customerFirstName,
+              draft.customerLastName,
+            )}
+            onClose={() => setHistoryOpen(false)}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -388,6 +451,8 @@ export function AgendaAppointmentModal({
   onMarkNoShow,
   showCustomerHistory = false,
   adminToken,
+  reviewRequestSentAt = null,
+  onReviewRequestSent,
 }: Props) {
   const appointmentStatus = appointment.status ?? 'confirmed'
   const showNoShowAction =
@@ -406,6 +471,25 @@ export function AgendaAppointmentModal({
   }, [appointment.createdAt])
 
   if (!open) return null
+
+  const appointmentForReview: Appointment | null = {
+    id: appointment.id,
+    staffId,
+    staffName,
+    serviceId: appointment.serviceId,
+    serviceName: appointment.serviceName,
+    durationMinutes: appointment.durationMinutes,
+    colorGroupRole: appointment.colorGroupRole,
+    date,
+    startTime: appointment.startTime,
+    customerName: formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName),
+    customerPhone: draft.customerPhone,
+    customerEmail: draft.customerEmail || null,
+    notes: draft.notes || null,
+    status: appointment.status,
+    locale: draft.customerLocale,
+    createdAt: appointment.createdAt,
+  }
 
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
   const selectCn =
@@ -470,6 +554,9 @@ export function AgendaAppointmentModal({
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
                     adminToken={adminToken}
+                    appointmentForReview={appointmentForReview}
+                    reviewRequestSentAt={reviewRequestSentAt ?? null}
+                    onReviewRequestSent={onReviewRequestSent}
                     onEditClient={() => onModeChange('edit')}
                   />
                 </section>
@@ -556,6 +643,11 @@ export function AgendaAppointmentModal({
                   <ClientPanelEdit
                     draft={draft}
                     customerRegistered={customerRegistered}
+                    showCustomerHistory={showCustomerHistory}
+                    adminToken={adminToken}
+                    appointmentForReview={appointmentForReview}
+                    reviewRequestSentAt={reviewRequestSentAt ?? null}
+                    onReviewRequestSent={onReviewRequestSent}
                     onDraftChange={onDraftChange}
                   />
                 </section>

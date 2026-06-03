@@ -132,6 +132,12 @@ export function AdminAgendaControlBar({
       >
         Clientes
       </Link>
+      <Link
+        to="/clientes/citas"
+        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
+      >
+        Citas
+      </Link>
       <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={onLogout}>
         Salir
       </Button>

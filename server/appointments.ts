@@ -659,7 +659,7 @@ export async function updateAppointmentForStaff(
   const notifyCustomerReschedule =
     scheduleChanged &&
     !isColorGroupWashRow(existing.color_group_role) &&
-    input.notifyCustomerWhatsApp !== false
+    input.notifyCustomerWhatsApp === true
   if (scheduleChanged) {
     if (notifyCustomerReschedule) {
       void notifyAppointmentRescheduled(updated).catch((err) => {
@@ -968,6 +968,7 @@ export function rowToPublic(row: AppointmentRow) {
     customerEmail: row.customer_email,
     notes: row.notes,
     status: row.status,
+    locale: row.locale === 'en' ? 'en' : 'es',
     createdAt: row.created_at,
   }
 }

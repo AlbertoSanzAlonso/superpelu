@@ -72,6 +72,7 @@ import {
   listCustomers,
   updateCustomer,
 } from '@server/customers.js'
+import { sendCustomerReviewRequest } from '@server/reviewRequest.js'
 import { initDatabase, sql } from '@server/db.js'
 import {
   getOpenWaAdminConfig,
@@ -370,6 +371,7 @@ function customerToJson(customer: {
     email: customer.email,
     notes: customer.notes,
     locale: customer.locale === 'en' ? 'en' : 'es',
+    reviewRequestSentAt: customer.review_request_sent_at ?? null,
     createdAt: customer.created_at,
     updatedAt: customer.updated_at,
   }
@@ -402,6 +404,7 @@ app.get('/api/customers/:phone', async (c) => {
       email: latest.customer_email,
       notes: null,
       locale: latest.locale === 'en' ? 'en' : 'es',
+      reviewRequestSentAt: null,
       createdAt: now,
       updatedAt: now,
     },
@@ -452,6 +455,30 @@ app.delete('/api/customers/:phone', async (c) => {
     return c.json({ error: 'Cliente no encontrado' }, 404)
   }
   return c.json({ ok: true })
+})
+
+app.post('/api/customers/:phone/review-request', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const body = await c.req.json<{ appointmentId?: string }>().catch(() => ({}))
+  try {
+    const result = await sendCustomerReviewRequest(phone, {
+      appointmentId: body?.appointmentId,
+    })
+    return c.json(result)
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    const messages: Record<string, string> = {
+      CLIENTE_NO_ENCONTRADO: 'Cliente no encontrado',
+      TELEFONO_INVALIDO: 'Teléfono no válido',
+      WHATSAPP_NO_CONFIGURADO: 'WhatsApp no está configurado en el servidor',
+    }
+    const status =
+      code === 'CLIENTE_NO_ENCONTRADO' ? 404 : code === 'WHATSAPP_NO_CONFIGURADO' ? 503 : 400
+    return c.json({ error: messages[code] ?? 'No se pudo enviar el mensaje' }, status)
+  }
 })
 
 app.get('/api/appointments', async (c) => {

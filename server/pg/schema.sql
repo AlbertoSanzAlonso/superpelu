@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'es';
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS review_request_sent_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_customers_name
   ON customers (last_name, first_name);

@@ -1,6 +1,8 @@
+import { GOOGLE_REVIEW_WRITE_URL } from '@/data/googleReview'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import type { AppointmentRow } from '@server/pg/types'
+import type { Locale } from './types'
 import { getTranslation } from './translations'
 import { appointmentLocale } from './localeHelpers'
 
@@ -65,4 +67,22 @@ export function buildWhatsAppAppointmentMessage(
 
   lines.push('', `📍 ${SALON_ADDRESS}`, `📞 ${SALON_PHONE}`, '', wa.closingConfirmed)
   return lines.join('\n')
+}
+
+export function buildGoogleReviewRequestMessage(locale: Locale, firstName: string): string {
+  const wa = getTranslation(locale).whatsappAppointment
+  const name = firstName.trim() || firstName
+  return [
+    wa.greeting(name),
+    '',
+    wa.reviewRequestHeading,
+    '',
+    `${wa.reviewRequestLinkLabel}`,
+    GOOGLE_REVIEW_WRITE_URL,
+    '',
+    wa.reviewRequestClosing,
+    '',
+    `📍 ${SALON_ADDRESS}`,
+    `📞 ${SALON_PHONE}`,
+  ].join('\n')
 }

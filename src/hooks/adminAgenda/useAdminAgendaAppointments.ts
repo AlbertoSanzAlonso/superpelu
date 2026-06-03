@@ -26,6 +26,23 @@ import type {
 import type { AdminColumnSelection } from './types'
 import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 
+type EditingScheduleBaseline = {
+  staffId: string
+  appointmentDate: string
+  startTime: string
+}
+
+function appointmentScheduleChanged(
+  baseline: EditingScheduleBaseline,
+  current: { staffId: string; date: string; startTime: string },
+): boolean {
+  return (
+    baseline.appointmentDate !== current.date ||
+    baseline.startTime !== current.startTime ||
+    baseline.staffId !== current.staffId
+  )
+}
+
 type AppointmentsDeps = {
   adminToken: string
   date: string
@@ -64,6 +81,9 @@ export function useAdminAgendaAppointments({
   } | null>(null)
   const [detailEditMode, setDetailEditMode] = useState(false)
   const [detailCustomerRegistered, setDetailCustomerRegistered] = useState(false)
+  const [detailReviewRequestSentAt, setDetailReviewRequestSentAt] = useState<string | null>(null)
+  const [editingScheduleBaseline, setEditingScheduleBaseline] =
+    useState<EditingScheduleBaseline | null>(null)
 
   const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
   const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
@@ -135,7 +155,9 @@ export function useAdminAgendaAppointments({
     setViewingAppointment(null)
     setDetailEditMode(false)
     setEditingId(null)
+    setEditingScheduleBaseline(null)
     setDetailCustomerRegistered(false)
+    setDetailReviewRequestSentAt(null)
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
   }, [])
 
@@ -145,6 +167,11 @@ export function useAdminAgendaAppointments({
       setActiveStaffId(staffId)
       setSelection(null)
       setEditingId(apt.id)
+      setEditingScheduleBaseline({
+        staffId,
+        appointmentDate: date,
+        startTime: apt.startTime,
+      })
       setDetailEditMode(false)
       setViewingAppointment({ staffId, staffName, apt })
       setAptDraft(appointmentToDraft(apt))
@@ -154,6 +181,7 @@ export function useAdminAgendaAppointments({
       fetchCustomerDetail(adminToken, apt.customerPhone)
         .then((detail) => {
           setDetailCustomerRegistered(true)
+          setDetailReviewRequestSentAt(detail.customer.reviewRequestSentAt ?? null)
           setAptDraft(
             appointmentToDraft(apt, {
               email: detail.customer.email,
@@ -164,6 +192,7 @@ export function useAdminAgendaAppointments({
         })
         .catch(() => {
           setDetailCustomerRegistered(false)
+          setDetailReviewRequestSentAt(null)
         })
     },
     [adminToken, schedules, setSelection],
@@ -274,13 +303,31 @@ export function useAdminAgendaAppointments({
       e.preventDefault()
       if (!activeStaffId || !adminToken) return false
       if (editingId) {
-        setWhatsAppNotifyContext('edit')
-        setWhatsAppNotifyDialogOpen(true)
-        return false
+        const scheduleChanged =
+          editingScheduleBaseline !== null &&
+          appointmentScheduleChanged(editingScheduleBaseline, {
+            staffId: activeStaffId,
+            date,
+            startTime: aptDraft.startTime,
+          })
+        if (scheduleChanged) {
+          setWhatsAppNotifyContext('move')
+          setWhatsAppNotifyDialogOpen(true)
+          return false
+        }
+        return persistAppointment()
       }
       return persistAppointment()
     },
-    [activeStaffId, adminToken, editingId, persistAppointment],
+    [
+      activeStaffId,
+      adminToken,
+      editingId,
+      editingScheduleBaseline,
+      date,
+      aptDraft.startTime,
+      persistAppointment,
+    ],
   )
 
   const closeWhatsAppNotifyDialog = useCallback(() => {
@@ -405,6 +452,8 @@ export function useAdminAgendaAppointments({
     detailEditMode,
     setDetailEditMode,
     detailCustomerRegistered,
+    detailReviewRequestSentAt,
+    setDetailReviewRequestSentAt,
     openAppointmentDetail,
     closeAppointmentDetail,
     startDetailEdit,

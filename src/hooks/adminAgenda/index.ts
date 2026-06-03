@@ -189,6 +189,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     viewingAppointment: appointments.viewingAppointment,
     detailEditMode: appointments.detailEditMode,
     detailCustomerRegistered: appointments.detailCustomerRegistered,
+    detailReviewRequestSentAt: appointments.detailReviewRequestSentAt,
+    setDetailReviewRequestSentAt: appointments.setDetailReviewRequestSentAt,
     openAppointmentDetail: appointments.openAppointmentDetail,
     closeAppointmentDetail: appointments.closeAppointmentDetail,
     startDetailEdit: appointments.startDetailEdit,

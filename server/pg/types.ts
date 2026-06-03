@@ -5,6 +5,7 @@ export type CustomerRow = {
   email: string | null
   notes: string | null
   locale: string
+  review_request_sent_at: string | null
   created_at: string
   updated_at: string
 }

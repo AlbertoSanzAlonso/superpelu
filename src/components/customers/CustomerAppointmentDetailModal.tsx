@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { Appointment } from '@/types/booking'
+import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
-import { cancelAppointment, deleteAppointment, ApiError } from '@/lib/api'
+import { cancelAppointment, deleteAppointment, fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay } from '@/lib/phone'
@@ -32,6 +34,17 @@ export function CustomerAppointmentDetailModal({
   const [whatsAppOpen, setWhatsAppOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [reviewRequestSentAt, setReviewRequestSentAt] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!appointment?.customerPhone || !adminToken) {
+      setReviewRequestSentAt(null)
+      return
+    }
+    fetchCustomerDetail(adminToken, appointment.customerPhone)
+      .then((detail) => setReviewRequestSentAt(detail.customer.reviewRequestSentAt ?? null))
+      .catch(() => setReviewRequestSentAt(null))
+  }, [appointment?.customerPhone, appointment?.id, adminToken])
 
   if (!appointment) return null
 
@@ -135,7 +148,12 @@ export function CustomerAppointmentDetailModal({
               <dd className="mt-1">{appointment.customerName}</dd>
               {appointment.customerPhone && (
                 <dd className="mt-0.5 tabular-nums text-charcoal-muted">
-                  {formatPhoneDisplay(appointment.customerPhone)}
+                  <Link
+                    to={`/clientes/${encodeURIComponent(appointment.customerPhone)}`}
+                    className="hover:text-gold"
+                  >
+                    {formatPhoneDisplay(appointment.customerPhone)}
+                  </Link>
                 </dd>
               )}
               {appointment.customerEmail && (
@@ -162,6 +180,19 @@ export function CustomerAppointmentDetailModal({
               </dd>
             </div>
           </dl>
+
+          {appointment.customerPhone && (
+            <div className="mx-4 mb-3">
+              <ReviewRequestButton
+                adminToken={adminToken}
+                phone={appointment.customerPhone}
+                reviewRequestSentAt={reviewRequestSentAt}
+                appointment={appointment}
+                compact
+                onSent={setReviewRequestSentAt}
+              />
+            </div>
+          )}
 
           {error && (
             <p

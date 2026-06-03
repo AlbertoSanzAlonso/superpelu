@@ -2,6 +2,7 @@ import type { Appointment } from '@/types/booking'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { customerAppointmentStatusLabel } from '@/lib/customerAppointmentStatus'
 import { formatDisplayDate } from '@/lib/dates'
+import { formatPhoneDisplay } from '@/lib/phone'
 import { truncateNotesPreview } from '@/lib/notes'
 import { typography } from '@/styles/typography'
 
@@ -9,6 +10,7 @@ type Props = {
   appointments: Appointment[]
   totalAppointments: Appointment[]
   loading: boolean
+  showCustomer?: boolean
   onSelect: (apt: Appointment) => void
 }
 
@@ -16,6 +18,7 @@ export function CustomerAppointmentHistoryList({
   appointments,
   totalAppointments,
   loading,
+  showCustomer = false,
   onSelect,
 }: Props) {
   if (loading) {
@@ -45,7 +48,19 @@ export function CustomerAppointmentHistoryList({
               className="flex w-full cursor-pointer flex-col gap-1 px-4 py-4 text-left transition-colors hover:bg-gold/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
             >
               <div className="min-w-0 flex-1">
-                <p className="font-medium capitalize">{formatDisplayDate(apt.date)}</p>
+                {showCustomer && (
+                  <p className="font-medium text-charcoal">{apt.customerName}</p>
+                )}
+                {showCustomer && apt.customerPhone && (
+                  <p className={`${typography.caption} tabular-nums text-charcoal-muted`}>
+                    {formatPhoneDisplay(apt.customerPhone)}
+                  </p>
+                )}
+                <p
+                  className={`font-medium capitalize ${showCustomer ? 'mt-0.5 text-sm text-charcoal-muted' : ''}`}
+                >
+                  {formatDisplayDate(apt.date)}
+                </p>
                 <p className="tabular-nums text-sm text-charcoal-muted">
                   {formatAppointmentTimeRange(
                     apt.serviceId,

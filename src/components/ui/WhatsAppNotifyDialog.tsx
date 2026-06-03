@@ -23,7 +23,7 @@ const copy: Record<
   }
 > = {
   edit: {
-    body: 'La cita se guardará con los cambios. ¿Quieres enviar un WhatsApp al cliente informando de la modificación?',
+    body: 'Se guardarán los cambios de día, hora o profesional. ¿Quieres enviar un WhatsApp al cliente informando de la modificación?',
     primary: 'Guardar y avisar por WhatsApp',
     secondary: 'Guardar sin avisar',
     busyPrimary: 'Guardando…',

@@ -415,6 +415,8 @@ export function AdminAgendaPage() {
           onMarkNoShow={() => agenda.markNoShowById(agenda.viewingAppointment!.apt.id)}
           showCustomerHistory
           adminToken={adminToken}
+          reviewRequestSentAt={agenda.detailReviewRequestSentAt}
+          onReviewRequestSent={agenda.setDetailReviewRequestSentAt}
         />
       )}
 

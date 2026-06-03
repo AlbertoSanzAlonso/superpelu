@@ -281,6 +281,21 @@ export function fetchCustomerDetail(adminToken: string, phone: string) {
   })
 }
 
+export function sendCustomerReviewRequest(
+  adminToken: string,
+  phone: string,
+  options?: { appointmentId?: string },
+) {
+  return request<{ reviewRequestSentAt: string }>(
+    `/customers/${encodeURIComponent(phone)}/review-request`,
+    {
+      method: 'POST',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify(options ?? {}),
+    },
+  )
+}
+
 export function updateCustomer(
   adminToken: string,
   phone: string,

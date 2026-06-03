@@ -43,6 +43,7 @@ export type Appointment = {
   customerEmail: string | null
   notes: string | null
   status: string
+  locale?: 'es' | 'en'
   createdAt: string
 }
 

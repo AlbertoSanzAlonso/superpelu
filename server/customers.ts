@@ -23,6 +23,7 @@ export type PublicCustomer = {
   email: string | null
   notes: string | null
   locale: Locale
+  reviewRequestSentAt: string | null
   appointmentCount: number
   lastAppointmentDate: string | null
   createdAt: string
@@ -37,6 +38,7 @@ function rowToPublic(row: CustomerRow, stats?: { count: number; lastDate: string
     email: row.email,
     notes: row.notes,
     locale: normalizeLocale(row.locale),
+    reviewRequestSentAt: row.review_request_sent_at ?? null,
     appointmentCount: stats?.count ?? 0,
     lastAppointmentDate: stats?.lastDate ?? null,
     createdAt: row.created_at,
@@ -198,6 +200,17 @@ export async function listCustomers(
       lastDate: row.last_appointment_date,
     }),
   )
+}
+
+export async function markCustomerReviewRequestSent(phone: string): Promise<string> {
+  const normalized = normalizePhone(phone)
+  if (!normalized) throw new Error('TELEFONO_INVALIDO')
+  const now = new Date().toISOString()
+  await sql`
+    UPDATE customers SET review_request_sent_at = ${now}, updated_at = ${now}
+    WHERE phone = ${normalized}
+  `
+  return now
 }
 
 /** Elimina la ficha del cliente (las citas en agenda/historial se conservan). */

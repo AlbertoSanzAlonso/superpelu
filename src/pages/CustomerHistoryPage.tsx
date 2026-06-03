@@ -3,6 +3,7 @@ import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerAppointmentHistoryPanel } from '@/components/customers/CustomerAppointmentHistoryPanel'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
+import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { Button } from '@/components/ui/Button'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
@@ -106,15 +107,21 @@ export function CustomerHistoryPage() {
                 </div>
               )}
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={() => setEditOpen(true)}
-            >
-              Editar
-            </Button>
+            <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+              {adminToken && (
+                <ReviewRequestButton
+                  adminToken={adminToken}
+                  phone={customer.phone}
+                  reviewRequestSentAt={customer.reviewRequestSentAt ?? null}
+                  onSent={(sentAt) =>
+                    setCustomer((prev) => (prev ? { ...prev, reviewRequestSentAt: sentAt } : prev))
+                  }
+                />
+              )}
+              <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                Editar
+              </Button>
+            </div>
           </div>
         )}
 
@@ -141,6 +148,7 @@ export function CustomerHistoryPage() {
                   lastName: updated.lastName,
                   email: updated.email,
                   notes: updated.notes,
+                  locale: updated.locale,
                 }
               : prev,
           )
