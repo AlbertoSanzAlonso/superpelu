@@ -1,46 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
-import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
+import { CustomerAppointmentHistoryPanel } from '@/components/customers/CustomerAppointmentHistoryPanel'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { Button } from '@/components/ui/Button'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import {
-  CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS,
-  customerAppointmentStatusLabel,
-  matchesCustomerAppointmentStatusFilter,
-  type CustomerAppointmentStatusFilter,
-} from '@/lib/customerAppointmentStatus'
-import { formatDisplayDate } from '@/lib/dates'
-import { truncateNotesPreview } from '@/lib/notes'
+import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
-import type { Appointment } from '@/types/booking'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
-
-const fieldClass =
-  'w-full border border-gold/30 bg-cream px-3 py-2 font-sans text-sm text-charcoal outline-none focus:border-gold'
-
-function FilterChevron({ expanded }: { expanded: boolean }) {
-  return (
-    <svg
-      className={`h-5 w-5 shrink-0 text-gold transition-transform ${expanded ? 'rotate-180' : ''}`}
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden
-    >
-      <path
-        fillRule="evenodd"
-        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-        clipRule="evenodd"
-      />
-    </svg>
-  )
-}
 
 export function CustomerHistoryPage() {
   const navigate = useNavigate()
@@ -50,19 +21,9 @@ export function CustomerHistoryPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
 
   const [customer, setCustomer] = useState<Customer | null>(null)
-  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-  const [serviceFilter, setServiceFilter] = useState('')
-  const [staffFilter, setStaffFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState<CustomerAppointmentStatusFilter | ''>('')
-
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
   const [editOpen, setEditOpen] = useState(false)
-  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const loadDetail = useCallback(async () => {
     if (!adminToken || !phone) return
@@ -77,7 +38,6 @@ export function CustomerHistoryPage() {
         ).length,
         lastAppointmentDate: detail.appointments[0]?.date ?? null,
       })
-      setAppointments(detail.appointments)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar el historial')
     } finally {
@@ -88,44 +48,6 @@ export function CustomerHistoryPage() {
   useEffect(() => {
     if (authOk) void loadDetail()
   }, [authOk, loadDetail])
-
-  const serviceOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const apt of appointments) {
-      map.set(apt.serviceId, apt.serviceName)
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-  }, [appointments])
-
-  const staffOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const apt of appointments) {
-      if (apt.staffId && apt.staffName) {
-        map.set(apt.staffId, apt.staffName)
-      }
-    }
-    return [...map.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
-  }, [appointments])
-
-  const filteredAppointments = useMemo(() => {
-    return appointments.filter((apt) => {
-      if (isColorGroupWashRow(apt.colorGroupRole)) return false
-      if (dateFrom && apt.date < dateFrom) return false
-      if (dateTo && apt.date > dateTo) return false
-      if (serviceFilter && apt.serviceId !== serviceFilter) return false
-      if (staffFilter && apt.staffId !== staffFilter) return false
-      if (statusFilter && !matchesCustomerAppointmentStatusFilter(apt, statusFilter)) {
-        return false
-      }
-      return true
-    })
-  }, [appointments, dateFrom, dateTo, serviceFilter, staffFilter, statusFilter])
-
-  const hasFilters = Boolean(dateFrom || dateTo || serviceFilter || staffFilter || statusFilter)
 
   if (!phone) {
     return <Navigate to="/clientes" replace />
@@ -193,203 +115,14 @@ export function CustomerHistoryPage() {
           </div>
         )}
 
-        <div className="border-b border-gold/15 bg-cream/90 px-3 py-3">
-          <button
-            type="button"
-            onClick={() => setFiltersOpen((open) => !open)}
-            aria-expanded={filtersOpen}
-            aria-controls="customer-history-filters"
-            className="flex w-full items-center justify-between gap-3 text-left sm:hidden"
-          >
-            <span className={typography.label}>
-              Filtrar historial
-              {hasFilters && (
-                <span className="ml-2 font-normal text-charcoal-muted">· activos</span>
-              )}
-            </span>
-            <FilterChevron expanded={filtersOpen} />
-          </button>
-          <p className={`${typography.label} mb-3 hidden sm:block`}>
-            Filtrar historial
-            {hasFilters && (
-              <span className="ml-2 font-normal text-charcoal-muted">· activos</span>
-            )}
-          </p>
-          <div
-            id="customer-history-filters"
-            className={`mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 ${filtersOpen ? 'grid' : 'hidden sm:grid'}`}
-          >
-            <div className="flex flex-col gap-3 sm:col-span-2">
-              <label className="block text-left">
-                <span className={`${typography.caption} mb-1 block`}>Estado de la cita</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) =>
-                    setStatusFilter(e.target.value as CustomerAppointmentStatusFilter | '')
-                  }
-                  className={fieldClass}
-                >
-                  <option value="">Todos los estados</option>
-                  {CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                disabled={!hasFilters}
-                onClick={() => {
-                  setDateFrom('')
-                  setDateTo('')
-                  setServiceFilter('')
-                  setStaffFilter('')
-                  setStatusFilter('')
-                }}
-                className="w-full border border-gold/30 px-3 py-2 text-sm text-charcoal-muted hover:border-gold disabled:opacity-40"
-              >
-                Quitar filtros
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label className="block text-left">
-                <span className={`${typography.caption} mb-1 block`}>Desde</span>
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className={fieldClass}
-                />
-              </label>
-              <label className="block text-left">
-                <span className={`${typography.caption} mb-1 block`}>Hasta</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className={fieldClass}
-                />
-              </label>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label className="block text-left">
-                <span className={`${typography.caption} mb-1 block`}>Tratamiento</span>
-                <select
-                  value={serviceFilter}
-                  onChange={(e) => setServiceFilter(e.target.value)}
-                  className={fieldClass}
-                >
-                  <option value="">Todos los tratamientos</option>
-                  {serviceOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-left">
-                <span className={`${typography.caption} mb-1 block`}>Profesional</span>
-                <select
-                  value={staffFilter}
-                  onChange={(e) => setStaffFilter(e.target.value)}
-                  className={fieldClass}
-                >
-                  <option value="">Todos los profesionales</option>
-                  {staffOptions.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          </div>
-          <p className={`${typography.caption} mt-3`}>
-            {filteredAppointments.length} de {appointments.length} citas
-          </p>
-        </div>
-
-        {loading ? (
-          <p className={`${typography.caption} p-8 text-center`}>Cargando historial…</p>
-        ) : filteredAppointments.length === 0 ? (
-          <p className={`${typography.body} p-8 text-center`}>
-            {appointments.length === 0
-              ? 'Sin citas registradas.'
-              : 'Ninguna cita coincide con los filtros.'}
-          </p>
+        {loading && !customer ? (
+          <p className={`${typography.caption} p-8 text-center`}>Cargando…</p>
         ) : (
-          <ul className="divide-y divide-gold/10">
-            {filteredAppointments.map((apt) => {
-              const notesPreview = truncateNotesPreview(apt.notes)
-              return (
-              <li key={apt.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedAppointment(apt)}
-                  className="flex w-full cursor-pointer flex-col gap-1 px-4 py-4 text-left transition-colors hover:bg-gold/5 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium capitalize">{formatDisplayDate(apt.date)}</p>
-                    <p className="tabular-nums text-sm text-charcoal-muted">
-                      {formatAppointmentTimeRange(
-                        apt.serviceId,
-                        apt.startTime,
-                        apt.durationMinutes,
-                        'es',
-                        { colorGroupRole: apt.colorGroupRole },
-                      )}
-                    </p>
-                    {notesPreview && (
-                      <p className={`${typography.caption} mt-1 line-clamp-2 text-charcoal-muted`}>
-                        {notesPreview}
-                      </p>
-                    )}
-                  </div>
-                  <div className="shrink-0 sm:text-right">
-                    <p className="font-medium">{apt.serviceName}</p>
-                    {apt.staffName && (
-                      <p className={`${typography.caption} mt-0.5`}>{apt.staffName}</p>
-                    )}
-                    {(() => {
-                      const statusLabel = customerAppointmentStatusLabel(apt)
-                      if (!statusLabel) return null
-                      return (
-                        <p
-                          className={`${typography.caption} mt-0.5 ${
-                            apt.status === 'cancelled'
-                              ? 'text-charcoal-muted line-through'
-                              : statusLabel === 'Pendiente' || statusLabel === 'Aún no ha llegado'
-                                ? 'text-gold'
-                                : 'text-charcoal-muted'
-                          }`}
-                        >
-                          {statusLabel}
-                        </p>
-                      )
-                    })()}
-                  </div>
-                </button>
-              </li>
-            )})}
-          </ul>
+          adminToken && (
+            <CustomerAppointmentHistoryPanel adminToken={adminToken} phone={phone} />
+          )
         )}
       </main>
-
-      <CustomerAppointmentDetailModal
-        appointment={selectedAppointment}
-        adminToken={adminToken ?? ''}
-        onClose={() => setSelectedAppointment(null)}
-        onChanged={({ id, action }) => {
-          if (action === 'deleted') {
-            setAppointments((rows) => rows.filter((a) => a.id !== id))
-          } else {
-            setAppointments((rows) =>
-              rows.map((a) => (a.id === id ? { ...a, status: 'cancelled' } : a)),
-            )
-          }
-        }}
-      />
 
       <CustomerEditModal
         open={editOpen}

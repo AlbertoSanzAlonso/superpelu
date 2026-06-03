@@ -52,6 +52,7 @@ import {
 } from '@/lib/dates'
 import { schedule } from '@server/config.js'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { splitCustomerName } from '@/lib/customerName'
 import {
   createStaffBlock,
   deleteStaffBlockById,
@@ -375,12 +376,31 @@ app.get('/api/customers/:phone', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const phone = decodeURIComponent(c.req.param('phone'))
-  const customer = await getCustomer(phone)
-  if (!customer) return c.json({ error: 'Cliente no encontrado' }, 404)
   const appointmentRows = await listCustomerAppointments(phone)
+  const customer = await getCustomer(phone)
+  if (!customer && appointmentRows.length === 0) {
+    return c.json({ error: 'Cliente no encontrado' }, 404)
+  }
   const appointments = appointmentRows.map(rowToPublic)
+  if (customer) {
+    return c.json({
+      customer: customerToJson(customer),
+      appointments,
+    })
+  }
+  const latest = appointmentRows[0]
+  const { firstName, lastName } = splitCustomerName(latest.customer_name)
+  const now = new Date().toISOString()
   return c.json({
-    customer: customerToJson(customer),
+    customer: {
+      phone: latest.customer_phone,
+      firstName,
+      lastName,
+      email: latest.customer_email,
+      notes: null,
+      createdAt: now,
+      updatedAt: now,
+    },
     appointments,
   })
 })

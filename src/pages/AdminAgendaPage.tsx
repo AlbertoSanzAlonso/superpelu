@@ -411,7 +411,8 @@ export function AdminAgendaPage() {
           onSubmit={agenda.saveAppointment}
           onClose={agenda.closeAppointmentDetail}
           onCancelAppointment={() => agenda.cancelAppointmentById(agenda.viewingAppointment!.apt.id)}
-          showCustomerHistoryLink
+          showCustomerHistory
+          adminToken={adminToken}
         />
       )}
 

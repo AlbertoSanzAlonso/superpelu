@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
@@ -134,13 +134,18 @@ export function CustomersPage() {
                         >
                           Editar
                         </button>
-                        <Link
-                          to={`/clientes/${encodeURIComponent(c.phone)}`}
-                          className="text-xs text-gold hover:underline"
-                          onClick={(e) => e.stopPropagation()}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-2 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/clientes/${encodeURIComponent(c.phone)}`)
+                          }}
                         >
-                          Historial →
-                        </Link>
+                          Historial de citas
+                        </Button>
                       </div>
                     </td>
                   </tr>

@@ -1,5 +1,8 @@
-import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import {
+  CustomerAppointmentHistoryModal,
+  customerHistoryModalTitle,
+} from '@/components/customers/CustomerAppointmentHistoryModal'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
@@ -34,8 +37,9 @@ type Props = {
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
   onCancelAppointment?: () => void
-  /** Enlace al historial del cliente (solo administración). */
-  showCustomerHistoryLink?: boolean
+  /** Historial de citas del cliente (solo administración). */
+  showCustomerHistory?: boolean
+  adminToken?: string
 }
 
 function dash(value: string | null | undefined): string {
@@ -167,14 +171,17 @@ function ServiceBlocks({
 function ClientPanelView({
   draft,
   customerRegistered,
-  showCustomerHistoryLink,
+  showCustomerHistory,
+  adminToken,
   onEditClient,
 }: {
   draft: AppointmentDraft
   customerRegistered: boolean
-  showCustomerHistoryLink: boolean
+  showCustomerHistory: boolean
+  adminToken?: string
   onEditClient: () => void
 }) {
+  const [historyOpen, setHistoryOpen] = useState(false)
   const displayName = formatCustomerDisplayName(
     draft.customerFirstName,
     draft.customerLastName,
@@ -250,15 +257,27 @@ function ClientPanelView({
         </div>
       </dl>
 
-      {showCustomerHistoryLink && customerRegistered && phone && (
-        <p className="mt-3 text-right">
-          <Link
-            to={`/clientes/${encodeURIComponent(phone)}`}
-            className={`${typography.caption} text-gold hover:underline`}
+      {showCustomerHistory && phone && adminToken && (
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryOpen(true)}
           >
-            Ver historial del cliente →
-          </Link>
-        </p>
+            Historial de citas
+          </Button>
+          <CustomerAppointmentHistoryModal
+            open={historyOpen}
+            adminToken={adminToken}
+            phone={phone}
+            customerLabel={customerHistoryModalTitle(
+              draft.customerFirstName,
+              draft.customerLastName,
+            )}
+            onClose={() => setHistoryOpen(false)}
+          />
+        </div>
       )}
     </div>
   )
@@ -348,7 +367,8 @@ export function AgendaAppointmentModal({
   onSubmit,
   onClose,
   onCancelAppointment,
-  showCustomerHistoryLink = false,
+  showCustomerHistory = false,
+  adminToken,
 }: Props) {
   const createdLabel = useMemo(() => {
     if (!appointment.createdAt) return null
@@ -421,7 +441,8 @@ export function AgendaAppointmentModal({
                   <ClientPanelView
                     draft={draft}
                     customerRegistered={customerRegistered}
-                    showCustomerHistoryLink={showCustomerHistoryLink}
+                    showCustomerHistory={showCustomerHistory}
+                    adminToken={adminToken}
                     onEditClient={() => onModeChange('edit')}
                   />
                 </section>
