@@ -12,6 +12,7 @@ type Props = {
   appointment?: Appointment | null
   compact?: boolean
   inline?: boolean
+  className?: string
   onSent?: (sentAt: string) => void
 }
 
@@ -22,6 +23,7 @@ export function ReviewRequestButton({
   appointment,
   compact = false,
   inline = false,
+  className = '',
   onSent,
 }: Props) {
   const [busy, setBusy] = useState(false)
@@ -60,7 +62,7 @@ export function ReviewRequestButton({
     if (inline) {
       return (
         <span
-          className="inline-flex h-9 shrink-0 items-center text-xs text-charcoal-muted"
+          className={`inline-flex h-9 w-full items-center justify-center text-xs text-charcoal-muted md:w-auto md:justify-start ${className}`.trim()}
           title={`Valoración enviada el ${label}`}
         >
           Valoración enviada
@@ -94,7 +96,7 @@ export function ReviewRequestButton({
           variant="outline"
           size="sm"
           disabled={busy || !phone.trim()}
-          className={`h-9 shrink-0 px-2.5 py-0 text-xs normal-case${error ? ' border-red-400' : ''}`}
+          className={`h-9 w-full shrink-0 justify-center px-2.5 py-0 text-xs normal-case md:w-auto${error ? ' border-red-400' : ''} ${className}`.trim()}
           title={error || 'Enviar WhatsApp pidiendo valoración en Google'}
           onClick={(e) => {
             e.stopPropagation()

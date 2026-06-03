@@ -23,28 +23,34 @@ export function CustomersWorkspaceHeader({
   children,
 }: Props) {
   return (
-    <header className="flex flex-wrap items-center gap-3 border-b border-gold/15 bg-cream px-3 py-2">
-      {backTo ? (
-        <Link to={backTo.href} className={headerLinkClass}>
-          ← {backTo.label}
-        </Link>
-      ) : null}
-      <h1 className={`${typography.label} shrink-0 text-gold`}>{title}</h1>
-      {children}
-      <div className="ml-auto flex items-center gap-2">
-        <Link to="/agenda" className={headerLinkClass}>
-          Agenda
-        </Link>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={customersWorkspaceButtonClass}
-          onClick={onLogout}
-        >
-          Salir
-        </Button>
+    <header className="shrink-0 border-b border-gold/15 bg-cream px-3 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        {backTo ? (
+          <Link to={backTo.href} className={headerLinkClass}>
+            ← {backTo.label}
+          </Link>
+        ) : null}
+        <h1 className={`${typography.label} min-w-0 truncate text-gold`}>{title}</h1>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <Link to="/agenda" className={headerLinkClass}>
+            Agenda
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={customersWorkspaceButtonClass}
+            onClick={onLogout}
+          >
+            Salir
+          </Button>
+        </div>
       </div>
+      {children ? (
+        <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          {children}
+        </div>
+      ) : null}
     </header>
   )
 }

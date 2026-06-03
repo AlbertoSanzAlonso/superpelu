@@ -23,6 +23,60 @@ const searchFieldClass =
 
 const CUSTOMERS_PAGE_SIZE = 10
 
+const customerActionButtonClass = `${customersWorkspaceButtonClass} w-full justify-center px-2.5 text-xs normal-case md:w-auto`
+
+type CustomerListActionsProps = {
+  customer: Customer
+  adminToken: string | null
+  onEdit: () => void
+  onHistory: () => void
+  onReviewSent: (sentAt: string) => void
+}
+
+function CustomerListActions({
+  customer,
+  adminToken,
+  onEdit,
+  onHistory,
+  onReviewSent,
+}: CustomerListActionsProps) {
+  return (
+    <div
+      className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center md:justify-end"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={customerActionButtonClass}
+        onClick={onEdit}
+      >
+        Editar
+      </Button>
+      {adminToken && (
+        <ReviewRequestButton
+          adminToken={adminToken}
+          phone={customer.phone}
+          reviewRequestSentAt={customer.reviewRequestSentAt}
+          inline
+          className={customerActionButtonClass}
+          onSent={onReviewSent}
+        />
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className={customerActionButtonClass}
+        onClick={onHistory}
+      >
+        Historial de citas
+      </Button>
+    </div>
+  )
+}
+
 export function CustomersPage() {
   const navigate = useNavigate()
   const { adminToken, authOk, handleLogout } = useAdminSession()
@@ -80,20 +134,23 @@ export function CustomersPage() {
   return (
     <AgendaWorkspaceShell>
       <CustomersWorkspaceHeader onLogout={handleLogout}>
-        <Link to="/clientes/citas" className={customersWorkspaceLinkClass}>
+        <Link
+          to="/clientes/citas"
+          className={`${customersWorkspaceLinkClass} w-full justify-center sm:w-auto`}
+        >
           Historial de citas
         </Link>
         <Button
           type="button"
           variant="solid"
           size="sm"
-          className={customersWorkspaceButtonClass}
+          className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
           onClick={() => setCreateOpen(true)}
         >
           Cliente nuevo
         </Button>
         <form
-          className="flex min-w-[12rem] flex-1 items-center gap-2"
+          className="flex w-full min-w-0 flex-col gap-2 sm:max-w-md sm:flex-1 sm:flex-row sm:items-center"
           onSubmit={(e) => {
             e.preventDefault()
             setPage(1)
@@ -111,7 +168,12 @@ export function CustomersPage() {
             onChange={(e) => setQuery(e.target.value)}
             className={searchFieldClass}
           />
-          <Button type="submit" variant="outline" size="sm" className={customersWorkspaceButtonClass}>
+          <Button
+            type="submit"
+            variant="outline"
+            size="sm"
+            className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
+          >
             Buscar
           </Button>
         </form>
@@ -132,87 +194,104 @@ export function CustomersPage() {
         ) : customers.length === 0 ? (
           <p className={`${typography.body} p-6 text-center`}>No hay clientes todavía.</p>
         ) : (
-          <table className="w-full text-left text-sm">
-            <thead className="sticky top-0 border-b border-gold/15 bg-cream">
-              <tr className={typography.caption}>
-                <th className="px-3 py-2 font-normal">Cliente</th>
-                <th className="px-3 py-2 font-normal">Teléfono</th>
-                <th className="hidden px-3 py-2 font-normal sm:table-cell">Citas</th>
-                <th className="hidden px-3 py-2 font-normal md:table-cell">Última</th>
-                <th className="px-3 py-2 font-normal sr-only">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
+          <>
+            <ul className="divide-y divide-gold/10 md:hidden">
               {pagedCustomers.map((c) => {
                 const label = formatCustomerDisplayName(c.firstName, c.lastName)
+                const historyHref = `/clientes/${encodeURIComponent(c.phone)}`
                 return (
-                  <tr
-                    key={c.phone}
-                    className="cursor-pointer border-b border-gold/10 hover:bg-gold/5"
-                    onClick={() => navigate(`/clientes/${encodeURIComponent(c.phone)}`)}
-                  >
-                    <td className="px-3 py-2 font-medium">{label}</td>
-                    <td className="px-3 py-2 tabular-nums text-charcoal-muted">
-                      {formatPhoneDisplay(c.phone)}
-                    </td>
-                    <td className="hidden px-3 py-2 tabular-nums sm:table-cell">
-                      {c.appointmentCount}
-                    </td>
-                    <td className="hidden px-3 py-2 capitalize md:table-cell">
-                      {c.lastAppointmentDate
-                        ? formatDisplayDate(c.lastAppointmentDate)
-                        : '—'}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={`${customersWorkspaceButtonClass} px-2.5 text-xs normal-case`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setEditingCustomer(c)
-                          }}
-                        >
-                          Editar
-                        </Button>
-                        {adminToken && (
-                          <ReviewRequestButton
-                            adminToken={adminToken}
-                            phone={c.phone}
-                            reviewRequestSentAt={c.reviewRequestSentAt}
-                            inline
-                            onSent={(sentAt) =>
-                              setCustomers((rows) =>
-                                rows.map((row) =>
-                                  row.phone === c.phone
-                                    ? { ...row, reviewRequestSentAt: sentAt }
-                                    : row,
-                                ),
-                              )
-                            }
-                          />
-                        )}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className={`${customersWorkspaceButtonClass} px-2.5 text-xs normal-case`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/clientes/${encodeURIComponent(c.phone)}`)
-                          }}
-                        >
-                          Historial de citas
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
+                  <li key={c.phone} className="px-3 py-3">
+                    <button
+                      type="button"
+                      className="w-full min-w-0 text-left"
+                      onClick={() => navigate(historyHref)}
+                    >
+                      <p className="font-medium">{label}</p>
+                      <p className="mt-0.5 tabular-nums text-sm text-charcoal-muted">
+                        {formatPhoneDisplay(c.phone)}
+                      </p>
+                      <p className={`${typography.caption} mt-1 text-charcoal-muted`}>
+                        {c.appointmentCount} cita{c.appointmentCount === 1 ? '' : 's'}
+                        {c.lastAppointmentDate
+                          ? ` · última ${formatDisplayDate(c.lastAppointmentDate)}`
+                          : ''}
+                      </p>
+                    </button>
+                    <CustomerListActions
+                      customer={c}
+                      adminToken={adminToken}
+                      onEdit={() => setEditingCustomer(c)}
+                      onHistory={() => navigate(historyHref)}
+                      onReviewSent={(sentAt) =>
+                        setCustomers((rows) =>
+                          rows.map((row) =>
+                            row.phone === c.phone
+                              ? { ...row, reviewRequestSentAt: sentAt }
+                              : row,
+                          ),
+                        )
+                      }
+                    />
+                  </li>
                 )
               })}
-            </tbody>
-          </table>
+            </ul>
+
+            <table className="hidden w-full text-left text-sm md:table">
+              <thead className="sticky top-0 border-b border-gold/15 bg-cream">
+                <tr className={typography.caption}>
+                  <th className="px-3 py-2 font-normal">Cliente</th>
+                  <th className="px-3 py-2 font-normal">Teléfono</th>
+                  <th className="hidden px-3 py-2 font-normal sm:table-cell">Citas</th>
+                  <th className="hidden px-3 py-2 font-normal lg:table-cell">Última</th>
+                  <th className="px-3 py-2 font-normal sr-only">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedCustomers.map((c) => {
+                  const label = formatCustomerDisplayName(c.firstName, c.lastName)
+                  const historyHref = `/clientes/${encodeURIComponent(c.phone)}`
+                  return (
+                    <tr
+                      key={c.phone}
+                      className="cursor-pointer border-b border-gold/10 hover:bg-gold/5"
+                      onClick={() => navigate(historyHref)}
+                    >
+                      <td className="px-3 py-2 font-medium">{label}</td>
+                      <td className="px-3 py-2 tabular-nums text-charcoal-muted">
+                        {formatPhoneDisplay(c.phone)}
+                      </td>
+                      <td className="hidden px-3 py-2 tabular-nums sm:table-cell">
+                        {c.appointmentCount}
+                      </td>
+                      <td className="hidden px-3 py-2 capitalize lg:table-cell">
+                        {c.lastAppointmentDate
+                          ? formatDisplayDate(c.lastAppointmentDate)
+                          : '—'}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <CustomerListActions
+                          customer={c}
+                          adminToken={adminToken}
+                          onEdit={() => setEditingCustomer(c)}
+                          onHistory={() => navigate(historyHref)}
+                          onReviewSent={(sentAt) =>
+                            setCustomers((rows) =>
+                              rows.map((row) =>
+                                row.phone === c.phone
+                                  ? { ...row, reviewRequestSentAt: sentAt }
+                                  : row,
+                              ),
+                            )
+                          }
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </>
         )}
 
         {!loading && customers.length > 0 && (
