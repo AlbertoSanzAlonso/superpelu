@@ -328,6 +328,7 @@ const es = {
     closingConfirmed: '¡Te esperamos!',
     closingThanks: '¡Gracias!',
     closingNoShow: 'Cuídate. Estamos aquí cuando quieras.',
+    logoCaption: 'Superpelu Hair Studio',
     reviewRequestHeading:
       '¡Esperamos que hayas disfrutado tu visita en *Superpelu*! Si te ha gustado el servicio, nos ayudaría mucho que nos dejaras una valoración en Google:',
     reviewRequestLinkLabel: '⭐ Valorar en Google Maps',
@@ -820,6 +821,7 @@ const en = {
     closingConfirmed: 'We look forward to seeing you!',
     closingThanks: 'Thank you!',
     closingNoShow: 'Take care. We are here whenever you need us.',
+    logoCaption: 'Superpelu Hair Studio',
     reviewRequestHeading:
       'We hope you enjoyed your visit at *Superpelu*! If you liked our service, a Google review would mean a lot to us:',
     reviewRequestLinkLabel: '⭐ Leave a review on Google Maps',

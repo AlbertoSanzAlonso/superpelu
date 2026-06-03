@@ -3,11 +3,8 @@ import { getCustomer, markCustomerReviewRequestSent } from '@server/customers.js
 import { buildGoogleReviewRequestMessage } from '@/i18n/whatsappAppointment'
 import { appointmentLocale } from '@/i18n/localeHelpers'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import {
-  getOpenWaConfig,
-  openWaSendText,
-  phoneToWhatsAppChatId,
-} from '@server/openwa.js'
+import { getOpenWaConfig, phoneToWhatsAppChatId } from '@server/openwa.js'
+import { sendWhatsAppWithLogoHeader } from '@server/whatsappBranding.js'
 
 export async function sendCustomerReviewRequest(
   phone: string,
@@ -30,7 +27,7 @@ export async function sendCustomerReviewRequest(
   const firstName = customer.first_name.trim() || 'Cliente'
   const chatId = phoneToWhatsAppChatId(phone)
   const text = buildGoogleReviewRequestMessage(locale, firstName || 'Cliente')
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendWhatsAppWithLogoHeader(chatId, text, locale)
   console.log(
     `Superpelu WhatsApp: solicitud valoración a ${phone}${messageId ? ` (${messageId})` : ''}`,
   )

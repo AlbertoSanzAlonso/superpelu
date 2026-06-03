@@ -119,6 +119,30 @@ export async function openWaSendText(chatId: string, text: string): Promise<stri
   return data.messageId
 }
 
+export type OpenWaImagePayload = { url: string } | { base64: string }
+
+export async function openWaSendImage(
+  chatId: string,
+  image: OpenWaImagePayload,
+  caption?: string,
+): Promise<string | undefined> {
+  const config = getOpenWaConfig()
+  if (!config) return undefined
+
+  const data = await openWaFetch<{ messageId?: string }>(
+    `/sessions/${encodeURIComponent(config.sessionId)}/messages/send-image`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        chatId,
+        image,
+        ...(caption?.trim() ? { caption: caption.trim() } : {}),
+      }),
+    },
+  )
+  return data.messageId
+}
+
 export type OpenWaSessionStatus = {
   id: string
   name?: string

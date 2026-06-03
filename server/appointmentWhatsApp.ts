@@ -1,11 +1,9 @@
 import type { AppointmentRow } from '@server/db.js'
 import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { buildWhatsAppAppointmentMessage } from '@/i18n/whatsappAppointment'
-import {
-  getOpenWaConfig,
-  openWaSendText,
-  phoneToWhatsAppChatId,
-} from '@server/openwa.js'
+import { appointmentLocale } from '@/i18n/localeHelpers'
+import { getOpenWaConfig, openWaSendText, phoneToWhatsAppChatId } from '@server/openwa.js'
+import { sendWhatsAppWithLogoHeader } from '@server/whatsappBranding.js'
 import { buildBookingUrl, buildManageUrl } from '@server/appointmentLinks.js'
 
 export function buildAppointmentConfirmationMessage(row: AppointmentRow): string {
@@ -95,7 +93,7 @@ export async function notifyAppointmentNoShow(row: AppointmentRow): Promise<void
 
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentNoShowMessage(row)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
   console.log(
     `Superpelu WhatsApp: inasistencia enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
