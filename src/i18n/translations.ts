@@ -242,7 +242,8 @@ const es = {
   },
   booking: {
     pageTitle: 'Reserva tu cita',
-    pageSubtitle: 'Elige servicio, día, hora y profesional. Martes a sábado de 10:00 a 20:00.',
+    pageSubtitle:
+      'Elige servicio, día, hora y profesional. Lunes a sábado; domingo cerrado. Horario con pausa al mediodía (consulta el día elegido).',
     confirmedTitle: '¡Cita confirmada!',
     confirmedSubtitle: 'Te esperamos en Superpelu Hair Studio',
     confirmedBody:
@@ -417,7 +418,7 @@ const es = {
     errors: {
       CITA_NO_ENCONTRADA: 'No hemos encontrado esta cita.',
       FECHA_INVALIDA:
-        'La fecha elegida no está disponible. Elige otro día (mar–sáb, dentro del plazo de reserva).',
+        'La fecha elegida no está disponible. Elige otro día (lun–sáb, dentro del plazo de reserva).',
       HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
       STAFF_NO_REALIZA_SERVICIO: 'Ese profesional no realiza este servicio.',
       STAFF_INVALIDO: 'Profesional no disponible.',
@@ -735,7 +736,8 @@ const en = {
   },
   booking: {
     pageTitle: 'Book your appointment',
-    pageSubtitle: 'Choose service, day, time and stylist. Tuesday to Saturday, 10:00–20:00.',
+    pageSubtitle:
+      'Choose service, day, time and stylist. Monday–Saturday; closed Sunday. Hours vary by day (including a midday break).',
     confirmedTitle: 'Appointment confirmed!',
     confirmedSubtitle: 'We look forward to seeing you at Superpelu Hair Studio',
     confirmedBody:
@@ -910,7 +912,7 @@ const en = {
     errors: {
       CITA_NO_ENCONTRADA: 'We could not find this appointment.',
       FECHA_INVALIDA:
-        'The chosen date is not available. Pick another day (Tue–Sat, within the booking window).',
+        'The chosen date is not available. Pick another day (Mon–Sat, within the booking window).',
       HORARIO_NO_DISPONIBLE: 'That time is no longer available. Choose another slot.',
       STAFF_NO_REALIZA_SERVICIO: 'That stylist does not perform this service.',
       STAFF_INVALIDO: 'Stylist not available.',

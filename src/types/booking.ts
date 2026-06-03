@@ -94,7 +94,7 @@ export type StaffDaySchedule = {
   staffId: string
   staffName: string
   working: boolean
-  window: { startTime: string; endTime: string } | null
+  windows: { startTime: string; endTime: string }[]
   appointments: DayScheduleAppointment[]
   blocks: DayScheduleBlock[]
   freeSlots: string[]

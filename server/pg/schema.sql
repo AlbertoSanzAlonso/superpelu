@@ -62,8 +62,12 @@ CREATE TABLE IF NOT EXISTS staff_availability (
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  PRIMARY KEY (staff_id, day_of_week)
+  PRIMARY KEY (staff_id, day_of_week, start_time)
 );
+
+-- Varias franjas por día (migración desde PK solo staff_id + day_of_week)
+ALTER TABLE staff_availability DROP CONSTRAINT IF EXISTS staff_availability_pkey;
+ALTER TABLE staff_availability ADD PRIMARY KEY (staff_id, day_of_week, start_time);
 
 CREATE TABLE IF NOT EXISTS customers (
   phone TEXT PRIMARY KEY,

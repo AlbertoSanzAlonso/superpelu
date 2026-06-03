@@ -1,4 +1,5 @@
-import { getStaffDayWindow } from '@server/availability.js'
+import { getStaffDayWindows } from '@server/availability.js'
+import { rangesToWorkWindows } from '@/lib/scheduleHours'
 import { getAvailableSlots } from '@server/appointments.js'
 import { sql } from '@server/db.js'
 import { schedule } from '@server/config.js'
@@ -92,7 +93,7 @@ export type StaffDaySchedule = {
   staffId: string
   staffName: string
   working: boolean
-  window: { startTime: string; endTime: string } | null
+  windows: { startTime: string; endTime: string }[]
   appointments: DayScheduleAppointment[]
   blocks: DayScheduleBlock[]
   freeSlots: string[]
@@ -105,13 +106,16 @@ export async function getStaffDaySchedule(
   const staff = await getStaff(staffId)
   if (!staff) return null
 
-  const window = await getStaffDayWindow(staffId, date)
-  if (!window) {
+  const dayWindows = await getStaffDayWindows(staffId, date)
+  const windows = rangesToWorkWindows(
+    dayWindows.map((w) => ({ start: w.startTime, end: w.endTime })),
+  )
+  if (windows.length === 0) {
     return {
       staffId: staff.id,
       staffName: staff.name,
       working: false,
-      window: null,
+      windows: [],
       appointments: [],
       blocks: [],
       freeSlots: [],
@@ -158,32 +162,34 @@ export async function getStaffDaySchedule(
   })
 
   const freeSlots: string[] = []
-  for (
-    let start = window.startMinutes;
-    start < window.endMinutes;
-    start += schedule.slotMinutes
-  ) {
-    const slotSegment = { startMinutes: start, durationMinutes: schedule.slotMinutes }
-    const blockedByApt = occupied.some((apt) => {
-      if (apt.status === 'no_show') return false
-      const aptSegments = getOccupiedSegmentsForAppointment(
-        apt.service_id,
-        timeToMinutes(apt.start_time),
-        apt.duration_minutes,
-        { colorGroupRole: apt.color_group_role },
+  for (const dayWindow of dayWindows) {
+    for (
+      let start = dayWindow.startMinutes;
+      start < dayWindow.endMinutes;
+      start += schedule.slotMinutes
+    ) {
+      const slotSegment = { startMinutes: start, durationMinutes: schedule.slotMinutes }
+      const blockedByApt = occupied.some((apt) => {
+        if (apt.status === 'no_show') return false
+        const aptSegments = getOccupiedSegmentsForAppointment(
+          apt.service_id,
+          timeToMinutes(apt.start_time),
+          apt.duration_minutes,
+          { colorGroupRole: apt.color_group_role },
+        )
+        return occupiedSegmentsOverlap([slotSegment], aptSegments)
+      })
+      const blockedByBlock = blockRows.some((b) =>
+        overlaps(
+          start,
+          schedule.slotMinutes,
+          timeToMinutes(b.start_time),
+          timeToMinutes(b.end_time) - timeToMinutes(b.start_time),
+        ),
       )
-      return occupiedSegmentsOverlap([slotSegment], aptSegments)
-    })
-    const blockedByBlock = blockRows.some((b) =>
-      overlaps(
-        start,
-        schedule.slotMinutes,
-        timeToMinutes(b.start_time),
-        timeToMinutes(b.end_time) - timeToMinutes(b.start_time),
-      ),
-    )
-    if (!blockedByApt && !blockedByBlock) {
-      freeSlots.push(minutesToTime(start))
+      if (!blockedByApt && !blockedByBlock) {
+        freeSlots.push(minutesToTime(start))
+      }
     }
   }
 
@@ -191,7 +197,7 @@ export async function getStaffDaySchedule(
     staffId: staff.id,
     staffName: staff.name,
     working: true,
-    window: { startTime: window.startTime, endTime: window.endTime },
+    windows,
     appointments,
     blocks,
     freeSlots,

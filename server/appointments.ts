@@ -3,7 +3,7 @@ import { sql, type AppointmentRow } from '@server/db.js'
 import { getService } from '@server/services.js'
 import { serviceDisplayName } from '@/i18n/localeHelpers'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { getStaffDayWindow, isStaffWorkingOnDate } from '@server/availability.js'
+import { getStaffDayWindows, isStaffWorkingOnDate } from '@server/availability.js'
 import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from '@server/staffBlocks.js'
 import {
   getStaff,
@@ -210,22 +210,24 @@ export async function getAvailableSlots(
     return []
   }
 
-  const window = await getStaffDayWindow(staffId, date)
-  if (!window) return []
+  const windows = await getStaffDayWindows(staffId, date)
+  if (windows.length === 0) return []
 
   const slots: string[] = []
   const spanMinutes = getBookingSpanMinutes(service.id, service.durationMinutes)
 
-  for (
-    let start = window.startMinutes;
-    start + spanMinutes <= window.endMinutes;
-    start += schedule.slotMinutes
-  ) {
-    const segments = getOccupiedSegmentsForBooking(service.id, start, service.durationMinutes)
-    if (
-      !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+  for (const window of windows) {
+    for (
+      let start = window.startMinutes;
+      start + spanMinutes <= window.endMinutes;
+      start += schedule.slotMinutes
     ) {
-      slots.push(minutesToTime(start))
+      const segments = getOccupiedSegmentsForBooking(service.id, start, service.durationMinutes)
+      if (
+        !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+      ) {
+        slots.push(minutesToTime(start))
+      }
     }
   }
 

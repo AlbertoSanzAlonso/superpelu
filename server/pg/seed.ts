@@ -5,7 +5,6 @@ import {
   legacyMockStaffIds,
   salonStaffMembers,
 } from '@/data/salonStaff'
-import { salonSchedule } from '@/data/schedule'
 import { sql } from '@server/pg/client.js'
 import { hashPassword } from '@server/password.js'
 
@@ -107,16 +106,6 @@ export async function syncSalonStaff(): Promise<void> {
         password_hash = EXCLUDED.password_hash,
         updated_at = EXCLUDED.updated_at
     `
-
-    const hours = member.weeklyHours ?? defaultWeeklyHoursForStaff()
-    for (const [dayStr, range] of Object.entries(hours)) {
-      if (!range) continue
-      await sql`
-        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time)
-        VALUES (${member.id}, ${Number(dayStr)}, ${range.start}, ${range.end})
-        ON CONFLICT (staff_id, day_of_week) DO NOTHING
-      `
-    }
   }
 
   for (const legacyId of legacyMockStaffIds) {
@@ -151,6 +140,33 @@ export async function syncStaffAllServices(): Promise<void> {
   `
 }
 
+async function syncStaffMemberAvailability(
+  staffId: string,
+  hours: Partial<Record<number, readonly { start: string; end: string }[]>>,
+): Promise<void> {
+  await sql`DELETE FROM staff_availability WHERE staff_id = ${staffId}`
+  for (const [dayStr, ranges] of Object.entries(hours)) {
+    if (!ranges?.length) continue
+    for (const range of ranges) {
+      await sql`
+        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time)
+        VALUES (${staffId}, ${Number(dayStr)}, ${range.start}, ${range.end})
+        ON CONFLICT (staff_id, day_of_week, start_time) DO UPDATE SET
+          end_time = EXCLUDED.end_time
+      `
+    }
+  }
+}
+
+export async function syncStaffAvailabilityFromCatalog(): Promise<void> {
+  for (const member of salonStaffMembers) {
+    await syncStaffMemberAvailability(
+      member.id,
+      member.weeklyHours ?? defaultWeeklyHoursForStaff(),
+    )
+  }
+}
+
 export async function seedStaffAvailabilityIfMissing(): Promise<void> {
   const staffIds = (
     await sql<{ id: string }[]>`SELECT id FROM staff WHERE active = TRUE`
@@ -162,13 +178,11 @@ export async function seedStaffAvailabilityIfMissing(): Promise<void> {
     `
     if (Number(count) > 0) continue
 
-    for (const day of salonSchedule.openDays) {
-      await sql`
-        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time)
-        VALUES (${staffId}, ${day}, ${salonSchedule.openTime}, ${salonSchedule.closeTime})
-        ON CONFLICT (staff_id, day_of_week) DO NOTHING
-      `
-    }
+    const member = salonStaffMembers.find((m) => m.id === staffId)
+    await syncStaffMemberAvailability(
+      staffId,
+      member?.weeklyHours ?? defaultWeeklyHoursForStaff(),
+    )
   }
 }
 
@@ -188,6 +202,7 @@ export async function runSeed(): Promise<void> {
   await purgeServicesWithoutCategory()
   await syncSalonStaff()
   await syncStaffAllServices()
+  await syncStaffAvailabilityFromCatalog()
   await seedStaffAvailabilityIfMissing()
   await seedStaffPasswordsIfMissing()
 }

@@ -106,7 +106,7 @@ export function addDays(date: Date, days: number): Date {
   return next
 }
 
-/** Próximos N días laborables del salón (mar–sáb) */
+/** Próximos N días laborables del salón (lun–sáb) */
 export function getBookableDates(count = 35): string[] {
   const dates: string[] = []
   let cursor = todaySalon()

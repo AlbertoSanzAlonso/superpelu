@@ -25,6 +25,7 @@ import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
 } from '@/lib/pendingAppointmentMoves'
+import { formatWorkWindowsLabel } from '@/lib/scheduleHours'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -200,11 +201,11 @@ function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
       className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream/55 px-3 backdrop-blur-[2px]`}
     >
       <StaffInitial name={schedule.staffName} />
-      {schedule.working && schedule.window ? (
+      {schedule.working && schedule.windows.length > 0 ? (
         <div className="min-w-0">
           <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
           <p className="text-[10px] tabular-nums text-charcoal-muted">
-            {schedule.window.startTime}–{schedule.window.endTime}
+            {formatWorkWindowsLabel(schedule.windows)}
           </p>
         </div>
       ) : (
@@ -269,7 +270,7 @@ function StaffColumn({
     }
   }
 
-  if (!schedule.working || !schedule.window) {
+  if (!schedule.working || schedule.windows.length === 0) {
     return (
       <div className="min-w-[11rem] flex-1 border-l border-gold/20">
         <StaffColumnHeader schedule={schedule} />

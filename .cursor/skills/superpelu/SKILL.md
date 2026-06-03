@@ -2,7 +2,7 @@
 name: superpelu
 description: >-
   Superpelu Hair Studio — React + Hono + PostgreSQL en servidor. Reservas (/reservar), agenda
-  admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga.
+  admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga/Sol.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
   WhatsApp/páginas cliente en idioma de reserva, aliases @/ y @server/, o API que devuelve HTML.
@@ -17,7 +17,7 @@ description: >-
 - **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se sincroniza el catálogo.
 - **No** usar Supabase Realtime, Auth ni `supabase-js` para citas/agenda (`src/lib/supabaseClient.ts` es opcional y no se usa en flujos de reserva).
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
-- **Horario salón:** mar–sáb 10:00–20:00, slots cada 30 min (`salonSchedule.slotMinutes`).
+- **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado); `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
 
 Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal y enlaces `staff_services` (todo el personal ↔ todos los servicios activos).
 
@@ -27,8 +27,8 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 |---------|-----------|
 | `src/data/serviceCategories.ts` | 12 categorías (ES + EN), precios «desde» |
 | `src/data/salonServices.ts` | ~70 servicios: `categoryId`, duración, `bookableOnline` |
-| `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga + contraseñas iniciales |
-| `src/data/schedule.ts` | Horario y timezone del salón |
+| `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga, Sol + contraseñas iniciales |
+| `src/data/schedule.ts` | Franjas por día, días abiertos y timezone del salón |
 | `src/data/content.ts` | Datos de marca no traducibles (teléfono, URLs, dirección) — **no** textos de UI |
 
 **Mechas (`highlights`):** servicios con `bookableOnline: false` — reserva online solo teléfono/WhatsApp; admin/profesional sí pueden citar.

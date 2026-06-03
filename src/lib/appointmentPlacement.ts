@@ -13,6 +13,7 @@ import {
   getFinalMovesForSave,
 } from '@/lib/pendingAppointmentMoves'
 import { buildStaffDayGrid } from '@/lib/timeGrid'
+import { segmentFitsInWorkWindows } from '@/lib/scheduleHours'
 import type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
 import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
@@ -198,7 +199,7 @@ function validateAppointmentMoveOnSchedule(
   appointment: DayScheduleAppointment,
   target: AppointmentMoveTarget,
 ): AppointmentMoveValidation {
-  if (!schedule.working || !schedule.window) {
+  if (!schedule.working || schedule.windows.length === 0) {
     return { ok: false, message: 'Este profesional no trabaja este día.' }
   }
 
@@ -210,12 +211,8 @@ function validateAppointmentMoveOnSchedule(
     { colorGroupRole: appointment.colorGroupRole },
   )
 
-  const windowStart = timeToMinutes(schedule.window.startTime)
-  const windowEnd = timeToMinutes(schedule.window.endTime)
-
   for (const seg of segments) {
-    const segEnd = seg.startMinutes + seg.durationMinutes
-    if (seg.startMinutes < windowStart || segEnd > windowEnd) {
+    if (!segmentFitsInWorkWindows(seg.startMinutes, seg.durationMinutes, schedule.windows)) {
       return { ok: false, message: 'La cita quedaría fuera del horario de trabajo.' }
     }
   }

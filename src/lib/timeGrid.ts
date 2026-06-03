@@ -51,14 +51,16 @@ export function buildStaffDayGrid(
   date: string,
   slotMinutes = salonSchedule.slotMinutes,
 ): TimeGridCell[] {
-  if (!schedule.working || !schedule.window) return []
+  if (!schedule.working || schedule.windows.length === 0) return []
 
-  const startMin = timeToMinutes(schedule.window.startTime)
-  const endMin = timeToMinutes(schedule.window.endTime)
   const isToday = date === todaySalon()
   const nowMin = isToday ? nowSalonMinutes() : null
 
   const cells: TimeGridCell[] = []
+
+  for (const workWindow of schedule.windows) {
+    const startMin = timeToMinutes(workWindow.startTime)
+    const endMin = timeToMinutes(workWindow.endTime)
 
   for (let slotStart = startMin; slotStart < endMin; slotStart += slotMinutes) {
     const slotEnd = slotStart + slotMinutes
@@ -127,6 +129,7 @@ export function buildStaffDayGrid(
     }
 
     cells.push({ time, status: 'free' })
+  }
   }
 
   return cells
