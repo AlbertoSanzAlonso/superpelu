@@ -21,8 +21,8 @@ const es = {
   },
   language: {
     label: 'Idioma',
-    es: 'ES',
-    en: 'EN',
+    es: 'Español',
+    en: 'English',
   },
   nav: {
     services: 'Servicios',
@@ -514,8 +514,8 @@ const en = {
   },
   language: {
     label: 'Language',
-    es: 'ES',
-    en: 'EN',
+    es: 'Español',
+    en: 'English',
   },
   nav: {
     services: 'Services',

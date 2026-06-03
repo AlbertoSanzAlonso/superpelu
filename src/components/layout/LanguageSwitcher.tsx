@@ -1,3 +1,4 @@
+import { LocaleFlagIcon } from '@/components/layout/LocaleFlagIcon'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { Locale } from '@/i18n/types'
 
@@ -15,40 +16,37 @@ export function LanguageSwitcher({ className = '', compact = false }: Props) {
 
   const btnClass = (active: boolean) =>
     [
-      'cursor-pointer px-2 py-1 font-sans text-xs uppercase tracking-wide transition-colors',
+      'block h-5 w-7 cursor-pointer overflow-hidden rounded-sm border p-0 transition-all',
       active
-        ? 'text-gold'
-        : 'text-charcoal-muted hover:text-gold',
+        ? 'border-gold/60 shadow-sm ring-1 ring-gold/25'
+        : 'border-gold/15 opacity-75 hover:border-gold/35 hover:opacity-100',
     ].join(' ')
+
+  const locales: { id: Locale; label: string }[] = [
+    { id: 'es', label: t.language.es },
+    { id: 'en', label: t.language.en },
+  ]
 
   return (
     <div
-      className={`flex items-center gap-0.5 ${className}`}
+      className={`flex items-center gap-1 ${className}`}
       role="group"
       aria-label={t.language.label}
     >
-      {!compact && (
-        <span className="sr-only">{t.language.label}</span>
-      )}
-      <button
-        type="button"
-        className={btnClass(locale === 'es')}
-        aria-pressed={locale === 'es'}
-        onClick={() => toggle('es')}
-      >
-        {t.language.es}
-      </button>
-      <span className="text-charcoal-muted/40" aria-hidden>
-        |
-      </span>
-      <button
-        type="button"
-        className={btnClass(locale === 'en')}
-        aria-pressed={locale === 'en'}
-        onClick={() => toggle('en')}
-      >
-        {t.language.en}
-      </button>
+      {!compact && <span className="sr-only">{t.language.label}</span>}
+      {locales.map(({ id, label }) => (
+        <button
+          key={id}
+          type="button"
+          className={btnClass(locale === id)}
+          aria-pressed={locale === id}
+          aria-label={label}
+          title={label}
+          onClick={() => toggle(id)}
+        >
+          <LocaleFlagIcon locale={id} />
+        </button>
+      ))}
     </div>
   )
 }
