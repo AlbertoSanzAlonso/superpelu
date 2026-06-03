@@ -13,7 +13,7 @@ export function Testimonials() {
       title={t.testimonialsSection.title}
       subtitle={t.testimonialsSection.subtitle}
       dark
-      backgroundImage="/images/salon-contact-atmosphere.png"
+      backgroundImage="/images/salon-contact-atmosphere.webp"
     >
       <div className="grid gap-8 md:grid-cols-2">
         {t.testimonials.map((item) => (
