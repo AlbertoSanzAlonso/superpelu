@@ -31,20 +31,24 @@ export function Section({
   return (
     <section
       id={id}
-      className={`section-padding ${hasAtmosphere ? 'relative overflow-hidden' : ''} ${dark ? 'text-cream' : 'text-charcoal'} ${!hasAtmosphere && (dark ? 'bg-charcoal' : 'bg-cream')} ${className}`}
+      className={`section-padding ${hasAtmosphere ? 'relative isolate overflow-hidden' : ''} ${dark ? 'bg-charcoal text-cream' : 'bg-cream text-charcoal'} ${className}`}
     >
-      {hasAtmosphere && (
+      {hasAtmosphere && backgroundImage && (
         <>
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url('${backgroundImage}')` }}
+          <img
+            src={backgroundImage}
+            alt=""
+            width={1920}
+            height={1080}
+            decoding="async"
+            className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover object-center"
             aria-hidden
           />
           <div
-            className={`absolute inset-0 bg-gradient-to-br ${
+            className={`pointer-events-none absolute inset-0 z-[1] bg-gradient-to-br ${
               dark
-                ? 'from-charcoal/90 via-charcoal/86 to-charcoal/92'
-                : 'from-cream-dark/92 via-cream-dark/88 to-cream/90'
+                ? 'from-charcoal/72 via-charcoal/58 to-charcoal/78'
+                : 'from-cream-dark/88 via-cream-dark/75 to-cream/88'
             }`}
             aria-hidden
           />
