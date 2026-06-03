@@ -1,4 +1,5 @@
 import { splitCustomerName } from '@/lib/customerName'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
 
 export type AppointmentDraft = {
@@ -12,6 +13,8 @@ export type AppointmentDraft = {
   customerNotes: string
   /** Notas de esta cita (`appointments.notes`). */
   notes: string
+  /** Idioma en ficha del cliente (`customers.locale`). */
+  customerLocale: Locale
 }
 
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
@@ -23,11 +26,16 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   customerEmail: '',
   customerNotes: '',
   notes: '',
+  customerLocale: 'es',
 }
 
 export function appointmentToDraft(
   apt: DayScheduleAppointment,
-  customerProfile?: { email: string | null; notes: string | null },
+  customerProfile?: {
+    email: string | null
+    notes: string | null
+    locale?: string | null
+  },
 ): AppointmentDraft {
   const { firstName, lastName } = splitCustomerName(apt.customerName)
   return {
@@ -39,5 +47,6 @@ export function appointmentToDraft(
     customerEmail: apt.customerEmail ?? customerProfile?.email ?? '',
     customerNotes: customerProfile?.notes ?? '',
     notes: apt.notes ?? '',
+    customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
   }
 }

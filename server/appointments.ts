@@ -278,6 +278,8 @@ export type CreateAppointmentInput = {
   notes?: string
   forStaffPortal?: boolean
   locale?: Locale
+  /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
+  customerLocale?: Locale
 }
 
 export async function createAppointment(
@@ -315,6 +317,12 @@ export async function createAppointment(
     customerName: input.customerName,
     phone: input.customerPhone,
   })
+  const customerLocaleForUpsert = input.forStaffPortal
+    ? input.customerLocale !== undefined
+      ? normalizeLocale(input.customerLocale)
+      : undefined
+    : normalizeLocale(input.locale)
+
   await upsertCustomer({
     firstName: customer.firstName,
     lastName: customer.lastName,
@@ -323,11 +331,15 @@ export async function createAppointment(
     ...(input.customerNotes !== undefined
       ? { notes: input.customerNotes.trim() || null }
       : {}),
+    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
   })
   const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
 
+  const profile = await getCustomer(customer.phone)
   const createdAt = new Date().toISOString()
-  const locale = input.forStaffPortal ? 'es' : normalizeLocale(input.locale)
+  const locale = input.forStaffPortal
+    ? normalizeLocale(profile?.locale ?? input.customerLocale)
+    : normalizeLocale(input.locale)
   const serviceName = serviceDisplayName(service, locale)
 
   // Si la cita es en menos de 24h, no hay recordatorio: se marca como ya gestionado.
@@ -413,6 +425,7 @@ export type UpdateAppointmentInput = {
   customerEmail?: string | null
   customerNotes?: string | null
   notes?: string | null
+  customerLocale?: Locale
   /** Si es `false`, no se envía WhatsApp de reprogramación (p. ej. elección del admin). */
   notifyCustomerWhatsApp?: boolean
 }
@@ -525,6 +538,9 @@ export async function updateAppointmentForStaff(
         input.customerNotes !== undefined
           ? input.customerNotes
           : (profile?.notes ?? null),
+      ...(input.customerLocale !== undefined
+        ? { locale: normalizeLocale(input.customerLocale) }
+        : {}),
     })
     nameSnapshot = customerNameSnapshot(split.firstName, split.lastName)
     customerPhone = split.phone
@@ -545,7 +561,10 @@ export async function updateAppointmentForStaff(
   const staff = (await getStaff(targetStaffId))!
   if (!staff?.active) throw new Error('STAFF_INVALIDO')
 
-  const locale = normalizeLocale(existing.locale)
+  const locale =
+    input.customerLocale !== undefined
+      ? normalizeLocale(input.customerLocale)
+      : normalizeLocale(existing.locale)
   const serviceName = serviceDisplayName(service, locale)
 
   const customerEmail =
@@ -571,7 +590,8 @@ export async function updateAppointmentForStaff(
           customer_email = ${customerEmail},
           notes = ${appointmentNotes},
           staff_name = ${staff.name},
-          reminder_sent_at = ${reminderSentAt}
+          reminder_sent_at = ${reminderSentAt},
+          locale = ${locale}
         WHERE id = ${appointmentId}
       `
       if (dateOrTimeChanged) {
@@ -610,7 +630,8 @@ export async function updateAppointmentForStaff(
           customer_email = ${customerEmail},
           notes = ${appointmentNotes},
           staff_name = ${staff.name},
-          reminder_sent_at = ${reminderSentAt}
+          reminder_sent_at = ${reminderSentAt},
+          locale = ${locale}
         WHERE id = ${appointmentId}
       `
     }

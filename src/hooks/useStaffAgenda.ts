@@ -225,6 +225,7 @@ export function useStaffAgenda(token: string) {
             customerEmail: aptDraft.customerEmail || null,
             customerNotes: aptDraft.customerNotes || null,
             notes: aptDraft.notes || null,
+            customerLocale: aptDraft.customerLocale,
           })
         } else {
           await createMyAppointment(token, {
@@ -237,6 +238,7 @@ export function useStaffAgenda(token: string) {
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
           })
         }
         resetAppointmentForm()

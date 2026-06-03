@@ -2,12 +2,17 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
+import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import { updateCustomer, deleteCustomer, ApiError } from '@/lib/api'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import { formatPhoneDisplay } from '@/lib/phone'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
-type CustomerFields = Pick<Customer, 'phone' | 'firstName' | 'lastName' | 'email' | 'notes'>
+type CustomerFields = Pick<
+  Customer,
+  'phone' | 'firstName' | 'lastName' | 'email' | 'notes' | 'locale'
+>
 
 type Props = {
   open: boolean
@@ -36,6 +41,7 @@ export function CustomerEditModal({
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [notes, setNotes] = useState('')
+  const [locale, setLocale] = useState<Locale>('es')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -47,6 +53,7 @@ export function CustomerEditModal({
     setLastName(customer.lastName)
     setEmail(customer.email ?? '')
     setNotes(customer.notes ?? '')
+    setLocale(normalizeLocale(customer.locale))
     setError('')
     setSaving(false)
     setDeleting(false)
@@ -77,6 +84,7 @@ export function CustomerEditModal({
         lastName: lastName.trim(),
         email: email.trim() || null,
         notes: notes.trim() || null,
+        locale,
       })
       onSaved(updated)
       onClose()
@@ -179,6 +187,8 @@ export function CustomerEditModal({
               disabled={busy}
               rows={4}
             />
+
+            <CustomerLocaleSelect value={locale} onChange={setLocale} disabled={busy} />
 
             {error && (
               <p

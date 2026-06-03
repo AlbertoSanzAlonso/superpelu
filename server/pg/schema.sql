@@ -71,9 +71,12 @@ CREATE TABLE IF NOT EXISTS customers (
   last_name TEXT,
   email TEXT,
   notes TEXT,
+  locale TEXT NOT NULL DEFAULT 'es',
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'es';
 
 CREATE INDEX IF NOT EXISTS idx_customers_name
   ON customers (last_name, first_name);

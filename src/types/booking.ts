@@ -68,6 +68,8 @@ export type DayScheduleAppointment = {
   customerName: string
   customerPhone: string
   customerEmail: string | null
+  /** Idioma en ficha del cliente (`customers.locale`). */
+  customerLocale?: 'es' | 'en'
   notes: string | null
   status: string
   createdAt: string

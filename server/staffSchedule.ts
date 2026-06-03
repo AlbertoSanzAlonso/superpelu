@@ -33,13 +33,14 @@ function overlaps(
   return startA < endB && startB < endA
 }
 
-type OccupiedRow = AppointmentRow & { category_id: string | null }
+type OccupiedRow = AppointmentRow & { category_id: string | null; customer_locale: string | null }
 
 async function getOccupiedOnDate(date: string, staffId: string): Promise<OccupiedRow[]> {
   return sql<OccupiedRow[]>`
-    SELECT a.*, s.category_id
+    SELECT a.*, s.category_id, c.locale AS customer_locale
     FROM appointments a
     LEFT JOIN services s ON s.id = a.service_id
+    LEFT JOIN customers c ON c.phone = a.customer_phone
     WHERE a.appointment_date = ${date} AND a.staff_id = ${staffId} AND a.status != 'cancelled'
     ORDER BY a.start_time ASC
   `
@@ -56,6 +57,7 @@ export type DayScheduleAppointment = {
   customerName: string
   customerPhone: string
   customerEmail: string | null
+  customerLocale: 'es' | 'en'
   notes: string | null
   status: string
   createdAt: string
@@ -138,6 +140,7 @@ export async function getStaffDaySchedule(
       customerName: row.customer_name,
       customerPhone: row.customer_phone,
       customerEmail: row.customer_email,
+      customerLocale: row.customer_locale === 'en' ? 'en' : 'es',
       notes: row.notes,
       status: row.status,
       createdAt: row.created_at,

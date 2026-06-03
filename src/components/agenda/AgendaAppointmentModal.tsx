@@ -3,6 +3,10 @@ import {
   CustomerAppointmentHistoryModal,
   customerHistoryModalTitle,
 } from '@/components/customers/CustomerAppointmentHistoryModal'
+import {
+  CustomerLocaleSelect,
+  customerLocaleLabel,
+} from '@/components/customers/CustomerLocaleSelect'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
@@ -247,6 +251,10 @@ function ClientPanelView({
           <dd className="mt-0.5 tabular-nums">{phone ? formatPhoneDisplay(phone) : '—'}</dd>
         </div>
         <div>
+          <dt className={typography.label}>Idioma</dt>
+          <dd className="mt-0.5">{customerLocaleLabel(draft.customerLocale)}</dd>
+        </div>
+        <div>
           <dt className={typography.label}>Correo electrónico</dt>
           <dd className="mt-0.5 break-all">{dash(draft.customerEmail)}</dd>
         </div>
@@ -342,6 +350,11 @@ function ClientPanelEdit({
           className="!px-3 !py-2"
         />
       )}
+      <CustomerLocaleSelect
+        compact
+        value={draft.customerLocale}
+        onChange={(locale) => onDraftChange({ customerLocale: locale })}
+      />
       <Textarea
         label="Observaciones de la cita"
         rows={2}

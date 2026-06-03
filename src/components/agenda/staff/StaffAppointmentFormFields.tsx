@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
+import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -165,6 +166,11 @@ export function StaffAppointmentFormFields({
         value={draft.customerNotes}
         onChange={(e) => onDraftChange({ customerNotes: e.target.value })}
         className={compact ? fieldCompact : undefined}
+      />
+      <CustomerLocaleSelect
+        compact
+        value={draft.customerLocale}
+        onChange={(locale) => onDraftChange({ customerLocale: locale })}
       />
 
       {isNoShow && (

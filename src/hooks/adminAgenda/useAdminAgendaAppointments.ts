@@ -158,6 +158,7 @@ export function useAdminAgendaAppointments({
             appointmentToDraft(apt, {
               email: detail.customer.email,
               notes: detail.customer.notes,
+              locale: detail.customer.locale,
             }),
           )
         })
@@ -218,6 +219,7 @@ export function useAdminAgendaAppointments({
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
             notifyCustomerWhatsApp,
           })
           markAppointmentsKnown?.([appointment.id])
@@ -234,6 +236,7 @@ export function useAdminAgendaAppointments({
               customerEmail: aptDraft.customerEmail || undefined,
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
+              customerLocale: aptDraft.customerLocale,
             },
             adminToken,
           )

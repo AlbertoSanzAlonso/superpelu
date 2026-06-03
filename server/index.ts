@@ -359,6 +359,7 @@ function customerToJson(customer: {
   last_name: string | null
   email: string | null
   notes: string | null
+  locale?: string | null
   created_at: string
   updated_at: string
 }) {
@@ -368,6 +369,7 @@ function customerToJson(customer: {
     lastName: customer.last_name ?? '',
     email: customer.email,
     notes: customer.notes,
+    locale: customer.locale === 'en' ? 'en' : 'es',
     createdAt: customer.created_at,
     updatedAt: customer.updated_at,
   }
@@ -399,6 +401,7 @@ app.get('/api/customers/:phone', async (c) => {
       lastName,
       email: latest.customer_email,
       notes: null,
+      locale: latest.locale === 'en' ? 'en' : 'es',
       createdAt: now,
       updatedAt: now,
     },
@@ -416,6 +419,7 @@ app.patch('/api/customers/:phone', async (c) => {
     lastName?: string
     email?: string | null
     notes?: string | null
+    locale?: 'es' | 'en'
   }>()
 
   try {
@@ -424,6 +428,7 @@ app.patch('/api/customers/:phone', async (c) => {
       lastName: body.lastName,
       email: body.email,
       notes: body.notes,
+      locale: body.locale,
     })
     return c.json({ customer: customerToJson(row) })
   } catch (err) {
@@ -533,6 +538,7 @@ app.post('/api/schedule/appointments', async (c) => {
     customerEmail?: string
     customerNotes?: string
     notes?: string
+    customerLocale?: 'es' | 'en'
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
@@ -558,6 +564,7 @@ app.post('/api/schedule/appointments', async (c) => {
       customerEmail: body.customerEmail,
       customerNotes: body.customerNotes,
       notes: body.notes,
+      customerLocale: body.customerLocale,
       forStaffPortal: true,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
@@ -582,6 +589,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     customerEmail?: string | null
     customerNotes?: string | null
     notes?: string | null
+    customerLocale?: 'es' | 'en'
     notifyCustomerWhatsApp?: boolean
   }>()
   try {

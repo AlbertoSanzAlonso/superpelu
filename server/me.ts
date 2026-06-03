@@ -133,6 +133,7 @@ me.post('/me/appointments', async (c) => {
     customerEmail?: string
     customerNotes?: string
     notes?: string
+    customerLocale?: 'es' | 'en'
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (!body.serviceId || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
@@ -143,6 +144,7 @@ me.post('/me/appointments', async (c) => {
       ...body,
       staffId: staff!.id,
       customerPhone: body.customerPhone ?? '',
+      customerLocale: body.customerLocale,
       forStaffPortal: true,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
@@ -166,6 +168,7 @@ me.patch('/me/appointments/:id', async (c) => {
     customerEmail?: string | null
     customerNotes?: string | null
     notes?: string | null
+    customerLocale?: 'es' | 'en'
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)

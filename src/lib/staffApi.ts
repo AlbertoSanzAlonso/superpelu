@@ -107,6 +107,7 @@ export function createMyAppointment(
     customerEmail?: string
     customerNotes?: string
     notes?: string
+    customerLocale?: 'es' | 'en'
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -128,6 +129,7 @@ export function updateMyAppointment(
     customerEmail: string | null
     customerNotes?: string | null
     notes: string | null
+    customerLocale?: 'es' | 'en'
   }>,
 ) {
   return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}`, token, {

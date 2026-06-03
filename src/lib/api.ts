@@ -205,6 +205,7 @@ export type AdminAppointmentPayload = {
   customerEmail?: string
   customerNotes?: string
   notes?: string
+  customerLocale?: 'es' | 'en'
   notifyCustomerWhatsApp?: boolean
 }
 
@@ -288,6 +289,7 @@ export function updateCustomer(
     lastName?: string
     email?: string | null
     notes?: string | null
+    locale?: 'es' | 'en'
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>(

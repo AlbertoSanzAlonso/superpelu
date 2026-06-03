@@ -8,6 +8,7 @@ import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorksp
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
 import { formatPhoneDisplay } from '@/lib/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Customer } from '@/types/customers'
@@ -92,6 +93,8 @@ export function CustomerHistoryPage() {
             <div className="min-w-0 flex-1">
               <p className="tabular-nums text-sm text-charcoal-muted">
                 {formatPhoneDisplay(customer.phone)}
+                <span className="mx-2 text-gold/40">·</span>
+                {customerLocaleLabel(customer.locale)}
               </p>
               {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
               {customer.notes?.trim() && (

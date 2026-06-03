@@ -3,6 +3,7 @@ import {
   formatCustomerDisplayName,
   splitCustomerName,
 } from '@/lib/customerName'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import { normalizePhone, isValidSpanishPhone } from '@/lib/phone'
 
 export type CustomerInput = {
@@ -11,6 +12,8 @@ export type CustomerInput = {
   phone: string
   email?: string | null
   notes?: string | null
+  /** Si se omite en actualización, se conserva el idioma guardado. */
+  locale?: Locale
 }
 
 export type PublicCustomer = {
@@ -19,6 +22,7 @@ export type PublicCustomer = {
   lastName: string
   email: string | null
   notes: string | null
+  locale: Locale
   appointmentCount: number
   lastAppointmentDate: string | null
   createdAt: string
@@ -32,6 +36,7 @@ function rowToPublic(row: CustomerRow, stats?: { count: number; lastDate: string
     lastName: row.last_name ?? '',
     email: row.email,
     notes: row.notes,
+    locale: normalizeLocale(row.locale),
     appointmentCount: stats?.count ?? 0,
     lastAppointmentDate: stats?.lastDate ?? null,
     createdAt: row.created_at,
@@ -70,15 +75,19 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   const now = new Date().toISOString()
   const email = input.email?.trim() || null
   const notes = input.notes?.trim() || null
+  const localeForInsert = normalizeLocale(input.locale ?? 'es')
+  const localeOnConflict =
+    input.locale !== undefined ? localeForInsert : sql`customers.locale`
 
   await sql`
-    INSERT INTO customers (phone, first_name, last_name, email, notes, created_at, updated_at)
-    VALUES (${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes}, ${now}, ${now})
+    INSERT INTO customers (phone, first_name, last_name, email, notes, locale, created_at, updated_at)
+    VALUES (${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes}, ${localeForInsert}, ${now}, ${now})
     ON CONFLICT (phone) DO UPDATE SET
       first_name = EXCLUDED.first_name,
       last_name = EXCLUDED.last_name,
       email = COALESCE(EXCLUDED.email, customers.email),
       notes = COALESCE(EXCLUDED.notes, customers.notes),
+      locale = ${localeOnConflict},
       updated_at = EXCLUDED.updated_at
   `
 
@@ -93,6 +102,7 @@ export type CustomerUpdateInput = {
   lastName?: string
   email?: string | null
   notes?: string | null
+  locale?: Locale
 }
 
 /** Actualiza ficha existente (el teléfono / PK no cambia). */
@@ -112,6 +122,8 @@ export async function updateCustomer(
   const lastName = input.lastName?.trim() ?? ''
   const email = input.email === undefined ? existing.email : input.email?.trim() || null
   const notes = input.notes === undefined ? existing.notes : input.notes?.trim() || null
+  const locale =
+    input.locale === undefined ? normalizeLocale(existing.locale) : normalizeLocale(input.locale)
   const now = new Date().toISOString()
 
   await sql`
@@ -120,6 +132,7 @@ export async function updateCustomer(
       last_name = ${lastName || null},
       email = ${email},
       notes = ${notes},
+      locale = ${locale},
       updated_at = ${now}
     WHERE phone = ${normalized}
   `

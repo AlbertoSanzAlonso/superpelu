@@ -4,6 +4,7 @@ export type CustomerRow = {
   last_name: string | null
   email: string | null
   notes: string | null
+  locale: string
   created_at: string
   updated_at: string
 }
