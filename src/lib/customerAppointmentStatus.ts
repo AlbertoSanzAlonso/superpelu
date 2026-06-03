@@ -1,10 +1,12 @@
 import { nowSalonMinutes, todaySalon } from '@/lib/dates'
+import { APPOINTMENT_STATUS_NO_SHOW } from '@/lib/appointmentNoShow'
 import type { Appointment } from '@/types/booking'
 
 export type CustomerAppointmentStatusFilter =
   | 'upcoming'
   | 'awaiting_arrival'
   | 'cancelled'
+  | 'no_show'
   | 'completed'
 
 export const CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS: {
@@ -14,8 +16,13 @@ export const CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS: {
   { value: 'upcoming', label: 'Pendientes' },
   { value: 'awaiting_arrival', label: 'Aún no ha llegado (hoy)' },
   { value: 'cancelled', label: 'Canceladas' },
+  { value: 'no_show', label: 'Inasistencias' },
   { value: 'completed', label: 'Realizadas' },
 ]
+
+/** Alias para listados de citas del salón (misma lógica que el historial por cliente). */
+export type AppointmentStatusFilter = CustomerAppointmentStatusFilter
+export const APPOINTMENT_STATUS_FILTER_OPTIONS = CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
@@ -34,6 +41,11 @@ export function getCustomerAppointmentStatusTags(
 
   if (apt.status === 'cancelled') {
     tags.add('cancelled')
+    return tags
+  }
+
+  if (apt.status === APPOINTMENT_STATUS_NO_SHOW) {
+    tags.add('no_show')
     return tags
   }
 
@@ -68,6 +80,7 @@ export function customerAppointmentStatusLabel(
   apt: Appointment,
 ): string | null {
   const tags = getCustomerAppointmentStatusTags(apt)
+  if (tags.has('no_show')) return 'Inasistencia'
   if (tags.has('cancelled')) return 'Cancelada'
   if (tags.has('awaiting_arrival')) return 'Aún no ha llegado'
   if (tags.has('upcoming')) return 'Pendiente'

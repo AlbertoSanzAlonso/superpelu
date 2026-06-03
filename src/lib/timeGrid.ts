@@ -22,6 +22,7 @@ export type TimeGridCell = {
   serviceId?: string
   blockId?: string
   colorGroupRole?: string | null
+  appointmentStatus?: string
 }
 
 function timeToMinutes(time: string): number {
@@ -99,6 +100,7 @@ export function buildStaffDayGrid(
         categoryId: apt.categoryId,
         serviceId: apt.serviceId,
         colorGroupRole: apt.colorGroupRole,
+        appointmentStatus: apt.status,
         title: isSegmentStart ? apt.customerName : undefined,
         subtitle: isSegmentStart && subtitleParts.length > 0 ? subtitleParts.join(' · ') : undefined,
         appointmentNotes: isSegmentStart ? apt.notes?.trim() || undefined : undefined,

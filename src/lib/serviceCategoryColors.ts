@@ -2,6 +2,7 @@ import {
   isColorGroupWashRow,
   WASH_COLOR_SERVICE_ID,
 } from '@/lib/bookingOccupancy'
+import { APPOINTMENT_STATUS_NO_SHOW } from '@/lib/appointmentNoShow'
 
 /**
  * Colores de citas en agenda — alineados con la app anterior (BUK).
@@ -94,14 +95,19 @@ export function resolveAgendaColorKey(
   return defaultKey
 }
 
+export function appointmentNoShowModifier(status?: string | null): string {
+  return status === APPOINTMENT_STATUS_NO_SHOW ? ' opacity-55 ring-1 ring-inset ring-charcoal/25' : ''
+}
+
 export function appointmentEventClass(
   categoryId: string | null | undefined,
   serviceId?: string | null,
   colorGroupRole?: string | null,
+  appointmentStatus?: string | null,
 ): string {
   const key = resolveAgendaColorKey(categoryId, serviceId, colorGroupRole)
   const washAccent = isColorGroupWashRow(colorGroupRole) ? ' border-dashed' : ''
-  return palettes[key].event + washAccent
+  return palettes[key].event + washAccent + appointmentNoShowModifier(appointmentStatus)
 }
 
 /** Barra sólida en modal de detalle de cita (estilo BUK). */

@@ -7,6 +7,7 @@ import {
 import {
   ApiError,
   cancelAppointment,
+  markAppointmentNoShow,
   createAdminAppointment,
   fetchAdminSlots,
   fetchCustomerDetail,
@@ -70,6 +71,9 @@ export function useAdminAgendaAppointments({
     'edit',
   )
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null)
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
+  const [noShowBusy, setNoShowBusy] = useState(false)
+  const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
 
@@ -328,6 +332,44 @@ export function useAdminAgendaAppointments({
     [setConfirmDialog],
   )
 
+  const closeNoShowDialog = useCallback(() => {
+    if (noShowBusy) return
+    setNoShowDialogOpen(false)
+    setPendingNoShowId(null)
+  }, [noShowBusy])
+
+  const persistNoShow = useCallback(
+    async (sendWhatsApp: boolean): Promise<boolean> => {
+      if (!pendingNoShowId || !adminToken) return false
+      setError('')
+      try {
+        await markAppointmentNoShow(pendingNoShowId, adminToken, { sendWhatsApp })
+        setNoShowDialogOpen(false)
+        setPendingNoShowId(null)
+        closeAppointmentDetail()
+        resetAppointmentForm()
+        await load()
+        return true
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo registrar la inasistencia')
+        return false
+      }
+    },
+    [
+      pendingNoShowId,
+      adminToken,
+      closeAppointmentDetail,
+      resetAppointmentForm,
+      load,
+      setError,
+    ],
+  )
+
+  const markNoShowById = useCallback((id: string) => {
+    setPendingNoShowId(id)
+    setNoShowDialogOpen(true)
+  }, [])
+
   const resetAppointmentUi = useCallback(() => {
     setActiveStaffId(null)
     setAppointmentFormOpen(false)
@@ -338,6 +380,8 @@ export function useAdminAgendaAppointments({
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
     setWhatsAppNotifyDialogOpen(false)
     setPendingCancelId(null)
+    setNoShowDialogOpen(false)
+    setPendingNoShowId(null)
   }, [])
 
   return {
@@ -374,6 +418,12 @@ export function useAdminAgendaAppointments({
     closeWhatsAppNotifyDialog,
     persistCancel,
     cancelAppointmentById,
+    noShowDialogOpen,
+    noShowBusy,
+    setNoShowBusy,
+    closeNoShowDialog,
+    persistNoShow,
+    markNoShowById,
     resetAppointmentUi,
     formSlotTime:
       appointmentFormOpen && !editingId && activeStaffId ? aptDraft.startTime || null : null,

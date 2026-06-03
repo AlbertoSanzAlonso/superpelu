@@ -22,6 +22,7 @@ import {
   notifyAppointmentCreated,
   notifyAppointmentCancelled,
   notifyAppointmentRescheduled,
+  notifyAppointmentNoShow,
 } from '@server/appointmentWhatsApp.js'
 import {
   notifyAdminAppointmentCancelled,
@@ -116,7 +117,8 @@ async function getOccupiedAppointmentsForStaffOnDate(
 ): Promise<AppointmentRow[]> {
   const rows = await query<AppointmentRow[]>`
     SELECT * FROM appointments
-    WHERE appointment_date = ${date} AND staff_id = ${staffId} AND status != 'cancelled'
+    WHERE appointment_date = ${date} AND staff_id = ${staffId}
+      AND status NOT IN ('cancelled', 'no_show')
     ORDER BY start_time ASC
   `
 
@@ -445,7 +447,7 @@ export async function updateAppointmentForStaff(
   input: UpdateAppointmentInput,
 ): Promise<AppointmentRow> {
   const existing = await getAppointmentById(appointmentId)
-  if (!existing || existing.status === 'cancelled') {
+  if (!existing || existing.status === 'cancelled' || existing.status === 'no_show') {
     throw new Error('CITA_NO_ENCONTRADA')
   }
   if (existing.staff_id !== staffId && input.staffId === undefined) {
@@ -734,7 +736,7 @@ export async function rescheduleAppointmentByCustomer(
   input: { date: string; startTime: string; staffId?: string },
 ): Promise<AppointmentRow> {
   const existing = await getAppointmentById(appointmentId)
-  if (!existing || existing.status === 'cancelled') {
+  if (!existing || existing.status === 'cancelled' || existing.status === 'no_show') {
     throw new Error('CITA_NO_ENCONTRADA')
   }
 
@@ -883,6 +885,37 @@ export async function cancelAppointment(
         console.error('Superpelu WhatsApp (cita cancelada):', err)
       })
     }
+  }
+  return row
+}
+
+export async function markAppointmentNoShow(
+  id: string,
+  options?: { sendWhatsApp?: boolean },
+): Promise<AppointmentRow | undefined> {
+  const existing = await getAppointmentById(id)
+  if (!existing) return undefined
+  if (existing.status === 'cancelled' || existing.status === 'no_show') {
+    return existing
+  }
+
+  if (existing.color_group_id) {
+    await sql`
+      UPDATE appointments SET status = 'no_show', reminder_sent_at = now()
+      WHERE color_group_id = ${existing.color_group_id}
+    `
+  } else {
+    await sql`
+      UPDATE appointments SET status = 'no_show', reminder_sent_at = now()
+      WHERE id = ${id}
+    `
+  }
+
+  const row = await getAppointmentById(id)
+  if (row && options?.sendWhatsApp) {
+    void notifyAppointmentNoShow(row).catch((err) => {
+      console.error('Superpelu WhatsApp (inasistencia):', err)
+    })
   }
   return row
 }

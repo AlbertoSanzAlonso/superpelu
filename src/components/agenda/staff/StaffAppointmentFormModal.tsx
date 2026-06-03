@@ -14,6 +14,9 @@ type Props = {
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
   onCancelAppointment?: () => void
+  onMarkNoShow?: () => void
+  canMarkNoShow?: boolean
+  isNoShow?: boolean
 }
 
 export function StaffAppointmentFormModal({
@@ -27,6 +30,9 @@ export function StaffAppointmentFormModal({
   onSubmit,
   onClose,
   onCancelAppointment,
+  onMarkNoShow,
+  canMarkNoShow,
+  isNoShow,
 }: Props) {
   if (!open) return null
 
@@ -80,6 +86,9 @@ export function StaffAppointmentFormModal({
             onSubmit={onSubmit}
             onClose={onClose}
             onCancelAppointment={onCancelAppointment}
+            onMarkNoShow={onMarkNoShow}
+            canMarkNoShow={canMarkNoShow}
+            isNoShow={isNoShow}
             hint={hint}
           />
         </div>

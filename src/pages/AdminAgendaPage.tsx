@@ -3,6 +3,7 @@ import { AdminAppointmentToastStack } from '@/components/agenda/admin/AdminAppoi
 import type { AdminAppointmentNotificationItem } from '@/lib/adminAppointmentNotifications'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
+import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
@@ -411,6 +412,7 @@ export function AdminAgendaPage() {
           onSubmit={agenda.saveAppointment}
           onClose={agenda.closeAppointmentDetail}
           onCancelAppointment={() => agenda.cancelAppointmentById(agenda.viewingAppointment!.apt.id)}
+          onMarkNoShow={() => agenda.markNoShowById(agenda.viewingAppointment!.apt.id)}
           showCustomerHistory
           adminToken={adminToken}
         />
@@ -437,6 +439,14 @@ export function AdminAgendaPage() {
         onClose={agenda.closeWhatsAppNotifyDialog}
         onNotify={agenda.confirmSaveWithWhatsAppNotify}
         onSaveWithoutNotify={agenda.confirmSaveWithoutWhatsAppNotify}
+      />
+
+      <NoShowContactDialog
+        open={agenda.noShowDialogOpen}
+        busy={agenda.noShowBusy}
+        onClose={agenda.closeNoShowDialog}
+        onMarkContacted={agenda.confirmNoShowWithoutWhatsApp}
+        onSendWhatsApp={agenda.confirmNoShowWithWhatsApp}
       />
 
       <AdminAppointmentToastStack

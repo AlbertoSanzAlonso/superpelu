@@ -12,6 +12,10 @@ import { formatDisplayDate } from '@/lib/dates'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import { COLOR_GROUP_ROLE, isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import {
+  APPOINTMENT_STATUS_NO_SHOW,
+  canMarkAppointmentNoShow,
+} from '@/lib/appointmentNoShow'
 import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
 import type { BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -37,6 +41,7 @@ type Props = {
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
   onCancelAppointment?: () => void
+  onMarkNoShow?: () => void
   /** Historial de citas del cliente (solo administración). */
   showCustomerHistory?: boolean
   adminToken?: string
@@ -367,9 +372,15 @@ export function AgendaAppointmentModal({
   onSubmit,
   onClose,
   onCancelAppointment,
+  onMarkNoShow,
   showCustomerHistory = false,
   adminToken,
 }: Props) {
+  const appointmentStatus = appointment.status ?? 'confirmed'
+  const showNoShowAction =
+    onMarkNoShow &&
+    canMarkAppointmentNoShow(date, appointment.startTime, appointmentStatus)
+  const isNoShow = appointmentStatus === APPOINTMENT_STATUS_NO_SHOW
   const createdLabel = useMemo(() => {
     if (!appointment.createdAt) return null
     return new Date(appointment.createdAt).toLocaleString('es-ES', {
@@ -403,6 +414,9 @@ export function AgendaAppointmentModal({
           <div>
             <h2 id="agenda-apt-modal-title" className={`${typography.h3} text-gold`}>
               Cita
+              {isNoShow && (
+                <span className="ml-2 text-sm font-normal text-charcoal-muted">· Inasistencia</span>
+              )}
             </h2>
             {createdLabel && (
               <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
@@ -453,6 +467,11 @@ export function AgendaAppointmentModal({
               <Button type="button" variant="solid" size="sm" onClick={() => onModeChange('edit')}>
                 Editar
               </Button>
+              {showNoShowAction && (
+                <Button type="button" variant="outline" size="sm" onClick={onMarkNoShow}>
+                  Inasistencia
+                </Button>
+              )}
               {onCancelAppointment && (
                 <button
                   type="button"

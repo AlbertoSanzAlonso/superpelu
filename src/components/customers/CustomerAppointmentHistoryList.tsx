@@ -71,9 +71,11 @@ export function CustomerAppointmentHistoryList({
                     className={`${typography.caption} mt-0.5 ${
                       apt.status === 'cancelled'
                         ? 'text-charcoal-muted line-through'
-                        : statusLabel === 'Pendiente' || statusLabel === 'Aún no ha llegado'
-                          ? 'text-gold'
-                          : 'text-charcoal-muted'
+                        : apt.status === 'no_show'
+                          ? 'text-amber-900/80'
+                          : statusLabel === 'Pendiente' || statusLabel === 'Aún no ha llegado'
+                            ? 'text-gold'
+                            : 'text-charcoal-muted'
                     }`}
                   >
                     {statusLabel}

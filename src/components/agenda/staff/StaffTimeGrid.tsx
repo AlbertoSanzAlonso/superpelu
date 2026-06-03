@@ -28,7 +28,7 @@ const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, strin
 }
 
 function appointmentCellClass(cell: TimeGridCell): string {
-  return `${appointmentEventClass(cell.categoryId, cell.serviceId, cell.colorGroupRole)} cursor-pointer hover:brightness-[0.97]`
+  return `${appointmentEventClass(cell.categoryId, cell.serviceId, cell.colorGroupRole, cell.appointmentStatus)} cursor-pointer hover:brightness-[0.97]`
 }
 
 function findAppointment(schedule: StaffDaySchedule, id: string) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import {
+  customerAppointmentStatusLabel,
   matchesCustomerAppointmentStatusFilter,
   type CustomerAppointmentStatusFilter,
 } from '@/lib/customerAppointmentStatus'
@@ -35,6 +36,7 @@ function matchesTextQuery(apt: Appointment, query: string): boolean {
     apt.notes ?? '',
     apt.date,
     apt.status,
+    customerAppointmentStatusLabel(apt) ?? '',
   ]
     .join(' ')
     .toLowerCase()

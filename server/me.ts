@@ -2,8 +2,10 @@ import { Hono } from 'hono'
 import {
   createAppointment,
   deleteAppointmentForStaff,
+  getAppointmentById,
   getAvailableSlots,
   listAppointmentsForStaff,
+  markAppointmentNoShow,
   rowToPublic,
   updateAppointmentForStaff,
 } from '@server/appointments.js'
@@ -172,6 +174,23 @@ me.patch('/me/appointments/:id', async (c) => {
     const code = err instanceof Error ? err.message : 'ERROR'
     return c.json({ error: errorMessages[code] ?? 'No se pudo actualizar' }, 409)
   }
+})
+
+me.patch('/me/appointments/:id/no-show', async (c) => {
+  const { error, staff } = await requireStaff(c)
+  if (error) return error
+  const existing = await getAppointmentById(c.req.param('id'))
+  if (!existing || existing.staff_id !== staff!.id) {
+    return c.json({ error: 'Cita no encontrada' }, 404)
+  }
+  const body = await c.req.json().catch(() => ({}))
+  const sendWhatsApp =
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { sendWhatsApp?: boolean }).sendWhatsApp === true
+  const row = await markAppointmentNoShow(c.req.param('id'), { sendWhatsApp })
+  if (!row) return c.json({ error: 'Cita no encontrada' }, 404)
+  return c.json({ appointment: rowToPublic(row) })
 })
 
 me.delete('/me/appointments/:id', async (c) => {

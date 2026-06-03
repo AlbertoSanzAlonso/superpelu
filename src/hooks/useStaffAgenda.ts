@@ -8,6 +8,7 @@ import {
   createMyAppointment,
   createMyBlock,
   deleteMyAppointment,
+  markMyAppointmentNoShow,
   deleteMyBlock,
   fetchMyBlockSeries,
   fetchMySchedule,
@@ -49,6 +50,9 @@ export function useStaffAgenda(token: string) {
 
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
+  const [noShowBusy, setNoShowBusy] = useState(false)
+  const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -246,6 +250,37 @@ export function useStaffAgenda(token: string) {
     [aptDraft, date, editingId, load, resetAppointmentForm, token],
   )
 
+  const closeNoShowDialog = useCallback(() => {
+    if (noShowBusy) return
+    setNoShowDialogOpen(false)
+    setPendingNoShowId(null)
+  }, [noShowBusy])
+
+  const persistNoShow = useCallback(
+    async (sendWhatsApp: boolean) => {
+      if (!pendingNoShowId) return
+      setError('')
+      setNoShowBusy(true)
+      try {
+        await markMyAppointmentNoShow(token, pendingNoShowId, { sendWhatsApp })
+        setNoShowDialogOpen(false)
+        setPendingNoShowId(null)
+        resetAppointmentForm()
+        await load()
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo registrar la inasistencia')
+      } finally {
+        setNoShowBusy(false)
+      }
+    },
+    [pendingNoShowId, token, resetAppointmentForm, load],
+  )
+
+  const markNoShowById = useCallback((id: string) => {
+    setPendingNoShowId(id)
+    setNoShowDialogOpen(true)
+  }, [])
+
   const removeAppointment = useCallback(
     (id: string, onSuccess?: () => void) => {
       confirmUi.setConfirmDialog({
@@ -304,6 +339,11 @@ export function useStaffAgenda(token: string) {
     createAppointmentFromGridSelection,
     gridActionsBusy,
     removeAppointment,
+    markNoShowById,
+    noShowDialogOpen,
+    noShowBusy,
+    closeNoShowDialog,
+    persistNoShow,
     resetAppointmentForm,
     confirmDialog: confirmUi.confirmDialog,
     confirmBusy: confirmUi.confirmBusy,

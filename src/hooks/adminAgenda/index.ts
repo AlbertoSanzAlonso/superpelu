@@ -67,6 +67,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     appointments.detailEditMode ||
     appointments.whatsAppNotifyDialogOpen ||
     appointments.whatsAppNotifyBusy ||
+    appointments.noShowDialogOpen ||
+    appointments.noShowBusy ||
     blocks.blockModalOpen ||
     blocks.unblockModal != null ||
     blocks.blockDetailBusy ||
@@ -200,6 +202,26 @@ export function useAdminAgenda(adminToken: string, date: string) {
     confirmSaveWithWhatsAppNotify,
     confirmSaveWithoutWhatsAppNotify,
     cancelAppointmentById: appointments.cancelAppointmentById,
+    noShowDialogOpen: appointments.noShowDialogOpen,
+    noShowBusy: appointments.noShowBusy,
+    closeNoShowDialog: appointments.closeNoShowDialog,
+    markNoShowById: appointments.markNoShowById,
+    confirmNoShowWithWhatsApp: async () => {
+      appointments.setNoShowBusy(true)
+      try {
+        await appointments.persistNoShow(true)
+      } finally {
+        appointments.setNoShowBusy(false)
+      }
+    },
+    confirmNoShowWithoutWhatsApp: async () => {
+      appointments.setNoShowBusy(true)
+      try {
+        await appointments.persistNoShow(false)
+      } finally {
+        appointments.setNoShowBusy(false)
+      }
+    },
     viewingBlock: blocks.viewingBlock,
     viewingBlockSeries: blocks.viewingBlockSeries,
     viewingBlockSeriesLoading: blocks.viewingBlockSeriesLoading,

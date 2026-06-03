@@ -57,6 +57,7 @@ export type DayScheduleAppointment = {
   customerPhone: string
   customerEmail: string | null
   notes: string | null
+  status: string
   createdAt: string
   occupiedSlots: { startTime: string; endTime: string }[]
   colorGroupId: string | null
@@ -138,6 +139,7 @@ export async function getStaffDaySchedule(
       customerPhone: row.customer_phone,
       customerEmail: row.customer_email,
       notes: row.notes,
+      status: row.status,
       createdAt: row.created_at,
       occupiedSlots,
       colorGroupId: row.color_group_id,
@@ -154,6 +156,7 @@ export async function getStaffDaySchedule(
   ) {
     const slotSegment = { startMinutes: start, durationMinutes: schedule.slotMinutes }
     const blockedByApt = occupied.some((apt) => {
+      if (apt.status === 'no_show') return false
       const aptSegments = getOccupiedSegmentsForAppointment(
         apt.service_id,
         timeToMinutes(apt.start_time),

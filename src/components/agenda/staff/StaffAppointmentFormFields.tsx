@@ -18,6 +18,9 @@ type Props = {
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
   onCancelAppointment?: () => void
+  onMarkNoShow?: () => void
+  canMarkNoShow?: boolean
+  isNoShow?: boolean
   hint?: string
   /** Layout más denso para modal en escritorio (sin scroll). */
   compact?: boolean
@@ -32,6 +35,9 @@ export function StaffAppointmentFormFields({
   onSubmit,
   onClose,
   onCancelAppointment,
+  onMarkNoShow,
+  canMarkNoShow = false,
+  isNoShow = false,
   hint,
   compact = false,
 }: Props) {
@@ -161,10 +167,19 @@ export function StaffAppointmentFormFields({
         className={compact ? fieldCompact : undefined}
       />
 
+      {isNoShow && (
+        <p className={`${typography.caption} text-charcoal-muted`}>Inasistencia registrada</p>
+      )}
+
       <div className="flex flex-wrap gap-2 pt-0.5">
-        <Button type="submit" variant="solid" size="sm" disabled={services.length === 0}>
+        <Button type="submit" variant="solid" size="sm" disabled={services.length === 0 || isNoShow}>
           {editingId ? 'Guardar cambios' : 'Confirmar cita'}
         </Button>
+        {editingId && canMarkNoShow && onMarkNoShow && (
+          <Button type="button" variant="outline" size="sm" onClick={onMarkNoShow}>
+            Inasistencia
+          </Button>
+        )}
         {editingId && onCancelAppointment && (
           <Button
             type="button"

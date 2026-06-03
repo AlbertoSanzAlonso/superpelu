@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
+import { canMarkAppointmentNoShow, APPOINTMENT_STATUS_NO_SHOW } from '@/lib/appointmentNoShow'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
@@ -31,6 +33,11 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
   }, [agenda.schedule, agenda.date, agenda.selectedGridTimes])
 
   const appointmentCount = agenda.schedule?.appointments.length ?? 0
+
+  const editingAppointment = useMemo(
+    () => agenda.schedule?.appointments.find((a) => a.id === agenda.editingId) ?? null,
+    [agenda.schedule, agenda.editingId],
+  )
 
   function closeAppointmentForm() {
     setAppointmentFormOpen(false)
@@ -134,6 +141,27 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
             ? () => agenda.removeAppointment(agenda.editingId!, closeAppointmentForm)
             : undefined
         }
+        onMarkNoShow={
+          agenda.editingId ? () => agenda.markNoShowById(agenda.editingId!) : undefined
+        }
+        canMarkNoShow={
+          editingAppointment
+            ? canMarkAppointmentNoShow(
+                agenda.date,
+                editingAppointment.startTime,
+                editingAppointment.status,
+              )
+            : false
+        }
+        isNoShow={editingAppointment?.status === APPOINTMENT_STATUS_NO_SHOW}
+      />
+
+      <NoShowContactDialog
+        open={agenda.noShowDialogOpen}
+        busy={agenda.noShowBusy}
+        onClose={agenda.closeNoShowDialog}
+        onMarkContacted={() => void agenda.persistNoShow(false)}
+        onSendWhatsApp={() => void agenda.persistNoShow(true)}
       />
 
       <BlockCreateNoteModal

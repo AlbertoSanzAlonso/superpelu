@@ -140,6 +140,19 @@ export function deleteMyAppointment(token: string, id: string) {
   return staffRequest<{ ok: true }>(`/me/appointments/${id}`, token, { method: 'DELETE' })
 }
 
+export function markMyAppointmentNoShow(
+  token: string,
+  id: string,
+  options?: { sendWhatsApp?: boolean },
+) {
+  return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}/no-show`, token, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      sendWhatsApp: options?.sendWhatsApp === true,
+    }),
+  })
+}
+
 export function fetchMyBlocks(token: string, from: string, to: string) {
   const params = new URLSearchParams({ from, to })
   return staffRequest<{ blocks: TimeBlock[] }>(`/me/blocks?${params}`, token).then((r) => ({

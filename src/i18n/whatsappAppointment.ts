@@ -7,7 +7,7 @@ import { appointmentLocale } from './localeHelpers'
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
 
-type MessageKind = 'confirmation' | 'rescheduled' | 'reminder' | 'cancelled'
+type MessageKind = 'confirmation' | 'rescheduled' | 'reminder' | 'cancelled' | 'no_show'
 
 export function buildWhatsAppAppointmentMessage(
   row: AppointmentRow,
@@ -25,7 +25,9 @@ export function buildWhatsAppAppointmentMessage(
         ? wa.rescheduledHeading
         : kind === 'reminder'
           ? wa.reminderHeading
-          : wa.cancelledHeading
+          : kind === 'no_show'
+            ? wa.noShowHeading
+            : wa.cancelledHeading
 
   const dateLabel = formatDisplayDate(row.appointment_date, locale)
   const timeRange = formatAppointmentTimeRange(
@@ -47,11 +49,13 @@ export function buildWhatsAppAppointmentMessage(
     wa.withStaff(row.staff_name ?? 'Superpelu'),
   ]
 
-  if (kind === 'cancelled') {
+  if (kind === 'cancelled' || kind === 'no_show') {
+    const rebookLabel = kind === 'no_show' ? wa.noShowRebookLabel : wa.bookAgainLabel
     if (options?.bookingUrl) {
-      lines.push('', `${wa.bookAgainLabel} ${options.bookingUrl}`)
+      lines.push('', `${rebookLabel} ${options.bookingUrl}`)
     }
-    lines.push('', `📍 ${SALON_ADDRESS}`, `📞 ${SALON_PHONE}`, '', wa.closingThanks)
+    const closing = kind === 'no_show' ? wa.closingNoShow : wa.closingThanks
+    lines.push('', `📍 ${SALON_ADDRESS}`, `📞 ${SALON_PHONE}`, '', closing)
     return lines.join('\n')
   }
 

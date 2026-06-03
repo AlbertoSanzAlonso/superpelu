@@ -13,6 +13,7 @@ import {
   createAppointment,
   deleteAppointmentById,
   getAppointmentById,
+  markAppointmentNoShow,
   getAvailableSlots,
   getServiceDaySlots,
   getStaffAvailableAtSlot,
@@ -679,6 +680,26 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
     (body as { notifyCustomerWhatsApp?: boolean }).notifyCustomerWhatsApp === true
 
   const row = await cancelAppointment(c.req.param('id'), { notifyCustomer })
+  if (!row) {
+    return c.json({ error: 'Cita no encontrada' }, 404)
+  }
+
+  return c.json({ appointment: rowToPublic(row) })
+})
+
+app.patch('/api/appointments/:id/no-show', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) {
+    return c.json({ error: 'No autorizado' }, 401)
+  }
+
+  const body = await c.req.json().catch(() => ({}))
+  const sendWhatsApp =
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { sendWhatsApp?: boolean }).sendWhatsApp === true
+
+  const row = await markAppointmentNoShow(c.req.param('id'), { sendWhatsApp })
   if (!row) {
     return c.json({ error: 'Cita no encontrada' }, 404)
   }

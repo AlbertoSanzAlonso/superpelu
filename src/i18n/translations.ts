@@ -319,11 +319,15 @@ const es = {
     rescheduledHeading: 'Tu cita en *Superpelu* ha sido *reprogramada*:',
     reminderHeading: 'Te recordamos tu cita de mañana en *Superpelu*:',
     cancelledHeading: 'Tu cita en *Superpelu* ha sido *cancelada*:',
+    noShowHeading:
+      'Tenías una cita en *Superpelu* y no hemos podido verte. Te echamos de menos y nos preocupa por si te hubiera pasado algo:',
     withStaff: (name: string) => `👤 Con ${name}`,
     manageLinkLabel: '📋 Cancelar / modificar cita:',
     bookAgainLabel: 'Reservar otra cita:',
+    noShowRebookLabel: 'Si quieres reservar de nuevo:',
     closingConfirmed: '¡Te esperamos!',
     closingThanks: '¡Gracias!',
+    closingNoShow: 'Cuídate. Estamos aquí cuando quieras.',
   },
   customerPages: {
     metaDescription: 'Gestiona o cancela tu cita en Superpelu Hair Studio.',
@@ -803,11 +807,15 @@ const en = {
     rescheduledHeading: 'Your appointment at *Superpelu* has been *rescheduled*:',
     reminderHeading: 'Reminder: your appointment tomorrow at *Superpelu*:',
     cancelledHeading: 'Your appointment at *Superpelu* has been *cancelled*:',
+    noShowHeading:
+      'You had an appointment at *Superpelu* and we missed you. We are worried in case something happened:',
     withStaff: (name: string) => `👤 With ${name}`,
     manageLinkLabel: '📋 Cancel or change appointment:',
     bookAgainLabel: 'Book another appointment:',
+    noShowRebookLabel: 'To book again:',
     closingConfirmed: 'We look forward to seeing you!',
     closingThanks: 'Thank you!',
+    closingNoShow: 'Take care. We are here whenever you need us.',
   },
   customerPages: {
     metaDescription: 'Manage or cancel your appointment at Superpelu Hair Studio.',

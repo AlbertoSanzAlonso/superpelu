@@ -148,6 +148,20 @@ export function cancelAppointment(
   })
 }
 
+export function markAppointmentNoShow(
+  id: string,
+  adminToken: string,
+  options?: { sendWhatsApp?: boolean },
+) {
+  return request<{ appointment: Appointment }>(`/appointments/${id}/no-show`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${adminToken}` },
+    body: JSON.stringify({
+      sendWhatsApp: options?.sendWhatsApp === true,
+    }),
+  })
+}
+
 export function deleteAppointment(id: string, adminToken: string) {
   return request<{ ok: true }>(`/appointments/${id}`, {
     method: 'DELETE',

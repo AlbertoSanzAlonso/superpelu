@@ -69,6 +69,7 @@ export type DayScheduleAppointment = {
   customerPhone: string
   customerEmail: string | null
   notes: string | null
+  status: string
   createdAt: string
   occupiedSlots: AppointmentOccupiedSlot[]
   colorGroupId?: string | null

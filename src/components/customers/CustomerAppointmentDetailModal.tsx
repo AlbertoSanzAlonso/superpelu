@@ -17,6 +17,7 @@ type Props = {
 
 function statusLabel(status: string): string {
   if (status === 'cancelled') return 'Cancelada'
+  if (status === 'no_show') return 'Inasistencia'
   if (status === 'confirmed' || status === 'active') return 'Confirmada'
   return status
 }
