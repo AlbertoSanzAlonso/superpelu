@@ -6,6 +6,7 @@ import { Logo } from '@/components/ui/Logo'
 import { Divider } from '@/components/ui/Divider'
 import { SocialIcon } from '@/components/ui/SocialIcon'
 import { typography } from '@/styles/typography'
+import { PhoneIcon, MailIcon } from '@/components/ui/Icons'
 
 export function Footer() {
   const { t, locale } = useTranslation()
@@ -22,16 +23,34 @@ export function Footer() {
     <footer className="border-t border-gold/20 bg-cream-footer section-padding py-12">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 text-center">
         <Logo size="sm" variant="footer" />
-        <p className={`${typography.body} max-w-md`}>{brand.address}</p>
-        <p className={typography.caption}>
-          <a href={brand.phoneHref} className="hover:text-gold">
-            {brand.phone}
+        
+        <div className="flex flex-col items-center gap-3">
+          <a
+            href={brand.maps}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-sans text-xs sm:text-sm font-light tracking-wide text-charcoal-muted hover:text-gold transition-colors text-center max-w-md px-4"
+          >
+            {brand.address}
           </a>
-          {' · '}
-          <a href={`mailto:${brand.email}`} className="hover:text-gold">
-            {brand.email}
-          </a>
-        </p>
+          
+          <div className="flex flex-col items-center gap-1.5">
+            <a
+              href={brand.phoneHref}
+              className="inline-flex items-center gap-1.5 font-sans text-xs sm:text-sm font-light tracking-wide text-charcoal-muted hover:text-gold transition-colors uppercase whitespace-nowrap"
+            >
+              <PhoneIcon className="h-3.5 w-3.5 text-gold shrink-0" />
+              <span>{brand.phone}</span>
+            </a>
+            <a
+              href={`mailto:${brand.email}`}
+              className="inline-flex items-center gap-1.5 font-sans text-xs sm:text-sm font-light tracking-wide text-charcoal-muted hover:text-gold transition-colors uppercase whitespace-nowrap"
+            >
+              <MailIcon className="h-3.5 w-3.5 text-gold shrink-0" />
+              <span>{brand.email}</span>
+            </a>
+          </div>
+        </div>
 
         <nav className="flex flex-wrap justify-center gap-6" aria-label={t.footer.footerNavAria}>
           {navLinks.map((link) => (

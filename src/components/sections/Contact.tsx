@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/useTranslation'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
+import { PhoneIcon, WhatsAppIcon, CalendarIcon } from '@/components/ui/Icons'
 
 export function Contact() {
   const { t, locale } = useTranslation()
@@ -16,7 +17,35 @@ export function Contact() {
       eyebrow={t.contactSection.eyebrow}
       scriptAccent={t.contactSection.scriptAccent}
       title={t.contactSection.title}
-      subtitle={t.contactSection.subtitle}
+      subtitle={
+        locale === 'es' ? (
+          <>
+            Reserva online, llámanos o escríbenos por WhatsApp. Estamos en{' '}
+            <a
+              href={brand.maps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-gold transition-colors"
+            >
+              Av. las Palmeras, Arroyo de la Miel
+            </a>
+            .
+          </>
+        ) : (
+          <>
+            Book online, call us or message us on WhatsApp. We're on{' '}
+            <a
+              href={brand.maps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-gold transition-colors"
+            >
+              Av. las Palmeras, Arroyo de la Miel
+            </a>
+            .
+          </>
+        )
+      }
       className="bg-cream-dark"
     >
       <div className="mb-12 grid gap-6 md:grid-cols-3">
@@ -25,6 +54,11 @@ export function Contact() {
             key={option.id}
             className="flex flex-col border border-gold/20 bg-cream p-8 text-center"
           >
+            <div className="mb-4 flex justify-center text-gold">
+              {option.id === 'online' && <CalendarIcon className="h-8 w-8" />}
+              {option.id === 'phone' && <PhoneIcon className="h-8 w-8" />}
+              {option.id === 'whatsapp' && <WhatsAppIcon className="h-8 w-8" />}
+            </div>
             <h3 className={`${typography.h3} mb-2 text-gold`}>{option.title}</h3>
             <p className={`${typography.body} mb-6 flex-1`}>{option.description}</p>
             <Button href={option.href} variant="outline" size="md">
@@ -39,8 +73,9 @@ export function Contact() {
           <ContactRow label={t.contactSection.phone}>
             <a
               href={brand.phoneHref}
-              className="font-serif text-lg text-gold transition-colors hover:text-gold-dark"
+              className="inline-flex items-center gap-2 font-serif text-lg text-gold transition-colors hover:text-gold-dark"
             >
+              <PhoneIcon className="h-5 w-5 text-gold/80" />
               {brand.phone}
             </a>
           </ContactRow>
@@ -48,10 +83,11 @@ export function Contact() {
           <ContactRow label={t.common.whatsapp}>
             <a
               href={whatsappUrl(locale)}
-              className="font-serif text-lg text-gold transition-colors hover:text-gold-dark"
+              className="inline-flex items-center gap-2 font-serif text-lg text-gold transition-colors hover:text-gold-dark"
               target="_blank"
               rel="noopener noreferrer"
             >
+              <WhatsAppIcon className="h-5 w-5 text-gold/80" />
               604 808 312
             </a>
           </ContactRow>
@@ -66,7 +102,14 @@ export function Contact() {
           </ContactRow>
 
           <ContactRow label={t.contactSection.location}>
-            <p className={typography.body}>{brand.address}</p>
+            <a
+              href={brand.maps}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-sans text-xs sm:text-sm font-light leading-relaxed text-charcoal-muted hover:text-gold transition-colors whitespace-normal sm:whitespace-nowrap text-center max-w-full px-4 min-w-0"
+            >
+              {brand.address}
+            </a>
             <a
               href={brand.maps}
               className={`${typography.label} mt-3 inline-block hover:text-gold-dark`}
@@ -83,6 +126,7 @@ export function Contact() {
             {t.nav.bookAppointmentOnline}
           </Button>
           <Button href={whatsappUrl(locale)} variant="outline" size="lg">
+            <WhatsAppIcon className="mr-2 h-5 w-5" />
             {t.common.whatsapp}
           </Button>
         </div>
@@ -99,7 +143,7 @@ function ContactRow({
   children: ReactNode
 }) {
   return (
-    <div>
+    <div className="flex flex-col items-center">
       <p className={`${typography.label} mb-1`}>{label}</p>
       {children}
     </div>

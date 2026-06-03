@@ -55,7 +55,20 @@ export function Studio() {
         </div>
       </Section>
 
-      <Section title={t.studioSection.mapsTitle} subtitle={brand.address} dark>
+      <Section
+        title={t.studioSection.mapsTitle}
+        subtitle={
+          <a
+            href={brand.maps}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-gold-light transition-colors text-xs sm:text-sm whitespace-normal sm:whitespace-nowrap text-center max-w-full px-4 inline-block min-w-0"
+          >
+            {brand.address}
+          </a>
+        }
+        dark
+      >
         <div className="ui-rounded relative aspect-[4/3] w-full overflow-hidden ring-1 ring-gold/20 md:aspect-[16/9]">
           <iframe
             src={brand.mapsEmbed}
