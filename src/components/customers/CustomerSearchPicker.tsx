@@ -85,7 +85,8 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
         <input
           type="search"
           value={query}
-          disabled={disabled || loading}
+          disabled={disabled}
+          aria-busy={loading}
           placeholder="Nombre o teléfono…"
           onFocus={() => setOpen(true)}
           onChange={(e) => {
