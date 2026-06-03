@@ -59,13 +59,13 @@ function StaffInitial({ name }: { name: string }) {
 function TimeGutter({ range }: { range: CalendarDayRange }) {
   return (
     <div
-      className="w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20"
+      className="relative z-10 w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream"
       style={{ height: range.totalHeightPx }}
     >
       {range.timeLabels.map((time) => (
         <div
           key={time}
-          className={`${typography.caption} flex items-start justify-end overflow-visible whitespace-nowrap border-b border-gold/10 pr-2 pt-0.5 tabular-nums`}
+          className={`${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap border-b border-gold/10 bg-cream pr-2 pt-0.5 tabular-nums`}
           style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
         >
           {time}
@@ -427,9 +427,9 @@ export function AdminSalonDayCalendar({
     >
       <div className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream">
         <div className="flex min-w-max">
-          <div className="sticky left-0 z-20 shrink-0 bg-cream">
+          <div className="sticky left-0 z-40 isolate shrink-0 bg-cream">
             <div
-              className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
               aria-hidden
             />
             <TimeGutter range={range} />
