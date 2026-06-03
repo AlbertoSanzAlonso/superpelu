@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
 import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
-import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatPhoneDisplay } from '@/lib/phone'
@@ -66,20 +65,7 @@ export function AppointmentCustomerEntry({
   if (mode === 'search') {
     return (
       <div className="space-y-3">
-        <div className="flex items-end gap-2">
-          <div className="min-w-0 flex-1">
-            <CustomerSearchPicker adminToken={adminToken} onSelect={selectExisting} />
-          </div>
-          <button
-            type="button"
-            onClick={openManual}
-            className="flex h-[34px] w-[34px] shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream text-xl leading-none text-gold transition-colors hover:border-gold hover:bg-gold/10"
-            aria-label="Cliente nuevo"
-            title="Cliente nuevo"
-          >
-            +
-          </button>
-        </div>
+        <CustomerSearchPicker adminToken={adminToken} onSelect={selectExisting} />
         {hasSelection && (
           <p className={`${typography.caption} rounded border border-gold/20 bg-charcoal/[0.04] px-3 py-2 text-charcoal`}>
             <span className="font-medium">{selectedLabel || 'Cliente'}</span>
@@ -91,11 +77,14 @@ export function AppointmentCustomerEntry({
             )}
           </p>
         )}
-        <CustomerLocaleSelect
-          compact
-          value={draft.customerLocale}
-          onChange={(locale) => onDraftChange({ customerLocale: locale })}
-        />
+        <button
+          type="button"
+          onClick={openManual}
+          className={`${typography.caption} flex w-full cursor-pointer items-center justify-center gap-1 border border-gold/30 bg-cream px-3 py-2 text-charcoal transition-colors hover:border-gold hover:bg-gold/10`}
+        >
+          <span className="text-base leading-none text-gold">+</span>
+          Añadir cliente nuevo
+        </button>
       </div>
     )
   }
