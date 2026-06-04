@@ -25,7 +25,16 @@ import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
 } from '@/lib/pendingAppointmentMoves'
-import { formatWorkWindowsLabel } from '@/lib/scheduleHours'
+import { dayOfWeekFromDateString } from '@/lib/dates'
+import { salonWindowsForDayOfWeek } from '@/data/schedule'
+import {
+  agendaClosedSlotClassName,
+  agendaOpenSlotClassName,
+  formatWorkWindowsLabel,
+  rangesToWorkWindows,
+  slotStartInWorkWindows,
+  type WorkTimeWindow,
+} from '@/lib/scheduleHours'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -57,35 +66,50 @@ function StaffInitial({ name }: { name: string }) {
   )
 }
 
-function TimeGutter({ range }: { range: CalendarDayRange }) {
+function TimeGutter({ range, windows }: { range: CalendarDayRange; windows: WorkTimeWindow[] }) {
   return (
     <div
       className="relative z-10 w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px]"
       style={{ height: range.totalHeightPx }}
     >
-      {range.timeLabels.map((time) => (
-        <div
-          key={time}
-          className={`${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap border-b border-gold/10 bg-cream/25 pr-2 pt-0.5 tabular-nums backdrop-blur-[1px]`}
-          style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
-        >
-          {time}
-        </div>
-      ))}
+      {range.timeLabels.map((time) => {
+        const closed = !slotStartInWorkWindows(time, range.slotMinutes, windows)
+        return (
+          <div
+            key={time}
+            className={[
+              `${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap pr-2 pt-0.5 tabular-nums backdrop-blur-[1px]`,
+              closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10 bg-cream/25',
+            ].join(' ')}
+            style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
+          >
+            {time}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-function ColumnGrid({ range }: { range: CalendarDayRange }) {
+function ColumnGrid({
+  range,
+  windows,
+}: {
+  range: CalendarDayRange
+  windows: WorkTimeWindow[]
+}) {
   return (
     <>
-      {range.timeLabels.map((time) => (
-        <div
-          key={time}
-          className="border-b border-gold/10 bg-[repeating-linear-gradient(-45deg,transparent,transparent_4px,rgba(201,169,98,0.04)_4px,rgba(201,169,98,0.04)_8px)]"
-          style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
-        />
-      ))}
+      {range.timeLabels.map((time) => {
+        const closed = !slotStartInWorkWindows(time, range.slotMinutes, windows)
+        return (
+          <div
+            key={time}
+            className={closed ? agendaClosedSlotClassName : agendaOpenSlotClassName}
+            style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
+          />
+        )
+      })}
     </>
   )
 }
@@ -122,11 +146,15 @@ function SlotLayer({
           cell.status === 'free' &&
           !isSelected
 
+        if (cell.status === 'closed') {
+          return null
+        }
+
         if (cell.status === 'past') {
           return (
             <div
               key={cell.time}
-              className="absolute inset-x-0 bg-charcoal/[0.03]"
+              className="pointer-events-none absolute inset-x-0 z-[14] bg-charcoal/[0.06]"
               style={{
                 top: eventTopPx(cell.time, range),
                 height: CALENDAR_SLOT_HEIGHT_PX,
@@ -270,22 +298,14 @@ function StaffColumn({
     }
   }
 
-  if (!schedule.working || schedule.windows.length === 0) {
-    return (
-      <div className="min-w-[11rem] flex-1 border-l border-gold/20">
-        <StaffColumnHeader schedule={schedule} />
-        <div className="flex items-center justify-center bg-charcoal/[0.03] p-8">
-          <p className={typography.caption}>No trabaja</p>
-        </div>
-      </div>
-    )
-  }
+  const columnWindows =
+    schedule.working && schedule.windows.length > 0 ? schedule.windows : []
 
   return (
     <div
       ref={columnRef}
       data-staff-column-id={schedule.staffId}
-      data-staff-column-working="true"
+      data-staff-column-working={columnWindows.length > 0 ? 'true' : 'false'}
       className={[
         'min-w-[11rem] flex-1 border-l border-gold/20 transition-colors duration-150',
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
@@ -294,8 +314,9 @@ function StaffColumn({
       <StaffColumnHeader schedule={schedule} />
 
       <div className="relative" style={{ height: range.totalHeightPx }}>
-        <ColumnGrid range={range} />
+        <ColumnGrid range={range} windows={columnWindows} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
+        {columnWindows.length > 0 ? (
         <SlotLayer
           schedule={schedule}
           date={date}
@@ -306,6 +327,7 @@ function StaffColumn({
           pointerPassthrough={slotsLocked}
           onCellClick={handleCellClick}
         />
+        ) : null}
 
         {schedule.appointments.map((apt) => (
           <DraggableAppointmentBlock
@@ -379,6 +401,10 @@ export function AdminSalonDayCalendar({
   onProposeAppointmentMove,
 }: Props) {
   const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
+  const gutterWindows = useMemo(
+    () => rangesToWorkWindows(salonWindowsForDayOfWeek(dayOfWeekFromDateString(date))),
+    [date],
+  )
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
   const columnRefs = useRef(new Map<string, HTMLDivElement>())
 
@@ -433,7 +459,7 @@ export function AdminSalonDayCalendar({
               className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream/55 backdrop-blur-[2px]`}
               aria-hidden
             />
-            <TimeGutter range={range} />
+            <TimeGutter range={range} windows={gutterWindows} />
           </div>
 
           <div className="flex flex-1">

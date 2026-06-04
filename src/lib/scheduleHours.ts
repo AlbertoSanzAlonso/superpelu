@@ -28,3 +28,20 @@ export function segmentFitsInWorkWindows(
     return startMinutes >= wStart && endMinutes <= wEnd
   })
 }
+
+/** Inicio de franja de slot (p. ej. 14:00–14:30) dentro del horario de trabajo. */
+export function slotStartInWorkWindows(
+  time: string,
+  slotMinutes: number,
+  windows: WorkTimeWindow[],
+): boolean {
+  return segmentFitsInWorkWindows(timeToMinutes(time), slotMinutes, windows)
+}
+
+/** Fondo de celdas fuera de horario en la agenda (comida, tarde sábado, domingo). */
+export const agendaClosedSlotClassName =
+  'border-b border-charcoal/15 bg-charcoal/[0.14]'
+
+/** Fondo de celdas laborables en la rejilla del calendario admin. */
+export const agendaOpenSlotClassName =
+  'border-b border-gold/10 bg-[repeating-linear-gradient(-45deg,transparent,transparent_4px,rgba(201,169,98,0.04)_4px,rgba(201,169,98,0.04)_8px)]'

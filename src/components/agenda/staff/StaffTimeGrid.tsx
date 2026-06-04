@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { salonSchedule } from '@/data/schedule'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import {
@@ -25,6 +26,7 @@ const statusStyles: Record<Exclude<TimeGridCell['status'], 'appointment'>, strin
   free: 'border-gold/35 bg-cream/25 backdrop-blur-[1px] hover:border-gold hover:bg-gold/15 cursor-pointer',
   block: `${blockEventClass()} hover:border-charcoal/40 cursor-pointer`,
   past: 'border-charcoal/10 bg-charcoal/5 text-charcoal-muted/70 cursor-not-allowed',
+  closed: 'border-charcoal/15 bg-charcoal/[0.14] text-charcoal-muted/75 cursor-not-allowed',
 }
 
 function appointmentCellClass(cell: TimeGridCell): string {
@@ -44,9 +46,12 @@ export function StaffTimeGrid({
   onSelectAppointment,
   onOpenBlock,
 }: Props) {
-  const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
+  const cells = useMemo(
+    () => buildStaffDayGrid(schedule, date, salonSchedule.slotMinutes, 'fullDisplay'),
+    [schedule, date],
+  )
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
-    if (cell.status === 'past') return
+    if (cell.status === 'past' || cell.status === 'closed') return
 
     if (cell.status === 'appointment' && cell.appointmentId) {
       const apt = findAppointment(schedule, cell.appointmentId)
@@ -65,8 +70,6 @@ export function StaffTimeGrid({
     }
   }
 
-  if (cells.length === 0) return null
-
   return (
     <section className="space-y-3">
       <div className={`${typography.caption} hidden flex-wrap gap-3 lg:flex`}>
@@ -82,6 +85,10 @@ export function StaffTimeGrid({
             {label}
           </span>
         ))}
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 border border-charcoal/15 bg-charcoal/[0.14]" />
+          Fuera de horario
+        </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block h-3 w-3 border border-dashed border-charcoal/25 bg-charcoal/5" />
           Bloqueo
@@ -100,7 +107,7 @@ export function StaffTimeGrid({
             <button
               key={cell.time}
               type="button"
-              disabled={cell.status === 'past'}
+              disabled={cell.status === 'past' || cell.status === 'closed'}
               title={
                 cell.appointmentNotes
                   ? `${cell.title ?? ''} — ${cell.subtitle ?? ''}\n${cell.appointmentNotes}`

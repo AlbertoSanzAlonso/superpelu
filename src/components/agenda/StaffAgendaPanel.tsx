@@ -98,12 +98,13 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
       <main className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         {agenda.loading ? (
           <p className={`${typography.caption} py-8 text-center`}>Cargando agenda…</p>
-        ) : agenda.schedule && !agenda.schedule.working ? (
-          <p className={`${typography.body} py-8 text-center`}>
-            No trabajas este día según tu horario.
-          </p>
-        ) : agenda.schedule?.working ? (
+        ) : agenda.schedule ? (
           <div className="mx-auto max-w-2xl space-y-6">
+            {!agenda.schedule.working && (
+              <p className={`${typography.caption} text-center text-charcoal-muted`}>
+                No trabajas este día según tu horario.
+              </p>
+            )}
             <StaffTimeGrid
               date={agenda.date}
               schedule={agenda.schedule}
@@ -124,7 +125,9 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
               onDelete={agenda.removeAppointment}
             />
           </div>
-        ) : null}
+        ) : (
+          <p className={`${typography.caption} py-8 text-center`}>Sin datos de agenda.</p>
+        )}
       </main>
 
       <StaffAppointmentFormModal
