@@ -20,6 +20,10 @@ import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentMod
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
+import {
+  registerAdminPushNotifications,
+  unregisterAdminPushNotifications,
+} from '@/lib/adminPushNotifications'
 import { staffLogin, verifyStaffToken, type StaffSession } from '@/lib/staffApi'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
 import { salonStaffMembers } from '@/data/salonStaff'
@@ -90,7 +94,7 @@ export function AdminAgendaPage() {
     (item: AdminAppointmentNotificationItem) => {
       closeBell()
       for (const toast of toasts) {
-        if (toast.item.id === item.id) dismissToast(toast.key)
+        if (toast.item.key === item.key) dismissToast(toast.key)
       }
       if (selectedDate === item.date && tryOpenPendingAppointment(item, schedules)) {
         pendingAppointmentOpenRef.current = null
@@ -166,9 +170,16 @@ export function AdminAgendaPage() {
     setStaffUser(null)
   }
 
+  useEffect(() => {
+    if (!adminToken) return
+    void registerAdminPushNotifications(adminToken)
+  }, [adminToken])
+
   function handleAdminLogout() {
+    const token = adminToken
     sessionStorage.removeItem(ADMIN_TOKEN_KEY)
     setAdminToken('')
+    if (token) void unregisterAdminPushNotifications(token)
   }
 
   if (!isAdmin && !isStaff) {

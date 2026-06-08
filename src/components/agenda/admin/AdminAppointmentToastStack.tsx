@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { formatDisplayDate } from '@/lib/dates'
 import {
   ADMIN_APPOINTMENT_TOAST_MS,
+  adminAppointmentNotificationKindLabel,
   formatAdminAppointmentNotificationTime,
   type AdminAppointmentNotificationItem,
 } from '@/lib/adminAppointmentNotifications'
@@ -58,7 +59,9 @@ function AdminAppointmentToast({
       onClick={onSelect}
       className="pointer-events-auto w-full cursor-pointer border border-gold/40 bg-cream px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(30,30,30,0.35)] transition hover:border-gold hover:bg-gold/5"
     >
-      <p className={`${typography.label} text-gold`}>Nueva cita</p>
+      <p className={`${typography.label} text-gold`}>
+        {adminAppointmentNotificationKindLabel(item.kind)}
+      </p>
       <p className="mt-1 text-sm font-medium text-charcoal">{item.customerName}</p>
       <p className="text-xs text-charcoal-muted">
         {item.serviceName} · {item.staffName}

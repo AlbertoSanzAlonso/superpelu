@@ -12,7 +12,7 @@ import {
   type AppointmentMoveDraft,
 } from '@/lib/pendingAppointmentMoves'
 import { ApiError, updateAdminAppointment } from '@/lib/api'
-import type { StaffDaySchedule } from '@/types/booking'
+import type { Appointment, StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 type MovesDeps = {
   adminToken: string
@@ -22,6 +22,7 @@ type MovesDeps = {
   setError: (message: string) => void
   clearSelection: () => void
   onMovesCommitted: () => void
+  markAppointmentSnapshots?: (appointments: Iterable<Appointment>) => void
 }
 
 export function useAdminAgendaMoves({
@@ -32,6 +33,7 @@ export function useAdminAgendaMoves({
   setError,
   clearSelection,
   onMovesCommitted,
+  markAppointmentSnapshots,
 }: MovesDeps) {
   const [pendingMoves, setPendingMoves] = useState<AppointmentMoveDraft[]>([])
   const [moveBusy, setMoveBusy] = useState(false)
@@ -116,14 +118,17 @@ export function useAdminAgendaMoves({
       setError('')
       setMoveBusy(true)
       try {
+        const updatedAppointments: Appointment[] = []
         for (const move of getFinalMovesForSave(pendingMoves)) {
-          await updateAdminAppointment(move.appointment.id, adminToken, {
+          const { appointment } = await updateAdminAppointment(move.appointment.id, adminToken, {
             staffId: move.toStaffId,
             date,
             startTime: move.toStartTime,
             notifyCustomerWhatsApp,
           })
+          updatedAppointments.push(appointment)
         }
+        markAppointmentSnapshots?.(updatedAppointments)
         setPendingMoves([])
         onMovesCommitted()
         await load()
@@ -135,7 +140,7 @@ export function useAdminAgendaMoves({
         setMoveBusy(false)
       }
     },
-    [pendingMoves, adminToken, date, schedules, load, setError, onMovesCommitted],
+    [pendingMoves, adminToken, date, schedules, load, setError, onMovesCommitted, markAppointmentSnapshots],
   )
 
   const requestSavePendingMoves = useCallback(() => {

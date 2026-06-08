@@ -558,3 +558,5 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     submit,
   }
 }
+
+export type AppointmentFormApi = ReturnType<typeof useAppointmentForm>

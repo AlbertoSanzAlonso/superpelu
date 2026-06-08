@@ -27,7 +27,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     load: schedule.load,
     setError: schedule.setError,
     setConfirmDialog: confirm.setConfirmDialog,
-    markAppointmentsKnown: notifications.markAppointmentsKnown,
+    markAppointmentSnapshots: notifications.markAppointmentSnapshots,
   })
 
   const blocks = useAdminAgendaGridBlocks({
@@ -50,6 +50,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setError: schedule.setError,
     clearSelection: selectionState.clearSelection,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
+    markAppointmentSnapshots: notifications.markAppointmentSnapshots,
   })
 
   useEffect(() => {
@@ -75,7 +76,17 @@ export function useAdminAgenda(adminToken: string, date: string) {
     confirm.confirmDialog != null ||
     moves.moveBusy
 
-  useAgendaPolling(schedule.load, {
+  const reloadAgendaAndNotifications = useCallback(
+    async (opts?: { silent?: boolean }) => {
+      await schedule.load(opts)
+      if (!pollPaused) {
+        await notifications.pollAppointmentChanges()
+      }
+    },
+    [schedule.load, notifications.pollAppointmentChanges, pollPaused],
+  )
+
+  useAgendaPolling(reloadAgendaAndNotifications, {
     enabled: Boolean(adminToken),
     paused: pollPaused,
   })

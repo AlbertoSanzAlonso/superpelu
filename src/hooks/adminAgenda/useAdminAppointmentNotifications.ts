@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useAgendaPolling } from '@/hooks/agenda/useAgendaPolling'
 import { fetchAppointments } from '@/lib/api'
 import {
   adminAppointmentNotifyDateRange,
-  appointmentToNotificationItem,
+  diffAppointmentSnapshots,
+  snapshotsFromAppointments,
   type AdminAppointmentNotificationItem,
+  type AppointmentSnapshot,
 } from '@/lib/adminAppointmentNotifications'
+import type { Appointment } from '@/types/booking'
 
 type ToastEntry = {
   key: string
@@ -13,72 +15,63 @@ type ToastEntry = {
 }
 
 export function useAdminAppointmentNotifications(adminToken: string) {
-  const knownIdsRef = useRef<Set<string>>(new Set())
+  const snapshotsRef = useRef<Map<string, AppointmentSnapshot>>(new Map())
   const initializedRef = useRef(false)
 
   const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>([])
   const [bellOpen, setBellOpen] = useState(false)
   const [toasts, setToasts] = useState<ToastEntry[]>([])
 
-  const markAppointmentsKnown = useCallback((ids: Iterable<string>) => {
-    for (const id of ids) knownIdsRef.current.add(id)
+  const markAppointmentSnapshots = useCallback((appointments: Iterable<Appointment>) => {
+    for (const [id, snapshot] of snapshotsFromAppointments(appointments)) {
+      snapshotsRef.current.set(id, snapshot)
+    }
   }, [])
 
   const ingestNewItems = useCallback((items: AdminAppointmentNotificationItem[]) => {
     if (items.length === 0) return
     setInbox((prev) => {
-      const seen = new Set(prev.map((i) => i.id))
+      const seen = new Set(prev.map((i) => i.key))
       const merged = [...prev]
       for (const item of items) {
-        if (seen.has(item.id)) continue
-        seen.add(item.id)
+        if (seen.has(item.key)) continue
+        seen.add(item.key)
         merged.unshift(item)
       }
       return merged
     })
-    setToasts((prev) => [
-      ...items.map((item) => ({ key: `${item.id}-${Date.now()}`, item })),
-      ...prev,
-    ])
+    setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
   }, [])
 
-  const pollNewAppointments = useCallback(async () => {
+  const pollAppointmentChanges = useCallback(async () => {
     if (!adminToken) return
     const { from, to } = adminAppointmentNotifyDateRange()
     try {
       const { appointments } = await fetchAppointments(from, to, adminToken)
-      const notifyable = appointments
-        .map(appointmentToNotificationItem)
-        .filter((item): item is AdminAppointmentNotificationItem => item != null)
+      const nextSnapshots = snapshotsFromAppointments(appointments)
 
       if (!initializedRef.current) {
-        markAppointmentsKnown(notifyable.map((i) => i.id))
+        snapshotsRef.current = nextSnapshots
         initializedRef.current = true
         return
       }
 
-      const fresh: AdminAppointmentNotificationItem[] = []
-      for (const item of notifyable) {
-        if (knownIdsRef.current.has(item.id)) continue
-        knownIdsRef.current.add(item.id)
-        fresh.push(item)
-      }
+      const fresh = diffAppointmentSnapshots(snapshotsRef.current, appointments)
+      snapshotsRef.current = nextSnapshots
       ingestNewItems(fresh)
     } catch {
       // Silencioso: la agenda principal ya muestra errores de carga.
     }
-  }, [adminToken, ingestNewItems, markAppointmentsKnown])
-
-  useAgendaPolling(pollNewAppointments, { enabled: Boolean(adminToken) })
+  }, [adminToken, ingestNewItems])
 
   useEffect(() => {
     if (!adminToken) return
-    void pollNewAppointments()
-  }, [adminToken, pollNewAppointments])
+    void pollAppointmentChanges()
+  }, [adminToken, pollAppointmentChanges])
 
   useEffect(() => {
     if (!adminToken) {
-      knownIdsRef.current = new Set()
+      snapshotsRef.current = new Map()
       initializedRef.current = false
       setInbox([])
       setToasts([])
@@ -107,7 +100,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     closeBell,
     toasts,
     dismissToast,
-    markAppointmentsKnown,
-    pollNewAppointments,
+    markAppointmentSnapshots,
+    pollAppointmentChanges,
   }
 }

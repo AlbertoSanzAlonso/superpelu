@@ -1,27 +1,18 @@
-import { useMemo, useState } from 'react'
-import {
-  CustomerAppointmentHistoryModal,
-  customerHistoryModalTitle,
-} from '@/components/customers/CustomerAppointmentHistoryModal'
-import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
-import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
-import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
-import type { Appointment } from '@/types/booking'
+import { useMemo } from 'react'
+import { AppointmentClientPanelEdit } from '@/components/agenda/AppointmentClientPanelEdit'
+import { AppointmentClientPanelView } from '@/components/agenda/AppointmentClientPanelView'
+import { AppointmentServiceBlocks } from '@/components/agenda/AppointmentServiceBlocks'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { AppointmentModalFooter } from '@/components/agenda/AppointmentModalFooter'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
-import { Textarea } from '@/components/ui/Input'
 import { formatCustomerDisplayName } from '@/lib/customerName'
 import { formatDisplayDate } from '@/lib/dates'
-import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
-import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
-import { COLOR_GROUP_ROLE, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import {
   APPOINTMENT_STATUS_NO_SHOW,
   canMarkAppointmentNoShow,
 } from '@/lib/appointmentNoShow'
-import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
-import type { BookableService, DayScheduleAppointment } from '@/types/booking'
+import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 export type AgendaStaffOption = { id: string; name: string }
@@ -52,312 +43,6 @@ type Props = {
   reviewRequestSentAt?: string | null
   onReviewRequestSent?: (sentAt: string) => void
   onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
-}
-
-function dash(value: string | null | undefined): string {
-  const t = value?.trim()
-  return t ? t : '—'
-}
-
-function whatsappHref(phone: string): string {
-  const digits = normalizePhone(phone).replace(/\D/g, '')
-  return `https://wa.me/${digits}`
-}
-
-function ServiceBlocks({
-  appointment,
-  staffName,
-  services,
-}: {
-  appointment: DayScheduleAppointment
-  staffName: string
-  services: BookableService[]
-}) {
-  const linked = appointment.colorGroupLinked
-  const colorRole = appointment.colorGroupRole === 'color'
-  const washRole = appointment.colorGroupRole === 'wash'
-
-  type Block = {
-    startTime: string
-    endTime: string
-    serviceName: string
-    serviceId: string
-    categoryId: string | null
-    colorGroupRole?: string | null
-    staffLabel: string
-    nameEn?: string
-  }
-
-  const blocks: Block[] = []
-
-  if (colorRole && linked) {
-    const colorEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
-    const washEn = services.find((s) => s.id === linked.serviceId)?.nameEn ?? ''
-    blocks.push({
-      startTime: appointment.startTime,
-      endTime: appointment.occupiedSlots[0]?.endTime ?? appointment.endTime,
-      serviceName: appointment.serviceName,
-      serviceId: appointment.serviceId,
-      categoryId: appointment.categoryId,
-      staffLabel: staffName,
-      nameEn: colorEn,
-    })
-    blocks.push({
-      startTime: linked.startTime,
-      endTime: linked.endTime,
-      serviceName: linked.serviceName,
-      serviceId: linked.serviceId,
-      categoryId: linked.categoryId,
-      colorGroupRole: COLOR_GROUP_ROLE.wash,
-      staffLabel: linked.staffName,
-      nameEn: washEn,
-    })
-  } else if (washRole && linked) {
-    const colorEn = services.find((s) => s.id === linked.serviceId)?.nameEn ?? ''
-    const washEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
-    blocks.push({
-      startTime: linked.startTime,
-      endTime: linked.endTime,
-      serviceName: linked.serviceName,
-      serviceId: linked.serviceId,
-      categoryId: linked.categoryId,
-      staffLabel: linked.staffName,
-      nameEn: colorEn,
-    })
-    blocks.push({
-      startTime: appointment.startTime,
-      endTime: appointment.occupiedSlots[0]?.endTime ?? appointment.endTime,
-      serviceName: appointment.serviceName,
-      serviceId: appointment.serviceId,
-      categoryId: appointment.categoryId,
-      colorGroupRole: COLOR_GROUP_ROLE.wash,
-      staffLabel: staffName,
-      nameEn: washEn,
-    })
-  } else {
-    const serviceEn = services.find((s) => s.id === appointment.serviceId)?.nameEn ?? ''
-    const slots =
-      appointment.occupiedSlots.length > 0
-        ? appointment.occupiedSlots
-        : [{ startTime: appointment.startTime, endTime: appointment.endTime }]
-    for (const slot of slots) {
-      blocks.push({
-        startTime: slot.startTime,
-        endTime: slot.endTime,
-        serviceName: appointment.serviceName,
-        serviceId: appointment.serviceId,
-        categoryId: appointment.categoryId,
-        staffLabel: staffName,
-        nameEn: serviceEn,
-      })
-    }
-  }
-
-  return (
-    <ul className="space-y-2">
-      {blocks.map((block, i) => (
-        <li
-          key={`${block.startTime}-${block.serviceId}-${i}`}
-          className={`rounded px-3 py-2 text-sm font-medium leading-snug ${appointmentBlockBarClass(
-            block.categoryId,
-            block.serviceId,
-            block.colorGroupRole,
-          )}`}
-        >
-          <span className="tabular-nums">
-            {block.startTime}
-            {block.endTime !== block.startTime ? ` – ${block.endTime}` : ''}
-          </span>
-          {' — '}
-          {isColorGroupWashRow(block.colorGroupRole) && (
-            <WashPhaseIcon className="mr-0.5 inline h-3.5 w-3.5 align-[-2px] opacity-90" title="Lavado" />
-          )}
-          {isColorGroupWashRow(block.colorGroupRole) ? 'Lavar color' : block.serviceName}
-          {block.nameEn ? ` - ${block.nameEn}` : ''} ({block.staffLabel})
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-function ClientPanelView({
-  draft,
-  customerRegistered,
-  showCustomerHistory,
-  adminToken,
-  onEditClient,
-}: {
-  draft: AppointmentDraft
-  customerRegistered: boolean
-  showCustomerHistory: boolean
-  adminToken?: string
-  onEditClient: () => void
-}) {
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const displayName = formatCustomerDisplayName(
-    draft.customerFirstName,
-    draft.customerLastName,
-  )
-  const phone = draft.customerPhone
-
-  return (
-    <div className="rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-base font-semibold text-charcoal">{displayName || '—'}</p>
-            {customerRegistered && (
-              <button
-                type="button"
-                onClick={onEditClient}
-                className="inline-flex cursor-pointer items-center justify-center rounded p-0.5 text-lg leading-none text-charcoal/80 transition-colors hover:bg-gold/10 hover:text-gold"
-                aria-label="Editar cliente"
-                title="Editar datos del cliente"
-              >
-                ✎
-              </button>
-            )}
-          </div>
-          {customerRegistered && (
-            <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
-              Cliente en tu listado
-            </p>
-          )}
-        </div>
-        {phone && (
-          <div className="flex shrink-0 gap-1.5">
-            <a
-              href={whatsappHref(phone)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 text-charcoal-muted hover:border-gold hover:text-gold"
-              aria-label="WhatsApp"
-              title="WhatsApp"
-            >
-              💬
-            </a>
-            <a
-              href={`tel:${normalizePhone(phone)}`}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/35 text-charcoal-muted hover:border-gold hover:text-gold"
-              aria-label="Llamar"
-              title="Llamar"
-            >
-              📞
-            </a>
-          </div>
-        )}
-      </div>
-
-      <dl className="space-y-2.5 text-sm">
-        <div>
-          <dt className={typography.label}>Móvil</dt>
-          <dd className="mt-0.5 tabular-nums">{phone ? formatPhoneDisplay(phone) : '—'}</dd>
-        </div>
-        <div>
-          <dt className={typography.label}>Idioma</dt>
-          <dd className="mt-0.5">{customerLocaleLabel(draft.customerLocale)}</dd>
-        </div>
-        <div>
-          <dt className={typography.label}>Correo electrónico</dt>
-          <dd className="mt-0.5 break-all">{dash(draft.customerEmail)}</dd>
-        </div>
-        <div>
-          <dt className={typography.label}>Observaciones del cliente (ficha)</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">
-            {dash(draft.customerNotes)}
-          </dd>
-        </div>
-        <div>
-          <dt className={typography.label}>Observaciones de la cita</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap text-charcoal-muted">{dash(draft.notes)}</dd>
-        </div>
-      </dl>
-
-      {showCustomerHistory && phone && adminToken && (
-        <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setHistoryOpen(true)}
-          >
-            Historial de citas
-          </Button>
-          <CustomerAppointmentHistoryModal
-            open={historyOpen}
-            adminToken={adminToken}
-            phone={phone}
-            customerLabel={customerHistoryModalTitle(
-              draft.customerFirstName,
-              draft.customerLastName,
-            )}
-            onClose={() => setHistoryOpen(false)}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ClientPanelEdit({
-  draft,
-  customerRegistered,
-  showCustomerHistory,
-  adminToken,
-  onDraftChange,
-}: {
-  draft: AppointmentDraft
-  customerRegistered: boolean
-  showCustomerHistory?: boolean
-  adminToken?: string
-  onDraftChange: (patch: Partial<AppointmentDraft>) => void
-  onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
-}) {
-  const [historyOpen, setHistoryOpen] = useState(false)
-  const phone = draft.customerPhone
-  return (
-    <div className="space-y-3 rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
-      <p className={`${typography.label} text-gold`}>
-        {customerRegistered ? 'Datos del cliente' : 'Datos del cliente en esta cita'}
-      </p>
-      <AppointmentCustomerFields
-        draft={draft}
-        onDraftChange={onDraftChange}
-        compact
-        phoneLabel="Móvil"
-      />
-      <Textarea
-        label="Observaciones de la cita"
-        rows={2}
-        value={draft.notes}
-        onChange={(e) => onDraftChange({ notes: e.target.value })}
-        className="!px-3 !py-2"
-      />
-      {showCustomerHistory && phone && adminToken && (
-        <div className="border-t border-gold/15 pt-3">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => setHistoryOpen(true)}
-          >
-            Historial de citas del cliente
-          </Button>
-          <CustomerAppointmentHistoryModal
-            open={historyOpen}
-            adminToken={adminToken}
-            phone={phone}
-            customerLabel={customerHistoryModalTitle(
-              draft.customerFirstName,
-              draft.customerLastName,
-            )}
-            onClose={() => setHistoryOpen(false)}
-          />
-        </div>
-      )}
-    </div>
-  )
 }
 
 export function AgendaAppointmentModal({
@@ -426,6 +111,7 @@ export function AgendaAppointmentModal({
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
   const selectCn =
     'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
+  const showReviewRequest = showCustomerHistory
 
   return (
     <div
@@ -474,14 +160,14 @@ export function AgendaAppointmentModal({
                   <p className={`${typography.caption} mb-2 text-charcoal-muted`}>
                     Con {staffName}
                   </p>
-                  <ServiceBlocks
+                  <AppointmentServiceBlocks
                     appointment={appointment}
                     staffName={staffName}
                     services={services}
                   />
                 </section>
                 <section>
-                  <ClientPanelView
+                  <AppointmentClientPanelView
                     draft={draft}
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
@@ -492,18 +178,14 @@ export function AgendaAppointmentModal({
               </div>
             </div>
 
-            <footer className="flex shrink-0 flex-col gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
-              {showCustomerHistory && adminToken && draft.customerPhone.trim() && (
-                <ReviewRequestButton
-                  adminToken={adminToken}
-                  phone={draft.customerPhone}
-                  reviewRequestSentAt={reviewRequestSentAt ?? null}
-                  appointment={appointmentForReview}
-                  compact
-                  onSent={onReviewRequestSent}
-                />
-              )}
-              <div className="flex flex-wrap items-center justify-center gap-2">
+            <AppointmentModalFooter
+              showReviewRequest={showReviewRequest}
+              adminToken={adminToken}
+              phone={draft.customerPhone}
+              reviewRequestSentAt={reviewRequestSentAt ?? null}
+              appointment={appointmentForReview}
+              onReviewRequestSent={onReviewRequestSent}
+            >
               <Button type="button" variant="solid" size="sm" onClick={() => onModeChange('edit')}>
                 Editar
               </Button>
@@ -521,8 +203,7 @@ export function AgendaAppointmentModal({
                   Eliminar
                 </button>
               )}
-              </div>
-            </footer>
+            </AppointmentModalFooter>
           </>
         ) : (
           <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
@@ -581,7 +262,7 @@ export function AgendaAppointmentModal({
                   </div>
                 </section>
                 <section>
-                  <ClientPanelEdit
+                  <AppointmentClientPanelEdit
                     draft={draft}
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
@@ -593,18 +274,14 @@ export function AgendaAppointmentModal({
               </div>
             </div>
 
-            <footer className="flex shrink-0 flex-col gap-2 border-t border-gold/15 px-4 py-3 sm:px-5">
-              {showCustomerHistory && adminToken && draft.customerPhone.trim() && (
-                <ReviewRequestButton
-                  adminToken={adminToken}
-                  phone={draft.customerPhone}
-                  reviewRequestSentAt={reviewRequestSentAt ?? null}
-                  appointment={appointmentForReview}
-                  compact
-                  onSent={onReviewRequestSent}
-                />
-              )}
-              <div className="flex flex-wrap items-center justify-center gap-2">
+            <AppointmentModalFooter
+              showReviewRequest={showReviewRequest}
+              adminToken={adminToken}
+              phone={draft.customerPhone}
+              reviewRequestSentAt={reviewRequestSentAt ?? null}
+              appointment={appointmentForReview}
+              onReviewRequestSent={onReviewRequestSent}
+            >
               <Button type="submit" variant="solid" size="sm" disabled={saving || services.length === 0}>
                 {saving ? 'Guardando…' : 'Guardar cambios'}
               </Button>
@@ -629,8 +306,7 @@ export function AgendaAppointmentModal({
                   Cancelar cita
                 </Button>
               )}
-              </div>
-            </footer>
+            </AppointmentModalFooter>
           </form>
         )}
       </div>

@@ -53,7 +53,7 @@ type AppointmentsDeps = {
   load: () => Promise<void>
   setError: (message: string) => void
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
-  markAppointmentsKnown?: (ids: Iterable<string>) => void
+  markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
 }
 
 export function useAdminAgendaAppointments({
@@ -66,7 +66,7 @@ export function useAdminAgendaAppointments({
   load,
   setError,
   setConfirmDialog,
-  markAppointmentsKnown,
+  markAppointmentSnapshots,
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
@@ -252,7 +252,7 @@ export function useAdminAgendaAppointments({
             customerLocale: aptDraft.customerLocale,
             notifyCustomerWhatsApp,
           })
-          markAppointmentsKnown?.([appointment.id])
+          markAppointmentSnapshots?.([appointment])
         } else {
           const { appointment } = await createAdminAppointment(
             {
@@ -270,7 +270,7 @@ export function useAdminAgendaAppointments({
             },
             adminToken,
           )
-          markAppointmentsKnown?.([appointment.id])
+          markAppointmentSnapshots?.([appointment])
         }
         setWhatsAppNotifyDialogOpen(false)
         setAppointmentFormOpen(false)
@@ -295,7 +295,7 @@ export function useAdminAgendaAppointments({
       clearSelection,
       load,
       setError,
-      markAppointmentsKnown,
+      markAppointmentSnapshots,
     ],
   )
 
@@ -342,7 +342,10 @@ export function useAdminAgendaAppointments({
       if (!pendingCancelId || !adminToken) return false
       setError('')
       try {
-        await cancelAppointment(pendingCancelId, adminToken, { notifyCustomerWhatsApp })
+        const { appointment } = await cancelAppointment(pendingCancelId, adminToken, {
+          notifyCustomerWhatsApp,
+        })
+        markAppointmentSnapshots?.([appointment])
         setWhatsAppNotifyDialogOpen(false)
         setPendingCancelId(null)
         setAppointmentFormOpen(false)
@@ -362,6 +365,7 @@ export function useAdminAgendaAppointments({
       resetAppointmentForm,
       load,
       setError,
+      markAppointmentSnapshots,
     ],
   )
 
