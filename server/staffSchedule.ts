@@ -70,6 +70,7 @@ export type DayScheduleAppointment = {
   occupiedSlots: { startTime: string; endTime: string }[]
   colorGroupId: string | null
   colorGroupRole: string | null
+  bookingGroupId: string | null
   colorGroupLinked: {
     id: string
     startTime: string
@@ -157,6 +158,7 @@ export async function getStaffDaySchedule(
       occupiedSlots,
       colorGroupId: row.color_group_id,
       colorGroupRole: row.color_group_role,
+      bookingGroupId: row.booking_group_id,
       colorGroupLinked: null,
     }
   })

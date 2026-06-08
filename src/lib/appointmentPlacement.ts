@@ -20,6 +20,13 @@ import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 const LINKED_WASH_PHASE_BLOCKED_MESSAGE =
   'El tramo de aclarado/lavado quedaría en un horario ocupado. Elige otra hora para la aplicación del color.'
 
+function sharesBookingGroup(
+  a: DayScheduleAppointment,
+  b: DayScheduleAppointment,
+): boolean {
+  return Boolean(a.bookingGroupId && a.bookingGroupId === b.bookingGroupId)
+}
+
 export type AppointmentMoveTarget = {
   staffId: string
   staffName: string
@@ -230,6 +237,7 @@ function validateAppointmentMoveOnSchedule(
 
   for (const other of schedule.appointments) {
     if (other.id === appointment.id) continue
+    if (sharesBookingGroup(appointment, other)) continue
     const otherSegments = getOccupiedSegmentsForAppointment(
       other.serviceId,
       timeToMinutes(other.startTime),

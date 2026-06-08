@@ -399,13 +399,21 @@ export function AppointmentForm({
                   </p>
                 )}
 
+                {(form.chainPostpone || (form.chainNextStaff.length > 0 && form.staffAssignments.length > 0)) && (
+                  <p className={`${typography.caption} text-center text-charcoal`}>
+                    {b.chainConflictIntro}
+                  </p>
+                )}
+
                 <fieldset className="space-y-3">
                   <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
                     {b.staff}
                   </legend>
                   {form.loadingStaffAtSlot || form.loadingChain ? (
                     <p className={`${typography.caption} text-center`}>{b.loadingStaff}</p>
-                  ) : staffPickerOptions.length === 0 && !form.chainNeedsTimeChange ? (
+                  ) : staffPickerOptions.length === 0 &&
+                    !form.chainNeedsTimeChange &&
+                    !form.chainPostpone ? (
                     <p
                       className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
                       role="status"
@@ -442,6 +450,33 @@ export function AppointmentForm({
                     </>
                   ) : null}
                 </fieldset>
+
+                {form.chainPostpone && form.chainPostpone.slots.length > 0 && (
+                  <fieldset className="space-y-3">
+                    <legend className={`${typography.label} mb-2 block w-full text-center`}>
+                      {b.chainPostponeHeading(
+                        serviceDisplayName(
+                          form.selectedServices[form.chainPostpone.serviceIndex]!,
+                          locale,
+                        ),
+                        form.chainPostpone.idealStartTime,
+                      )}
+                    </legend>
+                    <p className={`${typography.caption} text-center`}>{b.chainPostponeHint}</p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {form.chainPostpone.slots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => void form.pickPostponeSlot(form.chainPostpone!.serviceIndex, slot)}
+                          className="cursor-pointer border border-gold/20 py-2 text-center text-sm transition-colors hover:border-gold/50"
+                        >
+                          {slot}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
               </>
             )}
           </div>

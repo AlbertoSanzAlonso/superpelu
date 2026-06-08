@@ -50,7 +50,7 @@ export const salonServices: SalonService[] = [
     'svc-color-block',
     'color',
     'Color Block',
-    'Example: Nape in one color, rest of hair in another color',
+    'Color Block',
     90,
     3,
   ),

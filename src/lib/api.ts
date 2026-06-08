@@ -118,17 +118,27 @@ export function fetchStaffAtSlot(date: string, serviceIds: string[], startTime: 
   }))
 }
 
+function encodeServiceStartOverrides(overrides: (string | undefined)[]): string {
+  return overrides.map((value) => value ?? '_').join(',')
+}
+
 export function fetchBookingChainContinuation(
   date: string,
   serviceIds: string[],
   startTime: string,
   staffAssignments: string[],
+  serviceStartOverrides: (string | undefined)[] = [],
 ) {
   const params = new URLSearchParams({
     date,
     serviceIds: serviceIds.join(','),
     startTime,
     staffAssignments: staffAssignments.join(','),
+    serviceStartOverrides: encodeServiceStartOverrides(
+      serviceStartOverrides.length > 0
+        ? serviceStartOverrides
+        : Array.from({ length: serviceIds.length }, () => undefined),
+    ),
   })
   return request<BookingChainContinuation>(`/booking/chain?${params}`)
 }

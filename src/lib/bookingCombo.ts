@@ -52,12 +52,28 @@ export function getChainedServiceStartTimes(
   services: readonly BookingServiceLine[],
   startTime: string,
 ): string[] {
-  let cursor = timeToMinutes(startTime)
-  const times: string[] = []
+  return buildFlexibleServiceStartTimes(services, startTime, [])
+}
 
-  for (const service of services) {
+/**
+ * Horas de inicio por tratamiento: encadenado desde `visitStartTime`, con aplazamientos
+ * puntuales en `overrides[i]` (el resto sigue en cadena desde el anterior).
+ */
+export function buildFlexibleServiceStartTimes(
+  services: readonly BookingServiceLine[],
+  visitStartTime: string,
+  overrides: ReadonlyArray<string | undefined> = [],
+): string[] {
+  const times: string[] = []
+  let cursor = timeToMinutes(visitStartTime)
+
+  for (let i = 0; i < services.length; i++) {
+    const override = overrides[i]
+    if (override !== undefined) {
+      cursor = timeToMinutes(override)
+    }
     times.push(minutesToTime(cursor))
-    cursor += getBookingSpanMinutes(service.id, service.durationMinutes)
+    cursor += getBookingSpanMinutes(services[i].id, services[i].durationMinutes)
   }
 
   return times

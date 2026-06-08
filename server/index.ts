@@ -23,6 +23,7 @@ import {
   getStaffAvailableAtSlot,
   getStaffAvailableAtSlotForServices,
   listAppointments,
+  parseServiceStartOverrides,
   resolveChainContinuation,
   rescheduleAppointmentByCustomer,
   rowToPublic,
@@ -325,14 +326,25 @@ app.get('/api/booking/chain', async (c) => {
       ?.split(',')
       .map((id) => id.trim())
       .filter(Boolean) ?? []
-
   if (!date || !ids || ids.length < 2 || !startTime) {
     return c.json({ error: 'Faltan date, serviceIds (≥2) o startTime' }, 400)
   }
 
+  const serviceStartOverrides = parseServiceStartOverrides(
+    c.req.query('serviceStartOverrides'),
+    ids.length,
+  )
+
   try {
     return c.json(
-      await resolveChainContinuation(date, ids, startTime, staffAssignments),
+      await resolveChainContinuation(
+        date,
+        ids,
+        startTime,
+        staffAssignments,
+        {},
+        serviceStartOverrides,
+      ),
     )
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -346,6 +358,7 @@ app.post('/api/appointments', async (c) => {
     serviceIds?: string[]
     staffId: string
     staffAssignments?: string[]
+    serviceStartTimes?: string[]
     date: string
     startTime: string
     customerName: string
@@ -383,6 +396,7 @@ app.post('/api/appointments', async (c) => {
       serviceIds,
       staffId: body.staffId,
       staffAssignments: body.staffAssignments,
+      serviceStartTimes: body.serviceStartTimes,
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,

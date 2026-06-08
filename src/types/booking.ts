@@ -80,6 +80,8 @@ export type DayScheduleAppointment = {
   occupiedSlots: AppointmentOccupiedSlot[]
   colorGroupId?: string | null
   colorGroupRole?: string | null
+  /** Varias citas de la misma visita (reserva multi-tratamiento). */
+  bookingGroupId?: string | null
   /** Fase enlazada (lavado si esta fila es color, o color si esta fila es lavado). */
   colorGroupLinked?: ColorGroupLinkedPhase | null
 }
@@ -120,6 +122,11 @@ export type BookingChainContinuation =
         startTime: string
         staff: StaffMember[]
       }
+      postpone?: {
+        serviceIndex: number
+        idealStartTime: string
+        slots: string[]
+      }
     }
 
 export type CreateAppointmentPayload = {
@@ -127,6 +134,7 @@ export type CreateAppointmentPayload = {
   serviceIds?: string[]
   staffId: string
   staffAssignments?: string[]
+  serviceStartTimes?: string[]
   date: string
   startTime: string
   customerName: string

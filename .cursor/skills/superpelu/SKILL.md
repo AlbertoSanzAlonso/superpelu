@@ -35,7 +35,7 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 **Coloración (reserva unificada):** servicios `svc-root-color`, `svc-complete-color`, `svc-color-block` — el cliente reserva **90 min** (una cita); en agenda se crean **dos filas** enlazadas (`color_group_id`): fase color 30 min + pausa 30 min libre + **lavar color** 30 min (`svc-wash-color`, `color_group_role`). El lavado puede cambiar de profesional/hora en agenda de forma independiente. Ver `src/lib/bookingOccupancy.ts`, `server/colorBooking.ts`.
 
-**Reserva multi-tratamiento:** el cliente puede elegir varios servicios en `/reservar`; se encadenan en la misma visita (`booking_group_id`, `src/lib/bookingCombo.ts`). Cada tratamiento puede ir con un profesional distinto si a la hora calculada el anterior no tiene hueco (`resolveChainContinuation`, `GET /api/booking/chain`, `staffAssignments` en `POST /api/appointments`).
+**Reserva multi-tratamiento:** el cliente puede elegir varios servicios en `/reservar`; se encadenan en la misma visita (`booking_group_id`, `src/lib/bookingCombo.ts`). Cada tratamiento puede ir con un profesional distinto si a la hora calculada el anterior no tiene hueco (`resolveChainContinuation`, `GET /api/booking/chain`, `staffAssignments` en `POST /api/appointments`). En agenda admin, cada cita del grupo se mueve sola (arrastre): los hermanos del mismo `booking_group_id` no bloquean el hueco (`appointmentPlacement.ts`, `getOccupiedAppointmentsForStaffOnDate`).
 
 **Lavar color** (`svc-wash-color`): `bookableOnline: false` (no aparece en `/reservar`); solo agenda o como pareja al reservar coloración. En catálogo 20 min; en pareja con color ocupa **30 min** en agenda.
 

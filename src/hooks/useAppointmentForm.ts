@@ -9,6 +9,7 @@ import {
   fetchStaffAtSlot,
   ApiError,
 } from '@/lib/api'
+import { buildFlexibleServiceStartTimes } from '@/lib/bookingCombo'
 import { isValidSpanishPhone } from '@/lib/phone'
 import type {
   Appointment,
@@ -47,6 +48,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [chainNextIndex, setChainNextIndex] = useState<number | null>(null)
   const [chainNextStartTime, setChainNextStartTime] = useState('')
   const [chainNeedsTimeChange, setChainNeedsTimeChange] = useState(false)
+  const [serviceStartOverrides, setServiceStartOverrides] = useState<(string | undefined)[]>([])
+  const [chainPostpone, setChainPostpone] = useState<{
+    serviceIndex: number
+    idealStartTime: string
+    slots: string[]
+  } | null>(null)
 
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStaffAtSlot, setLoadingStaffAtSlot] = useState(false)
@@ -104,6 +111,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setChainNextIndex(null)
     setChainNextStartTime('')
     setChainNeedsTimeChange(false)
+    setServiceStartOverrides([])
+    setChainPostpone(null)
     setStaffIdState('')
   }, [])
 
@@ -192,6 +201,42 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setStaffIdState(id)
   }, [])
 
+  const applyChainResponse = useCallback((res: Awaited<ReturnType<typeof fetchBookingChainContinuation>>) => {
+    setChainSegments(res.segments)
+    if (res.complete) {
+      setChainNextStaff([])
+      setChainNextIndex(null)
+      setChainNextStartTime('')
+      setChainPostpone(null)
+      setChainNeedsTimeChange(false)
+      return true
+    }
+    if (res.needsTimeChange && !res.postpone) {
+      setChainNeedsTimeChange(true)
+      setChainNextStaff([])
+      setChainNextIndex(null)
+      setChainNextStartTime('')
+      setChainPostpone(null)
+      setStaffAssignments([])
+      setStaffIdState('')
+      setChainSegments([])
+      setServiceStartOverrides([])
+      return false
+    }
+    setChainNeedsTimeChange(false)
+    setChainPostpone(res.postpone ?? null)
+    if (res.next) {
+      setChainNextStaff(res.next.staff)
+      setChainNextIndex(res.next.serviceIndex)
+      setChainNextStartTime(res.next.startTime)
+    } else {
+      setChainNextStaff([])
+      setChainNextIndex(res.postpone?.serviceIndex ?? null)
+      setChainNextStartTime(res.postpone?.idealStartTime ?? '')
+    }
+    return false
+  }, [])
+
   const pickChainStaff = useCallback(
     async (id: string): Promise<boolean> => {
       if (!date || !startTime || serviceIds.length < 2) return false
@@ -200,7 +245,6 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       if (staffAssignments.length === 0) {
         setStaffIdState(id)
       }
-      setChainNeedsTimeChange(false)
       setLoadingChain(true)
       try {
         const res = await fetchBookingChainContinuation(
@@ -208,40 +252,58 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           serviceIds,
           startTime,
           nextAssignments,
+          serviceStartOverrides,
         )
-        setChainSegments(res.segments)
-        if (res.complete) {
-          setChainNextStaff([])
-          setChainNextIndex(null)
-          setChainNextStartTime('')
-          return true
-        }
-        if (res.needsTimeChange) {
-          setChainNeedsTimeChange(true)
-          setChainNextStaff([])
-          setChainNextIndex(null)
-          setChainNextStartTime('')
-          setStaffAssignments([])
-          setStaffIdState('')
-          setChainSegments([])
-          return false
-        }
-        if (res.next) {
-          setChainNextStaff(res.next.staff)
-          setChainNextIndex(res.next.serviceIndex)
-          setChainNextStartTime(res.next.startTime)
-        }
-        return false
+        return applyChainResponse(res)
       } catch {
         setChainNeedsTimeChange(true)
         setStaffAssignments([])
         setStaffIdState('')
+        setChainPostpone(null)
         return false
       } finally {
         setLoadingChain(false)
       }
     },
-    [date, serviceIds, startTime, staffAssignments],
+    [date, serviceIds, startTime, staffAssignments, serviceStartOverrides, applyChainResponse],
+  )
+
+  const pickPostponeSlot = useCallback(
+    async (serviceIndex: number, slot: string): Promise<void> => {
+      if (!date || !startTime || serviceIds.length < 2) return
+      const overrides = [...serviceStartOverrides]
+      while (overrides.length < serviceIds.length) overrides.push(undefined)
+      overrides[serviceIndex] = slot
+      const keptAssignments = staffAssignments.slice(0, serviceIndex)
+      setServiceStartOverrides(overrides)
+      setStaffAssignments(keptAssignments)
+      if (serviceIndex === 0) {
+        setStaffIdState(keptAssignments[0] ?? '')
+      }
+      setLoadingChain(true)
+      try {
+        const res = await fetchBookingChainContinuation(
+          date,
+          serviceIds,
+          startTime,
+          keptAssignments,
+          overrides,
+        )
+        applyChainResponse(res)
+      } catch {
+        setChainNeedsTimeChange(true)
+      } finally {
+        setLoadingChain(false)
+      }
+    },
+    [
+      date,
+      serviceIds,
+      startTime,
+      serviceStartOverrides,
+      staffAssignments,
+      applyChainResponse,
+    ],
   )
 
   useEffect(() => {
@@ -369,10 +431,21 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
     try {
       const primaryStaffId = hasMultipleServices ? staffAssignments[0]! : staffId
+      const serviceStartTimes = hasMultipleServices
+        ? buildFlexibleServiceStartTimes(
+            selectedServices.map((service) => ({
+              id: service.id,
+              durationMinutes: service.durationMinutes,
+            })),
+            startTime,
+            serviceStartOverrides,
+          )
+        : undefined
       const { appointment, appointments } = await createAppointment({
         serviceIds,
         staffId: primaryStaffId,
         staffAssignments: hasMultipleServices ? staffAssignments : undefined,
+        serviceStartTimes,
         date,
         startTime,
         customerName,
@@ -399,6 +472,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     serviceIds,
     staffId,
     staffAssignments,
+    serviceStartOverrides,
+    selectedServices,
     hasMultipleServices,
     date,
     startTime,
@@ -453,9 +528,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     chainNextIndex,
     chainNextStartTime,
     chainNeedsTimeChange,
+    chainPostpone,
+    serviceStartOverrides,
     chainComplete,
     loadingChain,
     pickChainStaff,
+    pickPostponeSlot,
     resetChainSelection,
     resetForm,
     submit,
