@@ -101,7 +101,8 @@ export type StaffDaySchedule = {
 }
 
 export type CreateAppointmentPayload = {
-  serviceId: string
+  serviceId?: string
+  serviceIds?: string[]
   staffId: string
   date: string
   startTime: string

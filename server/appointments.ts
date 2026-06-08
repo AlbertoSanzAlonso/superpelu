@@ -8,9 +8,15 @@ import { getBlocksForStaffOnDate, isRangeBlockedByStaff } from '@server/staffBlo
 import {
   getStaff,
   listStaffForService,
+  listStaffForServices,
   staffCanPerformService,
   type PublicStaff,
 } from '@server/staff.js'
+import {
+  getChainedBookingSegments,
+  getChainedBookingSpanMinutes,
+  type BookingServiceLine,
+} from '@/lib/bookingCombo'
 import { schedule } from '@server/config.js'
 import {
   customerNameSnapshot,
@@ -47,6 +53,7 @@ import {
   isColorGroupColorRow,
   isColorGroupWashRow,
   occupiedSegmentsOverlap,
+  usesColorSplitBooking,
   COLOR_SPLIT_SEGMENT_MINUTES,
   type OccupiedSegment,
 } from '@/lib/bookingOccupancy'
@@ -190,6 +197,84 @@ export type SlotOptions = {
   forStaffPortal?: boolean
 }
 
+type ResolvedBookingService = BookingServiceLine & {
+  nameEs: string
+  nameEn: string
+}
+
+async function resolveBookingServices(
+  serviceIds: string[],
+  onlineOnly: boolean,
+): Promise<ResolvedBookingService[]> {
+  const lines: ResolvedBookingService[] = []
+  for (const serviceId of serviceIds) {
+    const service = await getService(serviceId, { onlineOnly })
+    if (!service) throw new Error('SERVICIO_INVALIDO')
+    lines.push({
+      id: service.id,
+      durationMinutes: service.durationMinutes,
+      nameEs: service.nameEs,
+      nameEn: service.nameEn ?? '',
+    })
+  }
+  return lines
+}
+
+function normalizeServiceIds(input: { serviceId?: string; serviceIds?: string[] }): string[] {
+  if (input.serviceIds?.length) return input.serviceIds
+  if (input.serviceId) return [input.serviceId]
+  return []
+}
+
+export async function getAvailableSlotsForServices(
+  date: string,
+  serviceIds: string[],
+  staffId: string,
+  options: SlotOptions = {},
+): Promise<string[]> {
+  if (serviceIds.length === 0) return []
+  if (serviceIds.length === 1) {
+    return getAvailableSlots(date, serviceIds[0], staffId, options)
+  }
+
+  const dateAllowed = options.forStaffPortal
+    ? isValidDateString(date) && isSalonOpenDay(date)
+    : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
+
+  if (!dateAllowed) return []
+
+  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const staff = await getStaff(staffId)
+  if (!staff || !staff.active) return []
+
+  for (const service of services) {
+    if (!(await staffCanPerformService(staffId, service.id))) return []
+  }
+
+  const windows = await getStaffDayWindows(staffId, date)
+  if (windows.length === 0) return []
+
+  const spanMinutes = getChainedBookingSpanMinutes(services)
+  const slots: string[] = []
+
+  for (const window of windows) {
+    for (
+      let start = window.startMinutes;
+      start + spanMinutes <= window.endMinutes;
+      start += schedule.slotMinutes
+    ) {
+      const segments = getChainedBookingSegments(services, start)
+      if (
+        !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+      ) {
+        slots.push(minutesToTime(start))
+      }
+    }
+  }
+
+  return filterPastSlotsForToday(date, slots)
+}
+
 export async function getAvailableSlots(
   date: string,
   serviceId: string,
@@ -240,11 +325,25 @@ export async function getServiceDaySlots(
   serviceId: string,
   options: SlotOptions = {},
 ): Promise<string[]> {
-  const staffList = await listStaffForService(serviceId)
+  return getServiceDaySlotsForServices(date, [serviceId], options)
+}
+
+export async function getServiceDaySlotsForServices(
+  date: string,
+  serviceIds: string[],
+  options: SlotOptions = {},
+): Promise<string[]> {
+  if (serviceIds.length === 0) return []
+  const staffList = await listStaffForServices(serviceIds)
   const merged = new Set<string>()
   await Promise.all(
     staffList.map(async (member) => {
-      const memberSlots = await getAvailableSlots(date, serviceId, member.id, options)
+      const memberSlots = await getAvailableSlotsForServices(
+        date,
+        serviceIds,
+        member.id,
+        options,
+      )
       for (const slot of memberSlots) merged.add(slot)
     }),
   )
@@ -257,17 +356,28 @@ export async function getStaffAvailableAtSlot(
   startTime: string,
   options: SlotOptions = {},
 ): Promise<PublicStaff[]> {
-  const staffList = await listStaffForService(serviceId)
+  return getStaffAvailableAtSlotForServices(date, [serviceId], startTime, options)
+}
+
+export async function getStaffAvailableAtSlotForServices(
+  date: string,
+  serviceIds: string[],
+  startTime: string,
+  options: SlotOptions = {},
+): Promise<PublicStaff[]> {
+  if (serviceIds.length === 0) return []
+  const staffList = await listStaffForServices(serviceIds)
   const available: PublicStaff[] = []
   for (const member of staffList) {
-    const slots = await getAvailableSlots(date, serviceId, member.id, options)
+    const slots = await getAvailableSlotsForServices(date, serviceIds, member.id, options)
     if (slots.includes(startTime)) available.push(member)
   }
   return available
 }
 
 export type CreateAppointmentInput = {
-  serviceId: string
+  serviceId?: string
+  serviceIds?: string[]
   staffId: string
   date: string
   startTime: string
@@ -284,17 +394,151 @@ export type CreateAppointmentInput = {
   customerLocale?: Locale
 }
 
+export async function getAppointmentsByBookingGroup(
+  bookingGroupId: string,
+): Promise<AppointmentRow[]> {
+  return sql<AppointmentRow[]>`
+    SELECT * FROM appointments
+    WHERE booking_group_id = ${bookingGroupId}
+    ORDER BY start_time ASC, id ASC
+  `
+}
+
+async function createChainedBookingAppointment(
+  input: CreateAppointmentInput,
+  serviceIds: string[],
+  staff: NonNullable<Awaited<ReturnType<typeof getStaff>>>,
+): Promise<AppointmentRow> {
+  const services = await resolveBookingServices(serviceIds, !input.forStaffPortal)
+
+  const customer = resolveCustomerFromInput({
+    firstName: input.customerFirstName,
+    lastName: input.customerLastName,
+    customerName: input.customerName,
+    phone: input.customerPhone,
+  })
+  const customerLocaleForUpsert = input.forStaffPortal
+    ? input.customerLocale !== undefined
+      ? normalizeLocale(input.customerLocale)
+      : undefined
+    : normalizeLocale(input.locale)
+
+  await upsertCustomer({
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    phone: customer.phone,
+    email: input.customerEmail,
+    ...(input.customerNotes !== undefined
+      ? { notes: input.customerNotes.trim() || null }
+      : {}),
+    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
+  })
+  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
+
+  const profile = await getCustomer(customer.phone)
+  const createdAt = new Date().toISOString()
+  const locale = input.forStaffPortal
+    ? normalizeLocale(profile?.locale ?? input.customerLocale)
+    : normalizeLocale(input.locale)
+  const reminderSentAt =
+    hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
+  const bookingGroupId = randomUUID()
+  const bookingSegments = getChainedBookingSegments(
+    services,
+    timeToMinutes(input.startTime),
+  )
+
+  const primaryId = await sql.begin(async (tx) => {
+    await lockStaffDayForBooking(tx, staff.id, input.date)
+    await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+
+    let cursor = timeToMinutes(input.startTime)
+    let firstId: string | null = null
+
+    for (const service of services) {
+      const serviceStartTime = minutesToTime(cursor)
+      const serviceName = serviceDisplayName(service, locale)
+
+      if (usesColorSplitBooking(service.id)) {
+        const colorGroup = await prepareColorBookingGroupIds(service.id)
+        if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
+        const washServiceName = await resolveWashServiceName(locale)
+        await insertColorBookingGroup(
+          {
+            groupId: colorGroup.groupId,
+            colorId: colorGroup.colorId,
+            washId: colorGroup.washId,
+            staffId: staff.id,
+            staffName: staff.name,
+            colorServiceId: service.id,
+            colorServiceName: serviceName,
+            washServiceName,
+            date: input.date,
+            colorStartTime: serviceStartTime,
+            durationMinutes: service.durationMinutes,
+            customerName: nameSnapshot,
+            customerPhone: customer.phone,
+            customerEmail: input.customerEmail?.trim() || null,
+            notes: input.notes?.trim() || null,
+            createdAt,
+            reminderSentAt,
+            locale,
+            bookingGroupId,
+          },
+          tx,
+        )
+        if (!firstId) firstId = colorGroup.colorId
+        cursor += getBookingSpanMinutes(service.id, service.durationMinutes)
+        continue
+      }
+
+      const id = randomUUID()
+      const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+      await tx`
+        INSERT INTO appointments (
+          id, staff_id, staff_name, service_id, service_name, duration_minutes,
+          appointment_date, start_time,
+          customer_name, customer_phone, customer_email, notes,
+          status, created_at, reminder_sent_at, locale, booking_group_id
+        ) VALUES (
+          ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
+          ${input.date}, ${serviceStartTime},
+          ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
+          ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
+          ${bookingGroupId}
+        )
+      `
+      if (!firstId) firstId = id
+      cursor += storedDuration
+    }
+
+    if (!firstId) throw new Error('SERVICIO_INVALIDO')
+    return firstId
+  })
+
+  const row = (await getAppointmentById(primaryId))!
+  void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
+    (err) => {
+      console.error('Superpelu WhatsApp (cita nueva):', err)
+    },
+  )
+  void notifyAdminAppointmentCreated(row)
+  return row
+}
+
 export async function createAppointment(
   input: CreateAppointmentInput,
 ): Promise<AppointmentRow> {
-  const service = await getService(input.serviceId, { onlineOnly: !input.forStaffPortal })
-  if (!service) throw new Error('SERVICIO_INVALIDO')
+  const serviceIds = normalizeServiceIds(input)
+  if (serviceIds.length === 0) throw new Error('SERVICIO_INVALIDO')
 
   const staff = await getStaff(input.staffId)
   if (!staff || !staff.active) throw new Error('STAFF_INVALIDO')
 
-  if (!(await staffCanPerformService(input.staffId, input.serviceId))) {
-    throw new Error('STAFF_NO_REALIZA_SERVICIO')
+  for (const serviceId of serviceIds) {
+    if (!(await staffCanPerformService(input.staffId, serviceId))) {
+      throw new Error('STAFF_NO_REALIZA_SERVICIO')
+    }
   }
 
   const dateOk = input.forStaffPortal
@@ -308,10 +552,20 @@ export async function createAppointment(
 
   if (!dateOk) throw new Error('FECHA_INVALIDA')
 
-  const slots = await getAvailableSlots(input.date, input.serviceId, input.staffId, {
-    forStaffPortal: input.forStaffPortal,
-  })
+  const slots = await getAvailableSlotsForServices(
+    input.date,
+    serviceIds,
+    input.staffId,
+    { forStaffPortal: input.forStaffPortal },
+  )
   if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+
+  if (serviceIds.length > 1) {
+    return createChainedBookingAppointment(input, serviceIds, staff)
+  }
+
+  const service = await getService(serviceIds[0], { onlineOnly: !input.forStaffPortal })
+  if (!service) throw new Error('SERVICIO_INVALIDO')
 
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,

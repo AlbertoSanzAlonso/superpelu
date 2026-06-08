@@ -63,6 +63,7 @@ export type InsertColorGroupParams = {
   createdAt: string
   reminderSentAt: string | null
   locale: Locale
+  bookingGroupId?: string | null
 }
 
 export async function insertColorBookingGroup(
@@ -78,14 +79,14 @@ export async function insertColorBookingGroup(
       appointment_date, start_time,
       customer_name, customer_phone, customer_email, notes,
       status, created_at, reminder_sent_at, locale,
-      color_group_id, color_group_role
+      color_group_id, color_group_role, booking_group_id
     ) VALUES (
       ${params.colorId}, ${params.staffId}, ${params.staffName},
       ${params.colorServiceId}, ${params.colorServiceName}, ${COLOR_SPLIT_SEGMENT_MINUTES},
       ${params.date}, ${params.colorStartTime},
       ${params.customerName}, ${params.customerPhone}, ${params.customerEmail}, ${params.notes},
       'confirmed', ${params.createdAt}, ${params.reminderSentAt}, ${params.locale},
-      ${params.groupId}, ${COLOR_GROUP_ROLE.color}
+      ${params.groupId}, ${COLOR_GROUP_ROLE.color}, ${params.bookingGroupId ?? null}
     )
   `
 
@@ -95,14 +96,14 @@ export async function insertColorBookingGroup(
       appointment_date, start_time,
       customer_name, customer_phone, customer_email, notes,
       status, created_at, reminder_sent_at, locale,
-      color_group_id, color_group_role
+      color_group_id, color_group_role, booking_group_id
     ) VALUES (
       ${params.washId}, ${params.staffId}, ${params.staffName},
       ${WASH_COLOR_SERVICE_ID}, ${params.washServiceName}, ${COLOR_SPLIT_SEGMENT_MINUTES},
       ${params.date}, ${washStartTime},
       ${params.customerName}, ${params.customerPhone}, ${params.customerEmail}, ${params.notes},
       'confirmed', ${params.createdAt}, ${params.reminderSentAt}, ${params.locale},
-      ${params.groupId}, ${COLOR_GROUP_ROLE.wash}
+      ${params.groupId}, ${COLOR_GROUP_ROLE.wash}, ${params.bookingGroupId ?? null}
     )
   `
 }

@@ -17,7 +17,6 @@ export type ColorGroupRole = (typeof COLOR_GROUP_ROLE)[keyof typeof COLOR_GROUP_
 export const COLOR_SPLIT_SERVICE_IDS = new Set([
   'svc-root-color',
   'svc-complete-color',
-  'svc-all-over-color',
   'svc-color-block',
 ])
 

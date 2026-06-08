@@ -3,18 +3,46 @@ import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
 import { AppointmentForm } from '@/components/booking/AppointmentForm'
 import { AddToCalendarButton } from '@/components/booking/AddToCalendarButton'
+import { formatChainedAppointmentTimeRange } from '@/lib/bookingCombo'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
+type BookingConfirmation = {
+  appointments: Appointment[]
+}
+
 export function BookingPage() {
   const { t, locale } = useTranslation()
-  const [confirmed, setConfirmed] = useState<Appointment | null>(null)
+  const [confirmed, setConfirmed] = useState<BookingConfirmation | null>(null)
 
   if (confirmed) {
     const labels = t.booking.summaryLabels
+    const primary = confirmed.appointments[0]
+    const serviceLabel =
+      confirmed.appointments.length === 1
+        ? confirmed.appointments[0].serviceName
+        : confirmed.appointments.map((apt) => apt.serviceName).join(' · ')
+    const scheduleLabel =
+      confirmed.appointments.length === 1
+        ? formatAppointmentTimeRange(
+            primary.serviceId,
+            primary.startTime,
+            primary.durationMinutes,
+            locale,
+            { colorGroupRole: primary.colorGroupRole },
+          )
+        : formatChainedAppointmentTimeRange(
+            confirmed.appointments.map((apt) => ({
+              id: apt.serviceId,
+              durationMinutes: apt.durationMinutes,
+            })),
+            primary.startTime,
+            locale,
+          )
+
     return (
       <PageShell
         title={t.booking.confirmedTitle}
@@ -25,38 +53,32 @@ export function BookingPage() {
           <p className={`${typography.body} mb-6`}>{t.booking.confirmedBody}</p>
           <dl className={`${typography.body} space-y-3 text-left`}>
             <div>
-              <dt className={typography.label}>{labels.service}</dt>
-              <dd>{confirmed.serviceName}</dd>
+              <dt className={typography.label}>
+                {confirmed.appointments.length === 1 ? labels.service : labels.services}
+              </dt>
+              <dd>{serviceLabel}</dd>
             </div>
-            {confirmed.staffName && (
+            {primary.staffName && (
               <div>
                 <dt className={typography.label}>{labels.staff}</dt>
-                <dd>{confirmed.staffName}</dd>
+                <dd>{primary.staffName}</dd>
               </div>
             )}
             <div>
               <dt className={typography.label}>{labels.date}</dt>
-              <dd className="capitalize">{formatDisplayDate(confirmed.date, locale)}</dd>
+              <dd className="capitalize">{formatDisplayDate(primary.date, locale)}</dd>
             </div>
             <div>
               <dt className={typography.label}>{labels.schedule}</dt>
-              <dd>
-                {formatAppointmentTimeRange(
-                  confirmed.serviceId,
-                  confirmed.startTime,
-                  confirmed.durationMinutes,
-                  locale,
-                  { colorGroupRole: confirmed.colorGroupRole },
-                )}
-              </dd>
+              <dd>{scheduleLabel}</dd>
             </div>
             <div>
               <dt className={typography.label}>{labels.name}</dt>
-              <dd>{confirmed.customerName}</dd>
+              <dd>{primary.customerName}</dd>
             </div>
           </dl>
           <div className="mt-10 space-y-4">
-            <AddToCalendarButton appointment={confirmed} />
+            <AddToCalendarButton appointment={primary} />
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Button href="/" variant="outline" size="md">
                 {t.common.home}
@@ -79,7 +101,13 @@ export function BookingPage() {
       subtitleClassName="hidden md:block"
       brandWatermark
     >
-      <AppointmentForm onConfirmed={setConfirmed} />
+      <AppointmentForm
+        onConfirmed={(appointment, appointments) => {
+          setConfirmed({
+            appointments: appointments?.length ? appointments : [appointment],
+          })
+        }}
+      />
     </PageShell>
   )
 }

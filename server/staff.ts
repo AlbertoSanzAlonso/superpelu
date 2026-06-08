@@ -26,6 +26,15 @@ export async function listActiveStaff(): Promise<PublicStaff[]> {
   return rows.map(rowToPublic)
 }
 
+export async function listStaffForServices(serviceIds: string[]): Promise<PublicStaff[]> {
+  if (serviceIds.length === 0) return []
+  const lists = await Promise.all(serviceIds.map((id) => listStaffForService(id)))
+  if (lists.length === 0) return []
+  return lists[0].filter((member) =>
+    lists.every((list) => list.some((other) => other.id === member.id)),
+  )
+}
+
 export async function listStaffForService(serviceId: string): Promise<PublicStaff[]> {
   const rows = await sql<StaffRow[]>`
     SELECT s.* FROM staff s

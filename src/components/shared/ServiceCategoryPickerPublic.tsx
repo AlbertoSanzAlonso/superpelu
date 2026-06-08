@@ -18,8 +18,11 @@ import { typography } from '@/styles/typography'
 
 type Props = {
   services: BookableService[]
-  serviceId: string
-  onServiceChange: (serviceId: string) => void
+  serviceId?: string
+  serviceIds?: string[]
+  onServiceChange?: (serviceId: string) => void
+  onToggleService?: (serviceId: string) => void
+  multiSelect?: boolean
   loading?: boolean
   error?: string
   onRetry?: () => void
@@ -32,8 +35,11 @@ type Props = {
 
 export function ServiceCategoryPickerPublic({
   services,
-  serviceId,
+  serviceId = '',
+  serviceIds = [],
   onServiceChange,
+  onToggleService,
+  multiSelect = false,
   loading = false,
   error = '',
   onRetry,
@@ -69,14 +75,20 @@ export function ServiceCategoryPickerPublic({
     [services, selectedCategoryId],
   )
 
+  function isServiceSelected(id: string): boolean {
+    return multiSelect ? serviceIds.includes(id) : serviceId === id
+  }
+
   function handleCategoryPick(categoryId: string) {
     setPickedCategoryId(categoryId)
     onCategoryChange?.(categoryId)
-    const inCategory = servicesInCategory(services, categoryId)
-    if (inCategory.length === 1) {
-      onServiceChange(inCategory[0].id)
-    } else {
-      onServiceChange('')
+    if (!multiSelect) {
+      const inCategory = servicesInCategory(services, categoryId)
+      if (inCategory.length === 1) {
+        onServiceChange?.(inCategory[0].id)
+      } else {
+        onServiceChange?.('')
+      }
     }
     onCategorySelected?.(categoryId)
   }
@@ -189,18 +201,22 @@ export function ServiceCategoryPickerPublic({
                 <label
                   key={service.id}
                   className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 transition-colors md:p-3 ${
-                    serviceId === service.id
+                    isServiceSelected(service.id)
                       ? 'border-gold bg-gold/5'
                       : 'border-gold/20 hover:border-gold/40'
                   }`}
                 >
                   <input
-                    type="radio"
-                    name="service"
+                    type={multiSelect ? 'checkbox' : 'radio'}
+                    name={multiSelect ? `service-${service.id}` : 'service'}
                     value={service.id}
-                    checked={serviceId === service.id}
+                    checked={isServiceSelected(service.id)}
                     onChange={() => {
-                      onServiceChange(service.id)
+                      if (multiSelect) {
+                        onToggleService?.(service.id)
+                        return
+                      }
+                      onServiceChange?.(service.id)
                       onServiceSelected?.(service.id)
                     }}
                     className="mt-0.5 shrink-0 accent-gold"

@@ -9,9 +9,10 @@ import {
 } from '@/hooks/useAppointmentForm'
 import { serviceDisplayName } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
+import { formatChainedAppointmentTimeRange } from '@/lib/bookingCombo'
 import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
 import { formatDisplayDate, getBookableDates } from '@/lib/dates'
-import { countServicesInCategory } from '@/lib/servicePicker'
+import { countServicesInCategory, servicesInCategory } from '@/lib/servicePicker'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -22,7 +23,7 @@ const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:h
 
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
-  onConfirmed?: (appointment: Appointment) => void
+  onConfirmed?: (appointment: Appointment, appointments?: Appointment[]) => void
 }
 
 export function AppointmentForm({
@@ -58,7 +59,9 @@ export function AppointmentForm({
       return
     }
     setStep((current) => {
-      if (current === scheduleStep && pickedCategoryId) {
+      if (current === scheduleStep) return 1
+      if (current === 1 && form.serviceIds.length > 0) return 0
+      if (current === 1 && pickedCategoryId) {
         const count = countServicesInCategory(form.services, pickedCategoryId)
         if (count === 1) return 0
       }
@@ -72,19 +75,29 @@ export function AppointmentForm({
     form.setDate,
     pickedCategoryId,
     form.services,
+    form.serviceIds.length,
   ])
 
   const handleCategorySelected = useCallback(
     (categoryId: string) => {
-      const count = countServicesInCategory(form.services, categoryId)
-      setStep(count === 1 ? 2 : 1)
+      const inCategory = servicesInCategory(form.services, categoryId)
+      if (form.serviceIds.length > 0) {
+        setStep(1)
+        return
+      }
+      if (inCategory.length === 1) {
+        form.setServiceIds([inCategory[0].id])
+        setStep(2)
+        return
+      }
+      setStep(1)
     },
-    [form.services],
+    [form.services, form.serviceIds.length, form.setServiceIds],
   )
 
-  const handleServiceSelected = useCallback(() => {
-    setStep(2)
-  }, [])
+  const handleContinueWithServices = useCallback(() => {
+    if (form.serviceIds.length > 0) setStep(2)
+  }, [form.serviceIds.length])
 
   const handleTimeSelected = useCallback(
     (slot: string) => {
@@ -106,13 +119,23 @@ export function AppointmentForm({
     await form.submit()
   }
 
+  const bookingServiceLines = useMemo(
+    () =>
+      form.selectedServices.map((service) => ({
+        id: service.id,
+        durationMinutes: service.durationMinutes,
+      })),
+    [form.selectedServices],
+  )
+
   const pickerProps = {
     services: form.services,
-    serviceId: form.serviceId,
+    serviceIds: form.serviceIds,
+    multiSelect: true,
     loading: form.servicesLoading,
     error: form.servicesError,
     onRetry: () => void form.loadServices(),
-    onServiceChange: form.setServiceId,
+    onToggleService: form.toggleServiceId,
     categoryId: pickedCategoryId,
     onCategoryChange: setPickedCategoryId,
   }
@@ -179,16 +202,52 @@ export function AppointmentForm({
         )}
 
         {step === 1 && (
-          <ServiceCategoryPickerPublic
-            {...pickerProps}
-            visibleSection="service"
-            onServiceSelected={handleServiceSelected}
-          />
+          <div className="space-y-6">
+            <ServiceCategoryPickerPublic {...pickerProps} visibleSection="service" />
+            {form.selectedServices.length > 0 && (
+              <div className="space-y-3">
+                <p className={`${typography.label} text-center`}>{b.selectedServices}</p>
+                <ul className="space-y-2">
+                  {form.selectedServices.map((service) => (
+                    <li
+                      key={service.id}
+                      className="flex items-center justify-between gap-3 border border-gold/25 bg-cream/40 px-3 py-2 text-sm"
+                    >
+                      <span className="text-left text-gold">
+                        {serviceDisplayName(service, locale)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => form.removeServiceId(service.id)}
+                        className={`${typography.caption} shrink-0 cursor-pointer text-charcoal-muted underline-offset-2 hover:underline`}
+                      >
+                        {b.removeService}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+              <Button type="button" variant="outline" size="md" onClick={() => setStep(0)}>
+                {b.addAnotherService}
+              </Button>
+              <Button
+                type="button"
+                variant="solid"
+                size="md"
+                disabled={form.serviceIds.length === 0}
+                onClick={handleContinueWithServices}
+              >
+                {b.continueWithServices}
+              </Button>
+            </div>
+          </div>
         )}
 
         {step === scheduleStep && (
           <div className="space-y-8">
-            {!form.serviceId ? (
+            {form.serviceIds.length === 0 ? (
               <p className={`${typography.caption} text-center`}>{b.chooseServiceFirst}</p>
             ) : !form.date ? (
               <div>
@@ -240,14 +299,20 @@ export function AppointmentForm({
                             className="sr-only"
                           />
                           {slot}
-                          {form.selectedService && (
+                          {bookingServiceLines.length > 0 && (
                             <span className="mt-0.5 block text-[10px] leading-tight text-charcoal-muted">
-                              {formatAppointmentTimeRange(
-                                form.selectedService.id,
-                                slot,
-                                form.selectedService.durationMinutes,
-                                locale,
-                              )}
+                              {bookingServiceLines.length === 1
+                                ? formatAppointmentTimeRange(
+                                    bookingServiceLines[0].id,
+                                    slot,
+                                    bookingServiceLines[0].durationMinutes,
+                                    locale,
+                                  )
+                                : formatChainedAppointmentTimeRange(
+                                    bookingServiceLines,
+                                    slot,
+                                    locale,
+                                  )}
                             </span>
                           )}
                         </label>
@@ -368,9 +433,10 @@ export function AppointmentForm({
               placeholder={b.notesPlaceholder}
             />
 
-            {form.selectedStaff && form.selectedService && (
+            {form.selectedStaff && form.selectedServices.length > 0 && (
               <p className={`${typography.caption} text-center`}>
-                {form.selectedStaff.name} · {serviceDisplayName(form.selectedService, locale)}
+                {form.selectedStaff.name} ·{' '}
+                {form.selectedServices.map((s) => serviceDisplayName(s, locale)).join(' + ')}
                 {form.date && form.startTime && (
                   <>
                     {' '}

@@ -107,6 +107,11 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'es';
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS color_group_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS color_group_role TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_group_id TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_appointments_booking_group
+  ON appointments (booking_group_id)
+  WHERE booking_group_id IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_color_group
   ON appointments (color_group_id)

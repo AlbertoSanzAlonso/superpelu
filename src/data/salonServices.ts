@@ -34,16 +34,15 @@ export const salonServices: SalonService[] = [
   /** 90 min en agenda: 30 color + 30 pausa + 30 lavado/acabado (ver bookingOccupancy). */
   s('svc-root-color', 'color', 'Color en raíz', 'Root Color', 90, 1),
   s('svc-complete-color', 'color', 'Color completo', 'Complete Color', 90, 2),
-  s('svc-all-over-color', 'color', 'Color en todo el cabello', 'All-over hair color', 90, 3),
   s(
     'svc-color-block',
     'color',
     'Color Block',
     'Example: Nape in one color, rest of hair in another color',
     90,
-    4,
+    3,
   ),
-  s('svc-toner', 'color', 'Matiz', 'Toner', 30, 5),
+  s('svc-toner', 'color', 'Matiz', 'Toner', 30, 4),
 
   // MECHAS (reserva online solo teléfono/WhatsApp para paquetes; admin puede citar)
   s(
@@ -64,20 +63,12 @@ export const salonServices: SalonService[] = [
   s('svc-root-bleaching', 'bleaching', 'Decoloración en raíz', 'Root Bleaching', 105, 0),
   s('svc-global-bleaching', 'bleaching', 'Decoloración global', 'Complete Bleaching', 120, 1),
   s(
-    'svc-all-over-bleaching',
-    'bleaching',
-    'Decoloración en todo el cabello',
-    'All-over hair bleaching',
-    120,
-    2,
-  ),
-  s(
     'svc-partial-bleaching',
     'bleaching',
     'Decoloración parcial',
     'Partial Bleaching (e.g. nape, sideburns)',
     90,
-    3,
+    2,
   ),
 
   // CORTE Y PEINADO

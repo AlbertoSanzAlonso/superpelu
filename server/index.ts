@@ -3,9 +3,10 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import fs from 'node:fs'
 import path from 'node:path'
+import { COLOR_GROUP_ROLE } from '@/lib/bookingOccupancy'
 import { listActiveServiceCategories } from '@server/serviceCategories.js'
 import { listActiveServices } from '@server/services.js'
-import { listStaffForService, getStaff } from '@server/staff.js'
+import { listStaffForService, listStaffForServices, getStaff } from '@server/staff.js'
 import { me } from '@server/me.js'
 import { listStaffDaySchedules } from '@server/staffSchedule.js'
 import {
@@ -15,8 +16,12 @@ import {
   getAppointmentById,
   markAppointmentNoShow,
   getAvailableSlots,
+  getAvailableSlotsForServices,
+  getAppointmentsByBookingGroup,
   getServiceDaySlots,
+  getServiceDaySlotsForServices,
   getStaffAvailableAtSlot,
+  getStaffAvailableAtSlotForServices,
   listAppointments,
   rescheduleAppointmentByCustomer,
   rowToPublic,
@@ -92,6 +97,18 @@ import { processDueReminders, startReminderScheduler } from '@server/reminderSch
 import { logEmailStartup } from '@server/appointmentEmail.js'
 
 const app = new Hono()
+
+function parseServiceIds(serviceId?: string | null, serviceIds?: string | null): string[] | null {
+  if (serviceIds?.trim()) {
+    const ids = serviceIds
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean)
+    return ids.length > 0 ? ids : null
+  }
+  if (serviceId?.trim()) return [serviceId.trim()]
+  return null
+}
 
 app.onError((err, c) => {
   const path = c.req.path
@@ -256,48 +273,51 @@ app.get('/api/service-categories', async (c) =>
 )
 
 app.get('/api/staff', async (c) => {
-  const serviceId = c.req.query('serviceId')
-  if (!serviceId) {
-    return c.json({ error: 'Falta serviceId' }, 400)
+  const ids = parseServiceIds(c.req.query('serviceId'), c.req.query('serviceIds'))
+  if (!ids) {
+    return c.json({ error: 'Falta serviceId o serviceIds' }, 400)
   }
   const date = c.req.query('date')
   const startTime = c.req.query('startTime')
   if (date && startTime) {
     return c.json({
-      staff: await getStaffAvailableAtSlot(date, serviceId, startTime),
+      staff: await getStaffAvailableAtSlotForServices(date, ids, startTime),
     })
   }
-  return c.json({ staff: await listStaffForService(serviceId) })
+  return c.json({
+    staff: ids.length === 1 ? await listStaffForService(ids[0]) : await listStaffForServices(ids),
+  })
 })
 
 app.get('/api/slots', async (c) => {
   const date = c.req.query('date')
-  const serviceId = c.req.query('serviceId')
+  const ids = parseServiceIds(c.req.query('serviceId'), c.req.query('serviceIds'))
   const staffId = c.req.query('staffId')
 
-  if (!date || !serviceId) {
-    return c.json({ error: 'Faltan date o serviceId' }, 400)
+  if (!date || !ids) {
+    return c.json({ error: 'Faltan date o serviceId/serviceIds' }, 400)
   }
 
   if (!staffId) {
     return c.json({
       date,
-      serviceId,
-      slots: await getServiceDaySlots(date, serviceId),
+      serviceIds: ids,
+      slots: await getServiceDaySlotsForServices(date, ids),
     })
   }
 
   return c.json({
     date,
-    serviceId,
+    serviceIds: ids,
     staffId,
-    slots: await getAvailableSlots(date, serviceId, staffId),
+    slots: await getAvailableSlotsForServices(date, ids, staffId),
   })
 })
 
 app.post('/api/appointments', async (c) => {
   const body = await c.req.json<{
-    serviceId: string
+    serviceId?: string
+    serviceIds?: string[]
     staffId: string
     date: string
     startTime: string
@@ -308,8 +328,12 @@ app.post('/api/appointments', async (c) => {
     locale?: 'es' | 'en'
   }>()
 
+  const serviceIds =
+    body.serviceIds?.filter(Boolean) ??
+    (body.serviceId ? [body.serviceId] : [])
+
   if (
-    !body.serviceId ||
+    serviceIds.length === 0 ||
     !body.staffId ||
     !body.date ||
     !body.startTime ||
@@ -321,7 +345,7 @@ app.post('/api/appointments', async (c) => {
 
   try {
     const row = await createAppointment({
-      serviceId: body.serviceId,
+      serviceIds,
       staffId: body.staffId,
       date: body.date,
       startTime: body.startTime,
@@ -331,7 +355,18 @@ app.post('/api/appointments', async (c) => {
       notes: body.notes,
       locale: body.locale,
     })
-    return c.json({ appointment: rowToPublic(row) }, 201)
+    const grouped =
+      row.booking_group_id != null
+        ? await getAppointmentsByBookingGroup(row.booking_group_id)
+        : [row]
+    const visibleGroup = grouped.filter((apt) => apt.color_group_role !== COLOR_GROUP_ROLE.wash)
+    return c.json(
+      {
+        appointment: rowToPublic(row),
+        appointments: visibleGroup.map(rowToPublic),
+      },
+      201,
+    )
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
     const messages: Record<string, string> = {

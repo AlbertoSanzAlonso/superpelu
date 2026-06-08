@@ -33,7 +33,9 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 **Mechas (`highlights`):** servicios con `bookableOnline: false` — reserva online solo teléfono/WhatsApp; admin/profesional sí pueden citar.
 
-**Coloración (reserva unificada):** servicios `svc-root-color`, `svc-complete-color`, `svc-all-over-color`, `svc-color-block` — el cliente reserva **90 min** (una cita); en agenda se crean **dos filas** enlazadas (`color_group_id`): fase color 30 min + pausa 30 min libre + **lavar color** 30 min (`svc-wash-color`, `color_group_role`). El lavado puede cambiar de profesional/hora en agenda de forma independiente. Ver `src/lib/bookingOccupancy.ts`, `server/colorBooking.ts`.
+**Coloración (reserva unificada):** servicios `svc-root-color`, `svc-complete-color`, `svc-color-block` — el cliente reserva **90 min** (una cita); en agenda se crean **dos filas** enlazadas (`color_group_id`): fase color 30 min + pausa 30 min libre + **lavar color** 30 min (`svc-wash-color`, `color_group_role`). El lavado puede cambiar de profesional/hora en agenda de forma independiente. Ver `src/lib/bookingOccupancy.ts`, `server/colorBooking.ts`.
+
+**Reserva multi-tratamiento:** el cliente puede elegir varios servicios en `/reservar`; se encadenan en el mismo hueco (`booking_group_id`, `src/lib/bookingCombo.ts`).
 
 **Lavar color** (`svc-wash-color`): `bookableOnline: false` (no aparece en `/reservar`); solo agenda o como pareja al reservar coloración. En catálogo 20 min; en pareja con color ocupa **30 min** en agenda.
 
