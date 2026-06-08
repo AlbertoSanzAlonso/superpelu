@@ -101,10 +101,32 @@ export type StaffDaySchedule = {
   freeSlots: string[]
 }
 
+export type BookingChainSegmentPlan = {
+  serviceIndex: number
+  serviceId: string
+  startTime: string
+  staffId: string
+  staffName: string
+}
+
+export type BookingChainContinuation =
+  | { complete: true; segments: BookingChainSegmentPlan[] }
+  | {
+      complete: false
+      needsTimeChange: boolean
+      segments: BookingChainSegmentPlan[]
+      next?: {
+        serviceIndex: number
+        startTime: string
+        staff: StaffMember[]
+      }
+    }
+
 export type CreateAppointmentPayload = {
   serviceId?: string
   serviceIds?: string[]
   staffId: string
+  staffAssignments?: string[]
   date: string
   startTime: string
   customerName: string

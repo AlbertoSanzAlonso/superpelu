@@ -23,6 +23,7 @@ import {
   getStaffAvailableAtSlot,
   getStaffAvailableAtSlotForServices,
   listAppointments,
+  resolveChainContinuation,
   rescheduleAppointmentByCustomer,
   rowToPublic,
   updateAppointmentForAdmin,
@@ -315,11 +316,36 @@ app.get('/api/slots', async (c) => {
   })
 })
 
+app.get('/api/booking/chain', async (c) => {
+  const date = c.req.query('date')
+  const ids = parseServiceIds(c.req.query('serviceId'), c.req.query('serviceIds'))
+  const startTime = c.req.query('startTime')
+  const staffAssignments =
+    c.req.query('staffAssignments')
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? []
+
+  if (!date || !ids || ids.length < 2 || !startTime) {
+    return c.json({ error: 'Faltan date, serviceIds (≥2) o startTime' }, 400)
+  }
+
+  try {
+    return c.json(
+      await resolveChainContinuation(date, ids, startTime, staffAssignments),
+    )
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    return c.json({ error: code }, 400)
+  }
+})
+
 app.post('/api/appointments', async (c) => {
   const body = await c.req.json<{
     serviceId?: string
     serviceIds?: string[]
     staffId: string
+    staffAssignments?: string[]
     date: string
     startTime: string
     customerName: string
@@ -356,6 +382,7 @@ app.post('/api/appointments', async (c) => {
     const row = await createAppointment({
       serviceIds,
       staffId: body.staffId,
+      staffAssignments: body.staffAssignments,
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,

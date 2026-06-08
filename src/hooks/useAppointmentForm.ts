@@ -3,13 +3,19 @@ import { publicAppointmentErrorMessage } from '@/i18n/publicAppointmentErrors'
 import { useTranslation } from '@/i18n/useTranslation'
 import {
   createAppointment,
+  fetchBookingChainContinuation,
   fetchServiceDaySlots,
   fetchServices,
   fetchStaffAtSlot,
   ApiError,
 } from '@/lib/api'
 import { isValidSpanishPhone } from '@/lib/phone'
-import type { Appointment, BookableService, StaffMember } from '@/types/booking'
+import type {
+  Appointment,
+  BookableService,
+  BookingChainSegmentPlan,
+  StaffMember,
+} from '@/types/booking'
 
 export type AppointmentFormOptions = {
   initialDate?: string
@@ -35,9 +41,16 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [startTime, setStartTimeState] = useState(options.initialStartTime ?? '')
   const [slots, setSlots] = useState<string[]>([])
   const [staffAtSlot, setStaffAtSlot] = useState<StaffMember[]>([])
+  const [staffAssignments, setStaffAssignments] = useState<string[]>([])
+  const [chainSegments, setChainSegments] = useState<BookingChainSegmentPlan[]>([])
+  const [chainNextStaff, setChainNextStaff] = useState<StaffMember[]>([])
+  const [chainNextIndex, setChainNextIndex] = useState<number | null>(null)
+  const [chainNextStartTime, setChainNextStartTime] = useState('')
+  const [chainNeedsTimeChange, setChainNeedsTimeChange] = useState(false)
 
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStaffAtSlot, setLoadingStaffAtSlot] = useState(false)
+  const [loadingChain, setLoadingChain] = useState(false)
   const [slotsError, setSlotsError] = useState('')
   const [staffAtSlotError, setStaffAtSlotError] = useState('')
 
@@ -70,10 +83,29 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     [serviceIds, services],
   )
   const selectedStaff = staffAtSlot.find((s) => s.id === staffId)
+  const chainComplete =
+    !hasMultipleServices || staffAssignments.length === serviceIds.length
 
   const canSubmit = Boolean(
-    serviceIds.length > 0 && staffId && date && startTime && customerName.trim() && customerPhone.trim(),
+    serviceIds.length > 0 &&
+      date &&
+      startTime &&
+      customerName.trim() &&
+      customerPhone.trim() &&
+      (hasMultipleServices
+        ? staffAssignments.length === serviceIds.length
+        : Boolean(staffId)),
   )
+
+  const resetChainSelection = useCallback(() => {
+    setStaffAssignments([])
+    setChainSegments([])
+    setChainNextStaff([])
+    setChainNextIndex(null)
+    setChainNextStartTime('')
+    setChainNeedsTimeChange(false)
+    setStaffIdState('')
+  }, [])
 
   const loadServices = useCallback(() => {
     setServicesLoading(true)
@@ -100,11 +132,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     if (!options.initialDate) {
       setDateState('')
       setStartTimeState('')
-      setStaffIdState('')
       setSlots([])
       setStaffAtSlot([])
     }
-  }, [options.initialDate])
+    resetChainSelection()
+  }, [options.initialDate, resetChainSelection])
 
   const setServiceIds = useCallback(
     (ids: string[]) => {
@@ -139,23 +171,78 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     (value: string) => {
       setDateState(value)
       setStartTimeState('')
-      setStaffIdState('')
       setStaffAtSlot([])
       setStaffAtSlotError('')
+      resetChainSelection()
     },
-    [],
+    [resetChainSelection],
   )
 
-  const setStartTime = useCallback((value: string) => {
-    setStartTimeState(value)
-    setStaffIdState('')
-    setStaffAtSlot([])
-    setStaffAtSlotError('')
-  }, [])
+  const setStartTime = useCallback(
+    (value: string) => {
+      setStartTimeState(value)
+      setStaffAtSlot([])
+      setStaffAtSlotError('')
+      resetChainSelection()
+    },
+    [resetChainSelection],
+  )
 
   const setStaffId = useCallback((id: string) => {
     setStaffIdState(id)
   }, [])
+
+  const pickChainStaff = useCallback(
+    async (id: string): Promise<boolean> => {
+      if (!date || !startTime || serviceIds.length < 2) return false
+      const nextAssignments = [...staffAssignments, id]
+      setStaffAssignments(nextAssignments)
+      if (staffAssignments.length === 0) {
+        setStaffIdState(id)
+      }
+      setChainNeedsTimeChange(false)
+      setLoadingChain(true)
+      try {
+        const res = await fetchBookingChainContinuation(
+          date,
+          serviceIds,
+          startTime,
+          nextAssignments,
+        )
+        setChainSegments(res.segments)
+        if (res.complete) {
+          setChainNextStaff([])
+          setChainNextIndex(null)
+          setChainNextStartTime('')
+          return true
+        }
+        if (res.needsTimeChange) {
+          setChainNeedsTimeChange(true)
+          setChainNextStaff([])
+          setChainNextIndex(null)
+          setChainNextStartTime('')
+          setStaffAssignments([])
+          setStaffIdState('')
+          setChainSegments([])
+          return false
+        }
+        if (res.next) {
+          setChainNextStaff(res.next.staff)
+          setChainNextIndex(res.next.serviceIndex)
+          setChainNextStartTime(res.next.startTime)
+        }
+        return false
+      } catch {
+        setChainNeedsTimeChange(true)
+        setStaffAssignments([])
+        setStaffIdState('')
+        return false
+      } finally {
+        setLoadingChain(false)
+      }
+    },
+    [date, serviceIds, startTime, staffAssignments],
+  )
 
   useEffect(() => {
     if (serviceIds.length === 0) {
@@ -250,13 +337,14 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setStartTimeState('')
     setSlots([])
     setStaffAtSlot([])
+    resetChainSelection()
     setError('')
     setFieldErrors({})
     setCustomerName('')
     setCustomerPhone('')
     setCustomerEmail('')
     setNotes('')
-  }, [])
+  }, [resetChainSelection])
 
   const validateCustomerFields = useCallback(() => {
     const next: { name?: string; phone?: string } = {}
@@ -280,9 +368,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setSubmitting(true)
 
     try {
+      const primaryStaffId = hasMultipleServices ? staffAssignments[0]! : staffId
       const { appointment, appointments } = await createAppointment({
         serviceIds,
-        staffId,
+        staffId: primaryStaffId,
+        staffAssignments: hasMultipleServices ? staffAssignments : undefined,
         date,
         startTime,
         customerName,
@@ -308,6 +398,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     canSubmit,
     serviceIds,
     staffId,
+    staffAssignments,
+    hasMultipleServices,
     date,
     startTime,
     customerName,
@@ -355,6 +447,16 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     canSubmit,
     selectedStaff,
     hasMultipleServices,
+    staffAssignments,
+    chainSegments,
+    chainNextStaff,
+    chainNextIndex,
+    chainNextStartTime,
+    chainNeedsTimeChange,
+    chainComplete,
+    loadingChain,
+    pickChainStaff,
+    resetChainSelection,
     resetForm,
     submit,
   }

@@ -15,6 +15,7 @@ import {
 import {
   getChainedBookingSegments,
   getChainedBookingSpanMinutes,
+  getChainedServiceStartTimes,
   type BookingServiceLine,
 } from '@/lib/bookingCombo'
 import { schedule } from '@server/config.js'
@@ -191,6 +192,177 @@ async function assertBookingAvailable(
   }
 }
 
+async function isStaffFreeForServiceAt(
+  date: string,
+  staffId: string,
+  service: BookingServiceLine,
+  startTime: string,
+  options: SlotOptions = {},
+): Promise<boolean> {
+  if (!(await staffCanPerformService(staffId, service.id))) return false
+  const segments = getOccupiedSegmentsForBooking(
+    service.id,
+    timeToMinutes(startTime),
+    service.durationMinutes,
+  )
+  return !(await isBookingUnavailable(
+    sql,
+    staffId,
+    date,
+    segments,
+    options.excludeAppointmentId,
+  ))
+}
+
+export type BookingChainSegmentPlan = {
+  serviceIndex: number
+  serviceId: string
+  startTime: string
+  staffId: string
+  staffName: string
+}
+
+export type ChainContinuationResult =
+  | { complete: true; segments: BookingChainSegmentPlan[] }
+  | {
+      complete: false
+      needsTimeChange: boolean
+      segments: BookingChainSegmentPlan[]
+      next?: {
+        serviceIndex: number
+        startTime: string
+        staff: PublicStaff[]
+      }
+    }
+
+async function existsFlexibleChainPlan(
+  date: string,
+  services: ResolvedBookingService[],
+  visitStartTime: string,
+  options: SlotOptions,
+  fixedPrefix: readonly string[],
+): Promise<boolean> {
+  const serviceStartTimes = getChainedServiceStartTimes(services, visitStartTime)
+
+  async function dfs(index: number): Promise<boolean> {
+    if (index >= services.length) return true
+    const service = services[index]
+    const svcStart = serviceStartTimes[index]
+    const fixedStaffId = fixedPrefix[index]
+
+    if (fixedStaffId) {
+      if (!(await isStaffFreeForServiceAt(date, fixedStaffId, service, svcStart, options))) {
+        return false
+      }
+      return dfs(index + 1)
+    }
+
+    const staffList = await listStaffForService(service.id)
+    for (const member of staffList) {
+      if (!(await isStaffFreeForServiceAt(date, member.id, service, svcStart, options))) {
+        continue
+      }
+      if (await dfs(index + 1)) return true
+    }
+    return false
+  }
+
+  return dfs(0)
+}
+
+function buildPartialChainSegments(
+  services: ResolvedBookingService[],
+  visitStartTime: string,
+  assignments: readonly string[],
+): BookingChainSegmentPlan[] {
+  const serviceStartTimes = getChainedServiceStartTimes(services, visitStartTime)
+  return assignments.map((staffId, serviceIndex) => ({
+    serviceIndex,
+    serviceId: services[serviceIndex].id,
+    startTime: serviceStartTimes[serviceIndex],
+    staffId,
+    staffName: '',
+  }))
+}
+
+export async function resolveChainContinuation(
+  date: string,
+  serviceIds: string[],
+  visitStartTime: string,
+  staffAssignments: string[],
+  options: SlotOptions = {},
+): Promise<ChainContinuationResult> {
+  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  if (services.length < 2) {
+    throw new Error('SERVICIO_INVALIDO')
+  }
+
+  const serviceStartTimes = getChainedServiceStartTimes(services, visitStartTime)
+  const segments: BookingChainSegmentPlan[] = []
+
+  for (let i = 0; i < staffAssignments.length; i++) {
+    const staff = await getStaff(staffAssignments[i])
+    if (!staff?.active) {
+      return {
+        complete: false,
+        needsTimeChange: true,
+        segments: buildPartialChainSegments(services, visitStartTime, staffAssignments),
+      }
+    }
+    const service = services[i]
+    const svcStart = serviceStartTimes[i]
+    if (!(await isStaffFreeForServiceAt(date, staff.id, service, svcStart, options))) {
+      return {
+        complete: false,
+        needsTimeChange: true,
+        segments: buildPartialChainSegments(services, visitStartTime, staffAssignments),
+      }
+    }
+    segments.push({
+      serviceIndex: i,
+      serviceId: service.id,
+      startTime: svcStart,
+      staffId: staff.id,
+      staffName: staff.name,
+    })
+  }
+
+  if (staffAssignments.length >= services.length) {
+    return { complete: true, segments }
+  }
+
+  const nextIndex = staffAssignments.length
+  const nextService = services[nextIndex]
+  const nextStart = serviceStartTimes[nextIndex]
+  const viable: PublicStaff[] = []
+  const staffList = await listStaffForService(nextService.id)
+
+  for (const member of staffList) {
+    if (!(await isStaffFreeForServiceAt(date, member.id, nextService, nextStart, options))) {
+      continue
+    }
+    const prefix = [...staffAssignments, member.id]
+    if (await existsFlexibleChainPlan(date, services, visitStartTime, options, prefix)) {
+      viable.push(member)
+    }
+  }
+
+  if (viable.length === 0) {
+    return { complete: false, needsTimeChange: true, segments }
+  }
+
+  return {
+    complete: false,
+    needsTimeChange: false,
+    segments,
+    next: {
+      serviceIndex: nextIndex,
+      startTime: nextStart,
+      staff: viable,
+    },
+  }
+}
+
 export type SlotOptions = {
   excludeAppointmentId?: string
   /** Panel del profesional: sin límite de días de antelación pública. */
@@ -334,20 +506,54 @@ export async function getServiceDaySlotsForServices(
   options: SlotOptions = {},
 ): Promise<string[]> {
   if (serviceIds.length === 0) return []
-  const staffList = await listStaffForServices(serviceIds)
-  const merged = new Set<string>()
-  await Promise.all(
-    staffList.map(async (member) => {
-      const memberSlots = await getAvailableSlotsForServices(
-        date,
-        serviceIds,
-        member.id,
-        options,
-      )
-      for (const slot of memberSlots) merged.add(slot)
-    }),
-  )
-  return [...merged].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
+  if (serviceIds.length === 1) {
+    const staffList = await listStaffForServices(serviceIds)
+    const merged = new Set<string>()
+    await Promise.all(
+      staffList.map(async (member) => {
+        const memberSlots = await getAvailableSlotsForServices(
+          date,
+          serviceIds,
+          member.id,
+          options,
+        )
+        for (const slot of memberSlots) merged.add(slot)
+      }),
+    )
+    return [...merged].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
+  }
+
+  const dateAllowed = options.forStaffPortal
+    ? isValidDateString(date) && isSalonOpenDay(date)
+    : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
+  if (!dateAllowed) return []
+
+  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const firstSpan = getBookingSpanMinutes(services[0].id, services[0].durationMinutes)
+  const candidateStarts = new Set<string>()
+  const staffForFirst = await listStaffForService(serviceIds[0])
+
+  for (const member of staffForFirst) {
+    const windows = await getStaffDayWindows(member.id, date)
+    for (const window of windows) {
+      for (
+        let start = window.startMinutes;
+        start + firstSpan <= window.endMinutes;
+        start += schedule.slotMinutes
+      ) {
+        candidateStarts.add(minutesToTime(start))
+      }
+    }
+  }
+
+  const slots: string[] = []
+  for (const start of [...candidateStarts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))) {
+    if (await existsFlexibleChainPlan(date, services, start, options, [])) {
+      slots.push(start)
+    }
+  }
+
+  return filterPastSlotsForToday(date, slots)
 }
 
 export async function getStaffAvailableAtSlot(
@@ -366,11 +572,23 @@ export async function getStaffAvailableAtSlotForServices(
   options: SlotOptions = {},
 ): Promise<PublicStaff[]> {
   if (serviceIds.length === 0) return []
-  const staffList = await listStaffForServices(serviceIds)
+  if (serviceIds.length === 1) {
+    const staffList = await listStaffForServices(serviceIds)
+    const available: PublicStaff[] = []
+    for (const member of staffList) {
+      const slots = await getAvailableSlotsForServices(date, serviceIds, member.id, options)
+      if (slots.includes(startTime)) available.push(member)
+    }
+    return available
+  }
+
+  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const staffList = await listStaffForService(serviceIds[0])
   const available: PublicStaff[] = []
   for (const member of staffList) {
-    const slots = await getAvailableSlotsForServices(date, serviceIds, member.id, options)
-    if (slots.includes(startTime)) available.push(member)
+    if (await isStaffFreeForServiceAt(date, member.id, services[0], startTime, options)) {
+      available.push(member)
+    }
   }
   return available
 }
@@ -379,6 +597,8 @@ export type CreateAppointmentInput = {
   serviceId?: string
   serviceIds?: string[]
   staffId: string
+  /** Un profesional por tratamiento (reserva multi); si falta, se repite staffId. */
+  staffAssignments?: string[]
   date: string
   startTime: string
   customerName?: string
@@ -407,7 +627,7 @@ export async function getAppointmentsByBookingGroup(
 async function createChainedBookingAppointment(
   input: CreateAppointmentInput,
   serviceIds: string[],
-  staff: NonNullable<Awaited<ReturnType<typeof getStaff>>>,
+  staffAssignments: string[],
 ): Promise<AppointmentRow> {
   const services = await resolveBookingServices(serviceIds, !input.forStaffPortal)
 
@@ -443,22 +663,36 @@ async function createChainedBookingAppointment(
   const reminderSentAt =
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
   const bookingGroupId = randomUUID()
-  const bookingSegments = getChainedBookingSegments(
-    services,
-    timeToMinutes(input.startTime),
-  )
+  const serviceStartTimes = getChainedServiceStartTimes(services, input.startTime)
 
   const primaryId = await sql.begin(async (tx) => {
-    await lockStaffDayForBooking(tx, staff.id, input.date)
-    if (await isBookingUnavailable(tx, staff.id, input.date, bookingSegments)) {
-      throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+    await lockStaffDaysForBooking(
+      tx,
+      staffAssignments.map((staffId) => ({ staffId, date: input.date })),
+    )
+
+    for (let i = 0; i < services.length; i++) {
+      const service = services[i]
+      const staffId = staffAssignments[i]
+      const serviceStartTime = serviceStartTimes[i]
+      const segments = getOccupiedSegmentsForBooking(
+        service.id,
+        timeToMinutes(serviceStartTime),
+        service.durationMinutes,
+      )
+      if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
+        throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+      }
     }
 
-    let cursor = timeToMinutes(input.startTime)
     let firstId: string | null = null
 
-    for (const service of services) {
-      const serviceStartTime = minutesToTime(cursor)
+    for (let i = 0; i < services.length; i++) {
+      const service = services[i]
+      const staffId = staffAssignments[i]
+      const staff = await getStaff(staffId)
+      if (!staff?.active) throw new Error('STAFF_INVALIDO')
+      const serviceStartTime = serviceStartTimes[i]
       const serviceName = serviceDisplayName(service, locale)
 
       if (usesColorSplitBooking(service.id)) {
@@ -490,7 +724,6 @@ async function createChainedBookingAppointment(
           tx,
         )
         if (!firstId) firstId = colorGroup.colorId
-        cursor += getBookingSpanMinutes(service.id, service.durationMinutes)
         continue
       }
 
@@ -511,7 +744,6 @@ async function createChainedBookingAppointment(
         )
       `
       if (!firstId) firstId = id
-      cursor += storedDuration
     }
 
     if (!firstId) throw new Error('SERVICIO_INVALIDO')
@@ -533,6 +765,51 @@ export async function createAppointment(
 ): Promise<AppointmentRow> {
   const serviceIds = normalizeServiceIds(input)
   if (serviceIds.length === 0) throw new Error('SERVICIO_INVALIDO')
+
+  if (serviceIds.length > 1) {
+    const staffAssignments =
+      input.staffAssignments?.length === serviceIds.length
+        ? input.staffAssignments
+        : serviceIds.map(() => input.staffId)
+
+    for (let i = 0; i < serviceIds.length; i++) {
+      const staffId = staffAssignments[i]
+      const staff = await getStaff(staffId)
+      if (!staff?.active) throw new Error('STAFF_INVALIDO')
+      if (!(await staffCanPerformService(staffId, serviceIds[i]))) {
+        throw new Error('STAFF_NO_REALIZA_SERVICIO')
+      }
+    }
+
+    const dateOk = input.forStaffPortal
+      ? isValidDateString(input.date) && isSalonOpenDay(input.date)
+      : isValidDateString(input.date) &&
+        isSalonOpenDay(input.date) &&
+        isWithinSalonBookingWindow(input.date)
+    if (!dateOk) throw new Error('FECHA_INVALIDA')
+
+    for (const staffId of new Set(staffAssignments)) {
+      if (!(await isStaffWorkingOnDate(staffId, input.date))) {
+        throw new Error('FECHA_INVALIDA')
+      }
+    }
+
+    const daySlots = await getServiceDaySlotsForServices(input.date, serviceIds, {
+      forStaffPortal: input.forStaffPortal,
+    })
+    if (!daySlots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+
+    const chain = await resolveChainContinuation(
+      input.date,
+      serviceIds,
+      input.startTime,
+      staffAssignments,
+      { forStaffPortal: input.forStaffPortal },
+    )
+    if (!chain.complete) throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+
+    return createChainedBookingAppointment(input, serviceIds, staffAssignments)
+  }
 
   const staff = await getStaff(input.staffId)
   if (!staff || !staff.active) throw new Error('STAFF_INVALIDO')
@@ -561,10 +838,6 @@ export async function createAppointment(
     { forStaffPortal: input.forStaffPortal },
   )
   if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
-
-  if (serviceIds.length > 1) {
-    return createChainedBookingAppointment(input, serviceIds, staff)
-  }
 
   const service = await getService(serviceIds[0], { onlineOnly: !input.forStaffPortal })
   if (!service) throw new Error('SERVICIO_INVALIDO')

@@ -1,6 +1,7 @@
 import type {
   Appointment,
   BookableService,
+  BookingChainContinuation,
   CreateAppointmentPayload,
   ServiceCategory,
   StaffDaySchedule,
@@ -115,6 +116,21 @@ export function fetchStaffAtSlot(date: string, serviceIds: string[], startTime: 
   return request<{ staff?: StaffMember[] }>(`/staff?${params}`).then((res) => ({
     staff: Array.isArray(res.staff) ? res.staff : [],
   }))
+}
+
+export function fetchBookingChainContinuation(
+  date: string,
+  serviceIds: string[],
+  startTime: string,
+  staffAssignments: string[],
+) {
+  const params = new URLSearchParams({
+    date,
+    serviceIds: serviceIds.join(','),
+    startTime,
+    staffAssignments: staffAssignments.join(','),
+  })
+  return request<BookingChainContinuation>(`/booking/chain?${params}`)
 }
 
 export function createAppointment(payload: CreateAppointmentPayload) {

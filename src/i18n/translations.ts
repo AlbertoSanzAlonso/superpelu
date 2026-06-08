@@ -272,6 +272,13 @@ const es = {
     selectedServices: 'Tratamientos elegidos',
     removeService: 'Quitar',
     chooseStaffForSlot: 'Elige un profesional para continuar',
+    chooseStaffForFirstTreatment: (service: string, time: string) =>
+      `Elige profesional para ${service} (${time})`,
+    chooseStaffForTreatment: (service: string, time: string) =>
+      `Para ${service} a las ${time}, elige profesional`,
+    chainNeedsTimeChange:
+      'No hay hueco para enlazar el resto de tratamientos a esa hora. Elige otra hora o prueba otro día.',
+    chainAssignedHeading: 'Profesionales asignados',
     loadingStaff: 'Cargando equipo…',
     noStaffAtSlot: 'No hay profesionales libres a esa hora.',
     chainedNoStaffAtSlot:
@@ -798,6 +805,13 @@ const en = {
     selectedServices: 'Selected treatments',
     removeService: 'Remove',
     chooseStaffForSlot: 'Choose a stylist to continue',
+    chooseStaffForFirstTreatment: (service: string, time: string) =>
+      `Choose a stylist for ${service} (${time})`,
+    chooseStaffForTreatment: (service: string, time: string) =>
+      `For ${service} at ${time}, choose a stylist`,
+    chainNeedsTimeChange:
+      'There is no slot to link the remaining treatments at that time. Choose another time or day.',
+    chainAssignedHeading: 'Assigned stylists',
     loadingStaff: 'Loading team…',
     noStaffAtSlot: 'No stylists available at that time.',
     chainedNoStaffAtSlot:

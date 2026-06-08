@@ -48,8 +48,13 @@ export function AppointmentForm({
   const [pickedCategoryId, setPickedCategoryId] = useState('')
 
   const scheduleStep = 2
+  const confirmStep = 3
 
   const goPrev = useCallback(() => {
+    if (step === scheduleStep && form.staffAssignments.length > 0) {
+      form.resetChainSelection()
+      return
+    }
     if (step === scheduleStep && form.startTime) {
       form.setStartTime('')
       return
@@ -76,6 +81,8 @@ export function AppointmentForm({
     pickedCategoryId,
     form.services,
     form.serviceIds.length,
+    form.staffAssignments.length,
+    form.resetChainSelection,
   ])
 
   const handleCategorySelected = useCallback(
@@ -107,11 +114,16 @@ export function AppointmentForm({
   )
 
   const handleStaffSelected = useCallback(
-    (staffId: string) => {
+    async (staffId: string) => {
+      if (form.hasMultipleServices) {
+        const done = await form.pickChainStaff(staffId)
+        if (done) setStep(confirmStep)
+        return
+      }
       form.setStaffId(staffId)
-      setStep(3)
+      setStep(confirmStep)
     },
-    [form.setStaffId],
+    [form.hasMultipleServices, form.pickChainStaff, form.setStaffId],
   )
 
   async function handleSubmit(e: React.FormEvent) {
@@ -151,7 +163,23 @@ export function AppointmentForm({
     form.setStartTime('')
   }, [form.setStartTime])
 
-  const confirmStep = 3
+  const staffPickerOptions =
+    form.hasMultipleServices && form.chainNextIndex != null
+      ? form.chainNextStaff
+      : form.staffAtSlot
+
+  const staffPickerLegend =
+    form.hasMultipleServices && form.chainNextIndex != null
+      ? b.chooseStaffForTreatment(
+          serviceDisplayName(form.selectedServices[form.chainNextIndex]!, locale),
+          form.chainNextStartTime,
+        )
+      : form.hasMultipleServices && form.selectedServices[0]
+        ? b.chooseStaffForFirstTreatment(
+            serviceDisplayName(form.selectedServices[0], locale),
+            form.startTime,
+          )
+        : b.chooseStaffForSlot
 
   const calendarProps = {
     bookableDates,
@@ -345,38 +373,59 @@ export function AppointmentForm({
                   </div>
                 </div>
 
+                {form.chainSegments.length > 0 && (
+                  <div className="space-y-2 rounded border border-gold/20 bg-cream/40 px-4 py-3 text-sm">
+                    <p className={`${typography.label} text-center`}>{b.chainAssignedHeading}</p>
+                    <ul className="space-y-1">
+                      {form.chainSegments.map((segment) => {
+                        const service = form.selectedServices[segment.serviceIndex]
+                        return (
+                          <li key={segment.serviceIndex} className="text-center text-charcoal">
+                            {service ? serviceDisplayName(service, locale) : segment.serviceId}{' '}
+                            · {segment.startTime} · {segment.staffName}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {form.chainNeedsTimeChange && (
+                  <p
+                    className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                    role="status"
+                  >
+                    {b.chainNeedsTimeChange}
+                  </p>
+                )}
+
                 <fieldset className="space-y-3">
                   <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
                     {b.staff}
                   </legend>
-                  {form.loadingStaffAtSlot ? (
+                  {form.loadingStaffAtSlot || form.loadingChain ? (
                     <p className={`${typography.caption} text-center`}>{b.loadingStaff}</p>
-                  ) : form.staffAtSlot.length === 0 ? (
+                  ) : staffPickerOptions.length === 0 && !form.chainNeedsTimeChange ? (
                     <p
                       className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
                       role="status"
                     >
                       {form.staffAtSlotError || b.noStaffAtSlot}
                     </p>
-                  ) : (
+                  ) : staffPickerOptions.length > 0 ? (
                     <>
-                      <p className={`${typography.caption} text-center`}>{b.chooseStaffForSlot}</p>
+                      <p className={`${typography.caption} text-center`}>{staffPickerLegend}</p>
                       <div className="grid gap-3">
-                        {form.staffAtSlot.map((member) => (
+                        {staffPickerOptions.map((member) => (
                           <label
                             key={member.id}
-                            className={`flex cursor-pointer items-start gap-3 border p-4 transition-colors ${
-                              form.staffId === member.id
-                                ? 'border-gold bg-gold/5'
-                                : 'border-gold/20 hover:border-gold/40'
-                            }`}
+                            className="flex cursor-pointer items-start gap-3 border border-gold/20 p-4 transition-colors hover:border-gold/40"
                           >
                             <input
                               type="radio"
-                              name="staff"
+                              name={`staff-${form.chainNextIndex ?? 0}`}
                               value={member.id}
-                              checked={form.staffId === member.id}
-                              onChange={() => handleStaffSelected(member.id)}
+                              onChange={() => void handleStaffSelected(member.id)}
                               className="mt-1 accent-gold"
                             />
                             <span className="text-left">
@@ -391,7 +440,7 @@ export function AppointmentForm({
                         ))}
                       </div>
                     </>
-                  )}
+                  ) : null}
                 </fieldset>
               </>
             )}
@@ -433,17 +482,32 @@ export function AppointmentForm({
               placeholder={b.notesPlaceholder}
             />
 
-            {form.selectedStaff && form.selectedServices.length > 0 && (
-              <p className={`${typography.caption} text-center`}>
-                {form.selectedStaff.name} ·{' '}
-                {form.selectedServices.map((s) => serviceDisplayName(s, locale)).join(' + ')}
-                {form.date && form.startTime && (
-                  <>
-                    {' '}
-                    · {formatDisplayDate(form.date, locale)} · {form.startTime}
-                  </>
+            {form.selectedServices.length > 0 && form.date && form.startTime && (
+              <div className={`${typography.caption} space-y-1 text-center`}>
+                <p className="capitalize">
+                  {formatDisplayDate(form.date, locale)} · {form.startTime}
+                </p>
+                {form.hasMultipleServices && form.chainSegments.length > 0 ? (
+                  <ul className="space-y-0.5">
+                    {form.chainSegments.map((segment) => {
+                      const service = form.selectedServices[segment.serviceIndex]
+                      return (
+                        <li key={segment.serviceIndex}>
+                          {service ? serviceDisplayName(service, locale) : segment.serviceId} ·{' '}
+                          {segment.startTime} · {segment.staffName}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  form.selectedStaff && (
+                    <p>
+                      {form.selectedStaff.name} ·{' '}
+                      {form.selectedServices.map((s) => serviceDisplayName(s, locale)).join(' + ')}
+                    </p>
+                  )
                 )}
-              </p>
+              </div>
             )}
           </div>
         )}
