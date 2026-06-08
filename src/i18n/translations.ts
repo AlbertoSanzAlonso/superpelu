@@ -220,8 +220,10 @@ const es = {
     perm: 'Permanente',
     keratin: 'Alisado de keratina',
     'hair-treatments': 'Tratamientos capilares',
+    'beauty-waxing': 'Depilación',
     'beauty-hands-feet': 'Manos y pies',
-    'beauty-facial': 'Estética facial',
+    'beauty-facial': 'Tratamientos faciales',
+    'beauty-eyes': 'Rejuvenece tu mirada',
     other: 'Otros',
   },
   servicePicker: {
@@ -719,8 +721,10 @@ const en = {
     perm: 'Perm',
     keratin: 'Keratin straightening',
     'hair-treatments': 'Hair treatments',
+    'beauty-waxing': 'Waxing',
     'beauty-hands-feet': 'Hands and feet',
-    'beauty-facial': 'Facial beauty',
+    'beauty-facial': 'Facial treatments',
+    'beauty-eyes': 'Rejuvenate your gaze',
     other: 'Other',
   },
   servicePicker: {

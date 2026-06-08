@@ -14,6 +14,7 @@ export type BookableService = {
   nameEn: string
   durationMinutes: number
   categoryId: string | null
+  showDurationInBooking?: boolean
 }
 
 export type StaffMember = {

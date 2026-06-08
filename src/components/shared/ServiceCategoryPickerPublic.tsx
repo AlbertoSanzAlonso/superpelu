@@ -225,9 +225,11 @@ export function ServiceCategoryPickerPublic({
                     <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
                       {serviceDisplayName(service, locale)}
                     </span>
-                    <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
-                      {labels.minutes(service.durationMinutes)}
-                    </span>
+                    {service.showDurationInBooking !== false && (
+                      <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
+                        {labels.minutes(service.durationMinutes)}
+                      </span>
+                    )}
                   </span>
                 </label>
               ))}

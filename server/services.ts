@@ -1,3 +1,4 @@
+import { salonServiceById } from '@/data/salonServices'
 import { sql, type ServiceRow } from '@server/db.js'
 
 export type PublicService = {
@@ -6,15 +7,18 @@ export type PublicService = {
   nameEn: string
   durationMinutes: number
   categoryId: string | null
+  showDurationInBooking: boolean
 }
 
 function rowToPublic(row: ServiceRow): PublicService {
+  const catalog = salonServiceById.get(row.id)
   return {
     id: row.id,
     nameEs: row.name,
     nameEn: row.name_en ?? '',
     durationMinutes: row.duration_minutes,
     categoryId: row.category_id ?? null,
+    showDurationInBooking: catalog?.showDurationInBooking !== false,
   }
 }
 

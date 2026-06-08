@@ -9,6 +9,8 @@ export type SalonService = {
   sortOrder: number
   /** Si es false, no aparece en reserva online (p. ej. mechas solo por teléfono). */
   bookableOnline?: boolean
+  /** Si es false, no se muestra duración en /reservar (pendiente de confirmar en tarifa). */
+  showDurationInBooking?: boolean
 }
 
 function s(
@@ -19,8 +21,18 @@ function s(
   durationMinutes: number,
   sortOrder: number,
   bookableOnline = true,
+  showDurationInBooking = true,
 ): SalonService {
-  return { id, categoryId, nameEs, nameEn, durationMinutes, sortOrder, bookableOnline }
+  return {
+    id,
+    categoryId,
+    nameEs,
+    nameEn,
+    durationMinutes,
+    sortOrder,
+    bookableOnline,
+    showDurationInBooking,
+  }
 }
 
 export const salonServices: SalonService[] = [
@@ -223,134 +235,84 @@ export const salonServices: SalonService[] = [
     2,
   ),
 
-  // ESTÉTICA MANOS Y PIES
+  // DEPILACIÓN FACIAL Y CORPORAL
+  s('svc-wax-eyebrows', 'beauty-waxing', 'Cejas', 'Eyebrows', 30, 0, true, false),
+  s('svc-wax-upper-lip', 'beauty-waxing', 'Labio superior', 'Upper lip', 30, 1, true, false),
+  s('svc-wax-chin', 'beauty-waxing', 'Mentón', 'Chin', 30, 2, true, false),
+  s('svc-wax-underarms', 'beauty-waxing', 'Axilas', 'Underarms', 30, 3, true, false),
+  s('svc-wax-arms', 'beauty-waxing', 'Brazos', 'Arms', 30, 4, true, false),
+  s('svc-wax-bikini', 'beauty-waxing', 'Bikini', 'Bikini', 30, 5, true, false),
+  s('svc-wax-bikini-brazilian', 'beauty-waxing', 'Bikini brasileño', 'Brazilian bikini', 30, 6, true, false),
+  s('svc-wax-full-pubis', 'beauty-waxing', 'Pubis completo', 'Full pubis', 30, 7, true, false),
+  s('svc-wax-half-legs', 'beauty-waxing', 'Medias piernas', 'Half legs', 30, 8, true, false),
+  s('svc-wax-full-legs', 'beauty-waxing', 'Piernas completas', 'Full legs', 30, 9, true, false),
+
+  // BELLEZA DE MANOS Y PIES
   s('svc-manicure', 'beauty-hands-feet', 'Manicura', 'Manicure', 30, 0),
-  s('svc-french-manicure', 'beauty-hands-feet', 'Manicura francesa', 'French Manicure', 40, 1),
   s(
     'svc-shellac-manicure',
     'beauty-hands-feet',
-    'Manicura esmalte semipermanente',
-    'Shellac Manicure',
+    'Manicura semipermanente',
+    'Semi-permanent manicure',
     60,
-    2,
+    1,
   ),
+  s('svc-gel-refill', 'beauty-hands-feet', 'Refuerzo de gel', 'Gel refill', 60, 2),
+  s('svc-nail-extensions', 'beauty-hands-feet', 'Extensión de uñas', 'Nail extensions', 120, 3),
   s(
-    'svc-shellac-manicure-remove',
+    'svc-pedicure-spa',
     'beauty-hands-feet',
-    'Manicura semipermanente + retirado',
-    'Shellac manicure with removal',
-    90,
-    3,
-  ),
-  s(
-    'svc-regular-polish-hands',
-    'beauty-hands-feet',
-    'Pintar manos esmalte normal',
-    'Regular nail polish — hands',
-    15,
+    'Pedicura spa completa',
+    'Full spa pedicure',
+    60,
     4,
+  ),
+  s(
+    'svc-pedicure-spa-shellac',
+    'beauty-hands-feet',
+    'Pedicura spa semipermanente',
+    'Spa pedicure with semi-permanent polish',
+    90,
+    5,
   ),
   s(
     'svc-shellac-remove',
     'beauty-hands-feet',
     'Retirado esmalte semipermanente',
-    'Shellac Remove',
-    20,
-    5,
-  ),
-  s('svc-nails-decoration', 'beauty-hands-feet', 'Decoración de uñas', 'Nails Decoration', 15, 6),
-  s(
-    'svc-polygel-extensions',
-    'beauty-hands-feet',
-    'Extensión de uñas con POLYGEL',
-    'POLYGEL nails extensions',
-    150,
-    7,
-  ),
-  s('svc-polygel-refill', 'beauty-hands-feet', 'Relleno de POLYGEL', 'POLYGEL refill', 120, 8),
-  s(
-    'svc-acrylic-polygel-remove',
-    'beauty-hands-feet',
-    'Retirado acrílico o POLYGEL',
-    'Acrylic or POLYGEL remove',
+    'Semi-permanent polish removal',
     30,
-    9,
-  ),
-  s('svc-pedicure', 'beauty-hands-feet', 'Pedicura tradicional', 'Pedicure', 60, 10),
-  s(
-    'svc-shellac-pedicure',
-    'beauty-hands-feet',
-    'Pedicura esmalte semipermanente',
-    'Shellac Pedicure',
-    90,
-    11,
-  ),
-  s(
-    'svc-regular-polish-feet',
-    'beauty-hands-feet',
-    'Pintar pies esmalte normal',
-    'Regular nail polish — feet',
-    15,
-    12,
-  ),
-  s(
-    'svc-regular-polish-hands-feet',
-    'beauty-hands-feet',
-    'Pintar manos y pies esmalte normal',
-    'Regular nail polish — hands and feet',
-    30,
-    13,
-  ),
-
-  // ESTÉTICA FACIAL
-  s('svc-eyebrow-wax', 'beauty-facial', 'Depilación de cejas', 'Eyebrow Waxing', 15, 0),
-  s('svc-upper-lip-wax', 'beauty-facial', 'Depilación labio superior', 'Upper Lip Waxing', 10, 1),
-  s('svc-eyebrow-tint', 'beauty-facial', 'Tinte de cejas', 'Eyebrow Tint', 20, 2),
-  s('svc-eyelash-tint', 'beauty-facial', 'Tinte de pestañas', 'Eyelash Tint', 30, 3),
-  s(
-    'svc-eyelash-lift',
-    'beauty-facial',
-    'Lifting de pestañas',
-    'Eyelash Lift (eyelash tint included)',
-    90,
-    4,
-  ),
-  s('svc-eyebrow-lamination', 'beauty-facial', 'Laminado de cejas', 'Eyebrow Lamination', 60, 5),
-  s(
-    'svc-facial-cleansing',
-    'beauty-facial',
-    'Ritual limpieza de cutis profunda',
-    'Facial Cleansing',
-    90,
     6,
   ),
+
+  // TRATAMIENTOS FACIALES
+  s('svc-facial-deep-cleansing', 'beauty-facial', 'Limpieza profunda', 'Deep cleansing', 30, 0, true, false),
   s(
-    'svc-antiage-galvanic',
+    'svc-facial-deep-cleansing-vitamins',
     'beauty-facial',
-    'Limpieza de cutis ANTIAGE con GALVÁNICA',
-    'ANTIAGE complexion cleansing with Galvanic spa',
-    60,
-    7,
+    'Limpieza profunda con vitaminas',
+    'Deep cleansing with vitamins',
+    30,
+    1,
+    true,
+    false,
   ),
   s(
-    'svc-dermapen-antioxidant',
+    'svc-facial-deep-cleansing-rf',
     'beauty-facial',
-    'Tratamiento antioxidante con DERMAPEN',
-    'Antioxidant Treatment with DERMAPEN',
-    90,
-    8,
+    'Limpieza profunda con radiofrecuencia',
+    'Deep cleansing with radiofrequency',
+    30,
+    2,
+    true,
+    false,
   ),
-  s('svc-event-makeup', 'beauty-facial', 'Maquillaje de eventos', 'Event Makeup', 90, 9),
-  s('svc-micropigmentation', 'beauty-facial', 'Micropigmentación', 'Micropigmentation', 150, 10),
-  s(
-    'svc-micropigmentation-retouch',
-    'beauty-facial',
-    'Retoque micro',
-    'Micropigmentation retouch',
-    90,
-    11,
-  ),
-  s('svc-antifrizz-treatment', 'beauty-facial', 'Tratamiento AntiFRIZZ', 'Anti-frizz Treatment', 90, 12),
+
+  // REJUVENECE TU MIRADA
+  s('svc-eyebrow-tint', 'beauty-eyes', 'Tinte de cejas', 'Eyebrow tint', 30, 0, true, false),
+  s('svc-eyelash-tint', 'beauty-eyes', 'Tinte de pestañas', 'Eyelash tint', 30, 1, true, false),
+  s('svc-eyelash-lift', 'beauty-eyes', 'Lifting de pestañas', 'Eyelash lift', 30, 2, true, false),
 ]
 
 export const salonServiceIds = new Set(salonServices.map((svc) => svc.id))
+
+export const salonServiceById = new Map(salonServices.map((svc) => [svc.id, svc]))

@@ -76,16 +76,28 @@ export const serviceCategories = [
     sortOrder: 9,
   },
   {
-    id: 'beauty-hands-feet',
-    nameEs: 'ESTETICA "CUIDADO DE MANOS Y PIES"',
-    nameEn: 'BEAUTY "HANDS AND FEET CARE"',
+    id: 'beauty-waxing',
+    nameEs: 'DEPILACIÓN FACIAL Y CORPORAL',
+    nameEn: 'FACIAL AND BODY WAXING',
     sortOrder: 10,
   },
   {
-    id: 'beauty-facial',
-    nameEs: 'ESTETICA "FACIAL"',
-    nameEn: 'BEAUTY "FACIAL"',
+    id: 'beauty-hands-feet',
+    nameEs: 'BELLEZA DE MANOS Y PIES',
+    nameEn: 'HANDS AND FEET BEAUTY',
     sortOrder: 11,
+  },
+  {
+    id: 'beauty-facial',
+    nameEs: 'TRATAMIENTOS FACIALES',
+    nameEn: 'FACIAL TREATMENTS',
+    sortOrder: 12,
+  },
+  {
+    id: 'beauty-eyes',
+    nameEs: 'REJUVENECE TU MIRADA',
+    nameEn: 'REJUVENATE YOUR GAZE',
+    sortOrder: 13,
   },
 ] as const
 

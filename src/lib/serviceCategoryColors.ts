@@ -58,18 +58,16 @@ const categoryColorKey: Record<string, AgendaColorKey> = {
   perm: 'purple',
   keratin: 'purple',
   'hair-treatments': 'brown',
+  'beauty-waxing': 'brown',
   'beauty-hands-feet': 'teal',
   'beauty-facial': 'brown',
+  'beauty-eyes': 'purple',
 }
 
 /** Excepciones por servicio (p. ej. matiz, maquillaje). */
 const serviceColorKey: Record<string, AgendaColorKey> = {
   'svc-toner': 'teal',
   'svc-highlight-toner': 'purple',
-  'svc-event-makeup': 'purple',
-  'svc-micropigmentation': 'purple',
-  'svc-micropigmentation-retouch': 'purple',
-  'svc-antifrizz-treatment': 'brown',
 }
 
 const defaultKey: AgendaColorKey = 'teal'
@@ -158,8 +156,10 @@ export const categoryLegendSwatch: Record<string, string> = {
   perm: palettes.purple.swatch,
   keratin: palettes.purple.swatch,
   'hair-treatments': palettes.brown.swatch,
+  'beauty-waxing': palettes.brown.swatch,
   'beauty-hands-feet': palettes.teal.swatch,
   'beauty-facial': palettes.brown.swatch,
+  'beauty-eyes': palettes.purple.swatch,
 }
 
 /** Leyenda compacta (grilla profesional). */
@@ -167,8 +167,8 @@ export const agendaColorLegend: { key: AgendaColorKey; label: string }[] = [
   { key: 'blue', label: 'Cortes' },
   { key: 'red', label: 'Color / decoloración' },
   { key: 'teal', label: 'Peinado · manos/pies · lavado' },
-  { key: 'purple', label: 'Mechas · keratina · maquillaje' },
-  { key: 'brown', label: 'Tratamientos · facial' },
+  { key: 'purple', label: 'Mechas · keratina · mirada' },
+  { key: 'brown', label: 'Tratamientos · depilación' },
 ]
 
 export function agendaColorLegendSwatch(key: AgendaColorKey): string {
