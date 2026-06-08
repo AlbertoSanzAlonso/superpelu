@@ -284,7 +284,7 @@ export function AdminAgendaPage() {
 
   return (
     <AgendaWorkspaceShell>
-      <header className="shrink-0">
+      <header className="relative z-20 shrink-0 overflow-visible">
         <AdminAgendaControlBar
           date={selectedDate}
           onDateChange={setSelectedDate}
