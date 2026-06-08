@@ -1,11 +1,12 @@
 import type { AppointmentRow } from '@server/pg/types.js'
-import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl } from '@server/appointmentLinks.js'
+import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl, encodeId, decodeId, verifyCancelToken } from '@server/appointmentLinks.js'
+import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments.js'
 import { appointmentLocale } from '@/i18n/localeHelpers'
 import { publicAppointmentErrorMessage } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { formatDisplayDate } from '@/lib/dates'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
 
 export function escapeHtml(value: string): string {
   return value
@@ -54,6 +55,11 @@ export function customerPageShell(
     '.slot-btn{width:100%;padding:.65rem;border:1px solid #d4c4bc;background:#fff;border-radius:8px;cursor:pointer;font-size:.95rem}',
     '.slot-btn:hover{border-color:#1f1b18;background:#faf7f5}',
     '.muted{color:#888;font-size:.9rem}',
+    '.treatment-list{display:flex;flex-direction:column;gap:.75rem;margin:1rem 0}',
+    '.treatment-card{background:#f4efec;border-radius:10px;padding:1rem;text-align:left}',
+    '.treatment-card p{margin:.35rem 0;font-size:.95rem}',
+    '.treatment-card .btn{margin-top:.75rem;width:100%;box-sizing:border-box}',
+    '.link-back{display:inline-block;margin:.75rem 0;font-size:.9rem;color:#6b5f57}',
     '</style></head><body><div class="card">',
     bodyHtml,
     webHomeButtonHtml(locale),
@@ -83,6 +89,139 @@ export function appointmentDetailHtml(row: AppointmentRow, locale: Locale): stri
   const service = escapeHtml(row.service_name)
   const staff = row.staff_name ? `<p>${escapeHtml(t.withStaff(row.staff_name))}</p>` : ''
   return `<div class="detail"><p>📅 ${dateLabel}</p><p>🕐 ${timeRange}</p><p>💇 ${service}</p>${staff}</div>`
+}
+
+/** Filas visibles al cliente en un grupo multi-tratamiento (sin lavados enlazados). */
+export function customerVisibleBookingRows(rows: AppointmentRow[]): AppointmentRow[] {
+  return rows
+    .filter((row) => !isColorGroupWashRow(row.color_group_role))
+    .sort((a, b) => a.start_time.localeCompare(b.start_time) || a.id.localeCompare(b.id))
+}
+
+export function customerLangSuffix(locale: Locale): string {
+  return locale === 'en' ? '&lang=en' : ''
+}
+
+export function customerLangQueryHidden(locale: Locale): string {
+  return locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''
+}
+
+export type CustomerBookingContext = {
+  linkId: string
+  linkRow: AppointmentRow
+  locale: Locale
+  groupRows: AppointmentRow[]
+  /** Citas activas del grupo; si hay más de una, hace falta elegir con ?apt= */
+  activeRows: AppointmentRow[]
+  targetRow: AppointmentRow | null
+}
+
+export async function resolveCustomerBookingContext(
+  code: string,
+  token: string | undefined,
+  queryLang: string | undefined,
+  aptCode?: string,
+): Promise<
+  | { ok: true; ctx: CustomerBookingContext }
+  | { ok: false; reason: 'invalid' | 'not_found'; locale: Locale }
+> {
+  const linkId = decodeId(code)
+  if (!linkId || !verifyCancelToken(linkId, token)) {
+    return { ok: false, reason: 'invalid', locale: resolvePageLocale(null, queryLang) }
+  }
+
+  const linkRow = await getAppointmentById(linkId)
+  if (!linkRow) {
+    return { ok: false, reason: 'not_found', locale: resolvePageLocale(null, queryLang) }
+  }
+
+  const locale = resolvePageLocale(linkRow, queryLang)
+  const rawGroup = linkRow.booking_group_id
+    ? await getAppointmentsByBookingGroup(linkRow.booking_group_id)
+    : [linkRow]
+  const groupRows = customerVisibleBookingRows(rawGroup)
+  const activeRows = groupRows.filter((row) => row.status === 'confirmed')
+
+  let targetRow: AppointmentRow | null = null
+  if (activeRows.length <= 1) {
+    targetRow = activeRows[0] ?? groupRows.find((row) => row.id === linkId) ?? linkRow
+  } else if (aptCode) {
+    const aptId = decodeId(aptCode)
+    if (aptId && groupRows.some((row) => row.id === aptId)) {
+      targetRow = groupRows.find((row) => row.id === aptId) ?? null
+    }
+  }
+
+  return {
+    ok: true,
+    ctx: { linkId, linkRow, locale, groupRows, activeRows, targetRow },
+  }
+}
+
+export function bookingTreatmentSummaryHtml(row: AppointmentRow, locale: Locale): string {
+  const t = cp(locale)
+  const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
+  const timeRange = escapeHtml(
+    formatAppointmentTimeRange(row.service_id, row.start_time, row.duration_minutes, locale, {
+      colorGroupRole: row.color_group_role,
+    }),
+  )
+  const service = escapeHtml(row.service_name)
+  const staff = row.staff_name
+    ? `<p>${escapeHtml(t.withStaff(row.staff_name))}</p>`
+    : ''
+  return `<p>💇 ${service}</p>${staff}<p>📅 ${dateLabel}</p><p>🕐 ${timeRange}</p>`
+}
+
+export function bookingTreatmentPickerHtml(
+  rows: AppointmentRow[],
+  locale: Locale,
+  options: {
+    intro: string
+    actionLabel: string
+    basePath: string
+    token: string
+  },
+): string {
+  const langSuffix = customerLangSuffix(locale)
+  const cards = rows
+    .map((row) => {
+      const href = `${escapeHtml(options.basePath)}?t=${escapeHtml(options.token)}&apt=${encodeURIComponent(encodeId(row.id))}${langSuffix}`
+      return `<div class="treatment-card">
+        ${bookingTreatmentSummaryHtml(row, locale)}
+        <a class="btn btn-primary" href="${href}">${escapeHtml(options.actionLabel)}</a>
+      </div>`
+    })
+    .join('')
+  return `<p>${escapeHtml(options.intro)}</p><div class="treatment-list">${cards}</div>`
+}
+
+export function changeTreatmentLinkHtml(
+  basePath: string,
+  token: string,
+  locale: Locale,
+): string {
+  const t = cp(locale).manage
+  const href = `${escapeHtml(basePath)}?t=${escapeHtml(token)}${customerLangSuffix(locale)}`
+  return `<p><a class="link-back" href="${href}">← ${escapeHtml(t.changeTreatment)}</a></p>`
+}
+
+export function bookingGroupDetailHtml(rows: AppointmentRow[], locale: Locale): string {
+  const cards = rows
+    .map((row) => `<div class="treatment-card">${bookingTreatmentSummaryHtml(row, locale)}</div>`)
+    .join('')
+  return `<div class="treatment-list">${cards}</div>`
+}
+
+export function cancelAllVisitLinkHtml(
+  cancelBase: string,
+  token: string,
+  locale: Locale,
+  options: { sectionLabel: string; buttonLabel: string },
+): string {
+  const href = `${escapeHtml(cancelBase)}?t=${escapeHtml(token)}&scope=all${customerLangSuffix(locale)}`
+  return `<p class="section-label">${escapeHtml(options.sectionLabel)}</p>
+    <a class="btn btn-danger" href="${href}">${escapeHtml(options.buttonLabel)}</a>`
 }
 
 export function manageErrorMessage(code: string, locale: Locale): string {

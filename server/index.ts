@@ -11,6 +11,7 @@ import { me } from '@server/me.js'
 import { listStaffDaySchedules } from '@server/staffSchedule.js'
 import {
   cancelAppointment,
+  cancelBookingGroupByCustomer,
   createAppointment,
   deleteAppointmentById,
   getAppointmentById,
@@ -34,19 +35,26 @@ import {
   buildLinkPreviewMetaTags,
   buildManageUrl,
   decodeId,
+  encodeId,
   injectSpaLinkPreviewMeta,
   publicBaseUrl,
-  verifyCancelToken,
 } from '@server/appointmentLinks.js'
 import {
   appointmentDetailHtml,
   backToManageLink,
+  bookingGroupDetailHtml,
+  bookingTreatmentPickerHtml,
+  cancelAllVisitLinkHtml,
+  changeTreatmentLinkHtml,
+  customerLangQueryHidden,
+  customerLangSuffix,
   customerPageShell,
   customerPageUrlFromRequest,
   escapeHtml,
   manageErrorMessage,
   renderInvalidLinkPage,
   renderNotFoundPage,
+  resolveCustomerBookingContext,
   resolvePageLocale,
 } from '@server/customerPages.js'
 import { publicAppointmentErrorMessageOrFallback } from '@/i18n/publicAppointmentErrors'
@@ -906,21 +914,72 @@ function cp(locale: Locale) {
 /** Página de confirmación de cancelación (enlace enviado por WhatsApp). */
 app.get('/c/:code', async (c) => {
   const queryLang = c.req.query('lang')
-  const id = decodeId(c.req.param('code'))
+  const code = c.req.param('code')
   const token = c.req.query('t')
-  if (!id || !verifyCancelToken(id, token)) {
-    const locale = resolvePageLocale(null, queryLang)
-    const page = renderInvalidLinkPage(locale, 'cancel')
+  const scopeAll = c.req.query('scope') === 'all'
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang, c.req.query('apt'))
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'cancel')
     return c.html(page.html, 400)
   }
 
-  const row = await getAppointmentById(id)
-  const locale = resolvePageLocale(row, queryLang)
-  if (!row) {
-    const page = renderNotFoundPage(locale)
-    return c.html(page.html, 404)
+  const { ctx } = resolved
+  const { locale, activeRows, targetRow, linkRow } = ctx
+  const manageBase = `/m/${encodeURIComponent(code)}`
+  const cancelBase = `/c/${encodeURIComponent(code)}`
+
+  if (activeRows.length === 0) {
+    const t = cp(locale).alreadyCancelled
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.headingDone)}</h1><p>${escapeHtml(t.bodyDone)}</p>`,
+      locale,
+    )
   }
 
+  if (activeRows.length > 1 && !targetRow && !scopeAll) {
+    const t = cp(locale).cancel
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1>
+       ${bookingTreatmentPickerHtml(activeRows, locale, {
+         intro: t.multiIntro,
+         actionLabel: t.selectTreatment,
+         basePath: cancelBase,
+         token: token ?? '',
+       })}
+       ${cancelAllVisitLinkHtml(cancelBase, token ?? '', locale, {
+         sectionLabel: t.cancelAllSection,
+         buttonLabel: t.cancelAllButton,
+       })}
+       ${backToManageLink(buildManageUrl(linkRow), locale)}`,
+      locale,
+    )
+  }
+
+  if (activeRows.length > 1 && scopeAll) {
+    const t = cp(locale).cancel
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.cancelAllConfirmHeading)}</h1>
+       <p>${escapeHtml(t.cancelAllIntro)}</p>
+       ${bookingGroupDetailHtml(activeRows, locale)}
+       <form method="POST" action="/c/${encodeURIComponent(code)}${locale === 'en' ? '?lang=en' : ''}">
+         <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+         <input type="hidden" name="scope" value="all">
+         <button class="btn btn-danger" type="submit">${escapeHtml(t.cancelAllConfirmButton)}</button>
+       </form>
+       <p style="margin-top:1rem"><a class="link-back" href="${escapeHtml(`${cancelBase}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)}">← ${escapeHtml(cp(locale).confirmChange.back)}</a></p>
+       ${backToManageLink(buildManageUrl(linkRow), locale)}
+       <p class="muted">${escapeHtml(t.hint)}</p>`,
+      locale,
+    )
+  }
+
+  const row = targetRow!
   if (row.status === 'cancelled') {
     const t = cp(locale).alreadyCancelled
     return replyCustomerPage(
@@ -931,19 +990,23 @@ app.get('/c/:code', async (c) => {
     )
   }
 
-  const manageUrl = buildManageUrl(row)
+  const manageUrl = buildManageUrl(linkRow)
   const t = cp(locale).cancel
+  const aptSuffix = activeRows.length > 1 ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
+  const langSuffix = customerLangSuffix(locale)
 
   return replyCustomerPage(
     c,
     t.title,
     `<h1>${escapeHtml(t.heading)}</h1>
+     ${activeRows.length > 1 ? changeTreatmentLinkHtml(cancelBase, token ?? '', locale) : ''}
      ${appointmentDetailHtml(row, locale)}
-     <form method="POST" action="/c/${encodeURIComponent(c.req.param('code'))}${locale === 'en' ? '?lang=en' : ''}">
+     <form method="POST" action="/c/${encodeURIComponent(code)}${locale === 'en' ? '?lang=en' : ''}">
        <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
+       ${activeRows.length > 1 ? `<input type="hidden" name="apt" value="${escapeHtml(encodeId(row.id))}">` : ''}
        <button class="btn btn-danger" type="submit">${escapeHtml(t.confirmButton)}</button>
      </form>
-     ${backToManageLink(manageUrl, locale)}
+     ${backToManageLink(`${manageBase}?t=${encodeURIComponent(token ?? '')}${aptSuffix}${langSuffix}`, locale)}
      <p class="muted">${escapeHtml(t.hint)}</p>`,
     locale,
   )
@@ -951,17 +1014,42 @@ app.get('/c/:code', async (c) => {
 
 app.post('/c/:code', async (c) => {
   const queryLang = c.req.query('lang')
-  const id = decodeId(c.req.param('code'))
+  const code = c.req.param('code')
   const body = await c.req.parseBody()
   const token = typeof body.t === 'string' ? body.t : undefined
-  if (!id || !verifyCancelToken(id, token)) {
-    const locale = resolvePageLocale(null, queryLang)
-    const page = renderInvalidLinkPage(locale, 'action')
+  const aptCode = typeof body.apt === 'string' ? body.apt : undefined
+  const cancelAll = body.scope === 'all'
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang, aptCode)
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'action')
     return c.html(page.html, 400)
   }
 
-  const existing = await getAppointmentById(id)
-  const locale = resolvePageLocale(existing, queryLang)
+  const { ctx } = resolved
+  const { locale, activeRows, targetRow } = ctx
+  if (cancelAll && activeRows.length > 1) {
+    const cancelled = await cancelBookingGroupByCustomer(ctx.linkId, { notifyCustomer: true })
+    if (cancelled === 0) {
+      const t = cp(locale).alreadyCancelled
+      return replyCustomerPage(
+        c,
+        t.title,
+        `<h1>${escapeHtml(t.headingWas)}</h1><p>${escapeHtml(t.bodyThanks)}</p>`,
+        locale,
+      )
+    }
+    const t = cp(locale).cancel
+    return replyCustomerPage(
+      c,
+      t.successTitle,
+      `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successAllBody)}</p><p>${escapeHtml(t.successFooter)}</p>`,
+      locale,
+    )
+  }
+
+  const cancelId = targetRow?.id ?? ctx.linkId
+
+  const existing = await getAppointmentById(cancelId)
   if (!existing) {
     const page = renderNotFoundPage(locale)
     return c.html(page.html, 404)
@@ -976,12 +1064,19 @@ app.post('/c/:code', async (c) => {
     )
   }
 
-  await cancelAppointment(id, { notifyCustomer: true })
+  await cancelAppointment(cancelId, { notifyCustomer: true })
   const t = cp(locale).cancel
+  const manageBase = `/m/${encodeURIComponent(code)}`
+  const remaining = activeRows.filter((row) => row.id !== cancelId)
+  const backLink =
+    remaining.length > 0
+      ? `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(`${manageBase}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)}">${escapeHtml(cp(locale).backToManage)}</a></p>`
+      : ''
+
   return replyCustomerPage(
     c,
     t.successTitle,
-    `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successBody)}</p><p>${escapeHtml(t.successFooter)}</p>`,
+    `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successBody)}</p><p>${escapeHtml(t.successFooter)}</p>${backLink}`,
     locale,
   )
 })
@@ -994,17 +1089,16 @@ app.get('/m/:code/confirm', async (c) => {
   const date = c.req.query('date')
   const startTime = c.req.query('startTime')
   const staffId = c.req.query('staffId')
-  const id = decodeId(code)
-
-  if (!id || !verifyCancelToken(id, token)) {
-    const locale = resolvePageLocale(null, queryLang)
-    const page = renderInvalidLinkPage(locale, 'confirm')
+  const aptCode = c.req.query('apt')
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang, aptCode)
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'confirm')
     return c.html(page.html, 400)
   }
 
-  if (!date || !startTime || !staffId) {
-    const row = await getAppointmentById(id)
-    const locale = resolvePageLocale(row, queryLang)
+  const { ctx } = resolved
+  const { locale, targetRow, activeRows } = ctx
+  if (activeRows.length > 1 && !targetRow) {
     const t = cp(locale).incomplete
     return replyCustomerPage(
       c,
@@ -1015,8 +1109,18 @@ app.get('/m/:code/confirm', async (c) => {
     )
   }
 
-  const row = await getAppointmentById(id)
-  const locale = resolvePageLocale(row, queryLang)
+  if (!date || !startTime || !staffId) {
+    const t = cp(locale).incomplete
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1><p>${escapeHtml(t.bodyStaffDayTime)}</p>`,
+      locale,
+      400,
+    )
+  }
+
+  const row = targetRow!
   if (!row || row.status === 'cancelled') {
     const page = renderNotFoundPage(locale, true)
     return c.html(page.html, 404)
@@ -1024,7 +1128,6 @@ app.get('/m/:code/confirm', async (c) => {
 
   const staff = await getStaff(staffId)
   const t = cp(locale)
-  const staffName = escapeHtml(staff?.name ?? row.staff_name ?? '')
   const dateLabel = escapeHtml(formatDisplayDate(date, locale))
   const timeRange = escapeHtml(
     formatAppointmentTimeRange(row.service_id, startTime, row.duration_minutes, locale, {
@@ -1032,8 +1135,11 @@ app.get('/m/:code/confirm', async (c) => {
     }),
   )
   const service = escapeHtml(row.service_name)
-  const langSuffix = locale === 'en' ? '&lang=en' : ''
-  const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}&staffId=${encodeURIComponent(staffId)}${langSuffix}`
+  const langSuffix = customerLangSuffix(locale)
+  const aptSuffix =
+    activeRows.length > 1 ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
+  const manageBase = `/m/${encodeURIComponent(code)}`
+  const backUrl = `${manageBase}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}&staffId=${encodeURIComponent(staffId)}${aptSuffix}${langSuffix}`
 
   return replyCustomerPage(
     c,
@@ -1051,6 +1157,7 @@ app.get('/m/:code/confirm', async (c) => {
        <input type="hidden" name="date" value="${escapeHtml(date)}">
        <input type="hidden" name="startTime" value="${escapeHtml(startTime)}">
        <input type="hidden" name="staffId" value="${escapeHtml(staffId)}">
+       ${activeRows.length > 1 ? `<input type="hidden" name="apt" value="${escapeHtml(encodeId(row.id))}">` : ''}
        <button class="btn btn-primary" type="submit">${escapeHtml(t.confirmChange.submit)}</button>
      </form>
      <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(backUrl)}">${escapeHtml(t.confirmChange.back)}</a></p>`,
@@ -1063,20 +1170,48 @@ app.get('/m/:code', async (c) => {
   const queryLang = c.req.query('lang')
   const code = c.req.param('code')
   const token = c.req.query('t')
-  const id = decodeId(code)
-  if (!id || !verifyCancelToken(id, token)) {
-    const locale = resolvePageLocale(null, queryLang)
-    const page = renderInvalidLinkPage(locale, 'manage')
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang, c.req.query('apt'))
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'manage')
     return c.html(page.html, 400)
   }
 
-  const row = await getAppointmentById(id)
-  const locale = resolvePageLocale(row, queryLang)
-  if (!row) {
-    const page = renderNotFoundPage(locale)
-    return c.html(page.html, 404)
+  const { ctx } = resolved
+  const { locale, activeRows, targetRow } = ctx
+  const manageBase = `/m/${encodeURIComponent(code)}`
+  const cancelBase = `/c/${encodeURIComponent(code)}`
+
+  if (activeRows.length === 0) {
+    const t = cp(locale).alreadyCancelled
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.headingIs)}</h1><p>${escapeHtml(t.bodyBookAgain)}</p>`,
+      locale,
+    )
   }
 
+  if (activeRows.length > 1 && !targetRow) {
+    const t = cp(locale).manage
+    return replyCustomerPage(
+      c,
+      t.title,
+      `<h1>${escapeHtml(t.heading)}</h1>
+       ${bookingTreatmentPickerHtml(activeRows, locale, {
+         intro: t.multiIntro,
+         actionLabel: t.selectTreatment,
+         basePath: manageBase,
+         token: token ?? '',
+       })}
+       ${cancelAllVisitLinkHtml(cancelBase, token ?? '', locale, {
+         sectionLabel: cp(locale).cancel.cancelAllSection,
+         buttonLabel: t.cancelAllButton,
+       })}`,
+      locale,
+    )
+  }
+
+  const row = targetRow!
   if (row.status === 'cancelled') {
     const t = cp(locale).alreadyCancelled
     return replyCustomerPage(
@@ -1087,9 +1222,23 @@ app.get('/m/:code', async (c) => {
     )
   }
 
-  const langSuffix = locale === 'en' ? '&lang=en' : ''
-  const cancelUrl = `${publicBaseUrl() || ''}/c/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${langSuffix}`
+  const langSuffix = customerLangSuffix(locale)
+  const aptSuffix =
+    activeRows.length > 1 ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
+  const aptHidden =
+    activeRows.length > 1
+      ? `<input type="hidden" name="apt" value="${escapeHtml(encodeId(row.id))}">`
+      : ''
+  const cancelUrl = `${publicBaseUrl() || ''}${cancelBase}?t=${encodeURIComponent(token ?? '')}${aptSuffix}${langSuffix}`
+  const cancelAllUrl = `${publicBaseUrl() || ''}${cancelBase}?t=${encodeURIComponent(token ?? '')}&scope=all${langSuffix}`
   const t = cp(locale).manage
+  const cancelSectionHtml =
+    activeRows.length > 1
+      ? `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>
+         <p class="section-label" style="margin-top:1.25rem">${escapeHtml(cp(locale).cancel.cancelAllSection)}</p>
+         <a class="btn btn-danger" href="${escapeHtml(cancelAllUrl)}">${escapeHtml(t.cancelAllButton)}</a>`
+      : `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>`
+
   const staffOptions = await listStaffForService(row.service_id)
   let selectedStaffId = (c.req.query('staffId') ?? row.staff_id ?? '').trim()
   if (!staffOptions.some((s) => s.id === selectedStaffId)) {
@@ -1108,10 +1257,11 @@ app.get('/m/:code', async (c) => {
   const staffSelectHtml =
     staffOptions.length > 0
       ? `<p class="section-label">${escapeHtml(t.staffSection)}</p>
-       <form method="GET" action="/m/${encodeURIComponent(code)}" class="staff-form">
+       <form method="GET" action="${escapeHtml(manageBase)}" class="staff-form">
          <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
          <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
-         ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
+         ${aptHidden}
+         ${customerLangQueryHidden(locale)}
          <select name="staffId" aria-label="${escapeHtml(t.staffAria)}" onchange="this.form.submit()">
            ${staffOptions
              .map(
@@ -1138,11 +1288,12 @@ app.get('/m/:code', async (c) => {
         slots
           .map(
             (slot) =>
-              `<form method="GET" action="/m/${encodeURIComponent(code)}/confirm" class="slot-form">
+              `<form method="GET" action="${escapeHtml(manageBase)}/confirm" class="slot-form">
                  <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
                  <input type="hidden" name="date" value="${escapeHtml(selectedDate)}">
                  <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
-                 ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
+                 ${aptHidden}
+                 ${customerLangQueryHidden(locale)}
                  <button class="slot-btn" type="submit" name="startTime" value="${escapeHtml(slot)}">${escapeHtml(slot)}</button>
                </form>`,
           )
@@ -1163,6 +1314,7 @@ app.get('/m/:code', async (c) => {
     c,
     cp(locale).manage.title,
     `<h1>${escapeHtml(t.heading)}</h1>
+     ${activeRows.length > 1 ? changeTreatmentLinkHtml(manageBase, token ?? '', locale) : ''}
      <div class="detail">
        <p>💇 ${service}</p>
        <p>${escapeHtml(cp(locale).withStaff(selectedStaffRaw))}</p>
@@ -1172,15 +1324,16 @@ app.get('/m/:code', async (c) => {
      <p class="section-label">${escapeHtml(t.modifySection)}</p>
      ${staffSelectHtml}
      <p class="section-label">${escapeHtml(t.daySection)}</p>
-     <form method="GET" action="/m/${encodeURIComponent(code)}" class="date-form">
+     <form method="GET" action="${escapeHtml(manageBase)}" class="date-form">
        <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
        <input type="hidden" name="staffId" value="${escapeHtml(selectedStaffId)}">
-       ${locale === 'en' ? '<input type="hidden" name="lang" value="en">' : ''}
+       ${aptHidden}
+       ${customerLangQueryHidden(locale)}
        <input type="date" name="date" value="${escapeHtml(selectedDate)}" min="${today}" max="${maxDate}" onchange="this.form.submit()">
      </form>
      ${slotsHtml}
      <p class="section-label">${escapeHtml(t.cancelSection)}</p>
-     <a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>
+     ${cancelSectionHtml}
      <p class="muted">${escapeHtml(t.callSalon)}</p>`,
     locale,
   )
@@ -1189,22 +1342,24 @@ app.get('/m/:code', async (c) => {
 app.post('/m/:code', async (c) => {
   const queryLang = c.req.query('lang')
   const code = c.req.param('code')
-  const id = decodeId(code)
   const body = await c.req.parseBody()
   const token = typeof body.t === 'string' ? body.t : undefined
+  const aptCode = typeof body.apt === 'string' ? body.apt : undefined
   const date = typeof body.date === 'string' ? body.date : undefined
   const startTime = typeof body.startTime === 'string' ? body.startTime : undefined
   const staffId = typeof body.staffId === 'string' ? body.staffId : undefined
 
-  if (!id || !verifyCancelToken(id, token)) {
-    const locale = resolvePageLocale(null, queryLang)
-    const page = renderInvalidLinkPage(locale, 'action')
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang, aptCode)
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'action')
     return c.html(page.html, 400)
   }
 
+  const { ctx } = resolved
+  const { locale, targetRow, activeRows } = ctx
+  const rescheduleId = targetRow?.id ?? ctx.linkId
+
   if (!date || !startTime) {
-    const existing = await getAppointmentById(id)
-    const locale = resolvePageLocale(existing, queryLang)
     const t = cp(locale).incomplete
     return replyCustomerPage(
       c,
@@ -1215,12 +1370,13 @@ app.post('/m/:code', async (c) => {
     )
   }
 
-  const existing = await getAppointmentById(id)
-  const locale = resolvePageLocale(existing, queryLang)
-
   try {
-    const row = await rescheduleAppointmentByCustomer(id, { date, startTime, staffId })
-    const manageUrl = buildManageUrl(row)
+    const row = await rescheduleAppointmentByCustomer(rescheduleId, { date, startTime, staffId })
+    const manageUrl = buildManageUrl(ctx.linkRow)
+    const manageBackUrl =
+      manageUrl && activeRows.length > 1
+        ? `${manageUrl}&apt=${encodeURIComponent(encodeId(row.id))}`
+        : manageUrl
     const t = cp(locale).updated
     const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
     const timeRange = escapeHtml(
@@ -1240,15 +1396,18 @@ app.post('/m/:code', async (c) => {
          <p>💇 ${escapeHtml(row.service_name)}</p>
          ${row.staff_name ? `<p>${escapeHtml(cp(locale).withStaff(row.staff_name))}</p>` : ''}
        </div>
-       ${backToManageLink(manageUrl, locale)}
+       ${backToManageLink(manageBackUrl, locale)}
        <p class="muted">${escapeHtml(t.closing)}</p>`,
       locale,
     )
   } catch (err) {
     const codeErr = err instanceof Error ? err.message : 'ERROR'
     const message = manageErrorMessage(codeErr, locale)
-    const langSuffix = locale === 'en' ? '&lang=en' : ''
-    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}${langSuffix}`
+    const aptSuffix =
+      targetRow && activeRows.length > 1
+        ? `&apt=${encodeURIComponent(encodeId(targetRow.id))}`
+        : ''
+    const backUrl = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}&date=${encodeURIComponent(date)}${staffId ? `&staffId=${encodeURIComponent(staffId)}` : ''}${aptSuffix}${customerLangSuffix(locale)}`
     const t = cp(locale).changeFailed
     return replyCustomerPage(
       c,

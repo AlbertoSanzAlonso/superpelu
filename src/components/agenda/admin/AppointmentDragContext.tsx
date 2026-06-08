@@ -181,6 +181,19 @@ export function AppointmentDragProvider({
     }
   }, [])
 
+  useEffect(() => {
+    if (!isDragSessionActive) return
+
+    document.body.classList.add('select-none')
+    const preventSelect = (e: Event) => e.preventDefault()
+    document.addEventListener('selectstart', preventSelect)
+
+    return () => {
+      document.body.classList.remove('select-none')
+      document.removeEventListener('selectstart', preventSelect)
+    }
+  }, [isDragSessionActive])
+
   const startDrag = useCallback(
     (input: DragStartInput) => {
       if (!dragEnabled) return
@@ -205,7 +218,11 @@ export function AppointmentDragProvider({
         const dy = e.clientY - session.startY
         if (!session.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
 
-        session.moved = true
+        if (!session.moved) {
+          session.moved = true
+          window.getSelection()?.removeAllRanges()
+        }
+        e.preventDefault()
         scheduleDragUpdate(computeDrag(e.clientX, e.clientY, session))
       }
 

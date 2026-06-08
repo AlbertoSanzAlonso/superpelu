@@ -98,6 +98,7 @@ export function DraggableAppointmentBlock({
   const handlePointerDown = useCallback(
     (e: React.PointerEvent, blockTop: number) => {
       if (!dragEnabled || e.button !== 0 || activeDrag) return
+      e.preventDefault()
       e.stopPropagation()
       const yInColumn = columnTopFromClientY(e.clientY, staffId)
       if (yInColumn === null) return

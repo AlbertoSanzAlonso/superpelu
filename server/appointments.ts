@@ -1534,7 +1534,7 @@ export async function deleteAppointmentById(appointmentId: string): Promise<bool
 
 export async function cancelAppointment(
   id: string,
-  options?: { notifyCustomer?: boolean },
+  options?: { notifyCustomer?: boolean; notifyAdmin?: boolean },
 ): Promise<AppointmentRow | undefined> {
   const existing = await getAppointmentById(id)
   if (!existing) return undefined
@@ -1553,7 +1553,9 @@ export async function cancelAppointment(
   }
   const row = await getAppointmentById(id)
   if (row && !wasCancelled) {
-    void notifyAdminAppointmentCancelled(row)
+    if (options?.notifyAdmin !== false) {
+      void notifyAdminAppointmentCancelled(row)
+    }
     if (options?.notifyCustomer) {
       void notifyAppointmentCancelled(existing).catch((err) => {
         console.error('Superpelu WhatsApp (cita cancelada):', err)
@@ -1561,6 +1563,44 @@ export async function cancelAppointment(
     }
   }
   return row
+}
+
+/** Cancela todos los tratamientos activos de una visita multi-tratamiento (cliente). */
+export async function cancelBookingGroupByCustomer(
+  anchorId: string,
+  options?: { notifyCustomer?: boolean },
+): Promise<number> {
+  const anchor = await getAppointmentById(anchorId)
+  if (!anchor) return 0
+
+  if (!anchor.booking_group_id) {
+    const row = await cancelAppointment(anchorId, options)
+    return row ? 1 : 0
+  }
+
+  const allRows = await getAppointmentsByBookingGroup(anchor.booking_group_id)
+  const rootsToCancel = allRows.filter(
+    (row) => row.status === 'confirmed' && !isColorGroupWashRow(row.color_group_role),
+  )
+  if (rootsToCancel.length === 0) return 0
+
+  let cancelled = 0
+  for (const row of rootsToCancel) {
+    const result = await cancelAppointment(row.id, { notifyCustomer: false, notifyAdmin: false })
+    if (result) cancelled++
+  }
+
+  if (cancelled > 0) {
+    const notifyRow = rootsToCancel[0]!
+    void notifyAdminAppointmentCancelled(notifyRow)
+    if (options?.notifyCustomer) {
+      void notifyAppointmentCancelled(notifyRow).catch((err) => {
+        console.error('Superpelu WhatsApp (visita cancelada):', err)
+      })
+    }
+  }
+
+  return cancelled
 }
 
 export async function markAppointmentNoShow(
