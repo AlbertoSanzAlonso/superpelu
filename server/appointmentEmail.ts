@@ -1,11 +1,9 @@
 /** Avisos por email al administrador del negocio (cita nueva o cancelada). */
 
 import nodemailer, { type Transporter } from 'nodemailer'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import { formatDisplayDate } from '@/lib/dates'
 import { adminAgendaUrl } from '@server/appointmentLinks.js'
 import type { AppointmentRow } from '@server/db.js'
-import { notifyAdminAgendaPush, type AdminAgendaPushKind } from '@server/pushNotifications.js'
 
 export type AppointmentEmailEvent = 'created' | 'cancelled' | 'updated'
 
@@ -238,20 +236,13 @@ export function logEmailStartup(): void {
   }
 }
 
-function maybeNotifyAdminAgendaPush(row: AppointmentRow, kind: AdminAgendaPushKind): void {
-  if (isColorGroupWashRow(row.color_group_role)) return
-  void notifyAdminAgendaPush(row, kind)
-}
-
 /** Avisa al administrador de que se ha creado una cita. No lanza errores. */
 export function notifyAdminAppointmentCreated(row: AppointmentRow): Promise<void> {
-  maybeNotifyAdminAgendaPush(row, 'created')
   return sendAppointmentAdminEmail(row, 'created')
 }
 
 /** Avisa al administrador de que se ha cancelado/eliminado una cita. No lanza errores. */
 export function notifyAdminAppointmentCancelled(row: AppointmentRow): Promise<void> {
-  maybeNotifyAdminAgendaPush(row, 'cancelled')
   return sendAppointmentAdminEmail(row, 'cancelled')
 }
 
@@ -260,6 +251,5 @@ export function notifyAdminAppointmentUpdated(
   previous: AppointmentRow,
   row: AppointmentRow,
 ): Promise<void> {
-  maybeNotifyAdminAgendaPush(row, 'modified')
   return sendAppointmentAdminEmail(row, 'updated', { previous })
 }

@@ -109,12 +109,6 @@ import {
 } from '@server/openwa.js'
 import { processDueReminders, startReminderScheduler } from '@server/reminderScheduler.js'
 import { logEmailStartup } from '@server/appointmentEmail.js'
-import {
-  deleteAdminPushSubscription,
-  getPushPublicKey,
-  logPushStartup,
-  saveAdminPushSubscription,
-} from '@server/pushNotifications.js'
 
 const app = new Hono()
 
@@ -178,35 +172,6 @@ app.get('/api/auth/verify', (c) => {
   if (!requireAdmin(auth)) {
     return c.json({ error: 'No autorizado' }, 401)
   }
-  return c.json({ ok: true })
-})
-
-app.get('/api/admin/push/vapid-public-key', (c) => {
-  const auth = c.req.header('Authorization')
-  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  return c.json({ publicKey: getPushPublicKey() })
-})
-
-app.post('/api/admin/push/subscribe', async (c) => {
-  const auth = c.req.header('Authorization')
-  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json<{ endpoint?: string; keys?: { p256dh?: string; auth?: string } }>()
-  if (!body.endpoint?.trim() || !body.keys?.p256dh?.trim() || !body.keys?.auth?.trim()) {
-    return c.json({ error: 'Suscripción incompleta' }, 400)
-  }
-  await saveAdminPushSubscription({
-    endpoint: body.endpoint.trim(),
-    keys: { p256dh: body.keys.p256dh.trim(), auth: body.keys.auth.trim() },
-  })
-  return c.json({ ok: true })
-})
-
-app.delete('/api/admin/push/subscribe', async (c) => {
-  const auth = c.req.header('Authorization')
-  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json<{ endpoint?: string }>().catch(() => ({ endpoint: undefined }))
-  if (!body.endpoint?.trim()) return c.json({ error: 'Falta endpoint' }, 400)
-  await deleteAdminPushSubscription(body.endpoint.trim())
   return c.json({ ok: true })
 })
 
@@ -1586,7 +1551,6 @@ async function main() {
   await initDatabase()
   logOpenWaStartup()
   logEmailStartup()
-  logPushStartup()
   console.log(`Superpelu en http://0.0.0.0:${port}${hasDist ? ' (web + API)' : ' (solo API)'}`)
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
   startOpenWaKeepAlive()

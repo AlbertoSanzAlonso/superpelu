@@ -388,28 +388,3 @@ export function deleteAdminBlock(
     headers: adminHeaders(adminToken),
   })
 }
-
-export function fetchAdminPushPublicKey(adminToken: string) {
-  return request<{ publicKey: string | null }>('/admin/push/vapid-public-key', {
-    headers: adminHeaders(adminToken),
-  })
-}
-
-export function subscribeAdminPush(
-  adminToken: string,
-  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
-) {
-  return request<{ ok: true }>('/admin/push/subscribe', {
-    method: 'POST',
-    headers: adminHeaders(adminToken),
-    body: JSON.stringify(subscription),
-  })
-}
-
-export function unsubscribeAdminPush(adminToken: string, endpoint: string) {
-  return request<{ ok: true }>('/admin/push/subscribe', {
-    method: 'DELETE',
-    headers: adminHeaders(adminToken),
-    body: JSON.stringify({ endpoint }),
-  })
-}

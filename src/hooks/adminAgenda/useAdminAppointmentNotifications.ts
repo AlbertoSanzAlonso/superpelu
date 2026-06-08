@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchAppointments } from '@/lib/api'
 import {
   adminAppointmentNotifyDateRange,
   diffAppointmentSnapshots,
@@ -7,6 +6,8 @@ import {
   type AdminAppointmentNotificationItem,
   type AppointmentSnapshot,
 } from '@/lib/adminAppointmentNotifications'
+import { showAdminBrowserNotifications } from '@/lib/adminBrowserNotifications'
+import { fetchAppointments } from '@/lib/api'
 import type { Appointment } from '@/types/booking'
 
 type ToastEntry = {
@@ -41,6 +42,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
       return merged
     })
     setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
+    showAdminBrowserNotifications(items)
   }, [])
 
   const pollAppointmentChanges = useCallback(async () => {

@@ -153,10 +153,3 @@ CREATE TABLE IF NOT EXISTS staff_sessions (
   staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
   expires_at TIMESTAMPTZ NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS admin_push_subscriptions (
-  endpoint TEXT PRIMARY KEY,
-  keys_p256dh TEXT NOT NULL,
-  keys_auth TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL
-);
