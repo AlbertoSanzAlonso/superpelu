@@ -274,9 +274,13 @@ const es = {
     chooseStaffForSlot: 'Elige un profesional para continuar',
     loadingStaff: 'Cargando equipo…',
     noStaffAtSlot: 'No hay profesionales libres a esa hora.',
+    chainedNoStaffAtSlot:
+      'Ningún profesional tiene hueco libre para todos los tratamientos a esa hora. Elige otra hora u otro profesional.',
     selectDay: 'Selecciona un día en el calendario',
     loadingSlots: 'Cargando horarios…',
     noSlots: 'No hay huecos ese día.',
+    chainedNoSlots:
+      'No hay un hueco continuo para todos los tratamientos ese día. Prueba otro día u otra hora.',
     confirm: 'Confirmar cita',
     saving: 'Guardando…',
     fullName: 'Nombre completo',
@@ -299,12 +303,30 @@ const es = {
       noStaff: 'No hay profesionales para este servicio.',
       loadStaff: 'No se pudo cargar el equipo.',
       noSlots: 'No quedan huecos libres ese día.',
+      chainedNoSlots:
+        'No hay un hueco continuo para todos los tratamientos ese día. Prueba otro día u otra hora.',
       noStaffAtSlot: 'No hay profesionales libres a esa hora.',
+      chainedNoStaffAtSlot:
+        'Ningún profesional tiene hueco libre para todos los tratamientos a esa hora. Elige otra hora u otro profesional.',
       loadSlots: 'No se pudieron cargar horarios.',
       createFailed: 'No se pudo crear la cita',
       nameRequired: 'Indica tu nombre completo.',
       phoneRequired: 'Indica un teléfono móvil para contactarte.',
       phoneInvalid: 'El teléfono debe ser un móvil español (9 dígitos, empieza por 6, 7, 8 o 9).',
+    },
+    apiErrors: {
+      INCOMPLETE_DATA: 'Faltan datos para completar la reserva.',
+      CREATE_FAILED: 'No se pudo crear la cita. Inténtalo de nuevo.',
+      SERVICIO_INVALIDO: 'Servicio no válido.',
+      STAFF_INVALIDO: 'Profesional no disponible.',
+      STAFF_NO_REALIZA_SERVICIO: 'Ese profesional no realiza este servicio.',
+      FECHA_INVALIDA:
+        'La fecha elegida no está disponible. Elige otro día (mar–sáb, dentro del plazo de reserva).',
+      HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
+      HORARIO_ENCADENADO_NO_DISPONIBLE:
+        'Ya no hay hueco para enlazar todos los tratamientos a esa hora. Elige otra hora u otro profesional.',
+      TELEFONO_INVALIDO: 'Teléfono no válido (móvil español).',
+      NOMBRE_INVALIDO: 'Indica al menos el nombre.',
     },
   },
   calendar: {
@@ -330,6 +352,7 @@ const es = {
     noShowHeading:
       'Tenías una cita en *Superpelu* y no hemos podido verte. Te echamos de menos y nos preocupa por si te hubiera pasado algo:',
     withStaff: (name: string) => `👤 Con ${name}`,
+    treatmentsHeading: 'Tratamientos de tu visita:',
     manageLinkLabel: '📋 Cancelar / modificar cita:',
     bookAgainLabel: 'Reservar otra cita:',
     noShowRebookLabel: 'Si quieres reservar de nuevo:',
@@ -427,6 +450,8 @@ const es = {
       FECHA_INVALIDA:
         'La fecha elegida no está disponible. Elige otro día (lun–sáb, dentro del plazo de reserva).',
       HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
+      HORARIO_ENCADENADO_NO_DISPONIBLE:
+        'Ya no hay hueco para enlazar todos los tratamientos a esa hora. Elige otra hora u otro profesional.',
       STAFF_NO_REALIZA_SERVICIO: 'Ese profesional no realiza este servicio.',
       STAFF_INVALIDO: 'Profesional no disponible.',
       SERVICIO_INVALIDO: 'Servicio no válido.',
@@ -775,9 +800,13 @@ const en = {
     chooseStaffForSlot: 'Choose a stylist to continue',
     loadingStaff: 'Loading team…',
     noStaffAtSlot: 'No stylists available at that time.',
+    chainedNoStaffAtSlot:
+      'No stylist has enough consecutive time for all treatments at that slot. Choose another time or stylist.',
     selectDay: 'Select a day on the calendar',
     loadingSlots: 'Loading times…',
     noSlots: 'No slots available that day.',
+    chainedNoSlots:
+      'There is no continuous slot for all treatments that day. Try another day or time.',
     confirm: 'Confirm appointment',
     saving: 'Saving…',
     fullName: 'Full name',
@@ -800,12 +829,30 @@ const en = {
       noStaff: 'No stylists available for this service.',
       loadStaff: 'Could not load the team.',
       noSlots: 'No free slots left that day.',
+      chainedNoSlots:
+        'There is no continuous slot for all treatments that day. Try another day or time.',
       noStaffAtSlot: 'No stylists available at that time.',
+      chainedNoStaffAtSlot:
+        'No stylist has enough consecutive time for all treatments at that slot. Choose another time or stylist.',
       loadSlots: 'Could not load available times.',
       createFailed: 'Could not create the appointment',
       nameRequired: 'Please enter your full name.',
       phoneRequired: 'Please enter a mobile number so we can reach you.',
       phoneInvalid: 'Enter a valid Spanish mobile (9 digits, starting with 6, 7, 8 or 9).',
+    },
+    apiErrors: {
+      INCOMPLETE_DATA: 'Some booking details are missing.',
+      CREATE_FAILED: 'Could not create the appointment. Please try again.',
+      SERVICIO_INVALIDO: 'Invalid service.',
+      STAFF_INVALIDO: 'Stylist not available.',
+      STAFF_NO_REALIZA_SERVICIO: 'That stylist does not perform this service.',
+      FECHA_INVALIDA:
+        'The chosen date is not available. Pick another day (Tue–Sat, within the booking window).',
+      HORARIO_NO_DISPONIBLE: 'That time is no longer available. Choose another slot.',
+      HORARIO_ENCADENADO_NO_DISPONIBLE:
+        'There is no longer enough time to link all treatments at that slot. Choose another time or stylist.',
+      TELEFONO_INVALIDO: 'Invalid phone number (Spanish mobile).',
+      NOMBRE_INVALIDO: 'Please enter at least a first name.',
     },
   },
   calendar: {
@@ -831,6 +878,7 @@ const en = {
     noShowHeading:
       'You had an appointment at *Superpelu* and we missed you. We are worried in case something happened:',
     withStaff: (name: string) => `👤 With ${name}`,
+    treatmentsHeading: 'Treatments in your visit:',
     manageLinkLabel: '📋 Cancel or change appointment:',
     bookAgainLabel: 'Book another appointment:',
     noShowRebookLabel: 'To book again:',
@@ -928,6 +976,8 @@ const en = {
       FECHA_INVALIDA:
         'The chosen date is not available. Pick another day (Mon–Sat, within the booking window).',
       HORARIO_NO_DISPONIBLE: 'That time is no longer available. Choose another slot.',
+      HORARIO_ENCADENADO_NO_DISPONIBLE:
+        'There is no longer enough time to link all treatments at that slot. Choose another time or stylist.',
       STAFF_NO_REALIZA_SERVICIO: 'That stylist does not perform this service.',
       STAFF_INVALIDO: 'Stylist not available.',
       SERVICIO_INVALIDO: 'Invalid service.',

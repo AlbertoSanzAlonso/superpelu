@@ -47,8 +47,9 @@ import {
   renderNotFoundPage,
   resolvePageLocale,
 } from '@server/customerPages.js'
+import { publicAppointmentErrorMessageOrFallback } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
-import type { Locale } from '@/i18n/types'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import {
   addDaysToDateString,
   formatDisplayDate,
@@ -332,6 +333,8 @@ app.post('/api/appointments', async (c) => {
     body.serviceIds?.filter(Boolean) ??
     (body.serviceId ? [body.serviceId] : [])
 
+  const locale = normalizeLocale(body.locale)
+
   if (
     serviceIds.length === 0 ||
     !body.staffId ||
@@ -340,7 +343,13 @@ app.post('/api/appointments', async (c) => {
     !body.customerName?.trim() ||
     !body.customerPhone?.trim()
   ) {
-    return c.json({ error: 'Datos incompletos' }, 400)
+    return c.json(
+      {
+        error: publicAppointmentErrorMessageOrFallback('INCOMPLETE_DATA', locale),
+        code: 'INCOMPLETE_DATA',
+      },
+      400,
+    )
   }
 
   try {
@@ -368,17 +377,14 @@ app.post('/api/appointments', async (c) => {
       201,
     )
   } catch (err) {
-    const code = err instanceof Error ? err.message : 'ERROR'
-    const messages: Record<string, string> = {
-      SERVICIO_INVALIDO: 'Servicio no válido',
-      STAFF_INVALIDO: 'Profesional no válido',
-      STAFF_NO_REALIZA_SERVICIO: 'Este profesional no realiza ese servicio',
-      FECHA_INVALIDA: 'Fecha no disponible',
-      HORARIO_NO_DISPONIBLE: 'Ese horario ya no está disponible',
-      TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
-      NOMBRE_INVALIDO: 'Indica al menos el nombre',
-    }
-    return c.json({ error: messages[code] ?? 'No se pudo crear la cita' }, 409)
+    const code = err instanceof Error ? err.message : 'CREATE_FAILED'
+    return c.json(
+      {
+        error: publicAppointmentErrorMessageOrFallback(code, locale),
+        code,
+      },
+      409,
+    )
   }
 })
 

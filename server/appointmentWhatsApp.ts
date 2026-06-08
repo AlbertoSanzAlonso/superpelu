@@ -1,14 +1,24 @@
 import type { AppointmentRow } from '@server/db.js'
+import { getAppointmentsByBookingGroup } from '@server/appointments.js'
 import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { buildWhatsAppAppointmentMessage } from '@/i18n/whatsappAppointment'
+import {
+  buildWhatsAppAppointmentMessage,
+  filterWhatsAppBookingGroupRows,
+} from '@/i18n/whatsappAppointment'
 import { appointmentLocale } from '@/i18n/localeHelpers'
 import { getOpenWaConfig, openWaSendText, phoneToWhatsAppChatId } from '@server/openwa.js'
 import { sendWhatsAppWithLogoHeader } from '@server/whatsappBranding.js'
 import { buildBookingUrl, buildManageUrl } from '@server/appointmentLinks.js'
 
-export function buildAppointmentConfirmationMessage(row: AppointmentRow): string {
+export async function buildAppointmentConfirmationMessage(
+  row: AppointmentRow,
+): Promise<string> {
+  const groupRows = row.booking_group_id
+    ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
+    : undefined
   return buildWhatsAppAppointmentMessage(row, 'confirmation', {
     manageUrl: buildManageUrl(row),
+    groupRows,
   })
 }
 
@@ -47,7 +57,7 @@ export async function notifyAppointmentCreated(
   if (row.status === 'cancelled' || row.status === 'no_show') return
 
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
-  const text = buildAppointmentConfirmationMessage(row)
+  const text = await buildAppointmentConfirmationMessage(row)
   const messageId = await openWaSendText(chatId, text)
   console.log(
     `Superpelu WhatsApp: confirmación enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,

@@ -450,7 +450,9 @@ async function createChainedBookingAppointment(
 
   const primaryId = await sql.begin(async (tx) => {
     await lockStaffDayForBooking(tx, staff.id, input.date)
-    await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+    if (await isBookingUnavailable(tx, staff.id, input.date, bookingSegments)) {
+      throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+    }
 
     let cursor = timeToMinutes(input.startTime)
     let firstId: string | null = null

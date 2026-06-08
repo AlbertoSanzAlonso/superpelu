@@ -1,6 +1,7 @@
 import type { AppointmentRow } from '@server/pg/types.js'
 import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl } from '@server/appointmentLinks.js'
 import { appointmentLocale } from '@/i18n/localeHelpers'
+import { publicAppointmentErrorMessage } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { formatDisplayDate } from '@/lib/dates'
@@ -85,8 +86,7 @@ export function appointmentDetailHtml(row: AppointmentRow, locale: Locale): stri
 }
 
 export function manageErrorMessage(code: string, locale: Locale): string {
-  const errors = cp(locale).errors as Record<string, string>
-  return errors[code] ?? cp(locale).changeFailed.defaultError
+  return publicAppointmentErrorMessage(code, locale) ?? cp(locale).changeFailed.defaultError
 }
 
 export function customerPageUrlFromRequest(

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { publicAppointmentErrorMessage } from '@/i18n/publicAppointmentErrors'
 import { useTranslation } from '@/i18n/useTranslation'
 import {
   createAppointment,
@@ -59,6 +60,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string }>({})
   const [submitting, setSubmitting] = useState(false)
 
+  const hasMultipleServices = serviceIds.length > 1
+
   const selectedServices = useMemo(
     () =>
       serviceIds
@@ -82,11 +85,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           setServicesError(errors.noServicesOnline)
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setServices([])
-        setServicesError(
-          err instanceof ApiError ? err.message : errors.serverConnection,
-        )
+        setServicesError(errors.serverConnection)
       })
       .finally(() => setServicesLoading(false))
   }, [errors.noServicesOnline, errors.serverConnection])
@@ -186,12 +187,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           setStartTimeState(options.initialStartTime)
         }
         if (res.slots.length === 0) {
-          setSlotsError(errors.noSlots)
+          setSlotsError(hasMultipleServices ? errors.chainedNoSlots : errors.noSlots)
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setSlots([])
-        setSlotsError(err instanceof ApiError ? err.message : errors.loadSlots)
+        setSlotsError(errors.loadSlots)
       })
       .finally(() => setLoadingSlots(false))
   }, [
@@ -200,7 +201,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     options.initialStartTime,
     options.initialStaffId,
     errors.noSlots,
+    errors.chainedNoSlots,
     errors.loadSlots,
+    hasMultipleServices,
   ])
 
   useEffect(() => {
@@ -219,12 +222,14 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         if (options.initialStaffId && res.staff.some((s) => s.id === options.initialStaffId)) {
           setStaffIdState(options.initialStaffId)
         } else if (res.staff.length === 0) {
-          setStaffAtSlotError(errors.noStaffAtSlot)
+          setStaffAtSlotError(
+            hasMultipleServices ? errors.chainedNoStaffAtSlot : errors.noStaffAtSlot,
+          )
         }
       })
-      .catch((err) => {
+      .catch(() => {
         setStaffAtSlot([])
-        setStaffAtSlotError(err instanceof ApiError ? err.message : errors.loadStaff)
+        setStaffAtSlotError(errors.loadStaff)
       })
       .finally(() => setLoadingStaffAtSlot(false))
   }, [
@@ -233,7 +238,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     startTime,
     options.initialStaffId,
     errors.noStaffAtSlot,
+    errors.chainedNoStaffAtSlot,
     errors.loadStaff,
+    hasMultipleServices,
   ])
 
   const resetForm = useCallback(() => {
@@ -287,7 +294,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       onSuccess?.(appointment, appointments)
       return appointment
     } catch (err) {
-      setError(err instanceof Error ? err.message : errors.createFailed)
+      if (err instanceof ApiError && err.code) {
+        setError(publicAppointmentErrorMessage(err.code, locale) ?? errors.createFailed)
+      } else {
+        setError(errors.createFailed)
+      }
       return null
     } finally {
       setSubmitting(false)
@@ -343,6 +354,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     submitting,
     canSubmit,
     selectedStaff,
+    hasMultipleServices,
     resetForm,
     submit,
   }
