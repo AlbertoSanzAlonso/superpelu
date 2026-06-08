@@ -279,7 +279,8 @@ const es = {
     chainNeedsTimeChange:
       'No hay hueco para enlazar el resto de tratamientos a esa hora. Elige otra hora o prueba otro día.',
     chainConflictIntro:
-      'El siguiente tratamiento choca con otra cita a esa hora. Elige otra profesional o aplázalo más tarde ese día.',
+      'Ese profesional no está libre a esa hora para el siguiente tratamiento. Elige otra profesional o aplázalo más tarde ese día.',
+    chainStaffBusyAtTime: 'No libre a esa hora',
     chainPostponeHeading: (service: string, idealTime: string) =>
       `Aplazar ${service} (no cabe a las ${idealTime})`,
     chainPostponeHint: 'Otras horas disponibles ese día para este tratamiento:',
@@ -817,7 +818,8 @@ const en = {
     chainNeedsTimeChange:
       'There is no slot to link the remaining treatments at that time. Choose another time or day.',
     chainConflictIntro:
-      'The next treatment overlaps another booking at that time. Choose another stylist or schedule it later that day.',
+      'That stylist is not available at that time for the next treatment. Choose another stylist or postpone it later that day.',
+    chainStaffBusyAtTime: 'Not available at that time',
     chainPostponeHeading: (service: string, idealTime: string) =>
       `Postpone ${service} (not available at ${idealTime})`,
     chainPostponeHint: 'Other times that day for this treatment:',

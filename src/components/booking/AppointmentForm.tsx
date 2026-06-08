@@ -399,8 +399,11 @@ export function AppointmentForm({
                   </p>
                 )}
 
-                {(form.chainPostpone || (form.chainNextStaff.length > 0 && form.staffAssignments.length > 0)) && (
-                  <p className={`${typography.caption} text-center text-charcoal`}>
+                {(form.chainConflict || form.chainPostpone) && (
+                  <p
+                    className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                    role="status"
+                  >
                     {b.chainConflictIntro}
                   </p>
                 )}
@@ -441,8 +444,14 @@ export function AppointmentForm({
                                 {member.name}
                               </span>
                               {member.role && (
-                                <span className={typography.caption}>{member.role}</span>
+                                <span className={`${typography.caption} block`}>{member.role}</span>
                               )}
+                              {form.chainNextIndex != null &&
+                                !form.chainAvailableStaffIds.includes(member.id) && (
+                                  <span className={`${typography.caption} block text-charcoal-muted`}>
+                                    {b.chainStaffBusyAtTime}
+                                  </span>
+                                )}
                             </span>
                           </label>
                         ))}

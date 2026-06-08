@@ -121,6 +121,11 @@ export type BookingChainContinuation =
         serviceIndex: number
         startTime: string
         staff: StaffMember[]
+        availableStaffIds: string[]
+      }
+      conflict?: {
+        serviceIndex: number
+        staffId: string
       }
       postpone?: {
         serviceIndex: number

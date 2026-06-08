@@ -54,6 +54,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     idealStartTime: string
     slots: string[]
   } | null>(null)
+  const [chainConflict, setChainConflict] = useState(false)
+  const [chainAvailableStaffIds, setChainAvailableStaffIds] = useState<string[]>([])
 
   const [loadingSlots, setLoadingSlots] = useState(false)
   const [loadingStaffAtSlot, setLoadingStaffAtSlot] = useState(false)
@@ -113,6 +115,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setChainNeedsTimeChange(false)
     setServiceStartOverrides([])
     setChainPostpone(null)
+    setChainConflict(false)
+    setChainAvailableStaffIds([])
     setStaffIdState('')
   }, [])
 
@@ -208,31 +212,38 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setChainNextIndex(null)
       setChainNextStartTime('')
       setChainPostpone(null)
+      setChainConflict(false)
+      setChainAvailableStaffIds([])
       setChainNeedsTimeChange(false)
       return true
     }
-    if (res.needsTimeChange && !res.postpone) {
+    if (res.needsTimeChange && !res.next && !res.postpone) {
       setChainNeedsTimeChange(true)
       setChainNextStaff([])
       setChainNextIndex(null)
       setChainNextStartTime('')
       setChainPostpone(null)
+      setChainConflict(false)
+      setChainAvailableStaffIds([])
       setStaffAssignments([])
       setStaffIdState('')
       setChainSegments([])
       setServiceStartOverrides([])
       return false
     }
-    setChainNeedsTimeChange(false)
+    setChainNeedsTimeChange(res.needsTimeChange)
+    setChainConflict(Boolean(res.conflict))
     setChainPostpone(res.postpone ?? null)
     if (res.next) {
       setChainNextStaff(res.next.staff)
       setChainNextIndex(res.next.serviceIndex)
       setChainNextStartTime(res.next.startTime)
+      setChainAvailableStaffIds(res.next.availableStaffIds)
     } else {
       setChainNextStaff([])
       setChainNextIndex(res.postpone?.serviceIndex ?? null)
       setChainNextStartTime(res.postpone?.idealStartTime ?? '')
+      setChainAvailableStaffIds([])
     }
     return false
   }, [])
@@ -241,10 +252,6 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     async (id: string): Promise<boolean> => {
       if (!date || !startTime || serviceIds.length < 2) return false
       const nextAssignments = [...staffAssignments, id]
-      setStaffAssignments(nextAssignments)
-      if (staffAssignments.length === 0) {
-        setStaffIdState(id)
-      }
       setLoadingChain(true)
       try {
         const res = await fetchBookingChainContinuation(
@@ -254,12 +261,22 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           nextAssignments,
           serviceStartOverrides,
         )
+        if (!res.complete && res.conflict) {
+          applyChainResponse(res)
+          return false
+        }
+        setStaffAssignments(nextAssignments)
+        if (staffAssignments.length === 0) {
+          setStaffIdState(id)
+        }
         return applyChainResponse(res)
       } catch {
         setChainNeedsTimeChange(true)
         setStaffAssignments([])
         setStaffIdState('')
         setChainPostpone(null)
+        setChainConflict(false)
+        setChainAvailableStaffIds([])
         return false
       } finally {
         setLoadingChain(false)
@@ -529,6 +546,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     chainNextStartTime,
     chainNeedsTimeChange,
     chainPostpone,
+    chainConflict,
+    chainAvailableStaffIds,
     serviceStartOverrides,
     chainComplete,
     loadingChain,

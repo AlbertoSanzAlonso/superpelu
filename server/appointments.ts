@@ -269,6 +269,12 @@ export type ChainContinuationResult =
         serviceIndex: number
         startTime: string
         staff: PublicStaff[]
+        /** Profesionales libres a la hora ideal del tratamiento. */
+        availableStaffIds: string[]
+      }
+      conflict?: {
+        serviceIndex: number
+        staffId: string
       }
       postpone?: {
         serviceIndex: number
@@ -365,6 +371,45 @@ export async function resolveChainContinuation(
     const service = services[i]
     const svcStart = serviceStartTimes[i]
     if (!(await isStaffFreeForServiceAt(date, staff.id, service, svcStart, options))) {
+      const staffList = await listStaffForService(service.id)
+      const viable: PublicStaff[] = []
+      for (const member of staffList) {
+        if (await isStaffFreeForServiceAt(date, member.id, service, svcStart, options)) {
+          viable.push(member)
+        }
+      }
+      const postponeSlots =
+        overrides[i] === undefined
+          ? await getPostponeSlotsForService(date, service.id, svcStart, options)
+          : []
+
+      if (i === staffAssignments.length - 1 && staffList.length > 0) {
+        return {
+          complete: false,
+          needsTimeChange: viable.length === 0 && postponeSlots.length === 0,
+          segments,
+          conflict: {
+            serviceIndex: i,
+            staffId: staff.id,
+          },
+          next: {
+            serviceIndex: i,
+            startTime: svcStart,
+            staff: staffList,
+            availableStaffIds: viable.map((member) => member.id),
+          },
+          ...(postponeSlots.length > 0
+            ? {
+                postpone: {
+                  serviceIndex: i,
+                  idealStartTime: svcStart,
+                  slots: postponeSlots,
+                },
+              }
+            : {}),
+        }
+      }
+
       return {
         complete: false,
         needsTimeChange: true,
@@ -392,46 +437,28 @@ export async function resolveChainContinuation(
   const nextIndex = staffAssignments.length
   const nextService = services[nextIndex]
   const nextStart = serviceStartTimes[nextIndex]
-  const viable: PublicStaff[] = []
   const staffList = await listStaffForService(nextService.id)
+  if (staffList.length === 0) {
+    return { complete: false, needsTimeChange: true, segments }
+  }
 
+  const viable: PublicStaff[] = []
   for (const member of staffList) {
     if (await isStaffFreeForServiceAt(date, member.id, nextService, nextStart, options)) {
       viable.push(member)
     }
   }
 
-  const postponeSlots =
-    overrides[nextIndex] === undefined
-      ? await getPostponeSlotsForService(date, nextService.id, nextStart, options)
-      : []
-
-  if (viable.length === 0 && postponeSlots.length === 0) {
-    return { complete: false, needsTimeChange: true, segments }
-  }
-
   return {
     complete: false,
     needsTimeChange: false,
     segments,
-    ...(viable.length > 0
-      ? {
-          next: {
-            serviceIndex: nextIndex,
-            startTime: nextStart,
-            staff: viable,
-          },
-        }
-      : {}),
-    ...(postponeSlots.length > 0
-      ? {
-          postpone: {
-            serviceIndex: nextIndex,
-            idealStartTime: nextStart,
-            slots: postponeSlots,
-          },
-        }
-      : {}),
+    next: {
+      serviceIndex: nextIndex,
+      startTime: nextStart,
+      staff: staffList,
+      availableStaffIds: viable.map((member) => member.id),
+    },
   }
 }
 
