@@ -54,9 +54,12 @@ import {
   manageErrorMessage,
   renderInvalidLinkPage,
   renderNotFoundPage,
+  isMultiTreatmentVisit,
   resolveCustomerBookingContext,
   resolvePageLocale,
+  visitChangesPromptHtml,
 } from '@server/customerPages.js'
+import { notifyCustomerBookingVisitFinished } from '@server/appointmentWhatsApp.js'
 import { publicAppointmentErrorMessageOrFallback } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'
@@ -972,8 +975,7 @@ app.get('/c/:code', async (c) => {
          <input type="hidden" name="scope" value="all">
          <button class="btn btn-danger" type="submit">${escapeHtml(t.cancelAllConfirmButton)}</button>
        </form>
-       <p style="margin-top:1rem"><a class="link-back" href="${escapeHtml(`${cancelBase}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)}">← ${escapeHtml(cp(locale).confirmChange.back)}</a></p>
-       ${backToManageLink(buildManageUrl(linkRow), locale)}
+       <p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(`${cancelBase}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)}">${escapeHtml(cp(locale).confirmChange.back)}</a></p>
        <p class="muted">${escapeHtml(t.hint)}</p>`,
       locale,
     )
@@ -1026,7 +1028,7 @@ app.post('/c/:code', async (c) => {
   }
 
   const { ctx } = resolved
-  const { locale, activeRows, targetRow } = ctx
+  const { locale, activeRows, targetRow, groupRows } = ctx
   if (cancelAll && activeRows.length > 1) {
     const cancelled = await cancelBookingGroupByCustomer(ctx.linkId, { notifyCustomer: true })
     if (cancelled === 0) {
@@ -1064,19 +1066,27 @@ app.post('/c/:code', async (c) => {
     )
   }
 
-  await cancelAppointment(cancelId, { notifyCustomer: true })
+  const multiVisit = isMultiTreatmentVisit(groupRows)
+  await cancelAppointment(cancelId, { notifyCustomer: !multiVisit })
   const t = cp(locale).cancel
-  const manageBase = `/m/${encodeURIComponent(code)}`
   const remaining = activeRows.filter((row) => row.id !== cancelId)
-  const backLink =
-    remaining.length > 0
-      ? `<p style="margin-top:1rem"><a class="btn btn-secondary" href="${escapeHtml(`${manageBase}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)}">${escapeHtml(cp(locale).backToManage)}</a></p>`
-      : ''
+
+  if (multiVisit) {
+    const updated = cp(locale).updated
+    return replyCustomerPage(
+      c,
+      t.successTitle,
+      `<h1>${escapeHtml(t.successHeading)}</h1>
+       <p>${escapeHtml(updated.treatmentCancelled)}</p>
+       ${visitChangesPromptHtml(code, token ?? '', locale, remaining.length)}`,
+      locale,
+    )
+  }
 
   return replyCustomerPage(
     c,
     t.successTitle,
-    `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successBody)}</p><p>${escapeHtml(t.successFooter)}</p>${backLink}`,
+    `<h1>${escapeHtml(t.successHeading)}</h1><p>${escapeHtml(t.successBody)}</p><p>${escapeHtml(t.successFooter)}</p>`,
     locale,
   )
 })
@@ -1370,13 +1380,14 @@ app.post('/m/:code', async (c) => {
     )
   }
 
+  const multiVisit = isMultiTreatmentVisit(ctx.groupRows)
+
   try {
-    const row = await rescheduleAppointmentByCustomer(rescheduleId, { date, startTime, staffId })
-    const manageUrl = buildManageUrl(ctx.linkRow)
-    const manageBackUrl =
-      manageUrl && activeRows.length > 1
-        ? `${manageUrl}&apt=${encodeURIComponent(encodeId(row.id))}`
-        : manageUrl
+    const row = await rescheduleAppointmentByCustomer(
+      rescheduleId,
+      { date, startTime, staffId },
+      { notifyCustomer: !multiVisit },
+    )
     const t = cp(locale).updated
     const dateLabel = escapeHtml(formatDisplayDate(row.appointment_date, locale))
     const timeRange = escapeHtml(
@@ -1385,18 +1396,35 @@ app.post('/m/:code', async (c) => {
       }),
     )
 
+    const detailHtml = `<div class="detail">
+         <p>📅 ${dateLabel}</p>
+         <p>🕐 ${timeRange}</p>
+         <p>💇 ${escapeHtml(row.service_name)}</p>
+         ${row.staff_name ? `<p>${escapeHtml(cp(locale).withStaff(row.staff_name))}</p>` : ''}
+       </div>`
+
+    if (multiVisit) {
+      const refreshed = await resolveCustomerBookingContext(code, token, queryLang)
+      const activeCount =
+        refreshed.ok ? refreshed.ctx.activeRows.length : activeRows.length
+      return replyCustomerPage(
+        c,
+        t.title,
+        `<h1>${escapeHtml(t.heading)}</h1>
+         <p>${escapeHtml(t.intro)}</p>
+         ${detailHtml}
+         ${visitChangesPromptHtml(code, token ?? '', locale, activeCount)}`,
+        locale,
+      )
+    }
+
     return replyCustomerPage(
       c,
       t.title,
       `<h1>${escapeHtml(t.heading)}</h1>
        <p>${escapeHtml(t.intro)}</p>
-       <div class="detail">
-         <p>📅 ${dateLabel}</p>
-         <p>🕐 ${timeRange}</p>
-         <p>💇 ${escapeHtml(row.service_name)}</p>
-         ${row.staff_name ? `<p>${escapeHtml(cp(locale).withStaff(row.staff_name))}</p>` : ''}
-       </div>
-       ${backToManageLink(manageBackUrl, locale)}
+       ${detailHtml}
+       ${backToManageLink(buildManageUrl(ctx.linkRow), locale)}
        <p class="muted">${escapeHtml(t.closing)}</p>`,
       locale,
     )
@@ -1418,6 +1446,40 @@ app.post('/m/:code', async (c) => {
       409,
     )
   }
+})
+
+/** Envía el WhatsApp resumen tras guardar cambios en una visita multi-tratamiento. */
+app.post('/m/:code/finish', async (c) => {
+  const queryLang = c.req.query('lang')
+  const code = c.req.param('code')
+  const body = await c.req.parseBody()
+  const token = typeof body.t === 'string' ? body.t : undefined
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang)
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'action')
+    return c.html(page.html, 400)
+  }
+
+  const { ctx } = resolved
+  const { locale } = ctx
+  if (!isMultiTreatmentVisit(ctx.groupRows)) {
+    return c.redirect(`/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)
+  }
+
+  await notifyCustomerBookingVisitFinished(ctx.linkId)
+
+  const t = cp(locale).visitChanges
+  const activeCount = ctx.activeRows.length
+  const bodyText = activeCount > 0 ? t.finishBody : t.finishAllCancelledBody
+
+  return replyCustomerPage(
+    c,
+    t.finishTitle,
+    `<h1>${escapeHtml(t.finishHeading)}</h1>
+     <p>${escapeHtml(bodyText)}</p>
+     <p>${escapeHtml(t.finishFooter)}</p>`,
+    locale,
+  )
 })
 
 /** Archivo .ics para añadir la cita al calendario nativo del móvil. */

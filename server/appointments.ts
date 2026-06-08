@@ -1408,6 +1408,7 @@ export async function markReminderSent(id: string): Promise<void> {
 export async function rescheduleAppointmentByCustomer(
   appointmentId: string,
   input: { date: string; startTime: string; staffId?: string },
+  options?: { notifyCustomer?: boolean },
 ): Promise<AppointmentRow> {
   const existing = await getAppointmentById(appointmentId)
   if (!existing || existing.status === 'cancelled' || existing.status === 'no_show') {
@@ -1512,9 +1513,11 @@ export async function rescheduleAppointmentByCustomer(
 
   const row = (await getAppointmentById(appointmentId))!
   if (scheduleChanged) {
-    void notifyAppointmentRescheduled(row).catch((err) => {
-      console.error('Superpelu WhatsApp (cita reprogramada):', err)
-    })
+    if (options?.notifyCustomer !== false) {
+      void notifyAppointmentRescheduled(row).catch((err) => {
+        console.error('Superpelu WhatsApp (cita reprogramada):', err)
+      })
+    }
     void notifyAdminAppointmentUpdated(existing, row)
   }
   return row

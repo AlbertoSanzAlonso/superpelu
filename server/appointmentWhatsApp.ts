@@ -1,5 +1,5 @@
 import type { AppointmentRow } from '@server/db.js'
-import { getAppointmentsByBookingGroup } from '@server/appointments.js'
+import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments.js'
 import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
 import {
   buildWhatsAppAppointmentMessage,
@@ -34,9 +34,29 @@ export function buildAppointmentReminderMessage(row: AppointmentRow): string {
   })
 }
 
-export function buildAppointmentCancelledMessage(row: AppointmentRow): string {
+export function buildAppointmentCancelledMessage(
+  row: AppointmentRow,
+  groupRows?: AppointmentRow[],
+): string {
   return buildWhatsAppAppointmentMessage(row, 'cancelled', {
     bookingUrl: buildBookingUrl(),
+    groupRows,
+  })
+}
+
+export async function buildAppointmentVisitUpdatedMessage(
+  row: AppointmentRow,
+): Promise<string> {
+  const groupRows = row.booking_group_id
+    ? filterWhatsAppBookingGroupRows(
+        (await getAppointmentsByBookingGroup(row.booking_group_id)).filter(
+          (apt) => apt.status === 'confirmed',
+        ),
+      )
+    : undefined
+  return buildWhatsAppAppointmentMessage(row, 'updated', {
+    manageUrl: buildManageUrl(row),
+    groupRows,
   })
 }
 
@@ -110,14 +130,62 @@ export async function notifyAppointmentNoShow(row: AppointmentRow): Promise<void
 }
 
 /** Confirmación tras cancelar una cita (cliente desde enlace público). */
-export async function notifyAppointmentCancelled(row: AppointmentRow): Promise<void> {
+export async function notifyAppointmentCancelled(
+  row: AppointmentRow,
+  groupRows?: AppointmentRow[],
+): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return
 
+  const resolvedGroupRows =
+    groupRows ??
+    (row.booking_group_id
+      ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
+      : undefined)
+
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
-  const text = buildAppointmentCancelledMessage(row)
+  const text = buildAppointmentCancelledMessage(row, resolvedGroupRows)
   const messageId = await openWaSendText(chatId, text)
   console.log(
     `Superpelu WhatsApp: cancelación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+  )
+}
+
+/** Resumen de visita multi-tratamiento tras guardar cambios (cliente). */
+export async function notifyCustomerBookingVisitFinished(linkId: string): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+
+  const anchor = await getAppointmentById(linkId)
+  if (!anchor) return
+
+  if (!anchor.booking_group_id) {
+    if (anchor.status === 'confirmed') {
+      const text = await buildAppointmentVisitUpdatedMessage(anchor)
+      const chatId = phoneToWhatsAppChatId(anchor.customer_phone)
+      await openWaSendText(chatId, text)
+    } else if (anchor.status === 'cancelled') {
+      await notifyAppointmentCancelled(anchor)
+    }
+    return
+  }
+
+  const allRows = await getAppointmentsByBookingGroup(anchor.booking_group_id)
+  const activeRows = filterWhatsAppBookingGroupRows(
+    allRows.filter((row) => row.status === 'confirmed'),
+  )
+
+  const chatId = phoneToWhatsAppChatId(anchor.customer_phone)
+
+  if (activeRows.length === 0) {
+    const visibleRows = filterWhatsAppBookingGroupRows(allRows)
+    await notifyAppointmentCancelled(anchor, visibleRows)
+    return
+  }
+
+  const text = await buildAppointmentVisitUpdatedMessage(activeRows[0]!)
+  const messageId = await openWaSendText(chatId, text)
+  console.log(
+    `Superpelu WhatsApp: visita actualizada a ${anchor.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
 }

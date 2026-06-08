@@ -9,7 +9,7 @@ import { appointmentLocale } from './localeHelpers'
 const SALON_ADDRESS = 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena'
 const SALON_PHONE = '952 443 686'
 
-type MessageKind = 'confirmation' | 'rescheduled' | 'reminder' | 'cancelled' | 'no_show'
+type MessageKind = 'confirmation' | 'rescheduled' | 'updated' | 'reminder' | 'cancelled' | 'no_show'
 
 function visibleBookingGroupRows(rows: AppointmentRow[]): AppointmentRow[] {
   return rows
@@ -84,11 +84,13 @@ export function buildWhatsAppAppointmentMessage(
       ? wa.confirmationHeading
       : kind === 'rescheduled'
         ? wa.rescheduledHeading
-        : kind === 'reminder'
-          ? wa.reminderHeading
-          : kind === 'no_show'
-            ? wa.noShowHeading
-            : wa.cancelledHeading
+        : kind === 'updated'
+          ? wa.visitUpdatedHeading
+          : kind === 'reminder'
+            ? wa.reminderHeading
+            : kind === 'no_show'
+              ? wa.noShowHeading
+              : wa.cancelledHeading
 
   const dateLabel = formatDisplayDate(row.appointment_date, locale)
   const visitStart = groupRows[0]?.start_time ?? row.start_time

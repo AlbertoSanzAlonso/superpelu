@@ -213,6 +213,41 @@ export function bookingGroupDetailHtml(rows: AppointmentRow[], locale: Locale): 
   return `<div class="treatment-list">${cards}</div>`
 }
 
+export function isMultiTreatmentVisit(groupRows: AppointmentRow[]): boolean {
+  return groupRows.length > 1
+}
+
+export function visitChangesPromptHtml(
+  code: string,
+  token: string,
+  locale: Locale,
+  activeCount: number,
+): string {
+  const t = cp(locale).visitChanges
+  const manageBase = `/m/${encodeURIComponent(code)}`
+  const langSuffix = customerLangSuffix(locale)
+  const manageHref = `${manageBase}?t=${encodeURIComponent(token)}${langSuffix}`
+  const finishAction = `${manageBase}/finish${locale === 'en' ? '?lang=en' : ''}`
+
+  const continueHtml =
+    activeCount > 0
+      ? `<p style="margin-top:1rem"><a class="btn btn-primary" href="${escapeHtml(manageHref)}">${escapeHtml(t.continueButton)}</a></p>`
+      : ''
+
+  const prompt =
+    activeCount > 0 ? t.continuePrompt : t.finishOnlyPrompt
+  const hint = activeCount > 0 ? `<p class="muted">${escapeHtml(t.finishHint)}</p>` : ''
+
+  return `<p>${escapeHtml(prompt)}</p>
+    ${continueHtml}
+    <form method="POST" action="${escapeHtml(finishAction)}" style="margin-top:0.75rem">
+      <input type="hidden" name="t" value="${escapeHtml(token)}">
+      ${customerLangQueryHidden(locale)}
+      <button class="btn btn-secondary" type="submit">${escapeHtml(t.finishButton)}</button>
+    </form>
+    ${hint}`
+}
+
 export function cancelAllVisitLinkHtml(
   cancelBase: string,
   token: string,
