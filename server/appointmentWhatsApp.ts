@@ -6,9 +6,17 @@ import {
   filterWhatsAppBookingGroupRows,
 } from '@/i18n/whatsappAppointment'
 import { appointmentLocale } from '@/i18n/localeHelpers'
-import { getOpenWaConfig, openWaSendText, phoneToWhatsAppChatId } from '@server/openwa.js'
+import { getOpenWaConfig, phoneToWhatsAppChatId } from '@server/openwa.js'
 import { sendWhatsAppWithLogoHeader } from '@server/whatsappBranding.js'
 import { buildBookingUrl, buildManageUrl } from '@server/appointmentLinks.js'
+
+async function sendCustomerWhatsApp(
+  row: AppointmentRow,
+  text: string,
+): Promise<string | undefined> {
+  const chatId = phoneToWhatsAppChatId(row.customer_phone)
+  return sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
+}
 
 export async function buildAppointmentConfirmationMessage(
   row: AppointmentRow,
@@ -76,9 +84,8 @@ export async function notifyAppointmentCreated(
   if (config.notifyPublicOnly && options?.forStaffPortal) return
   if (row.status === 'cancelled' || row.status === 'no_show') return
 
-  const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = await buildAppointmentConfirmationMessage(row)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: confirmación enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
@@ -92,9 +99,8 @@ export async function notifyAppointmentRescheduled(row: AppointmentRow): Promise
   // El lavado enlazado se gestiona en agenda; el cliente solo recibe aviso si cambia la coloración.
   if (isColorGroupWashRow(row.color_group_role)) return
 
-  const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentRescheduledMessage(row)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: reprogramación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
@@ -106,9 +112,8 @@ export async function sendAppointmentReminder(row: AppointmentRow): Promise<bool
   if (!config) return false
   if (row.status === 'cancelled' || row.status === 'no_show') return false
 
-  const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentReminderMessage(row)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: recordatorio enviado a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
@@ -121,9 +126,8 @@ export async function notifyAppointmentNoShow(row: AppointmentRow): Promise<void
   if (!config) return
   if (isColorGroupWashRow(row.color_group_role)) return
 
-  const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentNoShowMessage(row)
-  const messageId = await sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
+  const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: inasistencia enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
@@ -143,9 +147,8 @@ export async function notifyAppointmentCancelled(
       ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
       : undefined)
 
-  const chatId = phoneToWhatsAppChatId(row.customer_phone)
   const text = buildAppointmentCancelledMessage(row, resolvedGroupRows)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: cancelación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
@@ -162,8 +165,7 @@ export async function notifyCustomerBookingVisitFinished(linkId: string): Promis
   if (!anchor.booking_group_id) {
     if (anchor.status === 'confirmed') {
       const text = await buildAppointmentVisitUpdatedMessage(anchor)
-      const chatId = phoneToWhatsAppChatId(anchor.customer_phone)
-      await openWaSendText(chatId, text)
+      await sendCustomerWhatsApp(anchor, text)
     } else if (anchor.status === 'cancelled') {
       await notifyAppointmentCancelled(anchor)
     }
@@ -175,8 +177,6 @@ export async function notifyCustomerBookingVisitFinished(linkId: string): Promis
     allRows.filter((row) => row.status === 'confirmed'),
   )
 
-  const chatId = phoneToWhatsAppChatId(anchor.customer_phone)
-
   if (activeRows.length === 0) {
     const visibleRows = filterWhatsAppBookingGroupRows(allRows)
     await notifyAppointmentCancelled(anchor, visibleRows)
@@ -184,7 +184,7 @@ export async function notifyCustomerBookingVisitFinished(linkId: string): Promis
   }
 
   const text = await buildAppointmentVisitUpdatedMessage(activeRows[0]!)
-  const messageId = await openWaSendText(chatId, text)
+  const messageId = await sendCustomerWhatsApp(activeRows[0]!, text)
   console.log(
     `Superpelu WhatsApp: visita actualizada a ${anchor.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )

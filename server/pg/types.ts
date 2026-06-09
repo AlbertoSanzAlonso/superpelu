@@ -33,6 +33,9 @@ export type AppointmentRow = {
   color_group_role: string | null
   /** Varias citas de la misma reserva pública (misma visita). */
   booking_group_id: string | null
+  /** Serie periódica (agenda): mismo tratamiento repetido. */
+  series_id: string | null
+  scope: string | null
 }
 
 export type StaffRow = {

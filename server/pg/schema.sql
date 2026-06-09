@@ -108,6 +108,8 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT '
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS color_group_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS color_group_role TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_group_id TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS series_id TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scope TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_booking_group
   ON appointments (booking_group_id)
@@ -129,6 +131,10 @@ CREATE INDEX IF NOT EXISTS idx_appointments_staff_date
 
 CREATE INDEX IF NOT EXISTS idx_appointments_customer_phone
   ON appointments (customer_phone, appointment_date);
+
+CREATE INDEX IF NOT EXISTS idx_appointments_series
+  ON appointments (series_id)
+  WHERE series_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS staff_time_blocks (
   id TEXT PRIMARY KEY,

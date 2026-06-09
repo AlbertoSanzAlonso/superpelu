@@ -47,6 +47,8 @@ export function verifyCancelToken(id: string, token: string | undefined): boolea
  * El hero de la web sigue en WebP (`superpelu-hair-studio-hero-logo.webp`).
  */
 export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-og.jpg'
+/** Logo con fondo blanco para cabecera de mensajes WhatsApp al cliente. */
+export const WHATSAPP_LOGO_IMAGE_PATH = '/images/superpelu-hair-studio-og-white.jpg'
 export const LINK_PREVIEW_IMAGE_WIDTH = 512
 export const LINK_PREVIEW_IMAGE_HEIGHT = 341
 

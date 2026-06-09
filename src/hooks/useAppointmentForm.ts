@@ -453,6 +453,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
             selectedServices.map((service) => ({
               id: service.id,
               durationMinutes: service.durationMinutes,
+              categoryId: service.categoryId,
             })),
             startTime,
             serviceStartOverrides,

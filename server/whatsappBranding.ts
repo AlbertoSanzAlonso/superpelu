@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { LINK_PREVIEW_IMAGE_PATH, publicBaseUrl } from '@server/appointmentLinks.js'
+import { publicBaseUrl, WHATSAPP_LOGO_IMAGE_PATH } from '@server/appointmentLinks.js'
 import { getOpenWaConfig, openWaSendImage, openWaSendText } from '@server/openwa.js'
 import { getTranslation } from '@/i18n/translations'
 import type { Locale } from '@/i18n/types'
@@ -12,7 +12,7 @@ let cachedLogoBase64: string | null = null
 
 async function readWhatsAppLogoBase64(): Promise<string> {
   if (cachedLogoBase64) return cachedLogoBase64
-  const relative = LINK_PREVIEW_IMAGE_PATH.replace(/^\//, '')
+  const relative = WHATSAPP_LOGO_IMAGE_PATH.replace(/^\//, '')
   const filePath = path.join(REPO_ROOT, 'public', relative)
   const buf = await readFile(filePath)
   cachedLogoBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`
@@ -22,7 +22,7 @@ async function readWhatsAppLogoBase64(): Promise<string> {
 function whatsappLogoImageUrl(): string | null {
   const base = publicBaseUrl()
   if (!base) return null
-  return `${base}${LINK_PREVIEW_IMAGE_PATH}`
+  return `${base}${WHATSAPP_LOGO_IMAGE_PATH}`
 }
 
 async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {

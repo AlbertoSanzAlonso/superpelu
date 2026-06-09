@@ -19,6 +19,11 @@ import {
   getChainedBookingSpanMinutes,
   type BookingServiceLine,
 } from '@/lib/bookingCombo'
+import {
+  getColorWashReplacementIndex,
+  getFirstServiceBookingSpan,
+  getOccupiedSegmentsForChainService,
+} from '@/lib/colorComboBooking'
 import { schedule } from '@server/config.js'
 import {
   customerNameSnapshot,
@@ -69,6 +74,12 @@ import {
   prepareColorBookingGroupIds,
   resolveWashServiceName,
 } from '@server/colorBooking.js'
+import {
+  getAppointmentSeriesMeta,
+  listSeriesRootAppointments,
+  type AppointmentSeriesMode,
+} from '@server/appointmentSeries.js'
+import { collectDatesForSeriesScope, type SeriesScope } from '@server/seriesDates.js'
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
@@ -234,14 +245,21 @@ async function isStaffFreeForServiceAt(
   staffId: string,
   service: BookingServiceLine,
   startTime: string,
-  options: SlotOptions = {},
+  options: SlotOptions & {
+    chainServices?: ResolvedBookingService[]
+    chainServiceIndex?: number
+  } = {},
 ): Promise<boolean> {
   if (!(await staffCanPerformService(staffId, service.id))) return false
-  const segments = getOccupiedSegmentsForBooking(
-    service.id,
-    timeToMinutes(startTime),
-    service.durationMinutes,
-  )
+  const startMinutes = timeToMinutes(startTime)
+  const segments =
+    options.chainServices != null && options.chainServiceIndex != null
+      ? getOccupiedSegmentsForChainService(
+          options.chainServices,
+          options.chainServiceIndex,
+          startMinutes,
+        )
+      : getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
   return !(await isBookingUnavailable(
     sql,
     staffId,
@@ -370,11 +388,16 @@ export async function resolveChainContinuation(
     }
     const service = services[i]
     const svcStart = serviceStartTimes[i]
-    if (!(await isStaffFreeForServiceAt(date, staff.id, service, svcStart, options))) {
+    const chainOptions = {
+      ...options,
+      chainServices: services,
+      chainServiceIndex: i,
+    }
+    if (!(await isStaffFreeForServiceAt(date, staff.id, service, svcStart, chainOptions))) {
       const staffList = await listStaffForService(service.id)
       const viable: PublicStaff[] = []
       for (const member of staffList) {
-        if (await isStaffFreeForServiceAt(date, member.id, service, svcStart, options)) {
+        if (await isStaffFreeForServiceAt(date, member.id, service, svcStart, chainOptions)) {
           viable.push(member)
         }
       }
@@ -442,9 +465,17 @@ export async function resolveChainContinuation(
     return { complete: false, needsTimeChange: true, segments }
   }
 
+  const nextChainOptions = {
+    ...options,
+    chainServices: services,
+    chainServiceIndex: nextIndex,
+  }
+
   const viable: PublicStaff[] = []
   for (const member of staffList) {
-    if (await isStaffFreeForServiceAt(date, member.id, nextService, nextStart, options)) {
+    if (
+      await isStaffFreeForServiceAt(date, member.id, nextService, nextStart, nextChainOptions)
+    ) {
       viable.push(member)
     }
   }
@@ -471,6 +502,7 @@ export type SlotOptions = {
 type ResolvedBookingService = BookingServiceLine & {
   nameEs: string
   nameEn: string
+  categoryId: string | null
 }
 
 async function resolveBookingServices(
@@ -484,6 +516,7 @@ async function resolveBookingServices(
     lines.push({
       id: service.id,
       durationMinutes: service.durationMinutes,
+      categoryId: service.categoryId,
       nameEs: service.nameEs,
       nameEn: service.nameEn ?? '',
     })
@@ -626,7 +659,7 @@ export async function getServiceDaySlotsForServices(
   if (!dateAllowed) return []
 
   const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
-  const firstSpan = getBookingSpanMinutes(services[0].id, services[0].durationMinutes)
+  const firstSpan = getFirstServiceBookingSpan(services)
   const candidateStarts = new Set<string>()
   const staffForFirst = await listStaffForService(serviceIds[0])
 
@@ -647,7 +680,11 @@ export async function getServiceDaySlotsForServices(
   for (const start of [...candidateStarts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))) {
     let firstServiceFits = false
     for (const member of staffForFirst) {
-      if (await isStaffFreeForServiceAt(date, member.id, services[0], start, options)) {
+      if (await isStaffFreeForServiceAt(date, member.id, services[0], start, {
+        ...options,
+        chainServices: services,
+        chainServiceIndex: 0,
+      })) {
         firstServiceFits = true
         break
       }
@@ -688,7 +725,11 @@ export async function getStaffAvailableAtSlotForServices(
   const staffList = await listStaffForService(serviceIds[0])
   const available: PublicStaff[] = []
   for (const member of staffList) {
-    if (await isStaffFreeForServiceAt(date, member.id, services[0], startTime, options)) {
+    if (await isStaffFreeForServiceAt(date, member.id, services[0], startTime, {
+      ...options,
+      chainServices: services,
+      chainServiceIndex: 0,
+    })) {
       available.push(member)
     }
   }
@@ -716,7 +757,13 @@ export type CreateAppointmentInput = {
   locale?: Locale
   /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
   customerLocale?: Locale
+  /** Repetición periódica (solo agenda, un tratamiento). */
+  scope?: SeriesScope
+  endDate?: string
 }
+
+export type { AppointmentSeriesMode }
+export { getAppointmentSeriesMeta }
 
 export async function getAppointmentsByBookingGroup(
   bookingGroupId: string,
@@ -782,10 +829,10 @@ async function createChainedBookingAppointment(
       const service = services[i]
       const staffId = staffAssignments[i]
       const serviceStartTime = serviceStartTimes[i]
-      const segments = getOccupiedSegmentsForBooking(
-        service.id,
+      const segments = getOccupiedSegmentsForChainService(
+        services,
+        i,
         timeToMinutes(serviceStartTime),
-        service.durationMinutes,
       )
       if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
         throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
@@ -805,7 +852,8 @@ async function createChainedBookingAppointment(
       if (usesColorSplitBooking(service.id)) {
         const colorGroup = await prepareColorBookingGroupIds(service.id)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-        const washServiceName = await resolveWashServiceName(locale)
+        const skipWash = getColorWashReplacementIndex(services) === i + 1
+        const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
         await insertColorBookingGroup(
           {
             groupId: colorGroup.groupId,
@@ -827,6 +875,7 @@ async function createChainedBookingAppointment(
             reminderSentAt,
             locale,
             bookingGroupId,
+            skipWash,
           },
           tx,
         )
@@ -863,6 +912,137 @@ async function createChainedBookingAppointment(
       console.error('Superpelu WhatsApp (cita nueva):', err)
     },
   )
+  void notifyAdminAppointmentCreated(row)
+  return row
+}
+
+type ResolvedStaffService = NonNullable<Awaited<ReturnType<typeof getService>>>
+type ResolvedStaff = NonNullable<Awaited<ReturnType<typeof getStaff>>>
+
+async function createRecurringStaffAppointment(
+  input: CreateAppointmentInput,
+  service: ResolvedStaffService,
+  staff: ResolvedStaff,
+): Promise<AppointmentRow> {
+  const scope = input.scope ?? 'single'
+  if (scope !== 'weekly') throw new Error('ALCANCE_INVALIDO')
+  if (input.endDate && input.endDate < input.date) throw new Error('FECHA_FIN_INVALIDA')
+
+  const dates = await collectDatesForSeriesScope(
+    staff.id,
+    input.date,
+    scope,
+    input.endDate,
+    true,
+  )
+  if (dates.length === 0) throw new Error('FECHA_INVALIDA')
+
+  const customer = resolveCustomerFromInput({
+    firstName: input.customerFirstName,
+    lastName: input.customerLastName,
+    customerName: input.customerName,
+    phone: input.customerPhone,
+  })
+  const customerLocaleForUpsert =
+    input.customerLocale !== undefined ? normalizeLocale(input.customerLocale) : undefined
+
+  await upsertCustomer({
+    firstName: customer.firstName,
+    lastName: customer.lastName,
+    phone: customer.phone,
+    email: input.customerEmail,
+    ...(input.customerNotes !== undefined
+      ? { notes: input.customerNotes.trim() || null }
+      : {}),
+    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
+  })
+  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
+
+  const profile = await getCustomer(customer.phone)
+  const createdAt = new Date().toISOString()
+  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
+  const serviceName = serviceDisplayName(service, locale)
+  const bookingSegments = getOccupiedSegmentsForBooking(
+    service.id,
+    timeToMinutes(input.startTime),
+    service.durationMinutes,
+  )
+  const seriesId = randomUUID()
+  const usesColorSplit = usesColorSplitBooking(service.id)
+  const washServiceName = usesColorSplit ? await resolveWashServiceName(locale) : null
+
+  let firstId = ''
+
+  const primaryId = await sql.begin(async (tx) => {
+    await lockStaffDaysForBooking(
+      tx,
+      dates.map((day) => ({ staffId: staff.id, date: day })),
+    )
+
+    for (const day of dates) {
+      await assertBookingAvailable(tx, staff.id, day, bookingSegments)
+      const reminderSentAt =
+        hoursUntilAppointment(day, input.startTime) <= 24 ? createdAt : null
+
+      if (usesColorSplit) {
+        const colorGroup = await prepareColorBookingGroupIds(service.id)
+        if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
+        await insertColorBookingGroup(
+          {
+            groupId: colorGroup.groupId,
+            colorId: colorGroup.colorId,
+            washId: colorGroup.washId,
+            staffId: staff.id,
+            staffName: staff.name,
+            colorServiceId: service.id,
+            colorServiceName: serviceName,
+            washServiceName: washServiceName!,
+            date: day,
+            colorStartTime: input.startTime,
+            durationMinutes: service.durationMinutes,
+            customerName: nameSnapshot,
+            customerPhone: customer.phone,
+            customerEmail: input.customerEmail?.trim() || null,
+            notes: input.notes?.trim() || null,
+            createdAt,
+            reminderSentAt,
+            locale,
+            seriesId,
+            scope,
+          },
+          tx,
+        )
+        if (!firstId) firstId = colorGroup.colorId
+        continue
+      }
+
+      const id = randomUUID()
+      const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+      await tx`
+        INSERT INTO appointments (
+          id, staff_id, staff_name, service_id, service_name, duration_minutes,
+          appointment_date, start_time,
+          customer_name, customer_phone, customer_email, notes,
+          status, created_at, reminder_sent_at, locale, series_id, scope
+        ) VALUES (
+          ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
+          ${day}, ${input.startTime},
+          ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
+          ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
+          ${seriesId}, ${scope}
+        )
+      `
+      if (!firstId) firstId = id
+    }
+
+    if (!firstId) throw new Error('SERVICIO_INVALIDO')
+    return firstId
+  })
+
+  const row = (await getAppointmentById(primaryId))!
+  void notifyAppointmentCreated(row, { forStaffPortal: true }).catch((err) => {
+    console.error('Superpelu WhatsApp (cita nueva):', err)
+  })
   void notifyAdminAppointmentCreated(row)
   return row
 }
@@ -964,6 +1144,11 @@ export async function createAppointment(
   const service = await getService(serviceIds[0], { onlineOnly: !input.forStaffPortal })
   if (!service) throw new Error('SERVICIO_INVALIDO')
 
+  const scope = input.scope ?? 'single'
+  if (input.forStaffPortal && scope !== 'single') {
+    return createRecurringStaffAppointment(input, service, staff)
+  }
+
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,
     lastName: input.customerLastName,
@@ -1045,12 +1230,13 @@ export async function createAppointment(
         id, staff_id, staff_name, service_id, service_name, duration_minutes,
         appointment_date, start_time,
         customer_name, customer_phone, customer_email, notes,
-        status, created_at, reminder_sent_at, locale
+        status, created_at, reminder_sent_at, locale, series_id, scope
       ) VALUES (
         ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
         ${input.date}, ${input.startTime},
         ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
-        ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale}
+        ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
+        ${null}, ${null}
       )
     `
     return id

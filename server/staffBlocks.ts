@@ -1,16 +1,11 @@
 import { randomUUID } from 'node:crypto'
-import {
-  addDaysToDateString,
-  dayOfWeekFromDateString,
-  isSalonOpenDay,
-} from '@/lib/dates'
-import { isStaffWorkingOnDate } from '@server/availability.js'
 import { sql, type StaffBlockRow } from '@server/db.js'
+import {
+  collectDatesForSeriesScope,
+  type SeriesScope,
+} from '@server/seriesDates.js'
 
-export type BlockScope = 'single' | 'range' | 'weekly'
-
-/** Semanas hacia delante para bloqueos «permanentes» (mismo día cada semana). */
-const WEEKS_PERMANENT = 104
+export type BlockScope = SeriesScope
 
 export type BlockSeriesMeta = {
   blockId: string
@@ -74,48 +69,6 @@ export async function isRangeBlockedByStaff(
   })
 }
 
-async function collectDatesForScope(
-  staffId: string,
-  anchorDate: string,
-  scope: BlockScope,
-  endDate?: string,
-): Promise<string[]> {
-  if (scope === 'single') {
-    return (await isStaffWorkingOnDate(staffId, anchorDate)) ? [anchorDate] : []
-  }
-
-  if (scope === 'weekly') {
-    const targetDow = dayOfWeekFromDateString(anchorDate)
-    const dates: string[] = []
-    let cursor = anchorDate
-    for (let w = 0; w < WEEKS_PERMANENT; w++) {
-      if (
-        dayOfWeekFromDateString(cursor) === targetDow &&
-        isSalonOpenDay(cursor) &&
-        (await isStaffWorkingOnDate(staffId, cursor))
-      ) {
-        dates.push(cursor)
-      }
-      cursor = addDaysToDateString(cursor, 7)
-    }
-    return dates
-  }
-
-  if (!endDate || endDate < anchorDate) {
-    throw new Error('FECHA_FIN_INVALIDA')
-  }
-
-  const dates: string[] = []
-  let cursor = anchorDate
-  while (cursor <= endDate) {
-    if (isSalonOpenDay(cursor) && (await isStaffWorkingOnDate(staffId, cursor))) {
-      dates.push(cursor)
-    }
-    cursor = addDaysToDateString(cursor, 1)
-  }
-  return dates
-}
-
 async function assertNoOverlapOnDates(
   staffId: string,
   dates: string[],
@@ -146,7 +99,7 @@ export type CreateBlockInput = {
 
 export async function createStaffBlock(input: CreateBlockInput): Promise<StaffBlockRow> {
   const scope = input.scope ?? 'single'
-  const dates = await collectDatesForScope(input.staffId, input.date, scope, input.endDate)
+  const dates = await collectDatesForSeriesScope(input.staffId, input.date, scope, input.endDate)
   if (dates.length === 0) {
     throw new Error('FECHA_INVALIDA')
   }

@@ -1,19 +1,33 @@
 import {
+  getColorWashReplacementIndex,
+  getOccupiedSegmentsForChainService,
+  type BookingServiceWithCategory,
+} from '@/lib/colorComboBooking'
+import {
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
+  getWashPhaseStartMinutes,
   type OccupiedSegment,
 } from '@/lib/bookingOccupancy'
 
-export type BookingServiceLine = {
-  id: string
-  durationMinutes: number
-}
+export type { BookingServiceLine } from '@/lib/colorComboBooking'
 
 /** Tramos ocupados encadenando varios servicios en el mismo hueco (misma visita). */
 export function getChainedBookingSegments(
-  services: readonly BookingServiceLine[],
+  services: readonly BookingServiceWithCategory[],
   startMinutes: number,
 ): OccupiedSegment[] {
+  const replacementIndex = getColorWashReplacementIndex(services)
+
+  if (replacementIndex != null) {
+    const startTimes = buildChainStartMinutes(services, startMinutes, [])
+    const all: OccupiedSegment[] = []
+    for (let i = 0; i < services.length; i++) {
+      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i]))
+    }
+    return all
+  }
+
   let cursor = startMinutes
   const all: OccupiedSegment[] = []
 
@@ -24,16 +38,16 @@ export function getChainedBookingSegments(
       service.durationMinutes,
     )
     all.push(...segments)
-    cursor = Math.max(...segments.map((s) => s.startMinutes + s.durationMinutes))
+    cursor = Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
   }
 
   return all
 }
 
-export function getChainedBookingSpanMinutes(services: readonly BookingServiceLine[]): number {
+export function getChainedBookingSpanMinutes(services: readonly BookingServiceWithCategory[]): number {
   if (services.length === 0) return 0
   const segments = getChainedBookingSegments(services, 0)
-  return Math.max(...segments.map((s) => s.startMinutes + s.durationMinutes))
+  return Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
 }
 
 function timeToMinutes(time: string): number {
@@ -49,7 +63,7 @@ function minutesToTime(minutes: number): string {
 
 /** Hora de inicio de cada servicio al encadenarlos desde `startTime`. */
 export function getChainedServiceStartTimes(
-  services: readonly BookingServiceLine[],
+  services: readonly BookingServiceWithCategory[],
   startTime: string,
 ): string[] {
   return buildFlexibleServiceStartTimes(services, startTime, [])
@@ -59,28 +73,61 @@ export function getChainedServiceStartTimes(
  * Horas de inicio por tratamiento: encadenado desde `visitStartTime`, con aplazamientos
  * puntuales en `overrides[i]` (el resto sigue en cadena desde el anterior).
  */
-export function buildFlexibleServiceStartTimes(
-  services: readonly BookingServiceLine[],
-  visitStartTime: string,
-  overrides: ReadonlyArray<string | undefined> = [],
-): string[] {
-  const times: string[] = []
-  let cursor = timeToMinutes(visitStartTime)
+function buildChainStartMinutes(
+  services: readonly BookingServiceWithCategory[],
+  visitStartMinutes: number,
+  overrides: ReadonlyArray<number | undefined>,
+): number[] {
+  const replacementIndex = getColorWashReplacementIndex(services)
+  const starts: number[] = []
+  let cursor = visitStartMinutes
 
   for (let i = 0; i < services.length; i++) {
     const override = overrides[i]
     if (override !== undefined) {
-      cursor = timeToMinutes(override)
+      cursor = override
     }
-    times.push(minutesToTime(cursor))
-    cursor += getBookingSpanMinutes(services[i].id, services[i].durationMinutes)
+
+    if (replacementIndex != null && i === replacementIndex) {
+      cursor = getWashPhaseStartMinutes(starts[replacementIndex - 1]!)
+    }
+
+    starts.push(cursor)
+
+    if (replacementIndex != null) {
+      const colorIndex = replacementIndex - 1
+      if (i < colorIndex) {
+        cursor += services[i].durationMinutes
+      } else if (i === colorIndex) {
+        // La pausa de exposición no avanza el cursor; el siguiente va al slot de lavado.
+      } else if (i === replacementIndex) {
+        cursor += services[i].durationMinutes
+      } else if (i > replacementIndex) {
+        cursor += services[i].durationMinutes
+      }
+    } else {
+      cursor += getBookingSpanMinutes(services[i].id, services[i].durationMinutes)
+    }
   }
 
-  return times
+  return starts
+}
+
+export function buildFlexibleServiceStartTimes(
+  services: readonly BookingServiceWithCategory[],
+  visitStartTime: string,
+  overrides: ReadonlyArray<string | undefined> = [],
+): string[] {
+  const numericOverrides = overrides.map((override) =>
+    override !== undefined ? timeToMinutes(override) : undefined,
+  )
+  return buildChainStartMinutes(services, timeToMinutes(visitStartTime), numericOverrides).map(
+    minutesToTime,
+  )
 }
 
 export function formatChainedAppointmentTimeRange(
-  services: readonly BookingServiceLine[],
+  services: readonly BookingServiceWithCategory[],
   startTime: string,
   locale: 'es' | 'en' = 'es',
 ): string {
