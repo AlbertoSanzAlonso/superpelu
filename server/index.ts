@@ -101,11 +101,14 @@ import {
   isOpenWaSessionConnected,
   logOpenWaStartup,
   openWaEnsureSession,
+  openWaEnsureStarted,
   openWaGetQr,
   openWaGetSessionById,
   openWaGetSessionStatus,
+  openWaSendText,
   openWaSessionName,
   openWaStartSession,
+  phoneToWhatsAppChatId,
   startOpenWaKeepAlive,
 } from '@server/notifications/openwa.js'
 import { processDueReminders, startReminderScheduler } from '@server/notifications/reminders.js'
@@ -211,6 +214,42 @@ app.get('/api/admin/whatsapp', async (c) => {
       : null,
     connected: isOpenWaSessionConnected(session?.status),
   })
+})
+
+/** Envía un WhatsApp de prueba (solo admin). Body: { phone, text? } */
+app.post('/api/admin/whatsapp/test', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  if (!isOpenWaConfigured()) {
+    return c.json({ error: 'OpenWA no configurado (OPENWA_ENABLED y credenciales)' }, 400)
+  }
+
+  const body = await c.req.json<{ phone?: string; text?: string }>().catch(() => ({}))
+  const phone = body.phone?.trim()
+  if (!phone) return c.json({ error: 'Falta phone (E.164, p. ej. +34600111222)' }, 400)
+
+  const text = body.text?.trim() || 'Prueba Superpelu — WhatsApp OK ✅'
+
+  try {
+    await openWaEnsureStarted()
+    const session = await openWaGetSessionStatus()
+    if (!isOpenWaSessionConnected(session?.status)) {
+      return c.json(
+        {
+          error: 'Sesión OpenWA no conectada',
+          session: session ? { id: session.id, status: session.status } : null,
+        },
+        503,
+      )
+    }
+    const chatId = phoneToWhatsAppChatId(phone)
+    const messageId = await openWaSendText(chatId, text)
+    return c.json({ ok: true, chatId, messageId: messageId ?? null })
+  } catch (err) {
+    console.error('Superpelu WhatsApp test:', err)
+    return c.json({ error: err instanceof Error ? err.message : String(err) }, 502)
+  }
 })
 
 /**

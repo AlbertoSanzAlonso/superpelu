@@ -46,9 +46,9 @@ export function verifyCancelToken(id: string, token: string | undefined): boolea
  * Logo para vistas previa (WhatsApp, redes). JPEG en `public/` — WhatsApp no renderiza bien WebP en og:image.
  * El hero de la web sigue en WebP (`superpelu-hair-studio-hero-logo.webp`).
  */
-export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-og.jpg'
-/** Logo con fondo blanco para cabecera de mensajes WhatsApp al cliente. */
-export const WHATSAPP_LOGO_IMAGE_PATH = '/images/superpelu-hair-studio-og-white.jpg'
+/** Logo con fondo blanco para vista previa al compartir (WhatsApp, redes) y cabecera de mensajes al cliente. */
+export const LINK_PREVIEW_IMAGE_PATH = '/images/superpelu-hair-studio-og-white.jpg'
+export const WHATSAPP_LOGO_IMAGE_PATH = LINK_PREVIEW_IMAGE_PATH
 export const LINK_PREVIEW_IMAGE_WIDTH = 512
 export const LINK_PREVIEW_IMAGE_HEIGHT = 341
 

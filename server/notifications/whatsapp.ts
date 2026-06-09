@@ -1,12 +1,16 @@
 import type { AppointmentRow } from '@server/db.js'
-import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/index.js'
+import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/queries.js'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import {
   buildWhatsAppAppointmentMessage,
   filterWhatsAppBookingGroupRows,
 } from '@/i18n/whatsappAppointment'
 import { appointmentLocale } from '@/i18n/localeHelpers'
-import { getOpenWaConfig, phoneToWhatsAppChatId } from '@server/notifications/openwa.js'
+import {
+  getOpenWaConfig,
+  openWaEnsureStarted,
+  phoneToWhatsAppChatId,
+} from '@server/notifications/openwa.js'
 import { sendWhatsAppWithLogoHeader } from '@server/notifications/branding.js'
 import { buildBookingUrl, buildManageUrl } from '@server/appointments/links.js'
 
@@ -14,6 +18,7 @@ async function sendCustomerWhatsApp(
   row: AppointmentRow,
   text: string,
 ): Promise<string | undefined> {
+  await openWaEnsureStarted()
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
   return sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
 }
@@ -79,7 +84,10 @@ export async function notifyAppointmentCreated(
   options?: { forStaffPortal?: boolean },
 ): Promise<void> {
   const config = getOpenWaConfig()
-  if (!config) return
+  if (!config) {
+    console.warn('Superpelu WhatsApp: OpenWA no configurado — confirmación omitida')
+    return
+  }
 
   if (config.notifyPublicOnly && options?.forStaffPortal) return
   if (row.status === 'cancelled' || row.status === 'no_show') return
