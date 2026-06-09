@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { sendCustomerReviewRequest, ApiError } from '@/lib/api'
-import { canRequestGoogleReview } from '@/lib/reviewRequest'
+import { canRequestGoogleReview } from '@/lib/customer/reviewRequest'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

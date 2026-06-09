@@ -5,7 +5,7 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
+import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 

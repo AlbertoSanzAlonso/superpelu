@@ -6,12 +6,12 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { AppointmentModalFooter } from '@/components/agenda/AppointmentModalFooter'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
-import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatDisplayDate } from '@/lib/core/dates'
 import {
   APPOINTMENT_STATUS_NO_SHOW,
   canMarkAppointmentNoShow,
-} from '@/lib/appointmentNoShow'
+} from '@/lib/agenda/noShow'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

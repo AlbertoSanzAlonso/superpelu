@@ -1,14 +1,14 @@
 import { useMemo } from 'react'
 import { salonSchedule } from '@/data/schedule'
-import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
+import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import {
   agendaColorLegend,
   agendaColorLegendSwatch,
   appointmentEventClass,
   blockEventClass,
-} from '@/lib/serviceCategoryColors'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
+} from '@/lib/catalog/serviceCategoryColors'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

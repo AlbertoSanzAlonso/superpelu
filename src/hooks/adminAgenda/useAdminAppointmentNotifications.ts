@@ -5,8 +5,8 @@ import {
   snapshotsFromAppointments,
   type AdminAppointmentNotificationItem,
   type AppointmentSnapshot,
-} from '@/lib/adminAppointmentNotifications'
-import { showAdminBrowserNotifications } from '@/lib/adminBrowserNotifications'
+} from '@/lib/agenda/adminNotifications'
+import { showAdminBrowserNotifications } from '@/lib/agenda/adminBrowserNotifications'
 import { fetchAppointments } from '@/lib/api'
 import type { Appointment } from '@/types/booking'
 

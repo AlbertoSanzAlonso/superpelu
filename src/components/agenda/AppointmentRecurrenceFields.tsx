@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 import { typography } from '@/styles/typography'
 

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button'
-import type { GridSelectionSummary } from '@/lib/timeGrid'
+import type { GridSelectionSummary } from '@/lib/agenda/timeGrid'
 
 type Props = {
   summary: GridSelectionSummary

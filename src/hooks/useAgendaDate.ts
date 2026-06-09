@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { isValidDateString, todaySalon } from '@/lib/dates'
+import { isValidDateString, todaySalon } from '@/lib/core/dates'
 
 const AGENDA_DATE_PARAM = 'fecha'
 

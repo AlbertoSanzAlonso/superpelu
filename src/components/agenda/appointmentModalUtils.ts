@@ -1,4 +1,4 @@
-import { normalizePhone } from '@/lib/phone'
+import { normalizePhone } from '@/lib/customer/phone'
 
 export function dash(value: string | null | undefined): string {
   const t = value?.trim()

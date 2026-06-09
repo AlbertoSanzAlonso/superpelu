@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import type { CustomerAppointmentStatusFilter } from '@/lib/customerAppointmentStatus'
-import { CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS } from '@/lib/customerAppointmentStatus'
-import type { AppointmentHistoryFilters as Filters } from '@/lib/appointmentHistoryFilters'
+import type { CustomerAppointmentStatusFilter } from '@/lib/customer/appointmentStatus'
+import { CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS } from '@/lib/customer/appointmentStatus'
+import type { AppointmentHistoryFilters as Filters } from '@/lib/customer/historyFilters'
 import { typography } from '@/styles/typography'
 
 const fieldClass =

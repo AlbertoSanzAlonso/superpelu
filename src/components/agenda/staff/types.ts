@@ -1,4 +1,4 @@
-import { splitCustomerName } from '@/lib/customerName'
+import { splitCustomerName } from '@/lib/customer/name'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'

@@ -4,13 +4,13 @@ import {
   validateAppointmentMove,
   validatePendingMovesForSave,
   type AppointmentMoveTarget,
-} from '@/lib/appointmentPlacement'
+} from '@/lib/agenda/placement'
 import {
   getEffectivePlacement,
   getFinalMovesForSave,
   summarizePendingMoves,
   type AppointmentMoveDraft,
-} from '@/lib/pendingAppointmentMoves'
+} from '@/lib/agenda/pendingMoves'
 import { ApiError, updateAdminAppointment } from '@/lib/api'
 import type { Appointment, StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'

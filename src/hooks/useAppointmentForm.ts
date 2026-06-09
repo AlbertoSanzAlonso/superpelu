@@ -9,8 +9,8 @@ import {
   fetchStaffAtSlot,
   ApiError,
 } from '@/lib/api'
-import { buildFlexibleServiceStartTimes } from '@/lib/bookingCombo'
-import { isValidSpanishPhone } from '@/lib/phone'
+import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { isValidSpanishPhone } from '@/lib/customer/phone'
 import type {
   Appointment,
   BookableService,

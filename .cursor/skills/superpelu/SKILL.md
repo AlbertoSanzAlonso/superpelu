@@ -16,10 +16,40 @@ description: >-
 - **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
 - **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se sincroniza el catálogo.
 - **No** usar Supabase Realtime, Auth ni `supabase-js` para citas/agenda (`src/lib/supabaseClient.ts` es opcional y no se usa en flujos de reserva).
-- **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/dates.ts`, `TZ=Europe/Madrid` en Docker.
+- **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/core/dates.ts`, `TZ=Europe/Madrid` en Docker.
 - **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado); `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
 
 Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal y enlaces `staff_services` (todo el personal ↔ todos los servicios activos).
+
+## Estructura del código
+
+### `server/` (API)
+
+| Carpeta | Contenido |
+|---------|-----------|
+| `pg/` | Cliente Postgres, `schema.sql`, seed, tipos |
+| `appointments/` | Citas, slots, cadena multi-tratamiento, coloración (`index.ts` = API pública) |
+| `staff/` | Personal, bloqueos, horarios, `me.ts` (rutas `/api/me`) |
+| `notifications/` | Email admin, WhatsApp, OpenWA, recordatorios, reseñas Google |
+| `catalog/` | Servicios y categorías (sync desde `src/data/`) |
+| `customers/` | Fichas clientes + HTML `/c/` · `/m/` |
+
+Raíz: `index.ts` (entrada), `db.ts`, `config.ts`, `password.ts`.
+
+Imports: `@server/appointments/index.js`, `@server/staff/blocks.js`, `@server/catalog/services.js`, etc.
+
+### `src/lib/` (compartido frontend + server)
+
+| Carpeta | Contenido |
+|---------|-----------|
+| `api/` | Cliente fetch `/api` + `staffApi` |
+| `booking/` | Tramos ocupados, combo multi-tratamiento, colorCombo, calendario `.ics` |
+| `agenda/` | Grilla, arrastre, movimientos pendientes, no-show, notificaciones admin |
+| `customer/` | Teléfono, nombre, filtros historial, reseña Google |
+| `catalog/` | Picker especialidad/tratamiento, colores agenda |
+| `core/` | Fechas (`Europe/Madrid`), horario laboral, notas |
+
+Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 
 ## Datos maestros (fuente de verdad en código)
 
@@ -33,9 +63,9 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 
 **Mechas (`highlights`):** servicios con `bookableOnline: false` — reserva online solo teléfono/WhatsApp; admin/profesional sí pueden citar.
 
-**Coloración (reserva unificada):** servicios `svc-root-color`, `svc-complete-color`, `svc-color-block` — el cliente reserva **90 min** (una cita); en agenda se crean **dos filas** enlazadas (`color_group_id`): fase color 30 min + pausa 30 min libre + **lavar color** 30 min (`svc-wash-color`, `color_group_role`). El lavado puede cambiar de profesional/hora en agenda de forma independiente. Ver `src/lib/bookingOccupancy.ts`, `server/colorBooking.ts`.
+**Coloración (reserva unificada):** servicios `svc-root-color`, `svc-complete-color`, `svc-color-block` — el cliente reserva **90 min** (una cita); en agenda se crean **dos filas** enlazadas (`color_group_id`): fase color 30 min + pausa 30 min libre + **lavar color** 30 min (`svc-wash-color`, `color_group_role`). El lavado puede cambiar de profesional/hora en agenda de forma independiente. Ver `src/lib/booking/occupancy.ts`, `server/appointments/color.ts`. Si además reserva otro servicio de peluquería (no estética), ese servicio sustituye el slot del lavado (`src/lib/booking/colorCombo.ts`).
 
-**Reserva multi-tratamiento:** el cliente puede elegir varios servicios en `/reservar`; se encadenan en la misma visita (`booking_group_id`, `src/lib/bookingCombo.ts`). Cada tratamiento puede ir con un profesional distinto si a la hora calculada el anterior no tiene hueco (`resolveChainContinuation`, `GET /api/booking/chain`, `staffAssignments` en `POST /api/appointments`). En agenda admin, cada cita del grupo se mueve sola (arrastre): los hermanos del mismo `booking_group_id` no bloquean el hueco (`appointmentPlacement.ts`, `getOccupiedAppointmentsForStaffOnDate`).
+**Reserva multi-tratamiento:** el cliente puede elegir varios servicios en `/reservar`; se encadenan en la misma visita (`booking_group_id`, `src/lib/booking/combo.ts`). Cada tratamiento puede ir con un profesional distinto si a la hora calculada el anterior no tiene hueco (`resolveChainContinuation`, `GET /api/booking/chain`, `staffAssignments` en `POST /api/appointments`). En agenda admin, cada cita del grupo se mueve sola (arrastre): los hermanos del mismo `booking_group_id` no bloquean el hueco (`src/lib/agenda/placement.ts`).
 
 **Lavar color** (`svc-wash-color`): `bookableOnline: false` (no aparece en `/reservar`); solo agenda o como pareja al reservar coloración. En catálogo 20 min; en pareja con color ocupa **30 min** en agenda.
 
@@ -47,7 +77,7 @@ Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_avai
 
 Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-sqlite` (requiere `SQLITE_PATH` y `DATABASE_URL`).
 
-**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers.ts`.
+**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 
@@ -70,7 +100,7 @@ Sitio **público** bilingüe. **Agenda admin/profesional** sigue solo en españo
 | `src/i18n/localeHelpers.ts` | `serviceDisplayName`, `appointmentLocale` — **importar desde `server/`** (sin assets Vite) |
 | `src/i18n/helpers.ts` | Helpers UI (nav, galería, marketing, WhatsApp URL) — solo frontend; reexporta `localeHelpers` |
 | `src/i18n/whatsappAppointment.ts` | Plantillas mensajes WhatsApp al cliente |
-| `server/customerPages.ts` | HTML de `/c/:code` y `/m/:code` traducido |
+| `server/customers/pages.ts` | HTML de `/c/:code` y `/m/:code` traducido |
 | `src/components/layout/LanguageSwitcher.tsx` | Toggle ES \| EN en header y `/reservar` |
 
 ### Uso en React
@@ -89,7 +119,7 @@ Servicios en UI: `serviceDisplayName(service, locale)` → `nameEs` / `nameEn`. 
 - **`GET/POST /c/:code`** — cancelar cita (HTML servidor).
 - **`GET/POST /m/:code`** — gestionar cita (cambiar día/hora/profesional).
 - **`GET /m/:code/confirm`** — confirmar cambio.
-- Textos en `translations.customerPages`; shell en `server/customerPages.ts`.
+- Textos en `translations.customerPages`; shell en `server/customers/pages.ts`.
 
 ### Aliases de importación
 
@@ -115,7 +145,7 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 | Frontend (`src/`) | `import { Button } from '@/components/ui/Button'` — sin extensión |
 | Mismo directorio en `src/` | `./translations` (opcional; se permite) |
 | Server → server | `import { sql } from '@server/db.js'` — extensión `.js` (ESM TypeScript) |
-| Server → src compartido | `import { formatDisplayDate } from '@/lib/dates'` — sin extensión |
+| Server → src compartido | `import { formatDisplayDate } from '@/lib/core/dates'` — sin extensión |
 | Src → tipos server | `import type { AppointmentRow } from '@server/pg/types'` |
 
 **Producción:** `npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`. Los alias funcionan en runtime gracias a `tsx` + `tsconfig.server.json`.
@@ -154,7 +184,7 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
   - Clic en cita → modal solo lectura `CustomerAppointmentDetailModal`.
 - Enlace desde `AdminAgendaControlBar` → «Clientes».
 - Componentes: `src/components/customers/` (`CustomersWorkspaceHeader`, `CustomerAppointmentDetailModal`).
-- Utilidades: `src/lib/phone.ts`, `src/lib/customerName.ts`, tipos `src/types/customers.ts`.
+- Utilidades: `src/lib/customer/phone.ts`, `src/lib/customer/name.ts`, tipos `src/types/customers.ts`.
 
 ### UI de agenda — shell común
 
@@ -162,7 +192,7 @@ Ambos modos usan `AgendaWorkspaceShell` (pantalla completa, **sin** logo ni `Pag
 
 ### Profesional (`StaffAgendaPanel`)
 
-- Login → `POST /api/auth/staff/login` → `/api/me/*` (`staffApi.ts`, `server/me.ts`).
+- Login → `POST /api/auth/staff/login` → `/api/me/*` (`src/lib/api/staff.ts`, `server/staff/me.ts`).
 - **Barra:** `StaffAgendaControlBar` — saludo, navegación de día, contador de citas, **+ Cita**, acciones de selección en grilla, Salir.
 - **Grilla:** `StaffTimeGrid` — huecos 30 min, colores BUK, selección múltiple para bloquear/desbloquear/crear cita.
 - **Citas:** modal `StaffAppointmentFormModal` (igual patrón que admin; **no** desplegable).
@@ -173,14 +203,14 @@ Ambos modos usan `AgendaWorkspaceShell` (pantalla completa, **sin** logo ni `Pag
 
 - Bearer `ADMIN_SECRET` → calendario día (`AdminSalonDayCalendar`), columnas por profesional.
 - **Barra:** `AdminAgendaControlBar` — fecha, profesional activo, + Cita, **Clientes**, selección, Salir.
-- Bloqueos con alcance: `BlockScopeModal`, `UnblockScopeModal` (`server/staffBlocks.ts`).
+- Bloqueos con alcance: `BlockScopeModal`, `UnblockScopeModal` (`server/staff/blocks.ts`).
 - Cita: `StaffAppointmentFormModal`.
 - `GET /api/schedule/day?date=` → `listStaffDaySchedules` (citas con `occupiedSlots` para coloración partida).
 - **Actualización automática:** `useAgendaPolling` (15 s, pestaña visible) + `useAdminAgendaSchedule.load({ silent: true })` — recarga en segundo plano sin «Cargando…». Se pausa con formularios, movimientos pendientes, modales o acciones en grilla; al volver a la pestaña recarga de inmediato.
 
 ## Colores en agenda (BUK)
 
-`src/lib/serviceCategoryColors.ts` — `appointmentEventClass(categoryId, serviceId)`:
+`src/lib/catalog/serviceCategoryColors.ts` — `appointmentEventClass(categoryId, serviceId)`:
 
 | Color | Categorías / servicios |
 |-------|-------------------------|
@@ -203,7 +233,7 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/service-categories` | Con precios |
 | GET | `/api/staff?serviceId=` | Profesionales del servicio |
 | GET | `/api/slots?date=&serviceId=&staffId=` | Respeta tramos de coloración |
-| POST | `/api/appointments` | Crear cita; `customerName`, `customerPhone`, opcional `locale` (`es`\|`en`). Concurrencia: bloqueo por profesional+día + comprobación en transacción (`server/bookingLock.ts`); si el hueco se ocupó → `409` `HORARIO_NO_DISPONIBLE` |
+| POST | `/api/appointments` | Crear cita; `customerName`, `customerPhone`, opcional `locale` (`es`\|`en`). Concurrencia: bloqueo por profesional+día + comprobación en transacción (`server/appointments/lock.ts`); si el hueco se ocupó → `409` `HORARIO_NO_DISPONIBLE` |
 
 ### Admin (`Authorization: Bearer ADMIN_SECRET`)
 
@@ -218,7 +248,7 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/schedule/blocks/:id/series` |
 | DELETE | `/api/schedule/blocks/:id?mode=single\|series` |
 
-### Profesional (`server/me.ts` bajo `/api`)
+### Profesional (`server/staff/me.ts` bajo `/api`)
 
 Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 
@@ -232,17 +262,17 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 
 | Archivo | Rol |
 |---------|-----|
-| `server/appointmentWhatsApp.ts` | WhatsApp al cliente (confirmación, recordatorio, cambio, cancelación) en `row.locale` |
-| `server/customerPages.ts` | Páginas HTML `/c/` y `/m/` traducidas |
-| `server/appointmentLinks.ts` | URLs cancelar/gestionar/calendario; `appendLocaleToCustomerUrl` |
-| `server/appointments.ts` | Slots, citas; `upsertCustomer`; guarda `locale`; engancha avisos WhatsApp + email |
-| `server/appointmentEmail.ts` | Email al administrador en cita nueva/cancelada (SMTP/nodemailer) |
+| `server/notifications/whatsapp.ts` | WhatsApp al cliente (confirmación, recordatorio, cambio, cancelación) en `row.locale` |
+| `server/customers/pages.ts` | Páginas HTML `/c/` y `/m/` traducidas |
+| `server/appointments/links.ts` | URLs cancelar/gestionar/calendario; `appendLocaleToCustomerUrl` |
+| `server/appointments/index.ts` | Barrel API citas (slots, crear, cancelar, …) |
+| `server/notifications/email.ts` | Email al administrador en cita nueva/cancelada (SMTP/nodemailer) |
 | `src/i18n/translations.ts` | Textos ES/EN centralizados |
-| `server/staffSchedule.ts` | Día por profesional, `occupiedSlots` |
-| `server/staffBlocks.ts` | Series de bloqueos |
-| `src/lib/bookingOccupancy.ts` | Tramos coloración, solapes, formato horario |
-| `src/lib/timeGrid.ts` | Grilla staff (segmentos ocupados) |
-| `src/lib/servicePicker.ts` | Labels especialidad/tratamiento; `getAllServiceCategories()` para reserva pública |
+| `server/staff/schedule.ts` | Día por profesional, `occupiedSlots` |
+| `server/staff/blocks.ts` | Series de bloqueos |
+| `src/lib/booking/occupancy.ts` | Tramos coloración, solapes, formato horario |
+| `src/lib/agenda/timeGrid.ts` | Grilla staff (segmentos ocupados) |
+| `src/lib/catalog/servicePicker.ts` | Labels especialidad/tratamiento; `getAllServiceCategories()` para reserva pública |
 | `src/components/shared/ServiceCategoryPicker.tsx` | Staff/admin — estado local de categoría |
 | `src/components/shared/ServiceCategoryPickerPublic.tsx` | Reserva pública — 12 categorías, grid 2×/4 col, tratamientos 3 col en desktop |
 | `src/hooks/useAdminSession.ts` | Token admin en `sessionStorage` para `/clientes` |
@@ -251,7 +281,7 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/hooks/useAppointmentForm.ts` | Reserva pública; `servicesError` + Reintentar si API cae |
 | `src/components/booking/AppointmentForm.tsx` | Formulario `/reservar` (sin enlace a `/agenda`) |
 | `src/components/booking/AddToCalendarButton.tsx` | Botón «Añadir al calendario» en la confirmación (`BookingPage`) |
-| `src/lib/calendar.ts` | `.ics` cliente + URL Google Calendar; `addAppointmentToCalendar` por dispositivo |
+| `src/lib/booking/calendar.ts` | `.ics` cliente + URL Google Calendar; `addAppointmentToCalendar` por dispositivo |
 | `src/components/sections/Services.tsx` | Grid servicios en home |
 | `src/components/sections/ServiceDetailModal.tsx` | Modal detalle servicio (home) |
 
@@ -264,7 +294,7 @@ Tras reservar, `BookingPage` muestra `AddToCalendarButton`. Comportamiento **seg
 - **Móvil (`< 768px`):** botón único; detecta SO → Android abre **Google Calendar**, iPhone/iPad descarga **`.ics`** (Apple Calendar nativo).
 - **Escritorio (`≥ 768px`):** menú con opciones **Google Calendar** (enlace) y **`.ics`** (Apple/Outlook, descarga). En escritorio el `.ics` se descarga: es lo esperado (no hay calendario nativo del navegador).
 
-Lógica en `src/lib/calendar.ts`: `addAppointmentToCalendar` (móvil), `buildGoogleCalendarUrl`, `downloadAppointmentIcs`. Hora en `Europe/Madrid` (VTIMEZONE en el `.ics`, `ctz` en Google).
+Lógica en `src/lib/booking/calendar.ts`: `addAppointmentToCalendar` (móvil), `buildGoogleCalendarUrl`, `downloadAppointmentIcs`. Hora en `Europe/Madrid` (VTIMEZONE en el `.ics`, `ctz` en Google).
 
 ## Selector especialidad / tratamiento
 
@@ -295,7 +325,7 @@ Tras editar `salonServices.ts` o categorías: **reiniciar servidor** para `syncS
 
 ## WhatsApp (OpenWA)
 
-Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (`server/openwa.ts`, `server/appointmentWhatsApp.ts`). **Idioma del mensaje** = `appointments.locale` de la cita (reserva pública envía `locale` desde el formulario).
+Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (`server/notifications/openwa.ts`, `server/notifications/whatsapp.ts`). **Idioma del mensaje** = `appointments.locale` de la cita (reserva pública envía `locale` desde el formulario).
 
 | Variable | Uso |
 |----------|-----|
@@ -309,12 +339,12 @@ Diagnóstico admin: `GET /api/admin/whatsapp` (Bearer `ADMIN_SECRET`).
 
 ### Enlaces del mensaje (cancelar / calendario)
 
-Los enlaces **❌ Cancelar la cita** y los `/c/…`·`/a/…` se generan en `server/appointmentLinks.ts` y **requieren `PUBLIC_BASE_URL`** (o, en su defecto, `CORS_ORIGIN`). Sin esa variable, `buildCancelUrl` devuelve `null` y **el enlace no aparece** en el WhatsApp (no es un bug del mensaje).
+Los enlaces **❌ Cancelar la cita** y los `/c/…`·`/a/…` se generan en `server/appointments/links.ts` y **requieren `PUBLIC_BASE_URL`** (o, en su defecto, `CORS_ORIGIN`). Sin esa variable, `buildCancelUrl` devuelve `null` y **el enlace no aparece** en el WhatsApp (no es un bug del mensaje).
 
 - `PUBLIC_BASE_URL` debe apuntar al **dominio de la app Superpelu** (el subdominio de Coolify con HTTPS), **no** al dominio raíz si este apunta a otra web (p. ej. Hostinger): el enlace `/c/…` lo sirve la propia app.
 - Firma de los enlaces de cancelación: `CANCEL_TOKEN_SECRET` (por defecto `ADMIN_SECRET`).
 
-### Recordatorio 24h (`server/reminderScheduler.ts`)
+### Recordatorio 24h (`server/notifications/reminders.ts`)
 
 Temporizador interno (arranca con el servidor si OpenWA está configurado y `REMINDERS_ENABLED != false`). Cada `REMINDER_POLL_MINUTES` (def. 10) busca citas `confirmed` con `reminder_sent_at IS NULL` dentro de la ventana `REMINDER_HOURS_BEFORE` (def. 24) y envía el recordatorio (idempotente vía columna `reminder_sent_at`).
 
@@ -326,9 +356,9 @@ Dev: `npm run openwa:up` → API `http://127.0.0.1:2785/api`, dashboard `:2886`.
 
 ## Email (aviso al administrador)
 
-En **cada cita nueva o cancelada** se envía un email al administrador del negocio (`server/appointmentEmail.ts`, SMTP vía `nodemailer`). Cubre todas las vías porque se engancha en las funciones de datos, no en las rutas:
+En **cada cita nueva o cancelada** se envía un email al administrador del negocio (`server/notifications/email.ts`, SMTP vía `nodemailer`). Cubre todas las vías porque se engancha en las funciones de datos, no en las rutas:
 
-| Función (`server/appointments.ts`) | Evento |
+| Función (`server/appointments/`) | Evento |
 |-------------------------------------|--------|
 | `createAppointment` | `created` (reserva pública, agenda admin y profesional) |
 | `cancelAppointment` | `cancelled` (cancelación admin + enlace público `/c/:code`) |

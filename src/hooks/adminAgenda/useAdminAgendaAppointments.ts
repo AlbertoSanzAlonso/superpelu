@@ -18,7 +18,7 @@ import {
 import {
   singleFreeTimeFromGridSummary,
   summarizeStaffColumnGridSelection,
-} from '@/lib/agendaGridSelection'
+} from '@/lib/agenda/gridSelection'
 import type {
   BookableService,
   DayScheduleAppointment,

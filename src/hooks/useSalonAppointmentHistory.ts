@@ -6,10 +6,10 @@ import {
   filterAppointmentHistory,
   hasActiveAppointmentHistoryFilters,
   type AppointmentHistoryFilters,
-} from '@/lib/appointmentHistoryFilters'
+} from '@/lib/customer/historyFilters'
 import { fetchAppointments, ApiError } from '@/lib/api'
-import { addDaysToDateString, todaySalon } from '@/lib/dates'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import type { Appointment } from '@/types/booking'
 
 function sortNewestFirst(rows: Appointment[]): Appointment[] {

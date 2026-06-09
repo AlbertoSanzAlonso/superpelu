@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/Button'
-import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { truncateNotesPreview } from '@/lib/notes'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { truncateNotesPreview } from '@/lib/core/notes'
 import type { DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

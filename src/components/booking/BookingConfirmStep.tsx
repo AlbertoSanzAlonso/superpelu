@@ -2,7 +2,7 @@ import { Input, Textarea } from '@/components/ui/Input'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
 import { serviceDisplayName } from '@/i18n/helpers'
 import type { Locale } from '@/i18n/types'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
 const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`

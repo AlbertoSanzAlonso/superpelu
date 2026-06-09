@@ -17,13 +17,13 @@ import {
   fetchMyServices,
   fetchMySlots,
   updateMyAppointment,
-} from '@/lib/staffApi'
+} from '@/lib/api/staff'
 import { ApiError } from '@/lib/api'
 import {
   blockGroupsFromGridSummary,
   singleFreeTimeFromGridSummary,
   summarizeScheduleGridSelection,
-} from '@/lib/agendaGridSelection'
+} from '@/lib/agenda/gridSelection'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
 import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAgendaGridTimes } from '@/hooks/agenda/useAgendaGridTimes'

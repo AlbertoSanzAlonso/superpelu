@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchCustomerDetail, fetchCustomers, ApiError } from '@/lib/api'
-import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatPhoneDisplay } from '@/lib/phone'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatPhoneDisplay } from '@/lib/customer/phone'
 import type { CustomerDetail } from '@/types/customers'
 import { typography } from '@/styles/typography'
 

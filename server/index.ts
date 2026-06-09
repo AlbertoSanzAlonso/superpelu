@@ -3,12 +3,12 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import fs from 'node:fs'
 import path from 'node:path'
-import { COLOR_GROUP_ROLE } from '@/lib/bookingOccupancy'
-import { listActiveServiceCategories } from '@server/serviceCategories.js'
-import { listActiveServices } from '@server/services.js'
-import { listStaffForService, listStaffForServices, getStaff } from '@server/staff.js'
-import { me } from '@server/me.js'
-import { listStaffDaySchedules } from '@server/staffSchedule.js'
+import { COLOR_GROUP_ROLE } from '@/lib/booking/occupancy'
+import { listActiveServiceCategories } from '@server/catalog/categories.js'
+import { listActiveServices } from '@server/catalog/services.js'
+import { listStaffForService, listStaffForServices, getStaff } from '@server/staff/index.js'
+import { me } from '@server/staff/me.js'
+import { listStaffDaySchedules } from '@server/staff/schedule.js'
 import {
   cancelAppointment,
   cancelBookingGroupByCustomer,
@@ -30,7 +30,7 @@ import {
   rescheduleAppointmentByCustomer,
   rowToPublic,
   updateAppointmentForAdmin,
-} from '@server/appointments.js'
+} from '@server/appointments/index.js'
 import {
   buildIcs,
   buildLinkPreviewMetaTags,
@@ -39,7 +39,7 @@ import {
   encodeId,
   injectSpaLinkPreviewMeta,
   publicBaseUrl,
-} from '@server/appointmentLinks.js'
+} from '@server/appointments/links.js'
 import {
   appointmentDetailHtml,
   backToManageLink,
@@ -59,8 +59,8 @@ import {
   resolveCustomerBookingContext,
   resolvePageLocale,
   visitChangesPromptHtml,
-} from '@server/customerPages.js'
-import { notifyCustomerBookingVisitFinished } from '@server/appointmentWhatsApp.js'
+} from '@server/customers/pages.js'
+import { notifyCustomerBookingVisitFinished } from '@server/notifications/whatsapp.js'
 import { publicAppointmentErrorMessageOrFallback } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'
@@ -70,10 +70,10 @@ import {
   isSalonOpenDay,
   isWithinSalonBookingWindow,
   todaySalon,
-} from '@/lib/dates'
+} from '@/lib/core/dates'
 import { schedule } from '@server/config.js'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
-import { splitCustomerName } from '@/lib/customerName'
+import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
+import { splitCustomerName } from '@/lib/customer/name'
 import {
   createStaffBlock,
   deleteStaffBlockById,
@@ -83,8 +83,8 @@ import {
   type BlockScope,
   type DeleteBlockMode,
   type UpdateBlockNoteMode,
-} from '@server/staffBlocks.js'
-import { listServicesForStaff } from '@server/staff.js'
+} from '@server/staff/blocks.js'
+import { listServicesForStaff } from '@server/staff/index.js'
 import {
   createCustomer,
   deleteCustomer,
@@ -92,8 +92,8 @@ import {
   listCustomerAppointments,
   listCustomers,
   updateCustomer,
-} from '@server/customers.js'
-import { sendCustomerReviewRequest } from '@server/reviewRequest.js'
+} from '@server/customers/index.js'
+import { sendCustomerReviewRequest } from '@server/notifications/review.js'
 import { initDatabase, sql } from '@server/db.js'
 import {
   getOpenWaAdminConfig,
@@ -107,9 +107,9 @@ import {
   openWaSessionName,
   openWaStartSession,
   startOpenWaKeepAlive,
-} from '@server/openwa.js'
-import { processDueReminders, startReminderScheduler } from '@server/reminderScheduler.js'
-import { logEmailStartup } from '@server/appointmentEmail.js'
+} from '@server/notifications/openwa.js'
+import { processDueReminders, startReminderScheduler } from '@server/notifications/reminders.js'
+import { logEmailStartup } from '@server/notifications/email.js'
 
 const app = new Hono()
 

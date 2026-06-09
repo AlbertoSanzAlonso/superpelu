@@ -12,7 +12,7 @@ import {
   categoryIdForService,
   getAllServiceCategories,
   servicesInCategory,
-} from '@/lib/servicePicker'
+} from '@/lib/catalog/servicePicker'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

@@ -1,6 +1,6 @@
 import { GOOGLE_REVIEW_WRITE_URL } from '@/data/googleReview'
-import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentRow } from '@server/pg/types'
 import type { Locale } from './types'
 import { getTranslation } from './translations'

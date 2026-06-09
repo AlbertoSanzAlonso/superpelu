@@ -1,6 +1,6 @@
 import { CustomerAppointmentHistoryPanel } from '@/components/customers/CustomerAppointmentHistoryPanel'
-import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatPhoneDisplay } from '@/lib/phone'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { typography } from '@/styles/typography'
 
 type Props = {

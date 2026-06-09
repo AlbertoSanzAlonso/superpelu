@@ -1,6 +1,6 @@
 import { serviceCategories } from '@/data/serviceCategories'
-import { categoryLabelFor } from '@/lib/servicePicker'
-import { categoryLegendSwatch } from '@/lib/serviceCategoryColors'
+import { categoryLabelFor } from '@/lib/catalog/servicePicker'
+import { categoryLegendSwatch } from '@/lib/catalog/serviceCategoryColors'
 
 export function AdminCalendarLegend() {
   return (

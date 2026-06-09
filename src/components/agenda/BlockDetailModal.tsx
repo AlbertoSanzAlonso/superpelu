@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import type { BlockSeriesMeta } from '@/types/blocks'
 import type { DayScheduleBlock } from '@/types/booking'
 import { typography } from '@/styles/typography'

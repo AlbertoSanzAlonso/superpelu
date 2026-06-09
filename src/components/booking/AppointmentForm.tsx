@@ -16,7 +16,7 @@ import {
 } from '@/hooks/useAppointmentForm'
 import { serviceDisplayName } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
-import { getBookableDates } from '@/lib/dates'
+import { getBookableDates } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
 const bookableDatesList = getBookableDates(35)

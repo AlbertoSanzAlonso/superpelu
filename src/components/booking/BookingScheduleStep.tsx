@@ -3,7 +3,7 @@ import { BookingStaffPicker } from '@/components/booking/BookingStaffPicker'
 import { BookingTimeSlotPicker } from '@/components/booking/BookingTimeSlotPicker'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
 import type { Locale } from '@/i18n/types'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
 type BookingScheduleStepProps = {

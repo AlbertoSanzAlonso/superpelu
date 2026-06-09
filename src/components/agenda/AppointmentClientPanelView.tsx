@@ -7,8 +7,8 @@ import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { dash, whatsappHref } from '@/components/agenda/appointmentModalUtils'
 import { Button } from '@/components/ui/Button'
-import { formatCustomerDisplayName } from '@/lib/customerName'
-import { formatPhoneDisplay, normalizePhone } from '@/lib/phone'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
 import { typography } from '@/styles/typography'
 
 type Props = {

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentSeriesMeta } from '@/types/appointmentSeries'
 import { typography } from '@/styles/typography'
 

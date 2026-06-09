@@ -4,16 +4,16 @@ import {
   eventTopPx,
   timeToMinutes,
   type CalendarDayRange,
-} from '@/lib/adminCalendar'
+} from '@/lib/agenda/adminCalendar'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { appointmentEventClass } from '@/lib/serviceCategoryColors'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { appointmentEventClass } from '@/lib/catalog/serviceCategoryColors'
 import {
   appointmentOccupiedSlots,
   formatAppointmentTimeRange,
-} from '@/lib/bookingOccupancy'
+} from '@/lib/booking/occupancy'
 import { useAppointmentDrag } from '@/components/agenda/admin/AppointmentDragContext'
-import type { PendingMoveVisual } from '@/lib/pendingAppointmentMoves'
+import type { PendingMoveVisual } from '@/lib/agenda/pendingMoves'
 import type { DayScheduleAppointment } from '@/types/booking'
 
 export type AppointmentDragEndPayload = {

@@ -1,5 +1,5 @@
-import { formatChainedAppointmentTimeRange } from '@/lib/bookingCombo'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { formatChainedAppointmentTimeRange } from '@/lib/booking/combo'
+import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import type { Locale } from '@/i18n/types'
 import { typography } from '@/styles/typography'
 

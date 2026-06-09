@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import {
   adminAppointmentNotificationKindLabel,
   formatAdminAppointmentNotificationTime,
   type AdminAppointmentNotificationItem,
-} from '@/lib/adminAppointmentNotifications'
+} from '@/lib/agenda/adminNotifications'
 import { typography } from '@/styles/typography'
 
 type Props = {

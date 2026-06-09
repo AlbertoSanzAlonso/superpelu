@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/Button'
-import type { PendingMoveSummary } from '@/lib/pendingAppointmentMoves'
+import type { PendingMoveSummary } from '@/lib/agenda/pendingMoves'
 import { typography } from '@/styles/typography'
 
 type Props = {

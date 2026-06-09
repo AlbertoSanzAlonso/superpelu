@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
-import { countServicesInCategory, servicesInCategory } from '@/lib/servicePicker'
+import { countServicesInCategory, servicesInCategory } from '@/lib/catalog/servicePicker'
 
 export const SCHEDULE_STEP = 2
 export const CONFIRM_STEP = 3

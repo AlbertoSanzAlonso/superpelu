@@ -13,11 +13,11 @@ import {
   eventTopPx,
   minutesToTime,
   type CalendarDayRange,
-} from '@/lib/adminCalendar'
+} from '@/lib/agenda/adminCalendar'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { appointmentEventClass } from '@/lib/serviceCategoryColors'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { appointmentEventClass } from '@/lib/catalog/serviceCategoryColors'
+import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import {
   pointerYInStaffGrid,

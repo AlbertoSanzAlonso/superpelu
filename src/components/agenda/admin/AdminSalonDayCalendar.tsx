@@ -7,9 +7,9 @@ import {
   eventTopPx,
   resolveCalendarDayRange,
   type CalendarDayRange,
-} from '@/lib/adminCalendar'
-import { blockEventClass } from '@/lib/serviceCategoryColors'
-import { buildStaffDayGrid, type TimeGridCell } from '@/lib/timeGrid'
+} from '@/lib/agenda/adminCalendar'
+import { blockEventClass } from '@/lib/catalog/serviceCategoryColors'
+import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
 import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
 import {
   AppointmentDragProvider,
@@ -24,8 +24,8 @@ import {
 import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
-} from '@/lib/pendingAppointmentMoves'
-import { dayOfWeekFromDateString } from '@/lib/dates'
+} from '@/lib/agenda/pendingMoves'
+import { dayOfWeekFromDateString } from '@/lib/core/dates'
 import { salonWindowsForDayOfWeek } from '@/data/schedule'
 import {
   agendaClosedSlotClassName,
@@ -34,7 +34,7 @@ import {
   rangesToWorkWindows,
   slotStartInWorkWindows,
   type WorkTimeWindow,
-} from '@/lib/scheduleHours'
+} from '@/lib/core/scheduleHours'
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

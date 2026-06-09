@@ -6,7 +6,7 @@ import {
   servicePickerLabels,
   servicesInCategory,
   type ServicePickerVariant,
-} from '@/lib/servicePicker'
+} from '@/lib/catalog/servicePicker'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

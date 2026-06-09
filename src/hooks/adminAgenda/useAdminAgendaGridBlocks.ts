@@ -9,7 +9,7 @@ import {
 import {
   blockGroupsFromGridSummary,
   summarizeStaffColumnGridSelection,
-} from '@/lib/agendaGridSelection'
+} from '@/lib/agenda/gridSelection'
 import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
 import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBlockCreate'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'

@@ -1,7 +1,7 @@
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
-import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/dates'
-import type { GridSelectionSummary } from '@/lib/timeGrid'
-import type { StaffSession } from '@/lib/staffApi'
+import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/core/dates'
+import type { GridSelectionSummary } from '@/lib/agenda/timeGrid'
+import type { StaffSession } from '@/lib/api/staff'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 

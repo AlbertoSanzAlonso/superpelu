@@ -1,9 +1,9 @@
 import type { Appointment } from '@/types/booking'
-import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { customerAppointmentStatusLabel } from '@/lib/customerAppointmentStatus'
-import { formatDisplayDate } from '@/lib/dates'
-import { formatPhoneDisplay } from '@/lib/phone'
-import { truncateNotesPreview } from '@/lib/notes'
+import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { customerAppointmentStatusLabel } from '@/lib/customer/appointmentStatus'
+import { formatDisplayDate } from '@/lib/core/dates'
+import { formatPhoneDisplay } from '@/lib/customer/phone'
+import { truncateNotesPreview } from '@/lib/core/notes'
 import { typography } from '@/styles/typography'
 
 type Props = {

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Locale } from '@/i18n/types'
-import { toDateString, todaySalon } from '@/lib/dates'
+import { toDateString, todaySalon } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
 type Props = {

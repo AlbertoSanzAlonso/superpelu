@@ -6,9 +6,9 @@ import {
   filterAppointmentHistory,
   hasActiveAppointmentHistoryFilters,
   type AppointmentHistoryFilters,
-} from '@/lib/appointmentHistoryFilters'
+} from '@/lib/customer/historyFilters'
 import { fetchCustomerDetail, ApiError } from '@/lib/api'
-import { isColorGroupWashRow } from '@/lib/bookingOccupancy'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import type { Appointment } from '@/types/booking'
 import type { Customer } from '@/types/customers'
 

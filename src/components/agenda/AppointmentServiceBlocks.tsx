@@ -1,6 +1,6 @@
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
-import { COLOR_GROUP_ROLE, isColorGroupWashRow } from '@/lib/bookingOccupancy'
-import { appointmentBlockBarClass } from '@/lib/serviceCategoryColors'
+import { COLOR_GROUP_ROLE, isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { appointmentBlockBarClass } from '@/lib/catalog/serviceCategoryColors'
 import type { BookableService, DayScheduleAppointment } from '@/types/booking'
 
 type Block = {

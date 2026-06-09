@@ -5,7 +5,7 @@ import {
   addAppointmentToCalendar,
   buildGoogleCalendarUrl,
   downloadAppointmentIcs,
-} from '@/lib/calendar'
+} from '@/lib/booking/calendar'
 import type { Appointment } from '@/types/booking'
 
 type Props = {

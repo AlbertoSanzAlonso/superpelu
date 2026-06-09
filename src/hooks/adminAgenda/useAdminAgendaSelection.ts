@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { summarizeStaffColumnGridSelection } from '@/lib/agendaGridSelection'
+import { summarizeStaffColumnGridSelection } from '@/lib/agenda/gridSelection'
 import type { StaffDaySchedule } from '@/types/booking'
 import type { AdminColumnSelection } from './types'
 

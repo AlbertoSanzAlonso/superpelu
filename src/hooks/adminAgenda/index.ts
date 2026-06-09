@@ -9,7 +9,7 @@ import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAdminAppointmentNotifications } from './useAdminAppointmentNotifications'
 
 export type { AdminColumnSelection } from './types'
-export type { AppointmentMoveDraft } from '@/lib/pendingAppointmentMoves'
+export type { AppointmentMoveDraft } from '@/lib/agenda/pendingMoves'
 
 export function useAdminAgenda(adminToken: string, date: string) {
   const schedule = useAdminAgendaSchedule(adminToken, date)

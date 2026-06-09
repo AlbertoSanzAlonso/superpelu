@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { formatDisplayDate } from '@/lib/dates'
+import { formatDisplayDate } from '@/lib/core/dates'
 import {
   ADMIN_APPOINTMENT_TOAST_MS,
   adminAppointmentNotificationKindLabel,
   formatAdminAppointmentNotificationTime,
   type AdminAppointmentNotificationItem,
-} from '@/lib/adminAppointmentNotifications'
+} from '@/lib/agenda/adminNotifications'
 import { typography } from '@/styles/typography'
 
 type ToastEntry = {

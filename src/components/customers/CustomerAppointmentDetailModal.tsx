@@ -5,9 +5,9 @@ import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { cancelAppointment, deleteAppointment, fetchCustomerDetail, ApiError } from '@/lib/api'
-import { formatAppointmentTimeRange } from '@/lib/bookingOccupancy'
-import { formatDisplayDate } from '@/lib/dates'
-import { formatPhoneDisplay } from '@/lib/phone'
+import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
+import { formatDisplayDate } from '@/lib/core/dates'
+import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { typography } from '@/styles/typography'
 
 type Props = {
