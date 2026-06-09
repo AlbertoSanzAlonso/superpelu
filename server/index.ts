@@ -15,6 +15,7 @@ import {
   createAppointment,
   deleteAppointmentById,
   getAppointmentById,
+  getAppointmentSeriesMeta,
   markAppointmentNoShow,
   getAvailableSlots,
   getAvailableSlotsForServices,
@@ -695,6 +696,8 @@ app.post('/api/schedule/appointments', async (c) => {
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    scope?: BlockScope
+    endDate?: string
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
@@ -706,6 +709,13 @@ app.post('/api/schedule/appointments', async (c) => {
     !body.customerPhone?.trim()
   ) {
     return c.json({ error: 'Datos incompletos' }, 400)
+  }
+  const scope = body.scope ?? 'single'
+  if (scope !== 'single' && scope !== 'weekly') {
+    return c.json({ error: adminScheduleErrors.ALCANCE_INVALIDO }, 400)
+  }
+  if (scope === 'weekly' && body.endDate && body.endDate < body.date) {
+    return c.json({ error: adminScheduleErrors.FECHA_FIN_INVALIDA }, 400)
   }
   try {
     const row = await createAppointment({
@@ -721,6 +731,8 @@ app.post('/api/schedule/appointments', async (c) => {
       customerNotes: body.customerNotes,
       notes: body.notes,
       customerLocale: body.customerLocale,
+      scope,
+      endDate: body.endDate,
       forStaffPortal: true,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
@@ -755,6 +767,14 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     const code = err instanceof Error ? err.message : 'ERROR'
     return c.json({ error: adminScheduleErrors[code] ?? 'No se pudo actualizar' }, 409)
   }
+})
+
+app.get('/api/schedule/appointments/:id/series', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const meta = await getAppointmentSeriesMeta(c.req.param('id'))
+  if (!meta) return c.json({ error: 'Cita no encontrada' }, 404)
+  return c.json({ series: meta })
 })
 
 app.get('/api/schedule/blocks/:id/series', async (c) => {
@@ -842,8 +862,14 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
     typeof body === 'object' &&
     body !== null &&
     (body as { notifyCustomerWhatsApp?: boolean }).notifyCustomerWhatsApp === true
+  const mode =
+    typeof body === 'object' &&
+    body !== null &&
+    (body as { mode?: string }).mode === 'series'
+      ? 'series'
+      : 'single'
 
-  const row = await cancelAppointment(c.req.param('id'), { notifyCustomer })
+  const row = await cancelAppointment(c.req.param('id'), { notifyCustomer, mode })
   if (!row) {
     return c.json({ error: 'Cita no encontrada' }, 404)
   }
@@ -877,7 +903,9 @@ app.delete('/api/appointments/:id', async (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
 
-  if (!(await deleteAppointmentById(c.req.param('id')))) {
+  const mode = c.req.query('mode') === 'series' ? 'series' : 'single'
+
+  if (!(await deleteAppointmentById(c.req.param('id'), mode))) {
     return c.json({ error: 'Cita no encontrada' }, 404)
   }
 

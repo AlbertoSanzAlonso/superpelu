@@ -1,6 +1,7 @@
 import { splitCustomerName } from '@/lib/customerName'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
+import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 
 export type AppointmentDraft = {
   serviceId: string
@@ -15,6 +16,8 @@ export type AppointmentDraft = {
   notes: string
   /** Idioma en ficha del cliente (`customers.locale`). */
   customerLocale: Locale
+  recurrenceScope: AppointmentRecurrenceScope
+  recurrenceEndDate: string
 }
 
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
@@ -27,6 +30,8 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   customerNotes: '',
   notes: '',
   customerLocale: 'es',
+  recurrenceScope: 'single',
+  recurrenceEndDate: '',
 }
 
 export function appointmentToDraft(
@@ -48,5 +53,7 @@ export function appointmentToDraft(
     customerNotes: customerProfile?.notes ?? apt.customerNotes ?? '',
     notes: apt.notes ?? '',
     customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
+    recurrenceScope: 'single',
+    recurrenceEndDate: '',
   }
 }

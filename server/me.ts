@@ -3,12 +3,15 @@ import {
   createAppointment,
   deleteAppointmentForStaff,
   getAppointmentById,
+  getAppointmentSeriesMeta,
   getAvailableSlots,
   listAppointmentsForStaff,
   markAppointmentNoShow,
   rowToPublic,
   updateAppointmentForStaff,
+  type AppointmentSeriesMode,
 } from '@server/appointments.js'
+import type { SeriesScope } from '@server/seriesDates.js'
 import { getStaffDaySchedule } from '@server/staffSchedule.js'
 import { listServicesForStaff } from '@server/staff.js'
 import {
@@ -52,6 +55,7 @@ const errorMessages: Record<string, string> = {
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',
+  ALCANCE_INVALIDO: 'Tipo de repetición no válido',
 }
 
 me.post('/auth/staff/login', async (c) => {
@@ -134,14 +138,24 @@ me.post('/me/appointments', async (c) => {
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    scope?: SeriesScope
+    endDate?: string
   }>()
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (!body.serviceId || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
+  const scope = body.scope ?? 'single'
+  if (scope !== 'single' && scope !== 'weekly') {
+    return c.json({ error: errorMessages.ALCANCE_INVALIDO }, 400)
+  }
+  if (scope === 'weekly' && body.endDate && body.endDate < body.date) {
+    return c.json({ error: errorMessages.FECHA_FIN_INVALIDA }, 400)
+  }
   try {
     const row = await createAppointment({
       ...body,
+      scope,
       staffId: staff!.id,
       customerPhone: body.customerPhone ?? '',
       customerLocale: body.customerLocale,
@@ -196,10 +210,19 @@ me.patch('/me/appointments/:id/no-show', async (c) => {
   return c.json({ appointment: rowToPublic(row) })
 })
 
+me.get('/me/appointments/:id/series', async (c) => {
+  const { error, staff } = await requireStaff(c)
+  if (error) return error
+  const meta = await getAppointmentSeriesMeta(c.req.param('id'), staff!.id)
+  if (!meta) return c.json({ error: 'Cita no encontrada' }, 404)
+  return c.json({ series: meta })
+})
+
 me.delete('/me/appointments/:id', async (c) => {
   const { error, staff } = await requireStaff(c)
   if (error) return error
-  const ok = await deleteAppointmentForStaff(c.req.param('id'), staff!.id)
+  const mode = (c.req.query('mode') === 'series' ? 'series' : 'single') as AppointmentSeriesMode
+  const ok = await deleteAppointmentForStaff(c.req.param('id'), staff!.id, mode)
   if (!ok) return c.json({ error: 'Cita no encontrada' }, 404)
   return c.json({ ok: true })
 })

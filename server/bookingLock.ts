@@ -1,7 +1,7 @@
-import { sql } from '@server/db.js'
+import type { Sql, TransactionSql } from 'postgres'
 
 /** Cliente SQL global o de transacción (`sql.begin`). */
-export type DbClient = typeof sql
+export type DbClient = Sql | TransactionSql
 
 /** Serializa reservas del mismo profesional en el mismo día (evita doble cita simultánea). */
 export async function lockStaffDayForBooking(

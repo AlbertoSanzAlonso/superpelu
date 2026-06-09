@@ -11,6 +11,7 @@ import {
   markMyAppointmentNoShow,
   deleteMyBlock,
   fetchMyBlockSeries,
+  fetchMyAppointmentSeries,
   fetchMySchedule,
   updateMyBlock,
   fetchMyServices,
@@ -34,6 +35,7 @@ import type {
   DayScheduleBlock,
   StaffDaySchedule,
 } from '@/types/booking'
+import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 
 export function useStaffAgenda(token: string) {
   const { date, setDate } = useAgendaDate()
@@ -53,6 +55,10 @@ export function useStaffAgenda(token: string) {
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
   const [noShowBusy, setNoShowBusy] = useState(false)
   const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
+  const [cancelScopeOpen, setCancelScopeOpen] = useState(false)
+  const [cancelScopeSeries, setCancelScopeSeries] = useState<AppointmentSeriesMeta | null>(null)
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
+  const [pendingRemoveSuccess, setPendingRemoveSuccess] = useState<(() => void) | undefined>()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -239,6 +245,11 @@ export function useStaffAgenda(token: string) {
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
             customerLocale: aptDraft.customerLocale,
+            scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
+            endDate:
+              aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
+                ? aptDraft.recurrenceEndDate
+                : undefined,
           })
         }
         resetAppointmentForm()
@@ -283,28 +294,94 @@ export function useStaffAgenda(token: string) {
     setNoShowDialogOpen(true)
   }, [])
 
-  const removeAppointment = useCallback(
-    (id: string, onSuccess?: () => void) => {
+  const closeCancelScopeModal = useCallback(() => {
+    setCancelScopeOpen(false)
+    setCancelScopeSeries(null)
+    setPendingRemoveId(null)
+    setPendingRemoveSuccess(undefined)
+  }, [])
+
+  const confirmRemoveScope = useCallback(
+    (mode: AppointmentSeriesMode) => {
+      if (!pendingRemoveId) return
+      setCancelScopeOpen(false)
+      const count = cancelScopeSeries?.count ?? 1
       confirmUi.setConfirmDialog({
-        title: '¿Eliminar esta cita?',
+        title: mode === 'series' ? '¿Eliminar todas las citas periódicas?' : '¿Eliminar esta cita?',
         message:
-          'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
-        confirmLabel: 'Eliminar cita',
+          mode === 'series'
+            ? `Se eliminarán ${count} citas de la serie. Se avisará al cliente por WhatsApp y al salón por email.`
+            : 'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
+        confirmLabel: mode === 'series' ? 'Eliminar todas' : 'Eliminar cita',
         destructive: true,
         onConfirm: async () => {
           setError('')
           try {
-            await deleteMyAppointment(token, id)
-            if (editingId === id) resetAppointmentForm()
+            await deleteMyAppointment(token, pendingRemoveId, mode)
+            if (editingId === pendingRemoveId) resetAppointmentForm()
+            pendingRemoveSuccess?.()
+            setPendingRemoveId(null)
+            setCancelScopeSeries(null)
+            setPendingRemoveSuccess(undefined)
             await load()
-            onSuccess?.()
           } catch {
             setError('No se pudo eliminar la cita')
           }
         },
       })
     },
-    [editingId, load, resetAppointmentForm, token, confirmUi],
+    [
+      pendingRemoveId,
+      cancelScopeSeries,
+      confirmUi,
+      token,
+      editingId,
+      resetAppointmentForm,
+      pendingRemoveSuccess,
+      load,
+    ],
+  )
+
+  const removeAppointment = useCallback(
+    (id: string, onSuccess?: () => void) => {
+      void (async () => {
+        const apt = schedule?.appointments.find((a) => a.id === id)
+        if (apt?.seriesId) {
+          try {
+            const series = await fetchMyAppointmentSeries(token, id)
+            if (series.count > 1) {
+              setPendingRemoveId(id)
+              setCancelScopeSeries(series)
+              setPendingRemoveSuccess(() => onSuccess)
+              setCancelScopeOpen(true)
+              return
+            }
+          } catch {
+            /* continuar con confirmación simple */
+          }
+        }
+
+        confirmUi.setConfirmDialog({
+          title: '¿Eliminar esta cita?',
+          message:
+            'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
+          confirmLabel: 'Eliminar cita',
+          destructive: true,
+          onConfirm: async () => {
+            setError('')
+            try {
+              await deleteMyAppointment(token, id)
+              if (editingId === id) resetAppointmentForm()
+              await load()
+              onSuccess?.()
+            } catch {
+              setError('No se pudo eliminar la cita')
+            }
+          },
+        })
+      })()
+    },
+    [schedule, token, editingId, load, resetAppointmentForm, confirmUi],
   )
 
   return {
@@ -351,5 +428,9 @@ export function useStaffAgenda(token: string) {
     confirmBusy: confirmUi.confirmBusy,
     closeConfirmDialog: confirmUi.closeConfirmDialog,
     runConfirmDialog: confirmUi.runConfirmDialog,
+    cancelScopeOpen,
+    cancelScopeSeries,
+    closeCancelScopeModal,
+    confirmRemoveScope,
   }
 }

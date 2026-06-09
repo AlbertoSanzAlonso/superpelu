@@ -9,6 +9,7 @@ import type {
 } from '@/types/booking'
 import type { Customer, CustomerDetail } from '@/types/customers'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
+import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 
 const API_BASE = '/api'
 
@@ -172,13 +173,14 @@ export function fetchAppointments(from: string, to: string, adminToken: string) 
 export function cancelAppointment(
   id: string,
   adminToken: string,
-  options?: { notifyCustomerWhatsApp?: boolean },
+  options?: { notifyCustomerWhatsApp?: boolean; mode?: AppointmentSeriesMode },
 ) {
   return request<{ appointment: Appointment }>(`/appointments/${id}/cancel`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${adminToken}` },
     body: JSON.stringify({
       notifyCustomerWhatsApp: options?.notifyCustomerWhatsApp === true,
+      mode: options?.mode,
     }),
   })
 }
@@ -197,11 +199,23 @@ export function markAppointmentNoShow(
   })
 }
 
-export function deleteAppointment(id: string, adminToken: string) {
-  return request<{ ok: true }>(`/appointments/${id}`, {
+export function deleteAppointment(
+  id: string,
+  adminToken: string,
+  mode: AppointmentSeriesMode = 'single',
+) {
+  const params = mode === 'series' ? '?mode=series' : ''
+  return request<{ ok: true }>(`/appointments/${id}${params}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${adminToken}` },
   })
+}
+
+export function fetchAdminAppointmentSeries(adminToken: string, appointmentId: string) {
+  return request<{ series: AppointmentSeriesMeta }>(
+    `/schedule/appointments/${appointmentId}/series`,
+    { headers: adminHeaders(adminToken) },
+  ).then((res) => res.series)
 }
 
 function adminHeaders(adminToken: string) {
@@ -242,6 +256,8 @@ export type AdminAppointmentPayload = {
   notes?: string
   customerLocale?: 'es' | 'en'
   notifyCustomerWhatsApp?: boolean
+  scope?: BlockScope
+  endDate?: string
 }
 
 export function createAdminAppointment(payload: AdminAppointmentPayload, adminToken: string) {

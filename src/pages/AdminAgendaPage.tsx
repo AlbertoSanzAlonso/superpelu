@@ -14,6 +14,7 @@ import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCa
 import { AppointmentMoveBar } from '@/components/agenda/admin/AppointmentMoveBar'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
+import { CancelAppointmentScopeModal } from '@/components/agenda/CancelAppointmentScopeModal'
 import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
 import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
 import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
@@ -437,6 +438,7 @@ export function AdminAgendaPage() {
       {agenda.activeStaffId && agenda.appointmentFormOpen && !agenda.viewingAppointment && (
         <StaffAppointmentFormModal
           open
+          date={selectedDate}
           staffName={activeStaffName}
           editingId={null}
           draft={agenda.aptDraft}
@@ -446,6 +448,17 @@ export function AdminAgendaPage() {
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}
           adminToken={adminToken}
+        />
+      )}
+
+      {agenda.cancelScopeSeries && (
+        <CancelAppointmentScopeModal
+          open={agenda.cancelScopeOpen}
+          series={agenda.cancelScopeSeries}
+          viewDate={selectedDate}
+          action="cancel"
+          onClose={agenda.closeCancelScopeModal}
+          onConfirm={agenda.confirmCancelScope}
         />
       )}
 

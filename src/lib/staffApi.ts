@@ -1,5 +1,6 @@
 import type { Appointment, BookableService, StaffDaySchedule } from '@/types/booking'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
+import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 import { ApiError } from '@/lib/api'
 
 const API_BASE = '/api'
@@ -108,6 +109,8 @@ export function createMyAppointment(
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    scope?: BlockScope
+    endDate?: string
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -138,8 +141,20 @@ export function updateMyAppointment(
   })
 }
 
-export function deleteMyAppointment(token: string, id: string) {
-  return staffRequest<{ ok: true }>(`/me/appointments/${id}`, token, { method: 'DELETE' })
+export function fetchMyAppointmentSeries(token: string, appointmentId: string) {
+  return staffRequest<{ series: AppointmentSeriesMeta }>(
+    `/me/appointments/${appointmentId}/series`,
+    token,
+  ).then((r) => r.series)
+}
+
+export function deleteMyAppointment(
+  token: string,
+  id: string,
+  mode: AppointmentSeriesMode = 'single',
+) {
+  const params = mode === 'series' ? '?mode=series' : ''
+  return staffRequest<{ ok: true }>(`/me/appointments/${id}${params}`, token, { method: 'DELETE' })
 }
 
 export function markMyAppointmentNoShow(

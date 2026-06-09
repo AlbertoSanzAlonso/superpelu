@@ -3,6 +3,7 @@ import { Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { AppointmentCustomerEntry } from '@/components/agenda/AppointmentCustomerEntry'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
+import { AppointmentRecurrenceFields } from '@/components/agenda/AppointmentRecurrenceFields'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -13,6 +14,7 @@ const formCompactClass =
 
 type Props = {
   editingId: string | null
+  date: string
   draft: AppointmentDraft
   services: BookableService[]
   slots: string[]
@@ -31,6 +33,7 @@ type Props = {
 
 export function StaffAppointmentFormFields({
   editingId,
+  date,
   draft,
   services,
   slots,
@@ -132,6 +135,17 @@ export function StaffAppointmentFormFields({
         <AppointmentCustomerFields
           draft={draft}
           onDraftChange={onDraftChange}
+          compact={compact}
+        />
+      )}
+
+      {!editingId && (
+        <AppointmentRecurrenceFields
+          anchorDate={date}
+          scope={draft.recurrenceScope}
+          endDate={draft.recurrenceEndDate}
+          onScopeChange={(recurrenceScope) => onDraftChange({ recurrenceScope })}
+          onEndDateChange={(recurrenceEndDate) => onDraftChange({ recurrenceEndDate })}
           compact={compact}
         />
       )}

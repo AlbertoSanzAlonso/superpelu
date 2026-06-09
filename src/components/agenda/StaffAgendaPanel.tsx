@@ -6,6 +6,7 @@ import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { StaffAppointmentList } from '@/components/agenda/staff/StaffAppointmentList'
+import { CancelAppointmentScopeModal } from '@/components/agenda/CancelAppointmentScopeModal'
 import { BlockCreateNoteModal } from '@/components/agenda/BlockCreateNoteModal'
 import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { StaffTimeGrid } from '@/components/agenda/staff/StaffTimeGrid'
@@ -132,6 +133,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
 
       <StaffAppointmentFormModal
         open={appointmentFormOpen}
+        date={agenda.date}
         editingId={agenda.editingId}
         draft={agenda.aptDraft}
         services={agenda.services}
@@ -189,6 +191,17 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
           onClose={agenda.closeBlockDetail}
           onSave={agenda.saveBlockNote}
           onDelete={agenda.deleteViewingBlock}
+        />
+      )}
+
+      {agenda.cancelScopeSeries && (
+        <CancelAppointmentScopeModal
+          open={agenda.cancelScopeOpen}
+          series={agenda.cancelScopeSeries}
+          viewDate={agenda.date}
+          action="delete"
+          onClose={agenda.closeCancelScopeModal}
+          onConfirm={agenda.confirmRemoveScope}
         />
       )}
 

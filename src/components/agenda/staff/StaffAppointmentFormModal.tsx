@@ -5,6 +5,7 @@ import { typography } from '@/styles/typography'
 
 type Props = {
   open: boolean
+  date: string
   staffName?: string
   editingId: string | null
   draft: AppointmentDraft
@@ -22,6 +23,7 @@ type Props = {
 
 export function StaffAppointmentFormModal({
   open,
+  date,
   staffName,
   editingId,
   draft,
@@ -80,6 +82,7 @@ export function StaffAppointmentFormModal({
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-none sm:overflow-visible sm:px-5 sm:py-4 sm:pb-4">
           <StaffAppointmentFormFields
             compact
+            date={date}
             editingId={editingId}
             draft={draft}
             services={services}

@@ -9,6 +9,7 @@ import {
   cancelAppointment,
   markAppointmentNoShow,
   createAdminAppointment,
+  fetchAdminAppointmentSeries,
   fetchAdminSlots,
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
@@ -25,6 +26,7 @@ import type {
 } from '@/types/booking'
 import type { AdminColumnSelection } from './types'
 import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
+import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 
 type EditingScheduleBaseline = {
   staffId: string
@@ -94,6 +96,9 @@ export function useAdminAgendaAppointments({
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
   const [noShowBusy, setNoShowBusy] = useState(false)
   const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
+  const [cancelScopeOpen, setCancelScopeOpen] = useState(false)
+  const [cancelScopeSeries, setCancelScopeSeries] = useState<AppointmentSeriesMeta | null>(null)
+  const [pendingCancelMode, setPendingCancelMode] = useState<AppointmentSeriesMode>('single')
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
 
@@ -267,6 +272,11 @@ export function useAdminAgendaAppointments({
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
               customerLocale: aptDraft.customerLocale,
+              scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
+              endDate:
+                aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
+                  ? aptDraft.recurrenceEndDate
+                  : undefined,
             },
             adminToken,
           )
@@ -344,6 +354,7 @@ export function useAdminAgendaAppointments({
       try {
         const { appointment } = await cancelAppointment(pendingCancelId, adminToken, {
           notifyCustomerWhatsApp,
+          mode: pendingCancelMode,
         })
         markAppointmentSnapshots?.([appointment])
         setWhatsAppNotifyDialogOpen(false)
@@ -360,6 +371,7 @@ export function useAdminAgendaAppointments({
     },
     [
       pendingCancelId,
+      pendingCancelMode,
       adminToken,
       closeAppointmentDetail,
       resetAppointmentForm,
@@ -369,22 +381,60 @@ export function useAdminAgendaAppointments({
     ],
   )
 
+  const closeCancelScopeModal = useCallback(() => {
+    setCancelScopeOpen(false)
+    setCancelScopeSeries(null)
+    setPendingCancelId(null)
+  }, [])
+
+  const confirmCancelScope = useCallback(
+    (mode: AppointmentSeriesMode) => {
+      setPendingCancelMode(mode)
+      setCancelScopeOpen(false)
+      setWhatsAppNotifyContext('cancel')
+      setWhatsAppNotifyDialogOpen(true)
+    },
+    [],
+  )
+
   const cancelAppointmentById = useCallback(
     (id: string) => {
-      setConfirmDialog({
-        title: '¿Cancelar esta cita?',
-        message:
-          'La cita quedará cancelada. El salón recibirá un aviso por email. Si era mañana, no se enviará el recordatorio automático al cliente.',
-        confirmLabel: 'Continuar',
-        destructive: true,
-        onConfirm: async () => {
-          setPendingCancelId(id)
-          setWhatsAppNotifyContext('cancel')
-          setWhatsAppNotifyDialogOpen(true)
-        },
-      })
+      void (async () => {
+        const apt =
+          viewingAppointment?.apt.id === id
+            ? viewingAppointment.apt
+            : schedules.flatMap((s) => s.appointments).find((a) => a.id === id)
+
+        if (apt?.seriesId && adminToken) {
+          try {
+            const series = await fetchAdminAppointmentSeries(adminToken, id)
+            if (series.count > 1) {
+              setPendingCancelId(id)
+              setCancelScopeSeries(series)
+              setCancelScopeOpen(true)
+              return
+            }
+          } catch {
+            /* continuar */
+          }
+        }
+
+        setPendingCancelMode('single')
+        setConfirmDialog({
+          title: '¿Cancelar esta cita?',
+          message:
+            'La cita quedará cancelada. El salón recibirá un aviso por email. Si era mañana, no se enviará el recordatorio automático al cliente.',
+          confirmLabel: 'Continuar',
+          destructive: true,
+          onConfirm: async () => {
+            setPendingCancelId(id)
+            setWhatsAppNotifyContext('cancel')
+            setWhatsAppNotifyDialogOpen(true)
+          },
+        })
+      })()
     },
-    [setConfirmDialog],
+    [viewingAppointment, schedules, adminToken, setConfirmDialog],
   )
 
   const closeNoShowDialog = useCallback(() => {
@@ -486,5 +536,9 @@ export function useAdminAgendaAppointments({
     formSlotTime:
       appointmentFormOpen && !editingId && activeStaffId ? aptDraft.startTime || null : null,
     formStaffId: appointmentFormOpen && !editingId ? activeStaffId : null,
+    cancelScopeOpen,
+    cancelScopeSeries,
+    closeCancelScopeModal,
+    confirmCancelScope,
   }
 }

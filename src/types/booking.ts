@@ -46,6 +46,8 @@ export type Appointment = {
   status: string
   locale?: 'es' | 'en'
   createdAt: string
+  seriesId?: string | null
+  scope?: string | null
 }
 
 export type ColorGroupLinkedPhase = {
@@ -84,6 +86,9 @@ export type DayScheduleAppointment = {
   bookingGroupId?: string | null
   /** Fase enlazada (lavado si esta fila es color, o color si esta fila es lavado). */
   colorGroupLinked?: ColorGroupLinkedPhase | null
+  /** Serie periódica (agenda). */
+  seriesId?: string | null
+  scope?: string | null
 }
 
 export type DayScheduleBlock = {
