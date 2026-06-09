@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react'
 import { formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 import { typography } from '@/styles/typography'
@@ -12,6 +11,18 @@ type Props = {
   compact?: boolean
 }
 
+type RecurrenceOption = 'single' | 'weekly-permanent' | 'weekly-until'
+
+function toRecurrenceOption(
+  scope: AppointmentRecurrenceScope,
+  endDate: string,
+  anchorDate: string,
+): RecurrenceOption {
+  if (scope === 'single') return 'single'
+  if (endDate && endDate !== anchorDate) return 'weekly-until'
+  return 'weekly-permanent'
+}
+
 export function AppointmentRecurrenceFields({
   anchorDate,
   scope,
@@ -20,87 +31,57 @@ export function AppointmentRecurrenceFields({
   onEndDateChange,
   compact = false,
 }: Props) {
-  const [weeklyMode, setWeeklyMode] = useState<'permanent' | 'until'>(
-    endDate && endDate !== anchorDate ? 'until' : 'permanent',
-  )
-
-  useEffect(() => {
-    if (scope !== 'weekly') return
-    setWeeklyMode(endDate && endDate !== anchorDate ? 'until' : 'permanent')
-  }, [scope, endDate, anchorDate])
-
+  const option = toRecurrenceOption(scope, endDate, anchorDate)
   const labelCn = compact ? `${typography.label} mb-0.5 block text-xs` : `${typography.label} mb-1 block`
+  const selectCn = compact
+    ? 'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold'
+    : 'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold'
 
-  function selectSingle() {
-    onScopeChange('single')
-  }
-
-  function selectWeeklyPermanent() {
-    onScopeChange('weekly')
-    onEndDateChange('')
-    setWeeklyMode('permanent')
-  }
-
-  function selectWeeklyUntil() {
+  function handleOptionChange(value: RecurrenceOption) {
+    if (value === 'single') {
+      onScopeChange('single')
+      onEndDateChange('')
+      return
+    }
+    if (value === 'weekly-permanent') {
+      onScopeChange('weekly')
+      onEndDateChange('')
+      return
+    }
     onScopeChange('weekly')
     onEndDateChange(endDate && endDate >= anchorDate ? endDate : anchorDate)
-    setWeeklyMode('until')
   }
 
   return (
-    <fieldset className="space-y-2">
-      <legend className={labelCn}>Repetición</legend>
-
-      <label className="flex cursor-pointer items-start gap-3 border border-gold/25 p-3 has-[:checked]:border-gold has-[:checked]:bg-gold/5">
-        <input
-          type="radio"
-          name="appointment-recurrence"
-          checked={scope === 'single'}
-          onChange={selectSingle}
-          className="mt-1 accent-gold"
-        />
-        <span className="text-sm">
-          <span className="font-medium">Solo este día</span>
-          <span className={`${typography.caption} mt-0.5 block`}>Una única cita.</span>
-        </span>
-      </label>
-
-      <label className="flex cursor-pointer items-start gap-3 border border-gold/25 p-3 has-[:checked]:border-gold has-[:checked]:bg-gold/5">
-        <input
-          type="radio"
-          name="appointment-recurrence"
-          checked={scope === 'weekly' && weeklyMode === 'permanent'}
-          onChange={selectWeeklyPermanent}
-          className="mt-1 accent-gold"
-        />
-        <span className="text-sm">
-          <span className="font-medium">Cada semana (permanente)</span>
-          <span className={`${typography.caption} mt-0.5 block`}>
+    <div className="space-y-2">
+      <div>
+        <label className={labelCn} htmlFor="appointment-recurrence">
+          Repetición
+        </label>
+        <select
+          id="appointment-recurrence"
+          value={option}
+          onChange={(e) => handleOptionChange(e.target.value as RecurrenceOption)}
+          className={selectCn}
+        >
+          <option value="single">Solo este día</option>
+          <option value="weekly-permanent">Cada semana (permanente)</option>
+          <option value="weekly-until">Cada semana hasta una fecha</option>
+        </select>
+        {option === 'weekly-permanent' && (
+          <p className={`${typography.caption} mt-1`}>
             Mismo día y hora todas las semanas hasta que la elimines.
-          </span>
-        </span>
-      </label>
+          </p>
+        )}
+      </div>
 
-      <label className="flex cursor-pointer items-start gap-3 border border-gold/25 p-3 has-[:checked]:border-gold has-[:checked]:bg-gold/5">
-        <input
-          type="radio"
-          name="appointment-recurrence"
-          checked={scope === 'weekly' && weeklyMode === 'until'}
-          onChange={selectWeeklyUntil}
-          className="mt-1 accent-gold"
-        />
-        <span className="text-sm">
-          <span className="font-medium">Cada semana hasta una fecha</span>
-          <span className={`${typography.caption} mt-0.5 block`}>
-            Repite el mismo día de la semana hasta la fecha indicada (incluida).
-          </span>
-        </span>
-      </label>
-
-      {scope === 'weekly' && weeklyMode === 'until' && (
-        <div className="pl-1">
-          <label className={`${typography.label} mb-1 block`}>Última semana (incluida)</label>
+      {option === 'weekly-until' && (
+        <div>
+          <label className={labelCn} htmlFor="appointment-recurrence-end">
+            Última semana (incluida)
+          </label>
           <input
+            id="appointment-recurrence-end"
             type="date"
             required
             min={anchorDate}
@@ -113,6 +94,6 @@ export function AppointmentRecurrenceFields({
           </p>
         </div>
       )}
-    </fieldset>
+    </div>
   )
 }
