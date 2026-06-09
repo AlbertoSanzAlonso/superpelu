@@ -10,7 +10,7 @@ type BlockDetailViewDeps = {
     mode: 'single' | 'series',
   ) => Promise<unknown>
   remove: (blockId: string, mode: 'single' | 'series') => Promise<unknown>
-  reload: () => Promise<void>
+  reload: (opts?: { silent?: boolean }) => Promise<unknown>
   setError: (message: string) => void
 }
 

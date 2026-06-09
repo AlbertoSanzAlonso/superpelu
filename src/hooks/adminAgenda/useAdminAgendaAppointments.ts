@@ -52,7 +52,7 @@ type AppointmentsDeps = {
   selection: AdminColumnSelection | null
   clearSelection: () => void
   setSelection: (value: AdminColumnSelection | null) => void
-  load: () => Promise<void>
+  load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void

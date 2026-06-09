@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AdminAppointmentToastStack } from '@/components/agenda/admin/AdminAppointmentToastStack'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -68,18 +68,21 @@ export function AdminAgendaPage() {
   const agenda = useAdminAgenda(adminToken, selectedDate)
   const {
     schedules,
+    loadedDate,
+    load: reloadAgenda,
     openAppointmentDetail,
     appointmentNotifications: notifications,
   } = agenda
   const { closeBell, dismissToast, toasts } = notifications
-  const pendingAppointmentOpenRef = useRef<AdminAppointmentNotificationItem | null>(null)
+  const [pendingNotificationOpen, setPendingNotificationOpen] =
+    useState<AdminAppointmentNotificationItem | null>(null)
 
   const tryOpenPendingAppointment = useCallback(
     (item: AdminAppointmentNotificationItem, daySchedules: typeof schedules) => {
       for (const schedule of daySchedules) {
         const apt = schedule.appointments.find((a) => a.id === item.id)
         if (apt) {
-          openAppointmentDetail(item.staffId, apt)
+          openAppointmentDetail(schedule.staffId, apt)
           return true
         }
       }
@@ -94,23 +97,43 @@ export function AdminAgendaPage() {
       for (const toast of toasts) {
         if (toast.item.key === item.key) dismissToast(toast.key)
       }
-      if (selectedDate === item.date && tryOpenPendingAppointment(item, schedules)) {
-        pendingAppointmentOpenRef.current = null
+      if (selectedDate === item.date && loadedDate === item.date) {
+        if (tryOpenPendingAppointment(item, schedules)) {
+          setPendingNotificationOpen(null)
+          return
+        }
+      }
+      setPendingNotificationOpen(item)
+      if (selectedDate !== item.date) {
+        setSelectedDate(item.date)
         return
       }
-      pendingAppointmentOpenRef.current = item
-      if (selectedDate !== item.date) setSelectedDate(item.date)
+      void reloadAgenda()
     },
-    [closeBell, dismissToast, toasts, selectedDate, schedules, tryOpenPendingAppointment, setSelectedDate],
+    [
+      closeBell,
+      dismissToast,
+      toasts,
+      selectedDate,
+      loadedDate,
+      schedules,
+      tryOpenPendingAppointment,
+      setSelectedDate,
+      reloadAgenda,
+    ],
   )
 
   useEffect(() => {
-    const pending = pendingAppointmentOpenRef.current
-    if (!pending || selectedDate !== pending.date) return
-    if (tryOpenPendingAppointment(pending, schedules)) {
-      pendingAppointmentOpenRef.current = null
-    }
-  }, [selectedDate, schedules, tryOpenPendingAppointment])
+    if (!pendingNotificationOpen) return
+    if (selectedDate !== pendingNotificationOpen.date) return
+    if (loadedDate !== selectedDate) return
+    const pending = pendingNotificationOpen
+    const id = window.requestAnimationFrame(() => {
+      tryOpenPendingAppointment(pending, schedules)
+      setPendingNotificationOpen(null)
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [pendingNotificationOpen, selectedDate, loadedDate, schedules, tryOpenPendingAppointment])
 
   useEffect(() => {
     if (!staffToken) return

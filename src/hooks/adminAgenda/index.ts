@@ -164,6 +164,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
 
   return {
     schedules: schedule.schedules,
+    loadedDate: schedule.loadedDate,
     loading: schedule.loading,
     error: schedule.error,
     setError: schedule.setError,

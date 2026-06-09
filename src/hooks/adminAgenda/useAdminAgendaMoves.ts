@@ -18,7 +18,7 @@ type MovesDeps = {
   adminToken: string
   date: string
   schedules: StaffDaySchedule[]
-  load: () => Promise<void>
+  load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   clearSelection: () => void
   onMovesCommitted: () => void

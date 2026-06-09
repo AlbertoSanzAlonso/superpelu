@@ -29,7 +29,7 @@ type GridBlocksDeps = {
   selection: AdminColumnSelection | null
   clearSelection: () => void
   setSelection: (value: AdminColumnSelection | null) => void
-  load: () => Promise<void>
+  load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   setGridActionsBusy: (busy: boolean) => void
 }
