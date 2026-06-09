@@ -1,4 +1,4 @@
-import { formatDisplayDate } from '@/lib/core/dates'
+import { addDaysToDateString, formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 import { typography } from '@/styles/typography'
 
@@ -6,8 +6,7 @@ type Props = {
   anchorDate: string
   scope: AppointmentRecurrenceScope
   endDate: string
-  onScopeChange: (scope: AppointmentRecurrenceScope) => void
-  onEndDateChange: (endDate: string) => void
+  onChange: (patch: { scope: AppointmentRecurrenceScope; endDate: string }) => void
   compact?: boolean
 }
 
@@ -16,10 +15,9 @@ type RecurrenceOption = 'single' | 'weekly-permanent' | 'weekly-until'
 function toRecurrenceOption(
   scope: AppointmentRecurrenceScope,
   endDate: string,
-  anchorDate: string,
 ): RecurrenceOption {
   if (scope === 'single') return 'single'
-  if (endDate && endDate !== anchorDate) return 'weekly-until'
+  if (scope === 'weekly' && endDate) return 'weekly-until'
   return 'weekly-permanent'
 }
 
@@ -27,11 +25,10 @@ export function AppointmentRecurrenceFields({
   anchorDate,
   scope,
   endDate,
-  onScopeChange,
-  onEndDateChange,
+  onChange,
   compact = false,
 }: Props) {
-  const option = toRecurrenceOption(scope, endDate, anchorDate)
+  const option = toRecurrenceOption(scope, endDate)
   const labelCn = compact ? `${typography.label} mb-0.5 block text-xs` : `${typography.label} mb-1 block`
   const selectCn = compact
     ? 'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold'
@@ -39,17 +36,17 @@ export function AppointmentRecurrenceFields({
 
   function handleOptionChange(value: RecurrenceOption) {
     if (value === 'single') {
-      onScopeChange('single')
-      onEndDateChange('')
+      onChange({ scope: 'single', endDate: '' })
       return
     }
     if (value === 'weekly-permanent') {
-      onScopeChange('weekly')
-      onEndDateChange('')
+      onChange({ scope: 'weekly', endDate: '' })
       return
     }
-    onScopeChange('weekly')
-    onEndDateChange(endDate && endDate >= anchorDate ? endDate : anchorDate)
+    onChange({
+      scope: 'weekly',
+      endDate: endDate && endDate >= anchorDate ? endDate : addDaysToDateString(anchorDate, 7),
+    })
   }
 
   return (
@@ -86,7 +83,7 @@ export function AppointmentRecurrenceFields({
             required
             min={anchorDate}
             value={endDate || anchorDate}
-            onChange={(e) => onEndDateChange(e.target.value)}
+            onChange={(e) => onChange({ scope: 'weekly', endDate: e.target.value })}
             className="w-full border border-gold/30 bg-cream px-3 py-2 text-sm"
           />
           <p className={`${typography.caption} mt-1 capitalize`}>

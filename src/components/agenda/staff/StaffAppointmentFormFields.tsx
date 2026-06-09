@@ -144,8 +144,9 @@ export function StaffAppointmentFormFields({
           anchorDate={date}
           scope={draft.recurrenceScope}
           endDate={draft.recurrenceEndDate}
-          onScopeChange={(recurrenceScope) => onDraftChange({ recurrenceScope })}
-          onEndDateChange={(recurrenceEndDate) => onDraftChange({ recurrenceEndDate })}
+          onChange={({ scope: recurrenceScope, endDate: recurrenceEndDate }) =>
+            onDraftChange({ recurrenceScope, recurrenceEndDate })
+          }
           compact={compact}
         />
       )}

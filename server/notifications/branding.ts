@@ -6,7 +6,7 @@ import { getOpenWaConfig, openWaSendImage, openWaSendText } from '@server/notifi
 import { getTranslation } from '@/i18n/translations'
 import type { Locale } from '@/i18n/types'
 
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 let cachedLogoBase64: string | null = null
 
@@ -27,14 +27,21 @@ function whatsappLogoImageUrl(): string | null {
 
 async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {
   const caption = getTranslation(locale).whatsappAppointment.logoCaption
-  const base64 = await readWhatsAppLogoBase64()
   try {
+    const base64 = await readWhatsAppLogoBase64()
     await openWaSendImage(chatId, { base64 }, caption)
     return
   } catch (err) {
     const url = whatsappLogoImageUrl()
-    if (!url) throw err
-    await openWaSendImage(chatId, { url }, caption)
+    if (!url) {
+      console.error('Superpelu WhatsApp: cabecera con logo omitida:', err)
+      return
+    }
+    try {
+      await openWaSendImage(chatId, { url }, caption)
+    } catch (urlErr) {
+      console.error('Superpelu WhatsApp: cabecera con logo omitida:', urlErr)
+    }
   }
 }
 
