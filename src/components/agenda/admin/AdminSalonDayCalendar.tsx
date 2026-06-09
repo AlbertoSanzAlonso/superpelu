@@ -226,7 +226,7 @@ const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
   return (
     <div
-      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream/55 px-3 backdrop-blur-[2px]`}
+      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3`}
     >
       <StaffInitial name={schedule.staffName} />
       {schedule.working && schedule.windows.length > 0 ? (
@@ -456,7 +456,7 @@ export function AdminSalonDayCalendar({
         <div className="flex min-w-max">
           <div className="sticky left-0 z-40 isolate shrink-0 bg-cream/40 backdrop-blur-[2px]">
             <div
-              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream/55 backdrop-blur-[2px]`}
+              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
               aria-hidden
             />
             <TimeGutter range={range} windows={gutterWindows} />
