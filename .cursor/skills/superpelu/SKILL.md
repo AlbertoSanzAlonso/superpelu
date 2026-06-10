@@ -2,7 +2,7 @@
 name: superpelu
 description: >-
   Superpelu Hair Studio — React + Hono + PostgreSQL en servidor. Reservas (/reservar), agenda
-  admin y profesional (/agenda), catálogo BUK, personal Susana/Mónica/Andrea/Olga/Sol.
+  admin y profesional (/agenda), gestión de horarios (/horarios), catálogo BUK, personal Susana/Mónica/Andrea/Olga/Sol.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
   WhatsApp/páginas cliente en idioma de reserva, aliases @/ y @server/, o API que devuelve HTML.
@@ -17,9 +17,9 @@ description: >-
 - **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se sincroniza el catálogo.
 - **No** usar Supabase Realtime, Auth ni `supabase-js` para citas/agenda (`src/lib/supabaseClient.ts` es opcional y no se usa en flujos de reserva).
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/core/dates.ts`, `TZ=Europe/Madrid` en Docker.
-- **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado); `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
+- **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado). Editable desde `/horarios` (admin). Fallback: `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
 
-Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal y enlaces `staff_services` (todo el personal ↔ todos los servicios activos).
+Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal, enlaces `staff_services` (todo el personal ↔ todos los servicios activos) y horario del salón (si no existe en BD).
 
 ## Estructura del código
 
@@ -29,14 +29,15 @@ Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal
 |---------|-----------|
 | `pg/` | Cliente Postgres, `schema.sql`, seed, tipos |
 | `appointments/` | Citas, slots, cadena multi-tratamiento, coloración (`index.ts` = API pública) |
-| `staff/` | Personal, bloqueos, horarios, `me.ts` (rutas `/api/me`) |
+| `staff/` | Personal, bloqueos, disponibilidad, `me.ts` (rutas `/api/me`) |
+| `schedule/` | Gestión de horarios del salón y personal (`/api/admin/schedule/*`) |
 | `notifications/` | Email admin, WhatsApp, OpenWA, recordatorios, reseñas Google |
 | `catalog/` | Servicios y categorías (sync desde `src/data/`) |
 | `customers/` | Fichas clientes + HTML `/c/` · `/m/` |
 
 Raíz: `index.ts` (entrada), `db.ts`, `config.ts`, `password.ts`.
 
-Imports: `@server/appointments/index.js`, `@server/staff/blocks.js`, `@server/catalog/services.js`, etc.
+Imports: `@server/appointments/index.js`, `@server/staff/blocks.js`, `@server/schedule/index.js`, `@server/catalog/services.js`, etc.
 
 ### `src/lib/` (compartido frontend + server)
 
@@ -71,7 +72,7 @@ Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 
 ## Base de datos (PostgreSQL en el servidor)
 
-Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `salon_schedule`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
 
 **Conexión:** `DATABASE_URL` en Coolify o `.env` local (Postgres del mismo stack o servicio dedicado). Variables `SUPABASE_*` son legado opcional en `server/pg/client.ts`; en producción suele bastar la URI al Postgres del servidor.
 
@@ -80,6 +81,8 @@ Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-
 **Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
+
+`salon_schedule`: horario semanal del salón (`day_of_week`, `start_time`, `end_time`). Se sincroniza desde `src/data/schedule.ts` al arrancar si está vacía. Editable desde `/horarios`.
 
 Esquema versionado en `server/pg/schema.sql` (aplicado al arrancar).
 
@@ -161,6 +164,7 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 | `/` | Landing — sección servicios con modal de detalle (`Services`, `ServiceDetailModal`) |
 | `/reservar` | Reserva pública — selector **especialidad → tratamiento** (`ServiceCategoryPickerPublic`); sin enlace a agenda interna |
 | `/agenda` | Login dual: **profesional** o **administración** |
+| `/horarios` | Gestión de horarios del salón y de cada profesional (solo admin, botón en agenda) |
 | `/clientes` | Listado de clientes (solo admin, mismo `ADMIN_SECRET` que agenda) |
 | `/clientes/:phone` | Historial de citas del cliente (pantalla completa; `phone` URL-encoded, p. ej. `%2B34600000000`) |
 | `/c/:code?t=` | Cancelar cita (HTML servidor; enlace WhatsApp) |
@@ -185,6 +189,21 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 - Enlace desde `AdminAgendaControlBar` → «Clientes».
 - Componentes: `src/components/customers/` (`CustomersWorkspaceHeader`, `CustomerAppointmentDetailModal`).
 - Utilidades: `src/lib/customer/phone.ts`, `src/lib/customer/name.ts`, tipos `src/types/customers.ts`.
+
+### Gestión de horarios (admin)
+
+- **`ScheduleManagementPage` (`/horarios`):** editor de horarios semanales del salón y de cada profesional.
+- Enlace desde `AdminAgendaControlBar` → «Horarios» (junto a «Clientes»).
+- **Tabs:** «Salón» (horario general) + una pestaña por profesional (Susana, Mónica, etc.).
+- **Editor:** 7 días (lunes–domingo), checkbox para abrir/cerrar día, múltiples franjas por día (inicio/fin), botón «+ Franja».
+- **Persistencia:**
+  - Salón → tabla `salon_schedule` (nueva).
+  - Personal → tabla `staff_availability` (existente, ya se usaba para disponibilidad).
+- **Fallback:** si un profesional no tiene horarios en BD, usa los del salón; si el salón no tiene, usa `src/data/schedule.ts`.
+- **API:** `server/schedule/index.ts` — `getFullSchedule()`, `setSalonSchedule()`, `setStaffSchedule()`.
+- **Tipos:** `src/types/schedule.ts` — `FullScheduleData`, `SalonScheduleData`, `StaffScheduleData`, `ScheduleTimeRange`.
+- **Cliente API:** `fetchFullSchedule()`, `updateSalonSchedule()`, `updateStaffSchedule()` en `src/lib/api/client.ts`.
+- **Componente:** `ScheduleEditor` (inline en `ScheduleManagementPage.tsx`).
 
 ### UI de agenda — shell común
 
@@ -247,6 +266,9 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET/PATCH/POST | `/api/appointments`, bloqueos `/api/schedule/blocks` |
 | GET | `/api/schedule/blocks/:id/series` |
 | DELETE | `/api/schedule/blocks/:id?mode=single\|series` |
+| GET | `/api/admin/schedule` | Horarios completos (salón + todo el personal) |
+| PUT | `/api/admin/schedule/salon` | Actualizar horario del salón (`{ weeklyWindows }`) |
+| PUT | `/api/admin/schedule/staff/:staffId` | Actualizar horario de un profesional (`{ weeklyWindows }`) |
 
 ### Profesional (`server/staff/me.ts` bajo `/api`)
 
@@ -270,6 +292,10 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/i18n/translations.ts` | Textos ES/EN centralizados |
 | `server/staff/schedule.ts` | Día por profesional, `occupiedSlots` |
 | `server/staff/blocks.ts` | Series de bloqueos |
+| `server/staff/availability.ts` | Franjas laborales del profesional por día (lee `staff_availability` + fallback `salon_schedule`) |
+| `server/schedule/index.ts` | Gestión horarios salón y personal (`getFullSchedule`, `setSalonSchedule`, `setStaffSchedule`) |
+| `src/pages/ScheduleManagementPage.tsx` | Página `/horarios` — editor de horarios (salón + por profesional) |
+| `src/types/schedule.ts` | Tipos `FullScheduleData`, `SalonScheduleData`, `StaffScheduleData`, `ScheduleTimeRange` |
 | `src/lib/booking/occupancy.ts` | Tramos coloración, solapes, formato horario |
 | `src/lib/agenda/timeGrid.ts` | Grilla staff (segmentos ocupados) |
 | `src/lib/catalog/servicePicker.ts` | Labels especialidad/tratamiento; `getAllServiceCategories()` para reserva pública |

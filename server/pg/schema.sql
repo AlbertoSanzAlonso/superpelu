@@ -154,6 +154,13 @@ CREATE INDEX IF NOT EXISTS idx_staff_blocks_staff_date
 CREATE INDEX IF NOT EXISTS idx_staff_blocks_series
   ON staff_time_blocks (series_id);
 
+CREATE TABLE IF NOT EXISTS salon_schedule (
+  day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  PRIMARY KEY (day_of_week, start_time)
+);
+
 CREATE TABLE IF NOT EXISTS staff_sessions (
   token TEXT PRIMARY KEY,
   staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,

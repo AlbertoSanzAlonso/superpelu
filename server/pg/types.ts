@@ -94,3 +94,9 @@ export type StaffAvailabilityRow = {
   start_time: string
   end_time: string
 }
+
+export type SalonScheduleRow = {
+  day_of_week: number
+  start_time: string
+  end_time: string
+}

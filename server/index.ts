@@ -96,6 +96,13 @@ import {
 import { sendCustomerReviewRequest } from '@server/notifications/review.js'
 import { initDatabase, sql } from '@server/db.js'
 import {
+  getFullSchedule,
+  getSalonSchedule,
+  setSalonSchedule,
+  setStaffSchedule,
+  type ScheduleTimeRange,
+} from '@server/schedule/index.js'
+import {
   getOpenWaAdminConfig,
   isOpenWaConfigured,
   isOpenWaSessionConnected,
@@ -177,6 +184,36 @@ app.get('/api/auth/verify', (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
   return c.json({ ok: true })
+})
+
+app.get('/api/admin/schedule', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const data = await getFullSchedule()
+  return c.json(data)
+})
+
+app.put('/api/admin/schedule/salon', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({}))
+  if (!body.weeklyWindows || typeof body.weeklyWindows !== 'object') {
+    return c.json({ error: 'Falta weeklyWindows' }, 400)
+  }
+  const result = await setSalonSchedule(body.weeklyWindows)
+  return c.json(result)
+})
+
+app.put('/api/admin/schedule/staff/:staffId', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({}))
+  if (!body.weeklyWindows || typeof body.weeklyWindows !== 'object') {
+    return c.json({ error: 'Falta weeklyWindows' }, 400)
+  }
+  const result = await setStaffSchedule(staffId, body.weeklyWindows)
+  return c.json({ staffId, weeklyWindows: result })
 })
 
 /** Fuerza el envío de recordatorios pendientes (solo admin, para pruebas). */

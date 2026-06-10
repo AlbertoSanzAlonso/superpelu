@@ -3,6 +3,7 @@ import { schedule } from '@server/config.js'
 import { salonWindowsForDayOfWeek } from '@/data/schedule'
 import { rangesToWorkWindows } from '@/lib/core/scheduleHours'
 import { dayOfWeekFromDateString, isSalonOpenDay } from '@/lib/core/dates'
+import { getSalonSchedule } from '@server/schedule/index.js'
 
 export type StaffDayWindow = {
   startMinutes: number
@@ -28,8 +29,10 @@ function rowToWindow(row: { start_time: string; end_time: string }): StaffDayWin
   }
 }
 
-function salonFallbackWindows(dayOfWeek: number): StaffDayWindow[] {
-  return rangesToWorkWindows(salonWindowsForDayOfWeek(dayOfWeek)).map((w) => ({
+async function salonFallbackWindows(dayOfWeek: number): Promise<StaffDayWindow[]> {
+  const salon = await getSalonSchedule()
+  const ranges = salon.weeklyWindows[dayOfWeek] ?? []
+  return rangesToWorkWindows(ranges).map((w) => ({
     startMinutes: timeToMinutes(w.startTime),
     endMinutes: timeToMinutes(w.endTime),
     startTime: w.startTime,

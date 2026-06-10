@@ -127,6 +127,12 @@ export function AdminAgendaControlBar({
         />
       )}
       <Link
+        to="/horarios"
+        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
+      >
+        Horarios
+      </Link>
+      <Link
         to="/clientes"
         className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
       >

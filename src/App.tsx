@@ -8,6 +8,7 @@ import { AdminAgendaPage } from '@/pages/AdminAgendaPage'
 import { CustomerHistoryPage } from '@/pages/CustomerHistoryPage'
 import { SalonAppointmentsPage } from '@/pages/SalonAppointmentsPage'
 import { CustomersPage } from '@/pages/CustomersPage'
+import { ScheduleManagementPage } from '@/pages/ScheduleManagementPage'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/politica-de-cookies" element={<CookiePolicyPage />} />
         <Route path="/reservar" element={<BookingPage />} />
         <Route path="/agenda" element={<AdminAgendaPage />} />
+        <Route path="/horarios" element={<ScheduleManagementPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route path="/clientes/citas" element={<SalonAppointmentsPage />} />
         <Route path="/clientes/:phone" element={<CustomerHistoryPage />} />

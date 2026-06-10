@@ -10,6 +10,7 @@ import type {
 import type { Customer, CustomerDetail } from '@/types/customers'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
+import type { FullScheduleData, SalonScheduleData, ScheduleTimeRange } from '@/types/schedule'
 
 const API_BASE = '/api'
 
@@ -403,4 +404,36 @@ export function deleteAdminBlock(
     method: 'DELETE',
     headers: adminHeaders(adminToken),
   })
+}
+
+export function fetchFullSchedule(adminToken: string) {
+  return request<FullScheduleData>('/admin/schedule', {
+    headers: adminHeaders(adminToken),
+  })
+}
+
+export function updateSalonSchedule(
+  adminToken: string,
+  weeklyWindows: Record<number, ScheduleTimeRange[]>,
+) {
+  return request<SalonScheduleData>('/admin/schedule/salon', {
+    method: 'PUT',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify({ weeklyWindows }),
+  })
+}
+
+export function updateStaffSchedule(
+  adminToken: string,
+  staffId: string,
+  weeklyWindows: Record<number, ScheduleTimeRange[]>,
+) {
+  return request<{ staffId: string; weeklyWindows: Record<number, ScheduleTimeRange[]> }>(
+    `/admin/schedule/staff/${encodeURIComponent(staffId)}`,
+    {
+      method: 'PUT',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ weeklyWindows }),
+    },
+  )
 }

@@ -7,6 +7,7 @@ import {
 } from '@/data/salonStaff'
 import { sql } from '@server/pg/client.js'
 import { hashPassword } from '@server/password.js'
+import { seedSalonScheduleIfMissing } from '@server/schedule/index.js'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -202,6 +203,7 @@ export async function runSeed(): Promise<void> {
   await purgeServicesWithoutCategory()
   await syncSalonStaff()
   await syncStaffAllServices()
+  await seedSalonScheduleIfMissing()
   await syncStaffAvailabilityFromCatalog()
   await seedStaffAvailabilityIfMissing()
   await seedStaffPasswordsIfMissing()
