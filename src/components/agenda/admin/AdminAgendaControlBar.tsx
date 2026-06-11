@@ -17,6 +17,9 @@ const dateInputClass =
 const staffSelectClass =
   'h-8 min-w-[9rem] flex-1 cursor-pointer border border-gold/30 bg-cream px-2 text-xs md:max-w-[12rem] md:flex-none'
 
+const navLinkClass =
+  'flex h-8 shrink-0 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
+
 type Props = {
   date: string
   onDateChange: (date: string) => void
@@ -115,36 +118,29 @@ export function AdminAgendaControlBar({
     onNotificationBellClose != null &&
     onNotificationSelect != null
 
-  const accountActions = (
+  const notificationBell =
+    showNotifications ? (
+      <AdminAppointmentNotificationsBell
+        inbox={notificationInbox}
+        open={notificationBellOpen}
+        onOpen={onNotificationBellOpen}
+        onClose={onNotificationBellClose}
+        onSelect={onNotificationSelect}
+      />
+    ) : null
+
+  const navLinks = (
     <>
-      {showNotifications && (
-        <AdminAppointmentNotificationsBell
-          inbox={notificationInbox}
-          open={notificationBellOpen}
-          onOpen={onNotificationBellOpen}
-          onClose={onNotificationBellClose}
-          onSelect={onNotificationSelect}
-        />
-      )}
-      <Link
-        to="/horarios"
-        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
-      >
+      <Link to="/horarios" className={navLinkClass}>
         Horarios
       </Link>
-      <Link
-        to="/clientes"
-        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
-      >
+      <Link to="/clientes" className={navLinkClass}>
         Clientes
       </Link>
-      <Link
-        to="/clientes/citas"
-        className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
-      >
+      <Link to="/clientes/citas" className={navLinkClass}>
         Citas
       </Link>
-      <Button type="button" variant="outline" size="sm" className="h-8 px-2 text-xs" onClick={onLogout}>
+      <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-2 text-xs" onClick={onLogout}>
         Salir
       </Button>
     </>
@@ -157,9 +153,12 @@ export function AdminAgendaControlBar({
         aria-hidden
       />
       <div className="relative flex flex-col gap-2 px-3 py-2 md:gap-y-2">
-      <div className="flex w-full items-center justify-between md:hidden">
-        {dayNav}
-        <div className="flex items-center gap-2">{accountActions}</div>
+      <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
+        <div className="flex items-center justify-between gap-2">
+          {dayNav}
+          {notificationBell}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -237,7 +236,10 @@ export function AdminAgendaControlBar({
         </Button>
       )}
 
-      <div className="ml-auto hidden items-center gap-2 md:flex">{accountActions}</div>
+      <div className="ml-auto hidden items-center gap-2 md:flex">
+        {notificationBell}
+        {navLinks}
+      </div>
       </div>
       </div>
     </div>
