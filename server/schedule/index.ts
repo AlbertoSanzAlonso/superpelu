@@ -71,7 +71,6 @@ export async function getSalonSchedule(): Promise<SalonScheduleData> {
     weeklyWindows,
   }
 }
-}
 
 export async function setSalonSchedule(
   weeklyWindows: Record<number, ScheduleTimeRange[]>,
