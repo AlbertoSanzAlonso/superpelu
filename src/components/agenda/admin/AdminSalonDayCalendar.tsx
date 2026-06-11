@@ -226,7 +226,7 @@ const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
   return (
     <div
-      className={`sticky top-0 z-30 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3`}
+      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3 backdrop-blur-none`}
     >
       <StaffInitial name={schedule.staffName} />
       {schedule.working && schedule.windows.length > 0 ? (
