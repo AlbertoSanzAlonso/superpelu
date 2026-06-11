@@ -81,7 +81,7 @@ export function AdminAppointmentNotificationsBell({
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-[100] w-[min(100vw-1.5rem,20rem)] border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none"
+          className="absolute left-1/2 top-[calc(100%+0.5rem)] z-[100] w-[min(100vw-1.5rem,20rem)] -translate-x-1/2 border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none md:left-auto md:right-0 md:translate-x-0"
           role="menu"
         >
           <div className="border-b border-gold/15 px-3 py-2">
