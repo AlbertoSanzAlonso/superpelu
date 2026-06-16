@@ -70,6 +70,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     appointments.whatsAppNotifyBusy ||
     appointments.noShowDialogOpen ||
     appointments.noShowBusy ||
+    appointments.seriesConflictOpen ||
     blocks.blockModalOpen ||
     blocks.unblockModal != null ||
     blocks.blockDetailBusy ||
@@ -222,6 +223,11 @@ export function useAdminAgenda(adminToken: string, date: string) {
     cancelScopeSeries: appointments.cancelScopeSeries,
     closeCancelScopeModal: appointments.closeCancelScopeModal,
     confirmCancelScope: appointments.confirmCancelScope,
+    seriesConflictOpen: appointments.seriesConflictOpen,
+    seriesConflictPreview: appointments.seriesConflictPreview,
+    seriesConflictBusy: appointments.seriesConflictBusy,
+    closeSeriesConflictModal: appointments.closeSeriesConflictModal,
+    resolveSeriesConflicts: appointments.resolveSeriesConflicts,
     noShowDialogOpen: appointments.noShowDialogOpen,
     noShowBusy: appointments.noShowBusy,
     closeNoShowDialog: appointments.closeNoShowDialog,

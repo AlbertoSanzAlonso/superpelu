@@ -14,6 +14,9 @@ import {
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
   updateAdminAppointment,
+  previewSeriesConflicts,
+  type SeriesPreviewResult,
+  type SeriesConflictResolution,
 } from '@/lib/api'
 import {
   singleFreeTimeFromGridSummary,
@@ -100,6 +103,10 @@ export function useAdminAgendaAppointments({
   const [cancelScopeOpen, setCancelScopeOpen] = useState(false)
   const [cancelScopeSeries, setCancelScopeSeries] = useState<AppointmentSeriesMeta | null>(null)
   const [pendingCancelMode, setPendingCancelMode] = useState<AppointmentSeriesMode>('single')
+
+  const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
+  const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
+  const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
 
@@ -272,6 +279,36 @@ export function useAdminAgendaAppointments({
           })
           markAppointmentSnapshots?.([appointment])
         } else {
+          const isMultiTreatmentSeries =
+            filteredServiceIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
+
+          if (isMultiTreatmentSeries) {
+            const preview = await previewSeriesConflicts(
+              {
+                staffId: activeStaffId,
+                serviceIds: filteredServiceIds,
+                date,
+                startTime: aptDraft.startTime,
+                customerFirstName: aptDraft.customerFirstName,
+                customerLastName: aptDraft.customerLastName,
+                customerPhone: aptDraft.customerPhone,
+                customerEmail: aptDraft.customerEmail || undefined,
+                customerNotes: aptDraft.customerNotes || undefined,
+                notes: aptDraft.notes || undefined,
+                customerLocale: aptDraft.customerLocale,
+                scope: 'weekly',
+                endDate: aptDraft.recurrenceEndDate || undefined,
+              },
+              adminToken,
+            )
+
+            if (preview.conflicts.length > 0) {
+              setSeriesConflictPreview(preview)
+              setSeriesConflictOpen(true)
+              return false
+            }
+          }
+
           const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
@@ -500,7 +537,72 @@ export function useAdminAgendaAppointments({
     setPendingCancelId(null)
     setNoShowDialogOpen(false)
     setPendingNoShowId(null)
+    setSeriesConflictOpen(false)
+    setSeriesConflictPreview(null)
   }, [])
+
+  const closeSeriesConflictModal = useCallback(() => {
+    if (seriesConflictBusy) return
+    setSeriesConflictOpen(false)
+    setSeriesConflictPreview(null)
+  }, [seriesConflictBusy])
+
+  const resolveSeriesConflicts = useCallback(
+    async (resolutions: SeriesConflictResolution[]): Promise<boolean> => {
+      if (!activeStaffId || !adminToken) return false
+      setError('')
+      setSeriesConflictBusy(true)
+      try {
+        const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
+        const { appointment } = await createAdminAppointment(
+          {
+            staffId: activeStaffId,
+            serviceIds: filteredServiceIds,
+            date,
+            startTime: aptDraft.startTime,
+            customerFirstName: aptDraft.customerFirstName,
+            customerLastName: aptDraft.customerLastName,
+            customerPhone: aptDraft.customerPhone,
+            customerEmail: aptDraft.customerEmail || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
+            notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
+            scope: 'weekly',
+            endDate: aptDraft.recurrenceEndDate || undefined,
+            conflictResolutions: resolutions,
+          },
+          adminToken,
+        )
+        markAppointmentSnapshots?.([appointment])
+        setSeriesConflictOpen(false)
+        setSeriesConflictPreview(null)
+        setWhatsAppNotifyDialogOpen(false)
+        setAppointmentFormOpen(false)
+        closeAppointmentDetail()
+        resetAppointmentForm()
+        clearSelection()
+        await load()
+        return true
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo crear la serie')
+        return false
+      } finally {
+        setSeriesConflictBusy(false)
+      }
+    },
+    [
+      activeStaffId,
+      adminToken,
+      aptDraft,
+      date,
+      resetAppointmentForm,
+      closeAppointmentDetail,
+      clearSelection,
+      load,
+      setError,
+      markAppointmentSnapshots,
+    ],
+  )
 
   return {
     activeStaffId,
@@ -554,5 +656,10 @@ export function useAdminAgendaAppointments({
     cancelScopeSeries,
     closeCancelScopeModal,
     confirmCancelScope,
+    seriesConflictOpen,
+    seriesConflictPreview,
+    seriesConflictBusy,
+    closeSeriesConflictModal,
+    resolveSeriesConflicts,
   }
 }

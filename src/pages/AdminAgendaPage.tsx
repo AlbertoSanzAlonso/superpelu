@@ -20,6 +20,7 @@ import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
 import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { AppointmentAvailabilityWarningModal } from '@/components/agenda/AppointmentAvailabilityWarningModal'
+import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
 import { requestAdminNotificationPermission } from '@/lib/agenda/adminBrowserNotifications'
@@ -495,6 +496,17 @@ export function AdminAgendaPage() {
           agenda.selectStaff(staffId)
         }}
       />
+
+      {agenda.seriesConflictPreview && (
+        <SeriesConflictModal
+          open={agenda.seriesConflictOpen}
+          conflicts={agenda.seriesConflictPreview.conflicts}
+          totalDates={agenda.seriesConflictPreview.dates.length}
+          okDatesCount={agenda.seriesConflictPreview.okDates.length}
+          onResolve={agenda.resolveSeriesConflicts}
+          onClose={agenda.closeSeriesConflictModal}
+        />
+      )}
 
       {agenda.cancelScopeSeries && (
         <CancelAppointmentScopeModal

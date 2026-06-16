@@ -36,6 +36,7 @@ import {
 } from "@server/appointments/booking.js"
 import { createChainedBookingAppointment, resolveChainContinuation } from "@server/appointments/chain.js"
 import { collectDatesForSeriesScope } from "@server/appointments/seriesDates.js"
+import { createRecurringChainedAppointment } from "@server/appointments/recurringChain.js"
 import { isValidDateString, timeToMinutes } from "@server/appointments/time.js"
 import type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { CreateAppointmentInput } from "@server/appointments/types.js"
@@ -200,6 +201,15 @@ export async function createAppointment(
         isSalonOpenDay(input.date) &&
         isWithinSalonBookingWindow(input.date)
     if (!dateOk) throw new Error('FECHA_INVALIDA')
+
+    const scope = input.scope ?? 'single'
+    if (input.forStaffPortal && scope === 'weekly') {
+      return createRecurringChainedAppointment(
+        input,
+        serviceIds,
+        input.conflictResolutions ?? [],
+      )
+    }
 
     for (const staffId of new Set(staffAssignments)) {
       if (!(await isStaffWorkingOnDate(staffId, input.date))) {

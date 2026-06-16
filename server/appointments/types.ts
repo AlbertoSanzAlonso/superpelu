@@ -1,5 +1,6 @@
 import type { Locale } from '@/i18n/types'
 import type { SeriesScope } from '@server/appointments/seriesDates.js'
+import type { SeriesConflictResolution } from '@server/appointments/recurringChain.js'
 
 export type CreateAppointmentInput = {
   serviceId?: string
@@ -22,9 +23,11 @@ export type CreateAppointmentInput = {
   locale?: Locale
   /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
   customerLocale?: Locale
-  /** Repetición periódica (solo agenda, un tratamiento). */
+  /** Repetición periódica (agenda, uno o varios tratamientos). */
   scope?: SeriesScope
   endDate?: string
+  /** Resoluciones de conflictos para series con múltiples tratamientos. */
+  conflictResolutions?: SeriesConflictResolution[]
 }
 
 export type UpdateAppointmentInput = {
