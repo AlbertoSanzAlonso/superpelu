@@ -17,3 +17,9 @@ export type FullScheduleData = {
   salon: SalonScheduleData
   staff: StaffScheduleData[]
 }
+
+export type StaffSpecialScheduleData = {
+  staffId: string
+  staffName: string
+  specialDays: Record<string, ScheduleTimeRange[]>
+}

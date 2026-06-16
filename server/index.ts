@@ -31,6 +31,7 @@ import {
   rowToPublic,
   updateAppointmentForAdmin,
 } from '@server/appointments/index.js'
+import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
 import {
   buildIcs,
   buildLinkPreviewMetaTags,
@@ -102,6 +103,11 @@ import {
   setStaffSchedule,
   type ScheduleTimeRange,
 } from '@server/schedule/index.js'
+import {
+  getStaffSpecialSchedule,
+  setStaffSpecialSchedule,
+  deleteStaffSpecialDate,
+} from '@server/schedule/special.js'
 import {
   getOpenWaAdminConfig,
   isOpenWaConfigured,
@@ -214,6 +220,40 @@ app.put('/api/admin/schedule/staff/:staffId', async (c) => {
   }
   const result = await setStaffSchedule(staffId, body.weeklyWindows)
   return c.json({ staffId, weeklyWindows: result })
+})
+
+app.get('/api/admin/schedule/special/:staffId', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const dateFrom = c.req.query('from')
+  const dateTo = c.req.query('to')
+  const specialDays = await getStaffSpecialSchedule(staffId, dateFrom, dateTo)
+  return c.json({ staffId, specialDays })
+})
+
+app.put('/api/admin/schedule/special/:staffId', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const body = await c.req.json<{ specialDays?: Record<string, ScheduleTimeRange[]> }>().catch(
+    () => ({} as { specialDays?: Record<string, ScheduleTimeRange[]> }),
+  )
+  if (!body.specialDays || typeof body.specialDays !== 'object') {
+    return c.json({ error: 'Falta specialDays' }, 400)
+  }
+  const result = await setStaffSpecialSchedule(staffId, body.specialDays!)
+  return c.json({ staffId, specialDays: result })
+})
+
+app.delete('/api/admin/schedule/special/:staffId', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const date = c.req.query('date')
+  if (!date) return c.json({ error: 'Falta date' }, 400)
+  await deleteStaffSpecialDate(staffId, date)
+  return c.json({ ok: true })
 })
 
 /** Fuerza el envío de recordatorios pendientes (solo admin, para pruebas). */
@@ -772,7 +812,7 @@ app.get('/api/schedule/slots', async (c) => {
   return c.json({ slots })
 })
 
-app.post('/api/schedule/appointments', async (c) => {
+app.post('/api/schedule/appointments/preview-series', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const body = await c.req.json<{
@@ -793,6 +833,63 @@ app.post('/api/schedule/appointments', async (c) => {
     endDate?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
+  if (!body.staffId || ids.length === 0 || !body.date || !body.startTime) {
+    return c.json({ error: 'Datos incompletos' }, 400)
+  }
+  const scope = body.scope ?? 'weekly'
+  if (scope !== 'weekly') {
+    return c.json({ error: adminScheduleErrors.ALCANCE_INVALIDO }, 400)
+  }
+  try {
+    const result = await previewRecurringChainConflicts(
+      {
+        staffId: body.staffId,
+        serviceIds: ids,
+        date: body.date,
+        startTime: body.startTime,
+        customerName: body.customerName,
+        customerFirstName: body.customerFirstName,
+        customerLastName: body.customerLastName,
+        customerPhone: body.customerPhone,
+        customerEmail: body.customerEmail,
+        customerNotes: body.customerNotes,
+        notes: body.notes,
+        customerLocale: body.customerLocale,
+        scope,
+        endDate: body.endDate,
+        forStaffPortal: true,
+      },
+      ids,
+    )
+    return c.json(result)
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    return c.json({ error: adminScheduleErrors[code] ?? 'No se pudo previsualizar la serie' }, 409)
+  }
+})
+
+app.post('/api/schedule/appointments', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const body = await c.req.json<{
+    staffId: string
+    serviceIds?: string[]
+    serviceId?: string
+    date: string
+    startTime: string
+    customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
+    customerPhone: string
+    customerEmail?: string
+    customerNotes?: string
+    notes?: string
+    customerLocale?: 'es' | 'en'
+    scope?: BlockScope
+    endDate?: string
+    conflictResolutions?: { date: string; action: 'skip' | 'reassign' | 'reschedule'; staffId?: string; startTime?: string }[]
+  }>()
+  const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
     !body.staffId ||
@@ -811,9 +908,6 @@ app.post('/api/schedule/appointments', async (c) => {
   if (scope === 'weekly' && body.endDate && body.endDate < body.date) {
     return c.json({ error: adminScheduleErrors.FECHA_FIN_INVALIDA }, 400)
   }
-  if (scope !== 'single' && ids.length > 1) {
-    return c.json({ error: 'No se puede crear una serie semanal con múltiples tratamientos' }, 400)
-  }
   try {
     const row = await createAppointment({
       staffId: body.staffId,
@@ -831,6 +925,7 @@ app.post('/api/schedule/appointments', async (c) => {
       scope,
       endDate: body.endDate,
       forStaffPortal: true,
+      conflictResolutions: body.conflictResolutions,
     })
     const grouped =
       row.booking_group_id != null

@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "gallery:webp": "node scripts/convert-gallery-to-webp.mjs",
     "db:check": "node scripts/db-check.mjs",
+    "import:customers": "node scripts/import-customers.mjs",
     "db:migrate-sqlite": "node scripts/migrate-sqlite-to-postgres.mjs",
     "openwa:up": "docker compose -f deploy/openwa-local.compose.yml up -d --build",
     "openwa:down": "docker compose -f deploy/openwa-local.compose.yml down",

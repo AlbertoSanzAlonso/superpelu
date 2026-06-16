@@ -161,6 +161,18 @@ CREATE TABLE IF NOT EXISTS salon_schedule (
   PRIMARY KEY (day_of_week, start_time)
 );
 
+CREATE TABLE IF NOT EXISTS staff_special_availability (
+  staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  special_date TEXT NOT NULL,
+  start_time TEXT NOT NULL,
+  end_time TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (staff_id, special_date, start_time)
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_special_staff_date
+  ON staff_special_availability (staff_id, special_date);
+
 CREATE TABLE IF NOT EXISTS staff_sessions (
   token TEXT PRIMARY KEY,
   staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,

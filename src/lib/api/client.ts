@@ -260,10 +260,46 @@ export type AdminAppointmentPayload = {
   notifyCustomerWhatsApp?: boolean
   scope?: BlockScope
   endDate?: string
+  conflictResolutions?: SeriesConflictResolution[]
+}
+
+export type SeriesConflictResolution = {
+  date: string
+  action: 'skip' | 'reassign' | 'reschedule'
+  staffId?: string
+  startTime?: string
+}
+
+export type SeriesDateConflict = {
+  date: string
+  serviceIndex: number
+  serviceName: string
+  staffId: string
+  staffName: string
+  idealStartTime: string
+  availableSlots: string[]
+  availableStaff: { id: string; name: string; freeSlots: string[] }[]
+}
+
+export type SeriesPreviewResult = {
+  dates: string[]
+  conflicts: SeriesDateConflict[]
+  okDates: string[]
 }
 
 export function createAdminAppointment(payload: AdminAppointmentPayload, adminToken: string) {
   return request<{ appointment: Appointment }>('/schedule/appointments', {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function previewSeriesConflicts(
+  payload: Omit<AdminAppointmentPayload, 'conflictResolutions'>,
+  adminToken: string,
+) {
+  return request<SeriesPreviewResult>('/schedule/appointments/preview-series', {
     method: 'POST',
     headers: adminHeaders(adminToken),
     body: JSON.stringify(payload),
@@ -436,6 +472,49 @@ export function updateSalonSchedule(
     headers: adminHeaders(adminToken),
     body: JSON.stringify({ weeklyWindows }),
   })
+}
+
+export function fetchStaffSpecialSchedule(
+  adminToken: string,
+  staffId: string,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  const params = new URLSearchParams()
+  if (dateFrom) params.set('from', dateFrom)
+  if (dateTo) params.set('to', dateTo)
+  const qs = params.toString()
+  return request<{ staffId: string; specialDays: Record<string, ScheduleTimeRange[]> }>(
+    `/admin/schedule/special/${encodeURIComponent(staffId)}${qs ? `?${qs}` : ''}`,
+    { headers: adminHeaders(adminToken) },
+  )
+}
+
+export function updateStaffSpecialSchedule(
+  adminToken: string,
+  staffId: string,
+  specialDays: Record<string, ScheduleTimeRange[]>,
+) {
+  return request<{ staffId: string; specialDays: Record<string, ScheduleTimeRange[]> }>(
+    `/admin/schedule/special/${encodeURIComponent(staffId)}`,
+    {
+      method: 'PUT',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ specialDays }),
+    },
+  )
+}
+
+export function deleteStaffSpecialDate(
+  adminToken: string,
+  staffId: string,
+  date: string,
+) {
+  const params = new URLSearchParams({ date })
+  return request<{ ok: true }>(
+    `/admin/schedule/special/${encodeURIComponent(staffId)}?${params}`,
+    { method: 'DELETE', headers: adminHeaders(adminToken) },
+  )
 }
 
 export function updateStaffSchedule(

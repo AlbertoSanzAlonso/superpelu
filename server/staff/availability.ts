@@ -1,9 +1,8 @@
 import { sql } from '@server/db.js'
-import { schedule } from '@server/config.js'
-import { salonWindowsForDayOfWeek } from '@/data/schedule'
 import { rangesToWorkWindows } from '@/lib/core/scheduleHours'
 import { dayOfWeekFromDateString, isSalonOpenDay } from '@/lib/core/dates'
 import { getSalonSchedule } from '@server/schedule/index.js'
+import { getSpecialScheduleForDate } from '@server/schedule/special.js'
 
 export type StaffDayWindow = {
   startMinutes: number
@@ -46,6 +45,13 @@ export async function getStaffDayWindows(
   date: string,
 ): Promise<StaffDayWindow[]> {
   if (!isSalonOpenDay(date)) return []
+
+  const special = await getSpecialScheduleForDate(staffId, date)
+  if (special.length > 0) {
+    return special
+      .map((r) => rowToWindow({ start_time: r.start, end_time: r.end }))
+      .filter((w): w is StaffDayWindow => w !== null)
+  }
 
   const dayOfWeek = dayOfWeekFromDateString(date)
   const rows = await sql<{ start_time: string; end_time: string }[]>`
