@@ -239,7 +239,7 @@ export function AgendaAppointmentModal({
                     services={services}
                     serviceId={draft.serviceIds[0] ?? ''}
                     loading={services.length === 0}
-                    onServiceChange={(id) => onDraftChange({ serviceIds: [id], startTime: '' })}
+                    onServiceChange={(id) => onDraftChange({ serviceIds: id ? [id] : [], startTime: '' })}
                   />
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>Hora</label>

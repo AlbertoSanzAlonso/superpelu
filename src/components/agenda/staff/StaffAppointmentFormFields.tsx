@@ -1,14 +1,12 @@
-import { useMemo } from 'react'
+import { useCallback } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
-import { AdminServicePickerMulti } from '@/components/shared/AdminServicePickerMulti'
+import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { AppointmentCustomerEntry } from '@/components/agenda/AppointmentCustomerEntry'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
 import { AppointmentRecurrenceFields } from '@/components/agenda/AppointmentRecurrenceFields'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
-import { useTranslation } from '@/i18n/useTranslation'
-import { serviceDisplayName } from '@/i18n/helpers'
 import { typography } from '@/styles/typography'
 
 const fieldCompact = '!px-3 !py-2'
@@ -29,7 +27,6 @@ type Props = {
   canMarkNoShow?: boolean
   isNoShow?: boolean
   hint?: string
-  /** Admin: buscar cliente existente al crear cita. */
   adminToken?: string
   compact?: boolean
 }
@@ -51,27 +48,40 @@ export function StaffAppointmentFormFields({
   adminToken,
   compact = false,
 }: Props) {
-  const { locale } = useTranslation()
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
   const selectCn = compact
     ? 'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
     : 'w-full border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:opacity-50'
   const timeLabelCn = compact ? `${typography.label} mb-0.5 block text-xs` : `${typography.label} mb-1 block`
 
-  const selectedServiceNames = useMemo(() => {
-    return draft.serviceIds
-      .map((id) => services.find((s) => s.id === id))
-      .filter((s): s is BookableService => s != null)
-  }, [draft.serviceIds, services])
+  const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
+  const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
 
-  function toggleServiceId(id: string) {
-    const next = draft.serviceIds.includes(id)
-      ? draft.serviceIds.filter((s) => s !== id)
-      : [...draft.serviceIds, id]
-    onDraftChange({ serviceIds: next, startTime: next.length === 0 ? '' : draft.startTime })
-  }
+  const setServiceAtIndex = useCallback(
+    (index: number, id: string) => {
+      const next = [...serviceIds]
+      if (index === 0 && id === '') {
+        onDraftChange({ serviceIds: [], startTime: '' })
+        return
+      }
+      next[index] = id
+      const cleaned = next.filter((s) => s !== '')
+      onDraftChange({ serviceIds: cleaned })
+    },
+    [serviceIds, onDraftChange],
+  )
 
-  const hasServices = draft.serviceIds.length > 0
+  const addService = useCallback(() => {
+    onDraftChange({ serviceIds: [...serviceIds.filter((s) => s !== ''), ''] })
+  }, [serviceIds, onDraftChange])
+
+  const removeService = useCallback(
+    (index: number) => {
+      const next = serviceIds.filter((s) => s !== '').filter((_, i) => i !== index)
+      onDraftChange({ serviceIds: next, startTime: next.length === 0 ? '' : draft.startTime })
+    },
+    [serviceIds, draft.startTime, onDraftChange],
+  )
 
   return (
     <form
@@ -80,90 +90,77 @@ export function StaffAppointmentFormFields({
     >
       {hint && !compact && <p className={typography.caption}>{hint}</p>}
 
-      {compact ? (
-        <div className="space-y-3">
-          <AdminServicePickerMulti
+      {serviceIds.map((serviceId, index) => (
+        <div key={index} className="relative">
+          {index > 0 && (
+            <button
+              type="button"
+              onClick={() => removeService(index)}
+              className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+              aria-label="Quitar tratamiento"
+            >
+              ×
+            </button>
+          )}
+          <ServiceCategoryPicker
+            compact={compact}
+            variant="staff"
             services={services}
-            serviceIds={draft.serviceIds}
-            onToggleService={toggleServiceId}
+            serviceId={serviceId}
             loading={services.length === 0}
+            onServiceChange={(id) => setServiceAtIndex(index, id)}
           />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={timeLabelCn}>Hora</label>
-              <select
-                required
-                value={draft.startTime}
-                onChange={(e) => onDraftChange({ startTime: e.target.value })}
-                className={selectCn}
-                disabled={!hasServices}
-              >
-                <option value="">
-                  {hasServices ? 'Elige hora' : 'Tratamiento primero'}
-                </option>
-                {timeOptions.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="self-end">
-              <label className={`${typography.label} mb-0.5 block text-xs text-charcoal-muted`}>
-                Tratamientos seleccionados
-              </label>
-              <div className="min-h-[2rem] rounded border border-gold/20 bg-cream px-2.5 py-1 text-xs text-charcoal-muted">
-                {selectedServiceNames.length > 0 ? (
-                  <span>{selectedServiceNames.map((s) => serviceDisplayName(s, locale)).join(', ')}</span>
-                ) : (
-                  <span className="italic">Ninguno</span>
-                )}
-              </div>
-            </div>
-          </div>
+        </div>
+      ))}
+
+      <button
+        type="button"
+        onClick={addService}
+        className="flex w-full items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
+      >
+        <span className="text-sm leading-none">+</span> Añadir tratamiento
+      </button>
+
+      {compact ? (
+        <div>
+          <label className={timeLabelCn}>Hora</label>
+          <select
+            required
+            value={draft.startTime}
+            onChange={(e) => onDraftChange({ startTime: e.target.value })}
+            className={selectCn}
+            disabled={!hasServices}
+          >
+            <option value="">
+              {hasServices ? 'Elige hora' : 'Tratamiento primero'}
+            </option>
+            {timeOptions.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot}
+              </option>
+            ))}
+          </select>
         </div>
       ) : (
-        <>
-          <AdminServicePickerMulti
-            services={services}
-            serviceIds={draft.serviceIds}
-            onToggleService={toggleServiceId}
-            loading={services.length === 0}
-          />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={timeLabelCn}>Hora</label>
-              <select
-                required
-                value={draft.startTime}
-                onChange={(e) => onDraftChange({ startTime: e.target.value })}
-                className={selectCn}
-                disabled={!hasServices}
-              >
-                <option value="">
-                  {hasServices ? 'Elige hora' : 'Primero elige los tratamientos'}
-                </option>
-                {timeOptions.map((slot) => (
-                  <option key={slot} value={slot}>
-                    {slot}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="self-end">
-              <label className={`${typography.label} mb-0.5 block text-xs text-charcoal-muted`}>
-                Tratamientos ({selectedServiceNames.length})
-              </label>
-              <div className="min-h-[2rem] rounded border border-gold/20 bg-cream px-2.5 py-1 text-xs text-charcoal-muted">
-                {selectedServiceNames.length > 0 ? (
-                  <span className="text-gold">{selectedServiceNames.map((s) => serviceDisplayName(s, locale)).join(', ')}</span>
-                ) : (
-                  <span className="italic">Ninguno</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
+        <div>
+          <label className={timeLabelCn}>Hora</label>
+          <select
+            required
+            value={draft.startTime}
+            onChange={(e) => onDraftChange({ startTime: e.target.value })}
+            className={selectCn}
+            disabled={!hasServices}
+          >
+            <option value="">
+              {hasServices ? 'Elige hora' : 'Primero elige el tratamiento'}
+            </option>
+            {timeOptions.map((slot) => (
+              <option key={slot} value={slot}>
+                {slot}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
       {adminToken && !editingId ? (
