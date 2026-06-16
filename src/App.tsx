@@ -9,6 +9,7 @@ import { CustomerHistoryPage } from '@/pages/CustomerHistoryPage'
 import { SalonAppointmentsPage } from '@/pages/SalonAppointmentsPage'
 import { CustomersPage } from '@/pages/CustomersPage'
 import { ScheduleManagementPage } from '@/pages/ScheduleManagementPage'
+import { AdminServicesPage } from '@/pages/AdminServicesPage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/reservar" element={<BookingPage />} />
         <Route path="/agenda" element={<AdminAgendaPage />} />
         <Route path="/horarios" element={<ScheduleManagementPage />} />
+        <Route path="/servicios" element={<AdminServicesPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route path="/clientes/citas" element={<SalonAppointmentsPage />} />
         <Route path="/clientes/:phone" element={<CustomerHistoryPage />} />

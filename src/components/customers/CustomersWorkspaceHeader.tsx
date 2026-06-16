@@ -35,6 +35,9 @@ export function CustomersWorkspaceHeader({
           <Link to="/agenda" className={headerLinkClass}>
             Agenda
           </Link>
+          <Link to="/servicios" className={headerLinkClass}>
+            Servicios
+          </Link>
           <Button
             type="button"
             variant="outline"

@@ -6,6 +6,16 @@ import path from 'node:path'
 import { COLOR_GROUP_ROLE } from '@/lib/booking/occupancy'
 import { listActiveServiceCategories } from '@server/catalog/categories.js'
 import { listActiveServices } from '@server/catalog/services.js'
+import {
+  listAdminServices,
+  createService,
+  updateService,
+  deleteService,
+  listAdminServiceCategories,
+  createServiceCategory,
+  updateServiceCategory,
+  deleteServiceCategory,
+} from '@server/catalog/admin.js'
 import { listStaffForService, listStaffForServices, getStaff } from '@server/staff/index.js'
 import { me } from '@server/staff/me.js'
 import { listStaffDaySchedules } from '@server/staff/schedule.js'
@@ -253,6 +263,118 @@ app.delete('/api/admin/schedule/special/:staffId', async (c) => {
   const date = c.req.query('date')
   if (!date) return c.json({ error: 'Falta date' }, 400)
   await deleteStaffSpecialDate(staffId, date)
+  return c.json({ ok: true })
+})
+
+// ── Servicios CRUD (admin) ─────────────────────────────────────────────
+
+type CreateServiceBody = {
+  id: string
+  nameEs: string
+  nameEn: string
+  durationMinutes: number
+  categoryId: string | null
+  bookableOnline: boolean
+  sortOrder: number
+}
+
+type UpdateServiceBody = {
+  nameEs?: string
+  nameEn?: string
+  durationMinutes?: number
+  categoryId?: string | null
+  bookableOnline?: boolean
+  active?: boolean
+  sortOrder?: number
+}
+
+type CreateCategoryBody = {
+  id: string
+  nameEs: string
+  nameEn: string
+  sortOrder: number
+  priceFromCents?: number | null
+  priceNote?: string | null
+}
+
+type UpdateCategoryBody = {
+  nameEs?: string
+  nameEn?: string
+  active?: boolean
+  sortOrder?: number
+  priceFromCents?: number | null
+  priceNote?: string | null
+}
+
+app.get('/api/admin/services', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const services = await listAdminServices()
+  return c.json({ services })
+})
+
+app.post('/api/admin/services', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const raw = await c.req.json().catch(() => ({}))
+  const body = raw as CreateServiceBody
+  if (!body.id || !body.nameEs || !body.durationMinutes) {
+    return c.json({ error: 'Faltan campos obligatorios (id, nameEs, durationMinutes)' }, 400)
+  }
+  const service = await createService(body)
+  return c.json({ service }, 201)
+})
+
+app.patch('/api/admin/services/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({})) as UpdateServiceBody
+  await updateService(id, body)
+  return c.json({ ok: true })
+})
+
+app.delete('/api/admin/services/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  await deleteService(id)
+  return c.json({ ok: true })
+})
+
+app.get('/api/admin/service-categories', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const categories = await listAdminServiceCategories()
+  return c.json({ categories })
+})
+
+app.post('/api/admin/service-categories', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const raw = await c.req.json().catch(() => ({}))
+  const body = raw as CreateCategoryBody
+  if (!body.id || !body.nameEs) {
+    return c.json({ error: 'Faltan campos obligatorios (id, nameEs)' }, 400)
+  }
+  const category = await createServiceCategory(body)
+  return c.json({ category }, 201)
+})
+
+app.patch('/api/admin/service-categories/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({})) as UpdateCategoryBody
+  await updateServiceCategory(id, body)
+  return c.json({ ok: true })
+})
+
+app.delete('/api/admin/service-categories/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  await deleteServiceCategory(id)
   return c.json({ ok: true })
 })
 

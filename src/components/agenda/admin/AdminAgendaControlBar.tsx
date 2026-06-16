@@ -131,6 +131,9 @@ export function AdminAgendaControlBar({
 
   const navLinks = (
     <>
+      <Link to="/servicios" className={navLinkClass}>
+        Servicios
+      </Link>
       <Link to="/horarios" className={navLinkClass}>
         Horarios
       </Link>
