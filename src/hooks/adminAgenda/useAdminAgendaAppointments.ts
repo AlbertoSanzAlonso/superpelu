@@ -73,6 +73,7 @@ export function useAdminAgendaAppointments({
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
   const [slots, setSlots] = useState<string[]>([])
+  const [slotsConflict, setSlotsConflict] = useState<string | null>(null)
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [appointmentFormOpen, setAppointmentFormOpen] = useState(false)
@@ -118,12 +119,24 @@ export function useAdminAgendaAppointments({
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
     if (!activeStaffId || filteredIds.length === 0 || !date || !adminToken) {
       setSlots([])
+      setSlotsConflict(null)
       return
     }
     fetchAdminMultiSlots(date, filteredIds, activeStaffId, adminToken, editingId ?? undefined)
-      .then((r) => setSlots(r.slots))
-      .catch(() => setSlots([]))
-  }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
+      .then((r) => {
+        setSlots(r.slots)
+        // Si hay hora seleccionada pero no está en los slots disponibles, marcar conflicto
+        if (aptDraft.startTime && r.slots.length > 0 && !r.slots.includes(aptDraft.startTime)) {
+          setSlotsConflict('La hora seleccionada no está disponible para todos los tratamientos')
+        } else {
+          setSlotsConflict(null)
+        }
+      })
+      .catch(() => {
+        setSlots([])
+        setSlotsConflict(null)
+      })
+  }, [activeStaffId, aptDraft.serviceIds.join(','), aptDraft.startTime, date, adminToken, editingId])
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
@@ -494,6 +507,7 @@ export function useAdminAgendaAppointments({
     scheduleForActiveStaff,
     services,
     slots,
+    slotsConflict,
     aptDraft,
     setAptDraft,
     editingId,

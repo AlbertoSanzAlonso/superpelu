@@ -191,6 +191,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     scheduleForActiveStaff: appointments.scheduleForActiveStaff,
     services: appointments.services,
     slots: appointments.slots,
+    slotsConflict: appointments.slotsConflict,
     aptDraft: appointments.aptDraft,
     setAptDraft: appointments.setAptDraft,
     editingId: appointments.editingId,

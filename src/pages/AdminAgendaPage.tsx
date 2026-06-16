@@ -19,6 +19,7 @@ import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
 import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
 import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
+import { AppointmentAvailabilityWarningModal } from '@/components/agenda/AppointmentAvailabilityWarningModal'
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
 import { requestAdminNotificationPermission } from '@/lib/agenda/adminBrowserNotifications'
@@ -473,6 +474,27 @@ export function AdminAgendaPage() {
           adminToken={adminToken}
         />
       )}
+
+      <AppointmentAvailabilityWarningModal
+        open={Boolean(agenda.slotsConflict)}
+        conflict={agenda.slotsConflict}
+        date={selectedDate}
+        serviceIds={agenda.aptDraft.serviceIds}
+        startTime={agenda.aptDraft.startTime}
+        currentStaffId={agenda.activeStaffId ?? ''}
+        onClose={() => {
+          // Limpiar conflicto sin hacer nada
+          agenda.setAptDraft((d) => ({ ...d, startTime: '' }))
+        }}
+        onConfirm={() => {
+          // Continuar fuera de horario - permitir guardar
+          agenda.setAptDraft((d) => d)
+        }}
+        onChangeStaff={(staffId) => {
+          // Cambiar al profesional seleccionado
+          agenda.selectStaff(staffId)
+        }}
+      />
 
       {agenda.cancelScopeSeries && (
         <CancelAppointmentScopeModal
