@@ -1,45 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
-import { AdminAppointmentToastStack } from '@/components/agenda/admin/AdminAppointmentToastStack'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
-import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
-import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
-import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
-import { PageShell } from '@/components/layout/PageShell'
-import { Button } from '@/components/ui/Button'
-import { PasswordInput } from '@/components/ui/Input'
-import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
-import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
-import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCalendar'
-import { AppointmentMoveBar } from '@/components/agenda/admin/AppointmentMoveBar'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
-import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
-import { CancelAppointmentScopeModal } from '@/components/agenda/CancelAppointmentScopeModal'
-import { BlockScopeModal } from '@/components/agenda/admin/BlockScopeModal'
-import { UnblockScopeModal } from '@/components/agenda/admin/UnblockScopeModal'
-import { AgendaAppointmentModal } from '@/components/agenda/AgendaAppointmentModal'
-import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
-import { AppointmentAvailabilityWarningModal } from '@/components/agenda/AppointmentAvailabilityWarningModal'
-import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
+import { AdminAgendaLoginForm } from '@/components/agenda/admin/AdminAgendaLoginForm'
+import { AdminAgendaWorkspace } from '@/components/agenda/admin/AdminAgendaWorkspace'
 import { useAdminAgenda } from '@/hooks/useAdminAgenda'
 import { verifyAdminToken, ApiError } from '@/lib/api'
 import { requestAdminNotificationPermission } from '@/lib/agenda/adminBrowserNotifications'
 import { staffLogin, verifyStaffToken, type StaffSession } from '@/lib/api/staff'
 import { useAgendaDate } from '@/hooks/useAgendaDate'
-import { salonStaffMembers } from '@/data/salonStaff'
-import { typography } from '@/styles/typography'
-
-const staffLoginSelectClass =
-  'w-full cursor-pointer border border-gold/30 bg-cream px-4 py-3 font-sans text-sm text-charcoal outline-none transition-colors focus:border-gold'
-
-function loginModeButtonClass(active: boolean) {
-  return [
-    'cursor-pointer px-4 py-2 text-sm transition-colors',
-    active
-      ? 'border border-gold bg-gold/10 text-gold hover:border-gold/80 hover:bg-gold/15'
-      : 'border border-gold/20 text-charcoal-muted hover:border-gold/50 hover:bg-gold/5 hover:text-gold',
-  ].join(' ')
-}
 
 const ADMIN_TOKEN_KEY = 'superpelu-admin-token'
 const STAFF_TOKEN_KEY = 'superpelu-staff-token'
@@ -205,97 +173,23 @@ export function AdminAgendaPage() {
 
   if (!isAdmin && !isStaff) {
     return (
-      <PageShell
-        eyebrow="Agenda"
-        title="Gestión del salón"
-        subtitle="Acceso para el equipo: cada profesional gestiona lo suyo; administración ve todo el salón."
-        brandWatermark="viewport"
-      >
-        <div className="mx-auto mb-8 flex max-w-md justify-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setLoginMode('admin')
-              setLoginError('')
-            }}
-            className={loginModeButtonClass(loginMode === 'admin')}
-          >
-            Administración
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setLoginMode('staff')
-              setLoginError('')
-            }}
-            className={loginModeButtonClass(loginMode === 'staff')}
-          >
-            Soy profesional
-          </button>
-        </div>
-
-        {loginMode === 'staff' ? (
-          <form
-            onSubmit={handleStaffLogin}
-            className="mx-auto max-w-sm space-y-4 border border-gold/25 bg-cream p-8"
-          >
-            <label className="block text-left" htmlFor="staff-login-name">
-              <span className={`${typography.label} mb-2 block`}>Profesional</span>
-              <select
-                id="staff-login-name"
-                required
-                value={staffName}
-                onChange={(e) => setStaffName(e.target.value)}
-                className={staffLoginSelectClass}
-                autoComplete="username"
-              >
-                <option value="">Elige tu nombre</option>
-                {salonStaffMembers.map((member) => (
-                  <option key={member.id} value={member.name}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <PasswordInput
-              label="Contraseña"
-              required
-              value={staffPassword}
-              onChange={(e) => setStaffPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-            {loginError && (
-              <p className="text-center text-sm text-red-700" role="alert">
-                {loginError}
-              </p>
-            )}
-            <Button type="submit" variant="solid" className="w-full" disabled={loggingIn}>
-              {loggingIn ? 'Entrando…' : 'Entrar a mi agenda'}
-            </Button>
-          </form>
-        ) : (
-          <form
-            onSubmit={handleAdminLogin}
-            className="mx-auto max-w-sm space-y-4 border border-gold/25 bg-cream p-8"
-          >
-            <PasswordInput
-              label="Clave de administración"
-              required
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              autoComplete="current-password"
-            />
-            {loginError && (
-              <p className="text-center text-sm text-red-700" role="alert">
-                {loginError}
-              </p>
-            )}
-            <Button type="submit" variant="solid" className="w-full" disabled={loggingIn}>
-              {loggingIn ? 'Comprobando…' : 'Ver agenda completa'}
-            </Button>
-          </form>
-        )}
-      </PageShell>
+      <AdminAgendaLoginForm
+        loginMode={loginMode}
+        onLoginModeChange={(mode) => {
+          setLoginMode(mode)
+          setLoginError('')
+        }}
+        adminPassword={adminPassword}
+        onAdminPasswordChange={setAdminPassword}
+        staffName={staffName}
+        onStaffNameChange={setStaffName}
+        staffPassword={staffPassword}
+        onStaffPasswordChange={setStaffPassword}
+        loginError={loginError}
+        loggingIn={loggingIn}
+        onAdminLogin={handleAdminLogin}
+        onStaffLogin={handleStaffLogin}
+      />
     )
   }
 
@@ -305,254 +199,14 @@ export function AdminAgendaPage() {
     )
   }
 
-  const totalAppointments = schedules.reduce((n, s) => n + s.appointments.length, 0)
-  const activeStaffName =
-    agenda.schedules.find((s) => s.staffId === agenda.activeStaffId)?.staffName ?? ''
-
-  function closeAppointmentForm() {
-    agenda.setAppointmentFormOpen(false)
-    agenda.resetAppointmentForm()
-  }
-
   return (
-    <AgendaWorkspaceShell>
-      <header className="relative z-20 shrink-0 overflow-visible">
-        <AdminAgendaControlBar
-          date={selectedDate}
-          onDateChange={setSelectedDate}
-          appointmentCount={totalAppointments}
-          schedules={agenda.schedules}
-          activeStaffId={agenda.activeStaffId}
-          onStaffChange={agenda.selectStaff}
-          onNewAppointment={() => {
-            if (agenda.activeStaffId) agenda.openNewAppointmentForActiveStaff()
-          }}
-          onLogout={handleAdminLogout}
-          selectionCount={agenda.selection?.times.size ?? 0}
-          selectionSummary={agenda.selection ? agenda.selectionSummary : undefined}
-          gridInteractionsLocked={agenda.gridInteractionsLocked}
-          onBlockSelection={agenda.requestBlockSelectedSlots}
-          onUnblockSelection={() => void agenda.unblockSelectedSlots()}
-          onCreateAppointmentFromSelection={agenda.createAppointmentFromSelection}
-          onClearSelection={agenda.clearSelection}
-          selectionBusy={agenda.gridActionsBusy}
-          notificationInbox={notifications.inbox}
-          notificationBellOpen={notifications.bellOpen}
-          onNotificationBellOpen={notifications.openBell}
-          onNotificationBellClose={notifications.closeBell}
-          onNotificationSelect={openAppointmentFromNotification}
-        />
-
-        {agenda.error && (
-          <p className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-center text-xs text-red-800" role="alert">
-            {agenda.error}
-          </p>
-        )}
-      </header>
-
-      <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2">
-        {agenda.loading && agenda.schedules.length === 0 ? (
-          <p className={`${typography.caption} py-8 text-center`}>Cargando agenda…</p>
-        ) : (
-          <>
-            <AdminCalendarLegend />
-            <div className="min-h-0 flex-1">
-            <AdminSalonDayCalendar
-              date={selectedDate}
-              schedules={agenda.schedules}
-              selection={agenda.selection}
-              formSlotTime={agenda.formSlotTime}
-              formStaffId={agenda.formStaffId}
-              pendingMoveSummary={agenda.pendingMoveSummary}
-              moveBusy={agenda.moveBusy}
-              gridInteractionsLocked={agenda.gridInteractionsLocked}
-              onToggleSlot={agenda.toggleSlot}
-              onEditAppointment={agenda.openAppointmentDetail}
-              onOpenBlock={agenda.openBlockDetail}
-              onProposeAppointmentMove={agenda.proposeAppointmentMove}
-            />
-            </div>
-          </>
-        )}
-      </main>
-
-      {agenda.pendingMoves.length > 0 && (
-        <AppointmentMoveBar
-          summary={agenda.pendingMoveSummary}
-          busy={agenda.moveBusy || agenda.whatsAppNotifyBusy}
-          onUndo={agenda.undoLastPendingMove}
-          onSave={agenda.requestSavePendingMoves}
-          onDiscard={agenda.discardPendingMoves}
-        />
-      )}
-
-      {agenda.selection && (
-        <BlockScopeModal
-          open={agenda.blockModalOpen}
-          anchorDate={selectedDate}
-          groups={agenda.pendingBlockGroups}
-          staffName={agenda.selection.staffName}
-          busy={agenda.gridActionsBusy}
-          onClose={agenda.cancelBlockModal}
-          onConfirm={(scope, endDate, note) => void agenda.confirmBlockWithScope(scope, endDate, note)}
-        />
-      )}
-
-      {agenda.viewingBlock && (
-        <BlockDetailModal
-          open
-          date={selectedDate}
-          staffName={agenda.viewingBlock.staffName}
-          block={agenda.viewingBlock.block}
-          series={agenda.viewingBlockSeries}
-          seriesLoading={agenda.viewingBlockSeriesLoading}
-          busy={agenda.blockDetailBusy}
-          onClose={agenda.closeBlockDetail}
-          onSave={agenda.saveBlockNote}
-          onDelete={agenda.deleteViewingBlock}
-        />
-      )}
-
-      {agenda.unblockModal && (
-        <UnblockScopeModal
-          open
-          series={agenda.unblockModal.series}
-          viewDate={selectedDate}
-          busy={agenda.gridActionsBusy}
-          onClose={agenda.cancelUnblockModal}
-          onConfirm={(mode) => void agenda.confirmUnblockWithMode(mode)}
-        />
-      )}
-
-      {agenda.viewingAppointment && (
-        <AgendaAppointmentModal
-          open
-          mode={agenda.detailEditMode ? 'edit' : 'view'}
-          date={selectedDate}
-          staffId={agenda.viewingAppointment.staffId}
-          staffName={agenda.viewingAppointment.staffName}
-          staffOptions={agenda.schedules.map((s) => ({
-            id: s.staffId,
-            name: s.staffName,
-          }))}
-          onStaffChange={agenda.changeDetailStaff}
-          appointment={agenda.viewingAppointment.apt}
-          customerRegistered={agenda.detailCustomerRegistered}
-          draft={agenda.aptDraft}
-          services={agenda.services}
-          slots={agenda.slots}
-          onModeChange={(m) => (m === 'edit' ? agenda.startDetailEdit() : agenda.setDetailEditMode(false))}
-          onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
-          onSubmit={agenda.saveAppointment}
-          onClose={agenda.closeAppointmentDetail}
-          onCancelAppointment={() => agenda.cancelAppointmentById(agenda.viewingAppointment!.apt.id)}
-          onMarkNoShow={() => agenda.markNoShowById(agenda.viewingAppointment!.apt.id)}
-          showCustomerHistory
-          adminToken={adminToken}
-          reviewRequestSentAt={agenda.detailReviewRequestSentAt}
-          onReviewRequestSent={agenda.setDetailReviewRequestSentAt}
-          onCustomerRegisteredChange={(registered, reviewSentAt) => {
-            agenda.setDetailCustomerRegistered(registered)
-            if (reviewSentAt !== undefined) {
-              agenda.setDetailReviewRequestSentAt(reviewSentAt)
-            }
-          }}
-        />
-      )}
-
-      {agenda.activeStaffId && agenda.appointmentFormOpen && !agenda.viewingAppointment && (
-        <StaffAppointmentFormModal
-          open
-          date={selectedDate}
-          staffName={activeStaffName}
-          editingId={null}
-          draft={agenda.aptDraft}
-          services={agenda.services}
-          slots={agenda.slots}
-          onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
-          onSubmit={agenda.saveAppointment}
-          onClose={closeAppointmentForm}
-          adminToken={adminToken}
-        />
-      )}
-
-      <AppointmentAvailabilityWarningModal
-        open={Boolean(agenda.slotsConflict)}
-        conflict={agenda.slotsConflict}
-        date={selectedDate}
-        serviceIds={agenda.aptDraft.serviceIds}
-        startTime={agenda.aptDraft.startTime}
-        currentStaffId={agenda.activeStaffId ?? ''}
-        onClose={() => {
-          // Limpiar conflicto sin hacer nada
-          agenda.setAptDraft((d) => ({ ...d, startTime: '' }))
-        }}
-        onConfirm={() => {
-          // Continuar fuera de horario - permitir guardar
-          agenda.setAptDraft((d) => d)
-        }}
-        onChangeStaff={(staffId) => {
-          // Cambiar al profesional seleccionado
-          agenda.selectStaff(staffId)
-        }}
-      />
-
-      {agenda.seriesConflictPreview && (
-        <SeriesConflictModal
-          open={agenda.seriesConflictOpen}
-          conflicts={agenda.seriesConflictPreview.conflicts}
-          totalDates={agenda.seriesConflictPreview.dates.length}
-          okDatesCount={agenda.seriesConflictPreview.okDates.length}
-          onResolve={agenda.resolveSeriesConflicts}
-          onClose={agenda.closeSeriesConflictModal}
-        />
-      )}
-
-      {agenda.cancelScopeSeries && (
-        <CancelAppointmentScopeModal
-          open={agenda.cancelScopeOpen}
-          series={agenda.cancelScopeSeries}
-          viewDate={selectedDate}
-          action="cancel"
-          onClose={agenda.closeCancelScopeModal}
-          onConfirm={agenda.confirmCancelScope}
-        />
-      )}
-
-      <WhatsAppNotifyDialog
-        open={agenda.whatsAppNotifyDialogOpen}
-        context={agenda.whatsAppNotifyContext}
-        busy={agenda.whatsAppNotifyBusy}
-        onClose={agenda.closeWhatsAppNotifyDialog}
-        onNotify={agenda.confirmSaveWithWhatsAppNotify}
-        onSaveWithoutNotify={agenda.confirmSaveWithoutWhatsAppNotify}
-      />
-
-      <NoShowContactDialog
-        open={agenda.noShowDialogOpen}
-        busy={agenda.noShowBusy}
-        onClose={agenda.closeNoShowDialog}
-        onMarkContacted={agenda.confirmNoShowWithoutWhatsApp}
-        onSendWhatsApp={agenda.confirmNoShowWithWhatsApp}
-      />
-
-      <AdminAppointmentToastStack
-        toasts={notifications.toasts}
-        onDismiss={notifications.dismissToast}
-        onSelect={openAppointmentFromNotification}
-      />
-
-      <ConfirmDialog
-        open={agenda.confirmDialog != null}
-        title={agenda.confirmDialog?.title ?? ''}
-        message={agenda.confirmDialog?.message}
-        confirmLabel={agenda.confirmDialog?.confirmLabel}
-        cancelLabel={agenda.confirmDialog?.cancelLabel}
-        destructive={agenda.confirmDialog?.destructive}
-        busy={agenda.confirmBusy}
-        onClose={agenda.closeConfirmDialog}
-        onConfirm={agenda.runConfirmDialog}
-      />
-    </AgendaWorkspaceShell>
+    <AdminAgendaWorkspace
+      selectedDate={selectedDate}
+      onDateChange={setSelectedDate}
+      adminToken={adminToken}
+      agenda={agenda}
+      openAppointmentFromNotification={openAppointmentFromNotification}
+      onLogout={handleAdminLogout}
+    />
   )
 }
