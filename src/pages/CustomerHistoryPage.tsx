@@ -98,6 +98,8 @@ export function CustomerHistoryPage() {
                 {formatPhoneDisplay(customer.phone)}
                 <span className="mx-2 text-gold/40">·</span>
                 {customerLocaleLabel(customer.locale)}
+                <span className="mx-2 text-gold/40">·</span>
+                {customer.appointmentCount} cita{customer.appointmentCount === 1 ? '' : 's'}
               </p>
               {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
               {customer.notes?.trim() && (

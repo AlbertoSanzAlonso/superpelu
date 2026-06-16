@@ -184,7 +184,7 @@ export async function listCustomers(
   options: { q?: string; limit?: number } = {},
 ): Promise<PublicCustomer[]> {
   const q = options.q?.trim().toLowerCase() ?? ''
-  const limit = Math.min(Math.max(options.limit ?? 200, 1), 500)
+  const limit = Math.min(Math.max(options.limit ?? 5000, 1), 5000)
 
   const rows = await sql<
     (CustomerRow & {
