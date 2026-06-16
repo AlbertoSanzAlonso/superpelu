@@ -1388,7 +1388,7 @@ app.get('/m/:code', async (c) => {
   const staffOptions = await listStaffForService(row.service_id)
   let selectedStaffId = (c.req.query('staffId') ?? row.staff_id ?? '').trim()
   if (!staffOptions.some((s) => s.id === selectedStaffId)) {
-    selectedStaffId = row.staff_id ?? staffOptions[0]?.id ?? ''
+    selectedStaffId = staffOptions[0]?.id ?? row.staff_id ?? ''
   }
   const selectedStaffRaw =
     staffOptions.find((s) => s.id === selectedStaffId)?.name ?? row.staff_name ?? ''
