@@ -61,7 +61,11 @@ export function StaffAppointmentFormFields({
     (index: number, id: string) => {
       const next = [...serviceIds]
       if (index === 0 && id === '') {
-        onDraftChange({ serviceIds: [], startTime: '' })
+        // Solo resetear hora si se elimina completamente el primer tratamiento
+        const hadService = serviceIds[0] !== ''
+        if (hadService) {
+          onDraftChange({ serviceIds: [], startTime: '' })
+        }
         return
       }
       next[index] = id
