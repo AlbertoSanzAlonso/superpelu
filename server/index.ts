@@ -743,17 +743,33 @@ app.get('/api/schedule/slots', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const date = c.req.query('date')
   const serviceId = c.req.query('serviceId')
+  const serviceIdsRaw = c.req.query('serviceIds')
   const staffId = c.req.query('staffId')
   const exclude = c.req.query('excludeAppointmentId')
-  if (!date || !serviceId || !staffId) {
-    return c.json({ error: 'Faltan date, serviceId o staffId' }, 400)
+  if (!date || !staffId) {
+    return c.json({ error: 'Faltan date o staffId' }, 400)
   }
-  return c.json({
-    slots: await getAvailableSlots(date, serviceId, staffId, {
-      forStaffPortal: true,
-      excludeAppointmentId: exclude,
-    }),
-  })
+  if (!serviceId && !serviceIdsRaw) {
+    return c.json({ error: 'Falta serviceId o serviceIds' }, 400)
+  }
+  const ids = serviceIdsRaw
+    ? serviceIdsRaw.split(',').filter(Boolean)
+    : serviceId
+      ? [serviceId]
+      : []
+  if (ids.length === 0) {
+    return c.json({ error: 'Faltan serviceIds' }, 400)
+  }
+  const slots = ids.length > 1
+    ? await getAvailableSlotsForServices(date, ids, staffId, {
+        forStaffPortal: true,
+        excludeAppointmentId: exclude,
+      })
+    : await getAvailableSlots(date, ids[0], staffId, {
+        forStaffPortal: true,
+        excludeAppointmentId: exclude,
+      })
+  return c.json({ slots })
 })
 
 app.post('/api/schedule/appointments', async (c) => {
@@ -761,7 +777,8 @@ app.post('/api/schedule/appointments', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const body = await c.req.json<{
     staffId: string
-    serviceId: string
+    serviceIds?: string[]
+    serviceId?: string
     date: string
     startTime: string
     customerName?: string
@@ -775,10 +792,11 @@ app.post('/api/schedule/appointments', async (c) => {
     scope?: BlockScope
     endDate?: string
   }>()
+  const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
     !body.staffId ||
-    !body.serviceId ||
+    ids.length === 0 ||
     !body.date ||
     !body.startTime ||
     !hasName ||
@@ -793,10 +811,13 @@ app.post('/api/schedule/appointments', async (c) => {
   if (scope === 'weekly' && body.endDate && body.endDate < body.date) {
     return c.json({ error: adminScheduleErrors.FECHA_FIN_INVALIDA }, 400)
   }
+  if (scope !== 'single' && ids.length > 1) {
+    return c.json({ error: 'No se puede crear una serie semanal con múltiples tratamientos' }, 400)
+  }
   try {
     const row = await createAppointment({
       staffId: body.staffId,
-      serviceId: body.serviceId,
+      serviceIds: ids,
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,
@@ -811,7 +832,18 @@ app.post('/api/schedule/appointments', async (c) => {
       endDate: body.endDate,
       forStaffPortal: true,
     })
-    return c.json({ appointment: rowToPublic(row) }, 201)
+    const grouped =
+      row.booking_group_id != null
+        ? await getAppointmentsByBookingGroup(row.booking_group_id)
+        : [row]
+    const visibleGroup = grouped.filter((apt) => apt.color_group_role !== COLOR_GROUP_ROLE.wash)
+    return c.json(
+      {
+        appointment: rowToPublic(row),
+        appointments: visibleGroup.map(rowToPublic),
+      },
+      201,
+    )
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
     return c.json({ error: adminScheduleErrors[code] ?? 'No se pudo guardar la cita' }, 409)

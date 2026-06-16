@@ -4,7 +4,7 @@ import type { DayScheduleAppointment } from '@/types/booking'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 
 export type AppointmentDraft = {
-  serviceId: string
+  serviceIds: string[]
   startTime: string
   customerFirstName: string
   customerLastName: string
@@ -21,7 +21,7 @@ export type AppointmentDraft = {
 }
 
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
-  serviceId: '',
+  serviceIds: [],
   startTime: '',
   customerFirstName: '',
   customerLastName: '',
@@ -44,7 +44,7 @@ export function appointmentToDraft(
 ): AppointmentDraft {
   const { firstName, lastName } = splitCustomerName(apt.customerName)
   return {
-    serviceId: apt.serviceId,
+    serviceIds: [apt.serviceId],
     startTime: apt.startTime,
     customerFirstName: firstName,
     customerLastName: lastName,

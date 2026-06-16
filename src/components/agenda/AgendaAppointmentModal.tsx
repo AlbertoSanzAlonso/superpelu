@@ -237,9 +237,9 @@ export function AgendaAppointmentModal({
                     compact
                     variant="staff"
                     services={services}
-                    serviceId={draft.serviceId}
+                    serviceId={draft.serviceIds[0] ?? ''}
                     loading={services.length === 0}
-                    onServiceChange={(id) => onDraftChange({ serviceId: id })}
+                    onServiceChange={(id) => onDraftChange({ serviceIds: [id], startTime: '' })}
                   />
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>Hora</label>
@@ -248,10 +248,10 @@ export function AgendaAppointmentModal({
                       value={draft.startTime}
                       onChange={(e) => onDraftChange({ startTime: e.target.value })}
                       className={selectCn}
-                      disabled={!draft.serviceId}
+                      disabled={!draft.serviceIds[0]}
                     >
                       <option value="">
-                        {draft.serviceId ? 'Elige hora' : 'Tratamiento primero'}
+                        {draft.serviceIds[0] ? 'Elige hora' : 'Tratamiento primero'}
                       </option>
                       {timeOptions.map((slot) => (
                         <option key={slot} value={slot}>

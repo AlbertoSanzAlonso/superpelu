@@ -72,7 +72,7 @@ export function useStaffAgenda(token: string) {
       setServices(svcRes.services)
       setAptDraft((d) => ({
         ...d,
-        serviceId: d.serviceId || '',
+        serviceIds: d.serviceIds.length > 0 ? d.serviceIds : [],
       }))
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al cargar')
@@ -94,20 +94,21 @@ export function useStaffAgenda(token: string) {
   }, [load])
 
   useEffect(() => {
-    if (!aptDraft.serviceId || !date) {
+    const firstId = aptDraft.serviceIds[0]
+    if (!firstId || !date) {
       setSlots([])
       return
     }
-    fetchMySlots(token, date, aptDraft.serviceId, editingId ?? undefined)
+    fetchMySlots(token, date, firstId, editingId ?? undefined)
       .then((r) => setSlots(r.slots))
       .catch(() => setSlots([]))
-  }, [token, date, aptDraft.serviceId, editingId])
+  }, [token, date, aptDraft.serviceIds.join(','), editingId])
 
-  const resetAppointmentForm = useCallback((keepServiceId = true) => {
+  const resetAppointmentForm = useCallback((keepServiceIds = true) => {
     setEditingId(null)
     setAptDraft((d) => ({
       ...EMPTY_APPOINTMENT_DRAFT,
-      serviceId: keepServiceId ? d.serviceId : '',
+      serviceIds: keepServiceIds ? d.serviceIds : [],
     }))
   }, [])
 
@@ -122,7 +123,7 @@ export function useStaffAgenda(token: string) {
       gridSelection.clear()
       setAptDraft((d) => ({
         ...EMPTY_APPOINTMENT_DRAFT,
-        serviceId: d.serviceId || '',
+        serviceIds: d.serviceIds.length > 0 ? d.serviceIds : [],
         startTime: time,
       }))
     },
@@ -222,7 +223,7 @@ export function useStaffAgenda(token: string) {
       try {
         if (editingId) {
           await updateMyAppointment(token, editingId, {
-            serviceId: aptDraft.serviceId,
+            serviceId: aptDraft.serviceIds[0] ?? '',
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,
@@ -235,7 +236,7 @@ export function useStaffAgenda(token: string) {
           })
         } else {
           await createMyAppointment(token, {
-            serviceId: aptDraft.serviceId,
+            serviceId: aptDraft.serviceIds[0] ?? '',
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,

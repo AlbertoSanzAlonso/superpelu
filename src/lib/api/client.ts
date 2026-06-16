@@ -246,7 +246,8 @@ export function fetchAdminSlots(
 
 export type AdminAppointmentPayload = {
   staffId: string
-  serviceId: string
+  serviceIds: string[]
+  serviceId?: string
   date: string
   startTime: string
   customerFirstName: string
@@ -279,6 +280,20 @@ export function updateAdminAppointment(
     headers: adminHeaders(adminToken),
     body: JSON.stringify(patch),
   })
+}
+
+export function fetchAdminMultiSlots(
+  date: string,
+  serviceIds: string[],
+  staffId: string,
+  adminToken: string,
+  excludeAppointmentId?: string,
+) {
+  const params = new URLSearchParams({ date, serviceIds: serviceIds.join(','), staffId })
+  if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
+  return request<{ slots?: string[] }>(`/schedule/slots?${params}`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => ({ slots: res.slots ?? [] }))
 }
 
 export function fetchAdminBlockSeries(adminToken: string, blockId: string) {

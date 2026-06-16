@@ -10,7 +10,7 @@ import {
   markAppointmentNoShow,
   createAdminAppointment,
   fetchAdminAppointmentSeries,
-  fetchAdminSlots,
+  fetchAdminMultiSlots,
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
   updateAdminAppointment,
@@ -110,23 +110,19 @@ export function useAdminAgendaAppointments({
     fetchStaffServicesForAdmin(activeStaffId, adminToken)
       .then((r) => {
         setServices(r.services)
-        setAptDraft((prev) => ({
-          ...prev,
-          serviceId: prev.serviceId || '',
-        }))
       })
       .catch(() => setServices([]))
   }, [activeStaffId, adminToken])
 
   useEffect(() => {
-    if (!activeStaffId || !aptDraft.serviceId || !date || !adminToken) {
+    if (!activeStaffId || aptDraft.serviceIds.length === 0 || !date || !adminToken) {
       setSlots([])
       return
     }
-    fetchAdminSlots(date, aptDraft.serviceId, activeStaffId, adminToken, editingId ?? undefined)
+    fetchAdminMultiSlots(date, aptDraft.serviceIds, activeStaffId, adminToken, editingId ?? undefined)
       .then((r) => setSlots(r.slots))
       .catch(() => setSlots([]))
-  }, [activeStaffId, aptDraft.serviceId, date, adminToken, editingId])
+  }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
@@ -219,10 +215,11 @@ export function useAdminAgendaAppointments({
 
   useEffect(() => {
     if (!detailEditMode || !viewingAppointment || services.length === 0) return
-    if (aptDraft.serviceId && !services.some((s) => s.id === aptDraft.serviceId)) {
-      setAptDraft((d) => ({ ...d, serviceId: '', startTime: '' }))
+    const currentServiceId = aptDraft.serviceIds[0]
+    if (currentServiceId && !services.some((s) => s.id === currentServiceId)) {
+      setAptDraft((d) => ({ ...d, serviceIds: [], startTime: '' }))
     }
-  }, [services, aptDraft.serviceId, detailEditMode, viewingAppointment])
+  }, [services, aptDraft.serviceIds.join(','), detailEditMode, viewingAppointment])
 
   const createAppointmentFromSelection = useCallback(() => {
     if (!selection) return
@@ -245,7 +242,8 @@ export function useAdminAgendaAppointments({
         if (editingId) {
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
-            serviceId: aptDraft.serviceId,
+            serviceIds: aptDraft.serviceIds,
+            serviceId: aptDraft.serviceIds[0] || '',
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,
@@ -262,7 +260,7 @@ export function useAdminAgendaAppointments({
           const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
-              serviceId: aptDraft.serviceId,
+              serviceIds: aptDraft.serviceIds,
               date,
               startTime: aptDraft.startTime,
               customerFirstName: aptDraft.customerFirstName,
