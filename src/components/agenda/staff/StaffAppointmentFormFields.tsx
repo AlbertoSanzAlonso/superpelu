@@ -65,8 +65,7 @@ export function StaffAppointmentFormFields({
         return
       }
       next[index] = id
-      const cleaned = next.filter((s) => s !== '')
-      onDraftChange({ serviceIds: cleaned })
+      onDraftChange({ serviceIds: next })
     },
     [serviceIds, onDraftChange],
   )
@@ -77,8 +76,9 @@ export function StaffAppointmentFormFields({
 
   const removeService = useCallback(
     (index: number) => {
-      const next = serviceIds.filter((s) => s !== '').filter((_, i) => i !== index)
-      onDraftChange({ serviceIds: next, startTime: next.length === 0 ? '' : draft.startTime })
+      const next = serviceIds.filter((_, i) => i !== index)
+      const cleaned = next.filter((s) => s !== '')
+      onDraftChange({ serviceIds: cleaned, startTime: cleaned.length === 0 ? '' : draft.startTime })
     },
     [serviceIds, draft.startTime, onDraftChange],
   )

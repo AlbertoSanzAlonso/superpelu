@@ -115,11 +115,12 @@ export function useAdminAgendaAppointments({
   }, [activeStaffId, adminToken])
 
   useEffect(() => {
-    if (!activeStaffId || aptDraft.serviceIds.length === 0 || !date || !adminToken) {
+    const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
+    if (!activeStaffId || filteredIds.length === 0 || !date || !adminToken) {
       setSlots([])
       return
     }
-    fetchAdminMultiSlots(date, aptDraft.serviceIds, activeStaffId, adminToken, editingId ?? undefined)
+    fetchAdminMultiSlots(date, filteredIds, activeStaffId, adminToken, editingId ?? undefined)
       .then((r) => setSlots(r.slots))
       .catch(() => setSlots([]))
   }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
@@ -239,11 +240,12 @@ export function useAdminAgendaAppointments({
       if (!activeStaffId || !adminToken) return false
       setError('')
       try {
+        const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
         if (editingId) {
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
-            serviceIds: aptDraft.serviceIds,
-            serviceId: aptDraft.serviceIds[0] || '',
+            serviceIds: filteredServiceIds,
+            serviceId: filteredServiceIds[0] || '',
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,
@@ -260,7 +262,7 @@ export function useAdminAgendaAppointments({
           const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
-              serviceIds: aptDraft.serviceIds,
+              serviceIds: filteredServiceIds,
               date,
               startTime: aptDraft.startTime,
               customerFirstName: aptDraft.customerFirstName,
