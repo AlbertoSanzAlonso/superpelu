@@ -136,6 +136,7 @@ import {
 } from '@server/notifications/openwa.js'
 import { processDueReminders, startReminderScheduler } from '@server/notifications/reminders.js'
 import { logEmailStartup } from '@server/notifications/email.js'
+import { getStats } from '@server/stats/index.js'
 
 const app = new Hono()
 
@@ -875,6 +876,13 @@ app.get('/api/schedule/day', async (c) => {
   }
 
   return c.json({ date, schedules: await listStaffDaySchedules(date) })
+})
+
+app.get('/api/admin/stats', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const stats = await getStats()
+  return c.json(stats)
 })
 
 const adminScheduleErrors: Record<string, string> = {

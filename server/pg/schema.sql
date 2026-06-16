@@ -110,6 +110,7 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS color_group_role TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_group_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS series_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scope TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS origin TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_booking_group
   ON appointments (booking_group_id)

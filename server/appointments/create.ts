@@ -111,6 +111,8 @@ async function createRecurringStaffAppointment(
       const reminderSentAt =
         hoursUntilAppointment(day, input.startTime) <= 24 ? createdAt : null
 
+      const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
+
       if (usesColorSplit) {
         const colorGroup = await prepareColorBookingGroupIds(service.id)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
@@ -136,6 +138,7 @@ async function createRecurringStaffAppointment(
             locale,
             seriesId,
             scope,
+            origin,
           },
           tx,
         )
@@ -150,13 +153,13 @@ async function createRecurringStaffAppointment(
           id, staff_id, staff_name, service_id, service_name, duration_minutes,
           appointment_date, start_time,
           customer_name, customer_phone, customer_email, notes,
-          status, created_at, reminder_sent_at, locale, series_id, scope
+          status, created_at, reminder_sent_at, locale, series_id, scope, origin
         ) VALUES (
           ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
           ${day}, ${input.startTime},
           ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
           ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
-          ${seriesId}, ${scope}
+          ${seriesId}, ${scope}, ${origin}
         )
       `
       if (!firstId) firstId = id
@@ -320,6 +323,8 @@ export async function createAppointment(
   const reminderSentAt =
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
 
+  const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
+
   const colorGroup = await prepareColorBookingGroupIds(service.id)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
@@ -353,6 +358,7 @@ export async function createAppointment(
           createdAt,
           reminderSentAt,
           locale,
+          origin,
         },
         tx,
       )
@@ -366,13 +372,13 @@ export async function createAppointment(
         id, staff_id, staff_name, service_id, service_name, duration_minutes,
         appointment_date, start_time,
         customer_name, customer_phone, customer_email, notes,
-        status, created_at, reminder_sent_at, locale, series_id, scope
+        status, created_at, reminder_sent_at, locale, series_id, scope, origin
       ) VALUES (
         ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
         ${input.date}, ${input.startTime},
         ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
         ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
-        ${null}, ${null}
+        ${null}, ${null}, ${origin}
       )
     `
     return id

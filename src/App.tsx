@@ -10,6 +10,7 @@ import { SalonAppointmentsPage } from '@/pages/SalonAppointmentsPage'
 import { CustomersPage } from '@/pages/CustomersPage'
 import { ScheduleManagementPage } from '@/pages/ScheduleManagementPage'
 import { AdminServicesPage } from '@/pages/AdminServicesPage'
+import StatsPage from '@/pages/StatsPage'
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/agenda" element={<AdminAgendaPage />} />
         <Route path="/horarios" element={<ScheduleManagementPage />} />
         <Route path="/servicios" element={<AdminServicesPage />} />
+        <Route path="/stats" element={<StatsPage />} />
         <Route path="/clientes" element={<CustomersPage />} />
         <Route path="/clientes/citas" element={<SalonAppointmentsPage />} />
         <Route path="/clientes/:phone" element={<CustomerHistoryPage />} />

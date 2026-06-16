@@ -143,6 +143,9 @@ export function AdminAgendaControlBar({
       <Link to="/clientes/citas" className={navLinkClass}>
         Citas
       </Link>
+      <Link to="/stats" className={navLinkClass}>
+        Stats
+      </Link>
       <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-2 text-xs" onClick={onLogout}>
         Salir
       </Button>

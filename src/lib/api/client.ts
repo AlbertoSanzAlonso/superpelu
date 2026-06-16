@@ -656,3 +656,20 @@ export function deleteAdminServiceCategory(adminToken: string, id: string) {
     headers: adminHeaders(adminToken),
   })
 }
+
+export type StatsResponse = {
+  totalAppointments: number
+  appointmentsThisMonth: number
+  newCustomers: number
+  topServices: { id: string; name: string; count: number }[]
+  topStaff: { id: string; name: string; count: number }[]
+  appointmentsByDay: { date: string; count: number }[]
+  appointmentsByMonth: { month: string; count: number }[]
+  originDistribution: { origin: string; count: number; percentage: number }[]
+}
+
+export function fetchStats(adminToken: string) {
+  return request<StatsResponse>('/admin/stats', {
+    headers: adminHeaders(adminToken),
+  })
+}

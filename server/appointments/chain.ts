@@ -321,6 +321,7 @@ export async function createChainedBookingAppointment(
     }
 
     let firstId: string | null = null
+    const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
     for (let i = 0; i < services.length; i++) {
       const service = services[i]
@@ -357,6 +358,7 @@ export async function createChainedBookingAppointment(
             locale,
             bookingGroupId,
             skipWash,
+            origin,
           },
           tx,
         )
@@ -371,13 +373,13 @@ export async function createChainedBookingAppointment(
           id, staff_id, staff_name, service_id, service_name, duration_minutes,
           appointment_date, start_time,
           customer_name, customer_phone, customer_email, notes,
-          status, created_at, reminder_sent_at, locale, booking_group_id
+          status, created_at, reminder_sent_at, locale, booking_group_id, origin
         ) VALUES (
           ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
           ${input.date}, ${serviceStartTime},
           ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
           ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
-          ${bookingGroupId}
+          ${bookingGroupId}, ${origin}
         )
       `
       if (!firstId) firstId = id
