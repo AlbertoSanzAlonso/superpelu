@@ -24,11 +24,20 @@ import {
   type OccupiedSegment,
 } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking, type DbClient } from "@server/appointments/lock.js"
-import { getAppointmentById } from "@server/appointments/queries.js"
+import { getAppointmentById, getAppointmentsByBookingGroup } from "@server/appointments/queries.js"
 import { assertBookingAvailable } from "@server/appointments/booking.js"
 import { isValidDateString, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
 import type { UpdateAppointmentInput } from "@server/appointments/types.js"
+import { createAppointment } from "@server/appointments/create.js"
 export type { UpdateAppointmentInput } from "@server/appointments/types.js"
+
+function servicesDiffer(
+  existing: AppointmentRow,
+  serviceIds: string[],
+): boolean {
+  if (serviceIds.length !== 1) return true
+  return serviceIds[0] !== existing.service_id
+}
 
 export async function updateAppointmentForStaff(
   appointmentId: string,
@@ -46,15 +55,9 @@ export async function updateAppointmentForStaff(
   const targetStaffId = input.staffId ?? existing.staff_id ?? staffId
   if (!targetStaffId) throw new Error('CITA_NO_ENCONTRADA')
 
-  const serviceId = input.serviceId ?? existing.service_id
   const date = input.date ?? existing.appointment_date
   const startTime = input.startTime ?? existing.start_time
-  const service = await getService(serviceId, { onlineOnly: false })
-  if (!service) throw new Error('SERVICIO_INVALIDO')
-
-  if (!(await staffCanPerformService(targetStaffId, serviceId))) {
-    throw new Error('STAFF_NO_REALIZA_SERVICIO')
-  }
+  const serviceIds = input.serviceIds?.filter(Boolean) ?? []
 
   if (
     !isValidDateString(date) ||
@@ -62,6 +65,19 @@ export async function updateAppointmentForStaff(
     !(await isStaffWorkingOnDate(targetStaffId, date))
   ) {
     throw new Error('FECHA_INVALIDA')
+  }
+
+  // Multi-service or service change → delete old + create new
+  if (serviceIds.length > 1 || (serviceIds.length === 1 && servicesDiffer(existing, serviceIds))) {
+    return replaceAppointment(existing, targetStaffId, serviceIds, input)
+  }
+
+  const serviceId = input.serviceId ?? existing.service_id
+  const service = await getService(serviceId, { onlineOnly: false })
+  if (!service) throw new Error('SERVICIO_INVALIDO')
+
+  if (!(await staffCanPerformService(targetStaffId, serviceId))) {
+    throw new Error('STAFF_NO_REALIZA_SERVICIO')
   }
 
   const startMinutes = timeToMinutes(startTime)
@@ -245,6 +261,66 @@ export async function updateAppointmentForStaff(
     void notifyAdminAppointmentUpdated(existing, updated)
   }
   return updated
+}
+
+async function replaceAppointment(
+  existing: AppointmentRow,
+  targetStaffId: string,
+  serviceIds: string[],
+  input: UpdateAppointmentInput,
+): Promise<AppointmentRow> {
+  const date = input.date ?? existing.appointment_date
+  const startTime = input.startTime ?? existing.start_time
+  const staff = await getStaff(targetStaffId)
+  if (!staff?.active) throw new Error('STAFF_INVALIDO')
+
+  for (const serviceId of serviceIds) {
+    if (!(await staffCanPerformService(targetStaffId, serviceId))) {
+      throw new Error('STAFF_NO_REALIZA_SERVICIO')
+    }
+  }
+
+  const split = resolveCustomerFromInput({
+    firstName: input.customerFirstName,
+    lastName: input.customerLastName,
+    customerName: input.customerName ?? existing.customer_name,
+    phone: input.customerPhone ?? existing.customer_phone,
+  })
+
+  const created = await createAppointment({
+    staffId: targetStaffId,
+    serviceIds,
+    serviceStartTimes: input.serviceStartTimes?.length === serviceIds.length
+      ? input.serviceStartTimes
+      : undefined,
+    date,
+    startTime,
+    customerFirstName: split.firstName,
+    customerLastName: split.lastName,
+    customerPhone: split.phone,
+    customerEmail:
+      input.customerEmail !== undefined ? (input.customerEmail ?? undefined) : (existing.customer_email ?? undefined),
+    customerNotes:
+      input.customerNotes !== undefined ? (input.customerNotes ?? undefined) : undefined,
+    notes: input.notes !== undefined ? (input.notes ?? undefined) : (existing.notes ?? undefined),
+    customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
+    forStaffPortal: true,
+  })
+
+  // Delete old appointment(s) silently
+  if (existing.booking_group_id) {
+    const group = await getAppointmentsByBookingGroup(existing.booking_group_id)
+    const ids = group.map((r) => r.id)
+    if (ids.length > 0) {
+      await sql`DELETE FROM appointments WHERE id = ANY(${ids}::uuid[])`
+    }
+  } else if (existing.color_group_id) {
+    await sql`DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}`
+  } else {
+    await sql`DELETE FROM appointments WHERE id = ${existing.id}`
+  }
+
+  return created
 }
 
 export async function updateAppointmentForAdmin(

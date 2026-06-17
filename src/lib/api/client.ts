@@ -248,6 +248,8 @@ export type AdminAppointmentPayload = {
   staffId: string
   serviceIds: string[]
   serviceId?: string
+  /** Hora de inicio individual por tratamiento (misma longitud que serviceIds); si falta, se encadenan desde startTime. */
+  serviceStartTimes?: string[]
   date: string
   startTime: string
   customerFirstName: string

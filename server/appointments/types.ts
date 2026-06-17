@@ -32,6 +32,10 @@ export type CreateAppointmentInput = {
 
 export type UpdateAppointmentInput = {
   serviceId?: string
+  /** Varios tratamientos; si tiene más de uno, se reemplaza la cita entera. */
+  serviceIds?: string[]
+  /** Hora de inicio por tratamiento (misma longitud que serviceIds). */
+  serviceStartTimes?: string[]
   staffId?: string
   date?: string
   startTime?: string

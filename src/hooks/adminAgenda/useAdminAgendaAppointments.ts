@@ -211,6 +211,9 @@ export function useAdminAgendaAppointments({
               locale: detail.customer.locale,
             }),
             notes: prev.notes,
+            serviceIds: prev.serviceIds,
+            serviceStartTimes: prev.serviceStartTimes,
+            startTime: prev.startTime,
           }))
         })
         .catch(() => {
@@ -255,16 +258,27 @@ export function useAdminAgendaAppointments({
     openNewAppointment(selection.staffId, selection.staffName, startTime)
   }, [selection, schedules, date, openNewAppointment])
 
+  function buildServiceStartTimes(): string[] | undefined {
+    const { serviceIds, serviceStartTimes } = aptDraft
+    const filtered = serviceIds.filter((s) => s !== '')
+    if (serviceStartTimes.length === filtered.length && serviceStartTimes.some((t) => t !== '')) {
+      return serviceStartTimes
+    }
+    return undefined
+  }
+
   const persistAppointment = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
       setError('')
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
+        const serviceStartTimes = buildServiceStartTimes()
         if (editingId) {
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
             serviceIds: filteredServiceIds,
+            serviceStartTimes,
             serviceId: filteredServiceIds[0] || '',
             date,
             startTime: aptDraft.startTime,
@@ -287,6 +301,7 @@ export function useAdminAgendaAppointments({
               {
                 staffId: activeStaffId,
                 serviceIds: filteredServiceIds,
+                serviceStartTimes,
                 date,
                 startTime: aptDraft.startTime,
                 customerFirstName: aptDraft.customerFirstName,
@@ -313,6 +328,7 @@ export function useAdminAgendaAppointments({
             {
               staffId: activeStaffId,
               serviceIds: filteredServiceIds,
+              serviceStartTimes,
               date,
               startTime: aptDraft.startTime,
               customerFirstName: aptDraft.customerFirstName,

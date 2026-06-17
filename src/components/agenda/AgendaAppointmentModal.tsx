@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { AppointmentClientPanelEdit } from '@/components/agenda/AppointmentClientPanelEdit'
 import { AppointmentClientPanelView } from '@/components/agenda/AppointmentClientPanelView'
 import { AppointmentServiceBlocks } from '@/components/agenda/AppointmentServiceBlocks'
@@ -112,6 +112,57 @@ export function AgendaAppointmentModal({
   const selectCn =
     'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
   const showReviewRequest = showCustomerHistory
+
+  const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
+  const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
+
+  const setServiceAtIndex = useCallback(
+    (index: number, id: string) => {
+      const next = [...serviceIds]
+      if (index === 0 && id === '') {
+        const hadService = serviceIds[0] !== ''
+        if (hadService) {
+          onDraftChange({ serviceIds: [], serviceStartTimes: [], startTime: '' })
+        }
+        return
+      }
+      next[index] = id
+      onDraftChange({
+        serviceIds: next,
+        serviceStartTimes: draft.serviceStartTimes.length === next.length ? draft.serviceStartTimes : [],
+      })
+    },
+    [serviceIds, draft.serviceStartTimes, onDraftChange],
+  )
+
+  const setServiceStartTime = useCallback(
+    (index: number, time: string) => {
+      const times = [...(draft.serviceStartTimes.length === draft.serviceIds.length ? draft.serviceStartTimes : [])]
+      times[index] = time
+      onDraftChange({ serviceStartTimes: times })
+    },
+    [draft.serviceStartTimes, draft.serviceIds.length, onDraftChange],
+  )
+
+  const addService = useCallback(() => {
+    onDraftChange({ serviceIds: [...serviceIds.filter((s) => s !== ''), ''] })
+  }, [serviceIds, onDraftChange])
+
+  const removeService = useCallback(
+    (index: number) => {
+      const next = serviceIds.filter((_, i) => i !== index)
+      const cleaned = next.filter((s) => s !== '')
+      const times = draft.serviceStartTimes.length === serviceIds.length
+        ? draft.serviceStartTimes.filter((_, i) => i !== index)
+        : []
+      onDraftChange({
+        serviceIds: cleaned,
+        serviceStartTimes: times,
+        startTime: cleaned.length === 0 ? '' : draft.startTime,
+      })
+    },
+    [serviceIds, draft, onDraftChange],
+  )
 
   return (
     <div
@@ -233,25 +284,77 @@ export function AgendaAppointmentModal({
                       </select>
                     </div>
                   )}
-                  <ServiceCategoryPicker
-                    compact
-                    variant="staff"
-                    services={services}
-                    serviceId={draft.serviceIds[0] ?? ''}
-                    loading={services.length === 0}
-                    onServiceChange={(id) => onDraftChange({ serviceIds: id ? [id] : [], startTime: '' })}
-                  />
+
+                  {serviceIds.map((serviceId, index) => (
+                    <div key={index} className="relative space-y-2 rounded border border-gold/15 p-3">
+                      {index > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => removeService(index)}
+                          className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+                          aria-label="Quitar tratamiento"
+                        >
+                          ×
+                        </button>
+                      )}
+                      <ServiceCategoryPicker
+                        compact
+                        variant="staff"
+                        services={services}
+                        serviceId={serviceId}
+                        loading={services.length === 0}
+                        onServiceChange={(id) => setServiceAtIndex(index, id)}
+                      />
+                      {serviceId && (
+                        <div>
+                          <label className={`${typography.label} mb-0.5 block text-xs`}>
+                            Hora de inicio
+                          </label>
+                          <select
+                            value={draft.serviceStartTimes[index] ?? ''}
+                            onChange={(e) => setServiceStartTime(index, e.target.value)}
+                            className={selectCn}
+                          >
+                            <option value="">
+                              {draft.startTime ? 'Automática (encadenada)' : 'Elige hora primero'}
+                            </option>
+                            {timeOptions.map((slot) => (
+                              <option key={slot} value={slot}>
+                                {slot}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={addService}
+                    className="flex w-full items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
+                  >
+                    <span className="text-sm leading-none">+</span> Añadir tratamiento
+                  </button>
+
                   <div>
-                    <label className={`${typography.label} mb-0.5 block text-xs`}>Hora</label>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>
+                      Hora de la cita
+                    </label>
                     <select
                       required
                       value={draft.startTime}
-                      onChange={(e) => onDraftChange({ startTime: e.target.value })}
+                      onChange={(e) => {
+                        onDraftChange({
+                          startTime: e.target.value,
+                          serviceStartTimes: [],
+                        })
+                      }}
                       className={selectCn}
-                      disabled={!draft.serviceIds[0]}
+                      disabled={!hasServices}
                     >
                       <option value="">
-                        {draft.serviceIds[0] ? 'Elige hora' : 'Tratamiento primero'}
+                        {hasServices ? 'Elige hora' : 'Tratamiento primero'}
                       </option>
                       {timeOptions.map((slot) => (
                         <option key={slot} value={slot}>

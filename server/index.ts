@@ -1005,6 +1005,7 @@ app.post('/api/schedule/appointments', async (c) => {
     staffId: string
     serviceIds?: string[]
     serviceId?: string
+    serviceStartTimes?: string[]
     date: string
     startTime: string
     customerName?: string
@@ -1042,6 +1043,7 @@ app.post('/api/schedule/appointments', async (c) => {
     const row = await createAppointment({
       staffId: body.staffId,
       serviceIds: ids,
+      serviceStartTimes: body.serviceStartTimes,
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,
@@ -1081,6 +1083,8 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
   const body = await c.req.json<{
     staffId?: string
     serviceId?: string
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
     date?: string
     startTime?: string
     customerName?: string

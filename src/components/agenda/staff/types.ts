@@ -5,6 +5,8 @@ import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 
 export type AppointmentDraft = {
   serviceIds: string[]
+  /** Hora de inicio individual por tratamiento (misma longitud que serviceIds); si vacío, se encadenan desde startTime. */
+  serviceStartTimes: string[]
   startTime: string
   customerFirstName: string
   customerLastName: string
@@ -22,6 +24,7 @@ export type AppointmentDraft = {
 
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   serviceIds: [],
+  serviceStartTimes: [],
   startTime: '',
   customerFirstName: '',
   customerLastName: '',
@@ -45,6 +48,7 @@ export function appointmentToDraft(
   const { firstName, lastName } = splitCustomerName(apt.customerName)
   return {
     serviceIds: [apt.serviceId],
+    serviceStartTimes: [],
     startTime: apt.startTime,
     customerFirstName: firstName,
     customerLastName: lastName,
