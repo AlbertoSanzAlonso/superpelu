@@ -54,7 +54,7 @@ export function StaffAppointmentFormModal({
       onClick={onClose}
     >
       <div
-        className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream sm:h-auto sm:max-h-none sm:max-w-2xl sm:overflow-visible sm:border sm:border-gold/30 sm:shadow-lg"
+        className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream sm:h-auto sm:max-h-none sm:max-w-5xl sm:overflow-visible sm:border sm:border-gold/30 sm:shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gold/15 px-4 py-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-5 sm:py-3 sm:pt-3">

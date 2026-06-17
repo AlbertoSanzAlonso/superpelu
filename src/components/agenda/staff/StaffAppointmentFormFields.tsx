@@ -13,6 +13,8 @@ const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
   '[&_label>span:first-child]:mb-1 [&_label>span:first-child]:text-xs [&_input]:py-2 [&_textarea]:min-h-0 [&_textarea]:py-2'
 
+const DURATION_OPTIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 5)
+
 type Props = {
   editingId: string | null
   date: string
@@ -108,56 +110,93 @@ export function StaffAppointmentFormFields({
     [draft.serviceDurations, draft.serviceIds.length, onDraftChange],
   )
 
-  return (
-    <form
-      onSubmit={onSubmit}
-      className={compact ? `space-y-3 ${formCompactClass}` : 'space-y-4'}
-    >
-      {hint && !compact && <p className={typography.caption}>{hint}</p>}
+  const moveService = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      const newIds = [...serviceIds.filter((s) => s !== '')]
+      const newDurations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      const [movedId] = newIds.splice(fromIndex, 1)
+      const [movedDuration] = newDurations.splice(fromIndex, 1)
+      newIds.splice(toIndex, 0, movedId)
+      newDurations.splice(toIndex, 0, movedDuration)
+      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations })
+    },
+    [serviceIds, draft.serviceDurations, onDraftChange],
+  )
 
-      {serviceIds.map((serviceId, index) => (
-        <div key={index} className="relative space-y-2 rounded border border-gold/15 p-3">
-          {index > 0 && (
-            <button
-              type="button"
-              onClick={() => removeService(index)}
-              className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
-              aria-label="Quitar tratamiento"
-            >
-              ×
-            </button>
-          )}
-          <ServiceCategoryPicker
-            compact={compact}
-            variant="staff"
-            services={services}
-            serviceId={serviceId}
-            loading={services.length === 0}
-            onServiceChange={(id) => setServiceAtIndex(index, id)}
-          />
-          {serviceId && (
-            <div>
-              <label className={`${compact ? 'text-xs' : 'text-sm'} mb-0.5 block font-medium text-charcoal-muted`}>
-                Duración (minutos)
-              </label>
-              <input
-                type="number"
-                min="5"
-                max="480"
-                step="5"
-                value={draft.serviceDurations[index] ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value
-                  setServiceDuration(index, val === '' ? null : parseInt(val, 10))
-                }}
-                className="w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50"
-                placeholder="Automática"
-              />
+  const servicesSection = (
+    <div className="space-y-2">
+      <p className={`${typography.label} text-gold`}>Tratamientos</p>
+      {serviceIds.map((serviceId, index) => {
+        const filledIds = serviceIds.filter((s) => s !== '')
+        const isFirst = filledIds.length > 0 && serviceId === filledIds[0]
+        const isLast = filledIds.length > 0 && serviceId === filledIds[filledIds.length - 1]
+
+        return (
+          <div key={index} className="relative rounded border border-gold/15 p-3">
+            <div className="flex items-start gap-2">
+              <div className="flex shrink-0 flex-col gap-0.5 pt-1">
+                <button
+                  type="button"
+                  disabled={isFirst || !serviceId}
+                  onClick={() => moveService(filledIds.indexOf(serviceId), filledIds.indexOf(serviceId) - 1)}
+                  className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  aria-label="Subir tratamiento"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={isLast || !serviceId}
+                  onClick={() => moveService(filledIds.indexOf(serviceId), filledIds.indexOf(serviceId) + 1)}
+                  className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  aria-label="Bajar tratamiento"
+                >
+                  ▼
+                </button>
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                {index > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => removeService(index)}
+                    className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+                    aria-label="Quitar tratamiento"
+                  >
+                    ×
+                  </button>
+                )}
+                <ServiceCategoryPicker
+                  compact={compact}
+                  variant="staff"
+                  services={services}
+                  serviceId={serviceId}
+                  loading={services.length === 0}
+                  onServiceChange={(id) => setServiceAtIndex(index, id)}
+                />
+                {serviceId && (
+                  <div>
+                    <select
+                      value={draft.serviceDurations[index] ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value
+                        setServiceDuration(index, val === '' ? null : parseInt(val, 10))
+                      }}
+                      className={selectCn}
+                    >
+                      <option value="">Automática</option>
+                      {DURATION_OPTIONS.map((m) => (
+                        <option key={m} value={m}>
+                          {m} min
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-      ))}
-
+          </div>
+        )
+      })}
       <button
         type="button"
         onClick={addService}
@@ -165,7 +204,11 @@ export function StaffAppointmentFormFields({
       >
         <span className="text-sm leading-none">+</span> Añadir tratamiento
       </button>
+    </div>
+  )
 
+  const infoSection = (
+    <div className={compact ? `space-y-3 ${formCompactClass}` : 'space-y-4'}>
       {compact ? (
         <div>
           <label className={timeLabelCn}>Hora</label>
@@ -271,6 +314,24 @@ export function StaffAppointmentFormFields({
           {editingId ? 'Descartar' : 'Cerrar'}
         </Button>
       </div>
+    </div>
+  )
+
+  return (
+    <form onSubmit={onSubmit}>
+      {compact ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_1fr]">
+          {servicesSection}
+          {infoSection}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {hint && <p className={typography.caption}>{hint}</p>}
+          {servicesSection}
+          <hr className="border-gold/15" />
+          {infoSection}
+        </div>
+      )}
     </form>
   )
 }
