@@ -10,6 +10,8 @@ export type CreateAppointmentInput = {
   staffAssignments?: string[]
   /** Horas de inicio por tratamiento (misma longitud que serviceIds); si falta, se encadenan. */
   serviceStartTimes?: string[]
+  /** Duración personalizada por tratamiento (minutos). Si no se envía, se usa la del catálogo. */
+  serviceDurations?: (number | null)[]
   date: string
   startTime: string
   customerName?: string
@@ -36,6 +38,8 @@ export type UpdateAppointmentInput = {
   serviceIds?: string[]
   /** Hora de inicio por tratamiento (misma longitud que serviceIds). */
   serviceStartTimes?: string[]
+  /** Duración personalizada por tratamiento (minutos). Si no se envía, se usa la del catálogo. */
+  serviceDurations?: (number | null)[]
   staffId?: string
   date?: string
   startTime?: string

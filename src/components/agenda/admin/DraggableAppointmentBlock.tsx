@@ -31,6 +31,7 @@ type Props = {
   dragEnabled: boolean
   previewOnly?: boolean
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
+  onResizeEnd?: (appointmentId: string, newDuration: number, newStartTime?: string) => void
 }
 
 function appointmentVisualBounds(
@@ -67,8 +68,9 @@ export function DraggableAppointmentBlock({
   dragEnabled,
   previewOnly = false,
   columnTopFromClientY,
+  onResizeEnd,
 }: Props) {
-  const { activeDrag, startDrag } = useAppointmentDrag()
+  const { activeDrag, startDrag, startResize } = useAppointmentDrag()
   const isDraggingThis = activeDrag?.appointment.id === apt.id
 
   const isPendingSource =
@@ -115,6 +117,25 @@ export function DraggableAppointmentBlock({
     [dragEnabled, activeDrag, columnTopFromClientY, staffId, startDrag, apt, bounds.height],
   )
 
+  const handleResizePointerDown = useCallback(
+    (edge: 'top' | 'bottom', e: React.PointerEvent, blockTop: number) => {
+      if (!dragEnabled || e.button !== 0 || activeDrag) return
+      e.preventDefault()
+      e.stopPropagation()
+      startResize({
+        appointment: apt,
+        fromStaffId: staffId,
+        pointerId: e.pointerId,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        grabOffsetY: e.clientY - blockTop,
+        height: bounds.height,
+        resizeEdge: edge,
+      })
+    },
+    [dragEnabled, activeDrag, startResize, apt, bounds.height, staffId],
+  )
+
   const renderBlock = (
     key: string,
     top: number,
@@ -134,6 +155,22 @@ export function DraggableAppointmentBlock({
       }
       {...pointerHandlers}
     >
+      {/* Resize handle - top edge */}
+      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
+        <div
+          className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize hover:bg-gold/30"
+          onPointerDown={(e) => handleResizePointerDown('top', e, top)}
+        />
+      )}
+      
+      {/* Resize handle - bottom edge */}
+      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
+        <div
+          className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize hover:bg-gold/30"
+          onPointerDown={(e) => handleResizePointerDown('bottom', e, top)}
+        />
+      )}
+      
       <span className="flex items-center gap-1 font-medium">
         {isColorGroupWashRow(apt.colorGroupRole) && (
           <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />

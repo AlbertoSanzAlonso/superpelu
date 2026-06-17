@@ -7,6 +7,8 @@ export type AppointmentDraft = {
   serviceIds: string[]
   /** Hora de inicio individual por tratamiento (misma longitud que serviceIds); si vacío, se encadenan desde startTime. */
   serviceStartTimes: string[]
+  /** Duración personalizada por tratamiento (minutos). Si es null/undefined, se usa la del catálogo. */
+  serviceDurations: (number | null)[]
   startTime: string
   customerFirstName: string
   customerLastName: string
@@ -25,6 +27,7 @@ export type AppointmentDraft = {
 export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   serviceIds: [],
   serviceStartTimes: [],
+  serviceDurations: [],
   startTime: '',
   customerFirstName: '',
   customerLastName: '',
@@ -49,6 +52,7 @@ export function appointmentToDraft(
   return {
     serviceIds: [apt.serviceId],
     serviceStartTimes: [],
+    serviceDurations: [apt.durationMinutes],
     startTime: apt.startTime,
     customerFirstName: firstName,
     customerLastName: lastName,

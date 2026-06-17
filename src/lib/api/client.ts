@@ -250,6 +250,8 @@ export type AdminAppointmentPayload = {
   serviceId?: string
   /** Hora de inicio individual por tratamiento (misma longitud que serviceIds); si falta, se encadenan desde startTime. */
   serviceStartTimes?: string[]
+  /** Duración personalizada por tratamiento (minutos). Si no se envía, se usa la del catálogo. */
+  serviceDurations?: (number | null)[]
   date: string
   startTime: string
   customerFirstName: string

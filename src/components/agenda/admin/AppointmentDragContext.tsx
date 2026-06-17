@@ -28,6 +28,8 @@ import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 const DRAG_THRESHOLD_PX = 5
 
+export type ResizeEdge = 'top' | 'bottom'
+
 export type ActiveAppointmentDrag = {
   appointment: DayScheduleAppointment
   fromStaffId: string
@@ -40,6 +42,12 @@ export type ActiveAppointmentDrag = {
   snappedStartTime: string
   snappedTopPx: number
   height: number
+  /** Si es un resize, qué borde se está arrastrando */
+  resizeEdge?: ResizeEdge
+  /** Duración original antes del resize */
+  originalDuration?: number
+  /** Nueva duración calculada durante el resize */
+  newDuration?: number
 }
 
 type DragStartInput = {
@@ -50,6 +58,7 @@ type DragStartInput = {
   clientY: number
   grabOffsetY: number
   height: number
+  resizeEdge?: ResizeEdge
 }
 
 type ContextValue = {
@@ -57,6 +66,7 @@ type ContextValue = {
   /** Desde pointerdown en una cita hasta soltar o cancelar el arrastre. */
   isDragSessionActive: boolean
   startDrag: (input: DragStartInput) => void
+  startResize: (input: DragStartInput) => void
 }
 
 const AppointmentDragContext = createContext<ContextValue | null>(null)
@@ -100,6 +110,7 @@ export function AppointmentDragProvider({
     appointment: DayScheduleAppointment
     grabOffsetY: number
     height: number
+    resizeEdge?: ResizeEdge
   } | null>(null)
   const rafRef = useRef<number | null>(null)
   const pendingFrameRef = useRef<ActiveAppointmentDrag | null>(null)
@@ -138,12 +149,40 @@ export function AppointmentDragProvider({
 
       let snappedTopPx = 0
       let snappedStartTime = session.appointment.startTime
+      let newDuration = session.appointment.durationMinutes
 
       const yInGrid = pointerYInStaffGrid(clientY, targetStaffId, columns, gridHeightPx)
       if (yInGrid !== null) {
-        const smoothTop = Math.max(0, Math.min(gridHeightPx - height, yInGrid - session.grabOffsetY))
-        snappedStartTime = snapStartTimeFromTop(smoothTop, range)
-        snappedTopPx = eventTopPx(snappedStartTime, range)
+        if (session.resizeEdge) {
+          // Resize mode: calculate new duration
+          const smoothTop = Math.max(0, Math.min(gridHeightPx, yInGrid))
+          const originalTop = eventTopPx(session.appointment.startTime, range)
+          
+          if (session.resizeEdge === 'bottom') {
+            // Resizing from bottom: duration = new bottom - top
+            const newDurationMinutes = Math.round((smoothTop - originalTop) / CALENDAR_SLOT_HEIGHT_PX * range.slotMinutes / 5) * 5
+            newDuration = Math.max(5, newDurationMinutes)
+            snappedTopPx = originalTop
+            snappedStartTime = session.appointment.startTime
+          } else {
+            // Resizing from top: duration = original bottom - new top
+            const originalBottom = originalTop + height
+            const newDurationMinutes = Math.round((originalBottom - smoothTop) / CALENDAR_SLOT_HEIGHT_PX * range.slotMinutes / 5) * 5
+            newDuration = Math.max(5, newDurationMinutes)
+            snappedTopPx = smoothTop
+            // Calculate new start time based on new top position
+            const slotIndex = Math.max(
+              0,
+              Math.min(range.slotCount - 1, Math.round(smoothTop / CALENDAR_SLOT_HEIGHT_PX))
+            )
+            snappedStartTime = minutesToTime(range.startMinutes + slotIndex * range.slotMinutes)
+          }
+        } else {
+          // Drag mode: move appointment
+          const smoothTop = Math.max(0, Math.min(gridHeightPx - height, yInGrid - session.grabOffsetY))
+          snappedStartTime = snapStartTimeFromTop(smoothTop, range)
+          snappedTopPx = eventTopPx(snappedStartTime, range)
+        }
       }
 
       return {
@@ -158,6 +197,9 @@ export function AppointmentDragProvider({
         snappedStartTime,
         snappedTopPx,
         height,
+        resizeEdge: session.resizeEdge,
+        originalDuration: session.appointment.durationMinutes,
+        newDuration,
       }
     },
     [columnRefs, range, staffName],
@@ -276,8 +318,92 @@ export function AppointmentDragProvider({
     ],
   )
 
+  const startResize = useCallback(
+    (input: DragStartInput) => {
+      if (!dragEnabled) return
+
+      dragSessionRef.current = {
+        pointerId: input.pointerId,
+        startX: input.clientX,
+        startY: input.clientY,
+        moved: false,
+        fromStaffId: input.fromStaffId,
+        appointment: input.appointment,
+        grabOffsetY: input.grabOffsetY,
+        height: input.height,
+      }
+      dragSessionRef.current.resizeEdge = input.resizeEdge
+      setIsDragSessionActive(true)
+
+      const onPointerMove = (e: PointerEvent) => {
+        const session = dragSessionRef.current
+        if (!session || e.pointerId !== session.pointerId) return
+
+        const dx = e.clientX - session.startX
+        const dy = e.clientY - session.startY
+        if (!session.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) return
+
+        if (!session.moved) {
+          session.moved = true
+          window.getSelection()?.removeAllRanges()
+        }
+        e.preventDefault()
+        scheduleDragUpdate(computeDrag(e.clientX, e.clientY, session))
+      }
+
+      const onPointerUp = (e: PointerEvent) => {
+        const session = dragSessionRef.current
+        if (!session || e.pointerId !== session.pointerId) return
+
+        window.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointerup', onPointerUp)
+        window.removeEventListener('pointercancel', onPointerCancel)
+
+        if (!session.moved) {
+          endDragSession()
+          return
+        }
+
+        const final =
+          activeDragRef.current ??
+          computeDrag(e.clientX, e.clientY, session)
+
+        endDragSession()
+
+        // Emit resize end with new duration
+        if (final.newDuration && final.newDuration !== final.originalDuration) {
+          onDragEnd({
+            appointment: session.appointment,
+            fromStaffId: session.fromStaffId,
+            toStaffId: final.targetStaffId,
+            toStartTime: final.snappedStartTime,
+          })
+        }
+      }
+
+      const onPointerCancel = (e: PointerEvent) => {
+        if (dragSessionRef.current?.pointerId !== e.pointerId) return
+        window.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointerup', onPointerUp)
+        window.removeEventListener('pointercancel', onPointerCancel)
+        endDragSession()
+      }
+
+      window.addEventListener('pointermove', onPointerMove)
+      window.addEventListener('pointerup', onPointerUp)
+      window.addEventListener('pointercancel', onPointerCancel)
+    },
+    [
+      dragEnabled,
+      computeDrag,
+      scheduleDragUpdate,
+      endDragSession,
+      onDragEnd,
+    ],
+  )
+
   return (
-    <AppointmentDragContext.Provider value={{ activeDrag, isDragSessionActive, startDrag }}>
+    <AppointmentDragContext.Provider value={{ activeDrag, isDragSessionActive, startDrag, startResize }}>
       {children}
       {activeDrag && (
         <AppointmentDragOverlay
@@ -351,6 +477,11 @@ function AppointmentDragOverlay({
           colorGroupRole: apt.colorGroupRole,
         })}
       </span>
+      {activeDrag.resizeEdge && activeDrag.newDuration && (
+        <span className="mt-0.5 block text-[10px] font-medium text-gold">
+          {activeDrag.newDuration} min
+        </span>
+      )}
     </div>
   )
 }

@@ -122,17 +122,23 @@ export function AgendaAppointmentModal({
       if (index === 0 && id === '') {
         const hadService = serviceIds[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], serviceStartTimes: [], startTime: '' })
+          onDraftChange({ serviceIds: [], serviceStartTimes: [], serviceDurations: [], startTime: '' })
         }
         return
       }
       next[index] = id
+      const selectedService = services.find(s => s.id === id)
+      const newDurations = [...(draft.serviceDurations.length === next.length ? draft.serviceDurations : [])]
+      if (selectedService) {
+        newDurations[index] = selectedService.durationMinutes
+      }
       onDraftChange({
         serviceIds: next,
         serviceStartTimes: draft.serviceStartTimes.length === next.length ? draft.serviceStartTimes : [],
+        serviceDurations: newDurations,
       })
     },
-    [serviceIds, draft.serviceStartTimes, onDraftChange],
+    [serviceIds, draft.serviceStartTimes, draft.serviceDurations, services, onDraftChange],
   )
 
   const setServiceStartTime = useCallback(
@@ -142,6 +148,15 @@ export function AgendaAppointmentModal({
       onDraftChange({ serviceStartTimes: times })
     },
     [draft.serviceStartTimes, draft.serviceIds.length, onDraftChange],
+  )
+
+  const setServiceDuration = useCallback(
+    (index: number, duration: number | null) => {
+      const durations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      durations[index] = duration
+      onDraftChange({ serviceDurations: durations })
+    },
+    [draft.serviceDurations, draft.serviceIds.length, onDraftChange],
   )
 
   const addService = useCallback(() => {
@@ -155,9 +170,13 @@ export function AgendaAppointmentModal({
       const times = draft.serviceStartTimes.length === serviceIds.length
         ? draft.serviceStartTimes.filter((_, i) => i !== index)
         : []
+      const durations = draft.serviceDurations.length === serviceIds.length
+        ? draft.serviceDurations.filter((_, i) => i !== index)
+        : []
       onDraftChange({
         serviceIds: cleaned,
         serviceStartTimes: times,
+        serviceDurations: durations,
         startTime: cleaned.length === 0 ? '' : draft.startTime,
       })
     },
@@ -324,6 +343,26 @@ export function AgendaAppointmentModal({
                               </option>
                             ))}
                           </select>
+                        </div>
+                      )}
+                      {serviceId && (
+                        <div>
+                          <label className={`${typography.label} mb-0.5 block text-xs`}>
+                            Duración (minutos)
+                          </label>
+                          <input
+                            type="number"
+                            min="5"
+                            max="480"
+                            step="5"
+                            value={draft.serviceDurations[index] ?? ''}
+                            onChange={(e) => {
+                              const val = e.target.value
+                              setServiceDuration(index, val === '' ? null : parseInt(val, 10))
+                            }}
+                            className={selectCn}
+                            placeholder="Automática"
+                          />
                         </div>
                       )}
                     </div>

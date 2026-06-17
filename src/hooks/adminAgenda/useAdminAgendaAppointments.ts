@@ -279,6 +279,7 @@ export function useAdminAgendaAppointments({
             staffId: activeStaffId,
             serviceIds: filteredServiceIds,
             serviceStartTimes,
+            serviceDurations: aptDraft.serviceDurations,
             serviceId: filteredServiceIds[0] || '',
             date,
             startTime: aptDraft.startTime,

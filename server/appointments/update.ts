@@ -82,12 +82,18 @@ export async function updateAppointmentForStaff(
 
   const startMinutes = timeToMinutes(startTime)
   let segments: OccupiedSegment[]
+  
+  // Usar duración personalizada si se proporciona
+  const customDuration = input.serviceDurations?.[0] ?? null
+  const useCustomDuration = customDuration != null && customDuration > 0
+  
   if (isColorGroupWashRow(existing.color_group_role)) {
     segments = [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   } else if (isColorGroupColorRow(existing.color_group_role)) {
     segments = [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   } else {
-    segments = getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
+    const durationForSegments = useCustomDuration ? customDuration : service.durationMinutes
+    segments = getOccupiedSegmentsForBooking(service.id, startMinutes, durationForSegments)
   }
   const scheduleChanging =
     date !== existing.appointment_date ||
@@ -99,7 +105,9 @@ export async function updateAppointmentForStaff(
     ? COLOR_SPLIT_SEGMENT_MINUTES
     : isColorGroupColorRow(existing.color_group_role)
       ? COLOR_SPLIT_SEGMENT_MINUTES
-      : getBookingSpanMinutes(service.id, service.durationMinutes)
+      : useCustomDuration
+        ? customDuration
+        : getBookingSpanMinutes(service.id, service.durationMinutes)
 
   const hasCustomerPatch =
     input.customerName !== undefined ||
