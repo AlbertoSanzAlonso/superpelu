@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
-import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
+import {
+  customersWorkspaceLinkClass,
+} from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchStats, type StatsResponse } from '@/lib/api/admin'
 
 const MONTH_LABELS: Record<string, string> = {
@@ -68,15 +70,48 @@ export default function StatsPage() {
 
   return (
     <AgendaWorkspaceShell>
-      <div className="relative border-b border-gold/15">
-        <div className="pointer-events-none absolute inset-0 bg-cream/55 backdrop-blur-[2px]" aria-hidden />
-        <div className="relative flex items-center gap-3 px-3 py-2">
-          <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={() => navigate('/agenda')}>
+      <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
+        <div className="flex min-w-0 items-center gap-2">
+          <a
+            href="/agenda"
+            className={customersWorkspaceLinkClass}
+            onClick={(e) => { e.preventDefault(); navigate('/agenda') }}
+          >
             ← Agenda
-          </Button>
-          <h1 className={`${typography.h3} flex-1`}>Estadísticas</h1>
+          </a>
+          <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Estadísticas</h1>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <a
+              href="/servicios"
+              className={customersWorkspaceLinkClass}
+              onClick={(e) => { e.preventDefault(); navigate('/servicios') }}
+            >
+              Servicios
+            </a>
+            <a
+              href="/personal"
+              className={customersWorkspaceLinkClass}
+              onClick={(e) => { e.preventDefault(); navigate('/personal') }}
+            >
+              Personal
+            </a>
+            <a
+              href="/horarios"
+              className={customersWorkspaceLinkClass}
+              onClick={(e) => { e.preventDefault(); navigate('/horarios') }}
+            >
+              Horarios
+            </a>
+            <a
+              href="/clientes"
+              className={customersWorkspaceLinkClass}
+              onClick={(e) => { e.preventDefault(); navigate('/clientes') }}
+            >
+              Clientes
+            </a>
+          </div>
         </div>
-      </div>
+      </header>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 md:px-6">
         {error && (

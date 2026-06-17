@@ -204,11 +204,14 @@ export function AdminServicesPage() {
           </Link>
           <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Servicios</h1>
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Link to="/clientes" className={customersWorkspaceLinkClass}>
-              Clientes
+            <Link to="/personal" className={customersWorkspaceLinkClass}>
+              Personal
             </Link>
             <Link to="/horarios" className={customersWorkspaceLinkClass}>
               Horarios
+            </Link>
+            <Link to="/clientes" className={customersWorkspaceLinkClass}>
+              Clientes
             </Link>
             <Button
               type="button"

@@ -231,11 +231,17 @@ export function AppointmentDragProvider({
     const preventSelect = (e: Event) => e.preventDefault()
     document.addEventListener('selectstart', preventSelect)
 
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') endDragSession()
+    }
+    document.addEventListener('keydown', onKeyDown)
+
     return () => {
       document.body.classList.remove('select-none')
       document.removeEventListener('selectstart', preventSelect)
+      document.removeEventListener('keydown', onKeyDown)
     }
-  }, [isDragSessionActive])
+  }, [isDragSessionActive, endDragSession])
 
   const startDrag = useCallback(
     (input: DragStartInput) => {
@@ -408,11 +414,18 @@ export function AppointmentDragProvider({
     <AppointmentDragContext.Provider value={{ activeDrag, isDragSessionActive, startDrag, startResize }}>
       {children}
       {activeDrag && (
-        <AppointmentDragOverlay
-          activeDrag={activeDrag}
-          columnRefs={columnRefs}
-          range={range}
-        />
+        <>
+          <div
+            className="fixed inset-0 z-[55]"
+            onClick={endDragSession}
+            aria-hidden
+          />
+          <AppointmentDragOverlay
+            activeDrag={activeDrag}
+            columnRefs={columnRefs}
+            range={range}
+          />
+        </>
       )}
     </AppointmentDragContext.Provider>
   )

@@ -137,6 +137,9 @@ export function AdminAgendaControlBar({
       <Link to="/servicios" className={navLinkClass}>
         Servicios
       </Link>
+      <Link to="/personal" className={navLinkClass}>
+        Personal
+      </Link>
       <Link to="/horarios" className={navLinkClass}>
         Horarios
       </Link>

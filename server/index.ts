@@ -19,6 +19,7 @@ import {
 import { listStaffForService, listStaffForServices, getStaff } from '@server/staff/index.js'
 import { me } from '@server/staff/me.js'
 import { listStaffDaySchedules } from '@server/staff/schedule.js'
+import { createStaff, deleteStaff, listAdminStaff, updateStaff } from '@server/staff/admin.js'
 import {
   cancelAppointment,
   cancelBookingGroupByCustomer,
@@ -377,6 +378,69 @@ app.delete('/api/admin/service-categories/:id', async (c) => {
   const id = c.req.param('id')
   await deleteServiceCategory(id)
   return c.json({ ok: true })
+})
+
+// ── Staff CRUD (admin) ──────────────────────────────────────────────
+
+type CreateStaffBody = {
+  id: string
+  name: string
+  role: string | null
+  phone: string | null
+  email: string | null
+  password: string
+  sortOrder: number
+}
+
+type UpdateStaffBody = {
+  name?: string
+  role?: string | null
+  phone?: string | null
+  email?: string | null
+  password?: string
+  active?: boolean
+  sortOrder?: number
+}
+
+app.get('/api/admin/staff', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staff = await listAdminStaff()
+  return c.json({ staff })
+})
+
+app.post('/api/admin/staff', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const raw = await c.req.json().catch(() => ({}))
+  const body = raw as CreateStaffBody
+  if (!body.id || !body.name || !body.password) {
+    return c.json({ error: 'Faltan campos obligatorios (id, name, password)' }, 400)
+  }
+  const member = await createStaff(body)
+  return c.json({ staff: member }, 201)
+})
+
+app.patch('/api/admin/staff/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  const body = await c.req.json().catch(() => ({})) as UpdateStaffBody
+  await updateStaff(id, body)
+  return c.json({ ok: true })
+})
+
+app.delete('/api/admin/staff/:id', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  try {
+    await deleteStaff(id)
+    return c.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'No se pudo eliminar'
+    return c.json({ error: message }, 409)
+  }
 })
 
 /** Fuerza el envío de recordatorios pendientes (solo admin, para pruebas). */

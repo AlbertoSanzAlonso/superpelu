@@ -38,6 +38,18 @@ export function CustomersWorkspaceHeader({
           <Link to="/servicios" className={headerLinkClass}>
             Servicios
           </Link>
+          <Link to="/personal" className={headerLinkClass}>
+            Personal
+          </Link>
+          <Link to="/horarios" className={headerLinkClass}>
+            Horarios
+          </Link>
+          <Link to="/clientes" className={headerLinkClass}>
+            Clientes
+          </Link>
+          <Link to="/stats" className={headerLinkClass}>
+            Stats
+          </Link>
           <Button
             type="button"
             variant="outline"

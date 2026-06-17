@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
+import {
+  customersWorkspaceButtonClass,
+  customersWorkspaceLinkClass,
+} from '@/components/customers/CustomersWorkspaceHeader'
 import {
   fetchFullSchedule,
   updateSalonSchedule,
@@ -114,43 +118,56 @@ export function ScheduleManagementPage() {
   return (
     <AgendaWorkspaceShell>
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="relative border-b border-gold/15">
-          <div
-            className="pointer-events-none absolute inset-0 bg-cream/55 backdrop-blur-[2px]"
-            aria-hidden
-          />
-          <div className="relative flex items-center gap-3 px-3 py-2">
-            <Link
-              to="/agenda"
-              className="flex h-8 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold"
+        <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <a
+              href="/agenda"
+              className={customersWorkspaceLinkClass}
+              onClick={(e) => { e.preventDefault(); navigate('/agenda') }}
             >
-              Volver
-            </Link>
-            <h1 className={`${typography.h3} flex-1`}>Horarios</h1>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              onClick={handleLogout}
-            >
-              Salir
-            </Button>
+              ← Agenda
+            </a>
+            <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Horarios</h1>
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <a
+                href="/servicios"
+                className={customersWorkspaceLinkClass}
+                onClick={(e) => { e.preventDefault(); navigate('/servicios') }}
+              >
+                Servicios
+              </a>
+              <a
+                href="/personal"
+                className={customersWorkspaceLinkClass}
+                onClick={(e) => { e.preventDefault(); navigate('/personal') }}
+              >
+                Personal
+              </a>
+              <a
+                href="/clientes"
+                className={customersWorkspaceLinkClass}
+                onClick={(e) => { e.preventDefault(); navigate('/clientes') }}
+              >
+                Clientes
+              </a>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={customersWorkspaceButtonClass}
+                onClick={handleLogout}
+              >
+                Salir
+              </Button>
+            </div>
           </div>
-        </div>
+        </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 md:px-6">
           {error && (
-            <div className="mb-4 border border-red-300 bg-red-50 p-3 text-xs text-red-700">
+            <p className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-center text-xs text-red-800">
               {error}
-              <button
-                type="button"
-                onClick={() => setError('')}
-                className="ml-2 cursor-pointer underline"
-              >
-                Cerrar
-              </button>
-            </div>
+            </p>
           )}
 
           <div className="mb-4 flex flex-wrap gap-1.5">

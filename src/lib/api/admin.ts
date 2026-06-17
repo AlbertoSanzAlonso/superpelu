@@ -407,3 +407,69 @@ export function fetchStats(adminToken: string) {
     headers: adminHeaders(adminToken),
   })
 }
+
+// ── Staff CRUD ──────────────────────────────────────────────────────
+
+export type AdminStaffMember = {
+  id: string
+  name: string
+  role: string | null
+  phone: string | null
+  email: string | null
+  active: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export function fetchAdminStaff(adminToken: string) {
+  return request<{ staff: AdminStaffMember[] }>('/admin/staff', {
+    headers: adminHeaders(adminToken),
+  })
+}
+
+export function createAdminStaff(
+  adminToken: string,
+  data: {
+    id: string
+    name: string
+    role: string | null
+    phone: string | null
+    email: string | null
+    password: string
+    sortOrder: number
+  },
+) {
+  return request<{ staff: AdminStaffMember }>('/admin/staff', {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(data),
+  })
+}
+
+export function updateAdminStaff(
+  adminToken: string,
+  id: string,
+  data: {
+    name?: string
+    role?: string | null
+    phone?: string | null
+    email?: string | null
+    password?: string
+    active?: boolean
+    sortOrder?: number
+  },
+) {
+  return request<{ ok: true }>(`/admin/staff/${id}`, {
+    method: 'PATCH',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(data),
+  })
+}
+
+export function deleteAdminStaff(adminToken: string, id: string) {
+  return request<{ ok: true }>(`/admin/staff/${id}`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
+  })
+}

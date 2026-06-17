@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { formatDisplayDate } from '@/lib/core/dates'
 import {
   ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS,
@@ -55,15 +55,6 @@ export function AdminAppointmentNotificationsBell({
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const onPointerDown = (e: MouseEvent) => {
-      if (!rootRef.current?.contains(e.target as Node)) onClose()
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [open, onClose])
-
   const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
   const recentInbox = useMemo(
     () => inbox.filter((i) => i.timestamp >= cutoff),
@@ -77,8 +68,16 @@ export function AdminAppointmentNotificationsBell({
 
   return (
     <div ref={rootRef} className="relative">
+      {open && (
+        <div
+          className="fixed inset-0 z-40"
+          onClick={onClose}
+          aria-hidden
+        />
+      )}
       <button
         type="button"
+        onMouseDown={(e) => e.stopPropagation()}
         onClick={() => (open ? onClose() : onOpen())}
         className="relative flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10"
         aria-label={
@@ -99,7 +98,7 @@ export function AdminAppointmentNotificationsBell({
 
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-[100] w-[min(20rem,calc(100vw-1.5rem))] border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(20rem,calc(100vw-1.5rem))] border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none"
           role="menu"
         >
           <div className="border-b border-gold/15 px-3 py-2">
