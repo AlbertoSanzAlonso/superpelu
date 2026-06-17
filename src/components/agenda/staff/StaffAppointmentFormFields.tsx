@@ -8,12 +8,22 @@ import { AppointmentRecurrenceFields } from '@/components/agenda/AppointmentRecu
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
+import { usesColorSplitBooking } from '@/lib/booking/occupancy'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
   '[&_label>span:first-child]:mb-1 [&_label>span:first-child]:text-xs [&_input]:py-2 [&_textarea]:min-h-0 [&_textarea]:py-2'
 
 const DURATION_OPTIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 5)
+
+/** Asegura que serviceDurations tenga la misma longitud que ids,
+ *  preservando los valores existentes y rellenando con null los nuevos índices. */
+function normalizeDurations(
+  ids: string[],
+  durations: (number | null)[],
+): (number | null)[] {
+  return ids.map((_, i) => (i < durations.length ? durations[i] : null))
+}
 
 type Props = {
   editingId: string | null
@@ -71,9 +81,16 @@ export function StaffAppointmentFormFields({
       }
       next[index] = id
       const selectedService = services.find((s) => s.id === id)
-      const newDurations = [...(draft.serviceDurations.length === next.length ? draft.serviceDurations : [])]
+      const newDurations = normalizeDurations(next, draft.serviceDurations)
       if (selectedService) {
-        newDurations[index] = selectedService.durationMinutes
+        const otherIds = next.filter((s, i) => s !== '' && i !== index)
+        if (usesColorSplitBooking(id) && otherIds.length > 0) {
+          newDurations[index] = 30
+        } else {
+          newDurations[index] = selectedService.durationMinutes
+        }
+      } else {
+        newDurations[index] = null
       }
       onDraftChange({ serviceIds: next, serviceDurations: newDurations })
     },
@@ -89,31 +106,32 @@ export function StaffAppointmentFormFields({
     (index: number) => {
       const next = serviceIds.filter((_, i) => i !== index)
       const cleaned = next.filter((s) => s !== '')
-      const durations = draft.serviceDurations.length === serviceIds.length
-        ? draft.serviceDurations.filter((_, i) => i !== index)
-        : []
+      const durations = normalizeDurations(serviceIds, draft.serviceDurations).filter((_, i) => i !== index)
       onDraftChange({
         serviceIds: cleaned,
         serviceDurations: durations,
         startTime: cleaned.length === 0 ? '' : draft.startTime,
       })
     },
-    [serviceIds, draft, onDraftChange],
+    [serviceIds, draft.serviceDurations, onDraftChange],
   )
 
   const setServiceDuration = useCallback(
     (index: number, duration: number | null) => {
-      const durations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      const durations = normalizeDurations(draft.serviceIds, draft.serviceDurations)
       durations[index] = duration
       onDraftChange({ serviceDurations: durations })
     },
-    [draft.serviceDurations, draft.serviceIds.length, onDraftChange],
+    [draft.serviceIds, draft.serviceDurations, onDraftChange],
   )
 
   const moveService = useCallback(
     (fromIndex: number, toIndex: number) => {
       const newIds = [...serviceIds.filter((s) => s !== '')]
-      const newDurations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      const newDurations = normalizeDurations(serviceIds, draft.serviceDurations).filter((_, i) => {
+        const idAtI = serviceIds[i]
+        return idAtI !== undefined && idAtI !== ''
+      })
       const [movedId] = newIds.splice(fromIndex, 1)
       const [movedDuration] = newDurations.splice(fromIndex, 1)
       newIds.splice(toIndex, 0, movedId)
