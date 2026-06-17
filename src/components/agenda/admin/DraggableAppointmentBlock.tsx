@@ -21,6 +21,7 @@ export type AppointmentDragEndPayload = {
   fromStaffId: string
   toStaffId: string
   toStartTime: string
+  newDuration?: number
 }
 
 type Props = {
@@ -156,7 +157,7 @@ export function DraggableAppointmentBlock({
       {/* Resize handle - top edge */}
       {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
         <div
-          className="absolute inset-x-0 top-0 z-10 h-1.5 cursor-ns-resize hover:bg-gold/30"
+          className="absolute inset-x-0 top-0 z-10 h-2.5 cursor-ns-resize hover:bg-gold/30"
           onPointerDown={(e) => handleResizePointerDown('top', e, top)}
         />
       )}
@@ -164,7 +165,7 @@ export function DraggableAppointmentBlock({
       {/* Resize handle - bottom edge */}
       {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
         <div
-          className="absolute inset-x-0 bottom-0 z-10 h-1.5 cursor-ns-resize hover:bg-gold/30"
+          className="absolute inset-x-0 bottom-0 z-10 h-2.5 cursor-ns-resize hover:bg-gold/30"
           onPointerDown={(e) => handleResizePointerDown('bottom', e, top)}
         />
       )}

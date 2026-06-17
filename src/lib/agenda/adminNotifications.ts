@@ -2,7 +2,12 @@ import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
-export type AdminAppointmentNotificationKind = 'created' | 'cancelled' | 'modified'
+export type AdminAppointmentNotificationKind =
+  | 'created'
+  | 'cancelled'
+  | 'modified'
+  | 'series_created'
+  | 'series_ended'
 
 export type AdminAppointmentNotificationItem = {
   key: string
@@ -15,6 +20,9 @@ export type AdminAppointmentNotificationItem = {
   serviceName: string
   startTime: string
   timestamp: number
+  seriesId?: string
+  seriesCount?: number
+  seriesEndDate?: string
 }
 
 export type AppointmentSnapshot = {
@@ -27,6 +35,7 @@ export type AppointmentSnapshot = {
   serviceId: string
   serviceName: string
   status: string
+  seriesId: string | null
 }
 
 export const ADMIN_APPOINTMENT_NOTIFY_RANGE_DAYS = 90
@@ -61,6 +70,7 @@ export function buildAppointmentSnapshot(apt: Appointment): AppointmentSnapshot 
     serviceId: apt.serviceId,
     serviceName: apt.serviceName,
     status: apt.status,
+    seriesId: apt.seriesId ?? null,
   }
 }
 
@@ -79,6 +89,7 @@ function snapshotToNotificationItem(
     serviceName: snapshot.serviceName,
     startTime: snapshot.startTime,
     timestamp: Date.now(),
+    seriesId: snapshot.seriesId ?? undefined,
   }
 }
 
@@ -110,6 +121,35 @@ export function detectAppointmentNotificationKind(
   return null
 }
 
+function collapseSeriesItems(
+  items: AdminAppointmentNotificationItem[],
+): AdminAppointmentNotificationItem[] {
+  const seriesGroups = new Map<string, AdminAppointmentNotificationItem[]>()
+  const standalone: AdminAppointmentNotificationItem[] = []
+
+  for (const item of items) {
+    if (item.seriesId && item.kind === 'created') {
+      const group = seriesGroups.get(item.seriesId) ?? []
+      group.push(item)
+      seriesGroups.set(item.seriesId, group)
+    } else {
+      standalone.push(item)
+    }
+  }
+
+  for (const [, group] of seriesGroups) {
+    const first = group[0]
+    standalone.push({
+      ...first,
+      key: `series-${first.seriesId}-created-${Date.now()}`,
+      kind: 'series_created',
+      seriesCount: group.length,
+    })
+  }
+
+  return standalone
+}
+
 export function diffAppointmentSnapshots(
   previousById: ReadonlyMap<string, AppointmentSnapshot>,
   appointments: Appointment[],
@@ -134,7 +174,7 @@ export function diffAppointmentSnapshots(
     items.push(snapshotToNotificationItem(previous, 'cancelled'))
   }
 
-  return items
+  return collapseSeriesItems(items)
 }
 
 export function snapshotsFromAppointments(appointments: Iterable<Appointment>): Map<string, AppointmentSnapshot> {
@@ -158,5 +198,9 @@ export function adminAppointmentNotificationKindLabel(kind: AdminAppointmentNoti
       return 'Cita cancelada'
     case 'modified':
       return 'Cita modificada'
+    case 'series_created':
+      return 'Serie semanal creada'
+    case 'series_ended':
+      return 'Serie finalizada'
   }
 }

@@ -38,6 +38,10 @@ function kindBadgeClass(kind: AdminAppointmentNotificationItem['kind']): string 
       return 'text-red-700'
     case 'modified':
       return 'text-amber-800'
+    case 'series_created':
+      return 'text-blue-700'
+    case 'series_ended':
+      return 'text-purple-700'
   }
 }
 
@@ -126,10 +130,22 @@ export function AdminAppointmentNotificationsBell({
                       <p className="text-xs text-charcoal-muted">
                         {item.serviceName} · {item.staffName}
                       </p>
-                      <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
-                        {formatDisplayDate(item.date)} ·{' '}
-                        {formatAdminAppointmentNotificationTime(item.startTime)}
-                      </p>
+                      {item.kind === 'series_created' && item.seriesCount ? (
+                        <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
+                          {item.seriesCount} citas · desde {formatDisplayDate(item.date)}
+                        </p>
+                      ) : item.kind === 'series_ended' ? (
+                        <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
+                          {formatDisplayDate(item.date)} ·{' '}
+                          {formatAdminAppointmentNotificationTime(item.startTime)}
+                          {item.seriesEndDate && ` · hasta ${formatDisplayDate(item.seriesEndDate)}`}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
+                          {formatDisplayDate(item.date)} ·{' '}
+                          {formatAdminAppointmentNotificationTime(item.startTime)}
+                        </p>
+                      )}
                     </button>
                   </li>
                 )

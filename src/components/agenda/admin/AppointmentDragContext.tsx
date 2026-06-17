@@ -10,6 +10,7 @@ import {
 } from 'react'
 import {
   CALENDAR_SLOT_HEIGHT_PX,
+  eventHeightPx,
   eventTopPx,
   minutesToTime,
   type CalendarDayRange,
@@ -377,6 +378,7 @@ export function AppointmentDragProvider({
             fromStaffId: session.fromStaffId,
             toStaffId: final.targetStaffId,
             toStartTime: final.snappedStartTime,
+            newDuration: final.newDuration,
           })
         }
       }
@@ -409,7 +411,7 @@ export function AppointmentDragProvider({
         <AppointmentDragOverlay
           activeDrag={activeDrag}
           columnRefs={columnRefs}
-          gridHeightPx={range.totalHeightPx}
+          range={range}
         />
       )}
     </AppointmentDragContext.Provider>
@@ -425,18 +427,18 @@ export function useAppointmentDrag() {
 function AppointmentDragOverlay({
   activeDrag,
   columnRefs,
-  gridHeightPx,
+  range,
 }: {
   activeDrag: ActiveAppointmentDrag
   columnRefs: RefObject<Map<string, HTMLDivElement>>
-  gridHeightPx: number
+  range: CalendarDayRange
 }) {
   const apt = activeDrag.appointment
   const columnEl = columnRefs.current?.get(activeDrag.targetStaffId)
   if (!columnEl) return null
 
   const columnRect = columnEl.getBoundingClientRect()
-  const height = Math.max(activeDrag.height - 2, 22)
+  const gridHeightPx = range.totalHeightPx
   const yInGrid =
     pointerYInStaffGrid(
       activeDrag.clientY,
@@ -444,11 +446,27 @@ function AppointmentDragOverlay({
       columnRefs.current ?? new Map(),
       gridHeightPx,
     ) ?? 0
-  const smoothTop = Math.max(0, Math.min(gridHeightPx - activeDrag.height, yInGrid - activeDrag.grabOffsetY))
-  const top = columnRect.top + STAFF_COLUMN_HEADER_PX + smoothTop
   const left = columnRect.left + 4
   const width = Math.max(columnRect.width - 8, 48)
   const crossStaff = activeDrag.targetStaffId !== activeDrag.fromStaffId
+
+  // Resize overlay: different positioning than drag
+  let top: number
+  let height: number
+  if (activeDrag.resizeEdge && activeDrag.newDuration) {
+    const newHeightPx = Math.max(eventHeightPx(activeDrag.newDuration, range) - 2, 22)
+    if (activeDrag.resizeEdge === 'bottom') {
+      top = columnRect.top + STAFF_COLUMN_HEADER_PX + activeDrag.snappedTopPx
+      height = newHeightPx
+    } else {
+      top = columnRect.top + STAFF_COLUMN_HEADER_PX + activeDrag.snappedTopPx
+      height = newHeightPx
+    }
+  } else {
+    height = Math.max(activeDrag.height - 2, 22)
+    const smoothTop = Math.max(0, Math.min(gridHeightPx - activeDrag.height, yInGrid - activeDrag.grabOffsetY))
+    top = columnRect.top + STAFF_COLUMN_HEADER_PX + smoothTop
+  }
 
   return (
     <div

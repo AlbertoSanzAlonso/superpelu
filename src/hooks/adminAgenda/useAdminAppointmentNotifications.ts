@@ -9,6 +9,7 @@ import {
 } from '@/lib/agenda/adminNotifications'
 import { showAdminBrowserNotifications } from '@/lib/agenda/adminBrowserNotifications'
 import { fetchAppointments } from '@/lib/api'
+import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
 type ToastEntry = {
@@ -16,9 +17,30 @@ type ToastEntry = {
   item: AdminAppointmentNotificationItem
 }
 
+type SeriesTracking = {
+  endDate: string
+  customerName: string
+  staffName: string
+  serviceName: string
+  lastAppointment: { id: string; date: string; startTime: string; staffId: string }
+}
+
+/** Devuelve la última fecha de la serie (mismo día de semana que anchorDate, <= endDate). */
+function lastSeriesDate(anchorDate: string, endDate: string): string {
+  const anchor = new Date(anchorDate + 'T12:00:00')
+  const end = new Date(endDate + 'T12:00:00')
+  const anchorDay = anchor.getDay()
+  const diff = (end.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24)
+  const weeks = Math.floor(diff / 7)
+  const result = new Date(anchor.getTime() + weeks * 7 * 24 * 60 * 60 * 1000)
+  return result.toISOString().slice(0, 10)
+}
+
 export function useAdminAppointmentNotifications(adminToken: string) {
   const snapshotsRef = useRef<Map<string, AppointmentSnapshot>>(new Map())
   const initializedRef = useRef(false)
+  const seriesTrackingRef = useRef<Map<string, SeriesTracking>>(new Map())
+  const endedSeriesNotifiedRef = useRef<Set<string>>(new Set())
 
   const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>([])
   const [bellOpen, setBellOpen] = useState(false)
@@ -29,6 +51,14 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     for (const [id, snapshot] of snapshotsFromAppointments(appointments)) {
       snapshotsRef.current.set(id, snapshot)
     }
+  }, [])
+
+  const trackSeries = useCallback((
+    seriesId: string,
+    endDate: string,
+    info: Omit<SeriesTracking, 'endDate' | 'lastAppointment'> & { lastAppointment: SeriesTracking['lastAppointment'] },
+  ) => {
+    seriesTrackingRef.current.set(seriesId, { ...info, endDate })
   }, [])
 
   const ingestNewItems = useCallback((items: AdminAppointmentNotificationItem[]) => {
@@ -65,6 +95,33 @@ export function useAdminAppointmentNotifications(adminToken: string) {
       const fresh = diffAppointmentSnapshots(snapshotsRef.current, appointments)
       snapshotsRef.current = nextSnapshots
       ingestNewItems(fresh)
+
+      // Check for ended series
+      const today = todaySalon()
+      const endedNotifications: AdminAppointmentNotificationItem[] = []
+      for (const [seriesId, info] of seriesTrackingRef.current) {
+        if (endedSeriesNotifiedRef.current.has(seriesId)) continue
+        if (info.endDate && info.endDate < today) {
+          endedNotifications.push({
+            key: `series-ended-${seriesId}-${Date.now()}`,
+            kind: 'series_ended',
+            id: info.lastAppointment.id,
+            date: info.lastAppointment.date,
+            staffId: info.lastAppointment.staffId,
+            staffName: info.staffName,
+            customerName: info.customerName,
+            serviceName: info.serviceName,
+            startTime: info.lastAppointment.startTime,
+            timestamp: Date.now(),
+            seriesId,
+            seriesEndDate: info.endDate,
+          })
+          endedSeriesNotifiedRef.current.add(seriesId)
+        }
+      }
+      if (endedNotifications.length > 0) {
+        ingestNewItems(endedNotifications)
+      }
     } catch {
       // Silencioso: la agenda principal ya muestra errores de carga.
     }
@@ -79,6 +136,8 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     if (!adminToken) {
       snapshotsRef.current = new Map()
       initializedRef.current = false
+      seriesTrackingRef.current = new Map()
+      endedSeriesNotifiedRef.current = new Set()
       setInbox([])
       setToasts([])
       setBellOpen(false)
@@ -115,5 +174,6 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     markAppointmentSnapshots,
     pollAppointmentChanges,
     lastSeenAt,
+    trackSeries,
   }
 }

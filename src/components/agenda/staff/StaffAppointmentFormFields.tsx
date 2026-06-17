@@ -61,30 +61,51 @@ export function StaffAppointmentFormFields({
     (index: number, id: string) => {
       const next = [...serviceIds]
       if (index === 0 && id === '') {
-        // Solo resetear hora si se elimina completamente el primer tratamiento
         const hadService = serviceIds[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], startTime: '' })
+          onDraftChange({ serviceIds: [], serviceDurations: [], startTime: '' })
         }
         return
       }
       next[index] = id
-      onDraftChange({ serviceIds: next })
+      const selectedService = services.find((s) => s.id === id)
+      const newDurations = [...(draft.serviceDurations.length === next.length ? draft.serviceDurations : [])]
+      if (selectedService) {
+        newDurations[index] = selectedService.durationMinutes
+      }
+      onDraftChange({ serviceIds: next, serviceDurations: newDurations })
     },
-    [serviceIds, onDraftChange],
+    [serviceIds, draft.serviceDurations, services, onDraftChange],
   )
 
   const addService = useCallback(() => {
-    onDraftChange({ serviceIds: [...serviceIds.filter((s) => s !== ''), ''] })
-  }, [serviceIds, onDraftChange])
+    const next = [...serviceIds.filter((s) => s !== ''), '']
+    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations })
+  }, [serviceIds, draft.serviceDurations, onDraftChange])
 
   const removeService = useCallback(
     (index: number) => {
       const next = serviceIds.filter((_, i) => i !== index)
       const cleaned = next.filter((s) => s !== '')
-      onDraftChange({ serviceIds: cleaned, startTime: cleaned.length === 0 ? '' : draft.startTime })
+      const durations = draft.serviceDurations.length === serviceIds.length
+        ? draft.serviceDurations.filter((_, i) => i !== index)
+        : []
+      onDraftChange({
+        serviceIds: cleaned,
+        serviceDurations: durations,
+        startTime: cleaned.length === 0 ? '' : draft.startTime,
+      })
     },
-    [serviceIds, draft.startTime, onDraftChange],
+    [serviceIds, draft, onDraftChange],
+  )
+
+  const setServiceDuration = useCallback(
+    (index: number, duration: number | null) => {
+      const durations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      durations[index] = duration
+      onDraftChange({ serviceDurations: durations })
+    },
+    [draft.serviceDurations, draft.serviceIds.length, onDraftChange],
   )
 
   return (
@@ -95,12 +116,12 @@ export function StaffAppointmentFormFields({
       {hint && !compact && <p className={typography.caption}>{hint}</p>}
 
       {serviceIds.map((serviceId, index) => (
-        <div key={index} className="relative">
+        <div key={index} className="relative space-y-2 rounded border border-gold/15 p-3">
           {index > 0 && (
             <button
               type="button"
               onClick={() => removeService(index)}
-              className="absolute -right-1 -top-1 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+              className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
               aria-label="Quitar tratamiento"
             >
               ×
@@ -114,6 +135,26 @@ export function StaffAppointmentFormFields({
             loading={services.length === 0}
             onServiceChange={(id) => setServiceAtIndex(index, id)}
           />
+          {serviceId && (
+            <div>
+              <label className={`${compact ? 'text-xs' : 'text-sm'} mb-0.5 block font-medium text-charcoal-muted`}>
+                Duración (minutos)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="480"
+                step="5"
+                value={draft.serviceDurations[index] ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setServiceDuration(index, val === '' ? null : parseInt(val, 10))
+                }}
+                className="w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50"
+                placeholder="Automática"
+              />
+            </div>
+          )}
         </div>
       ))}
 

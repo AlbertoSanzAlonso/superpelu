@@ -1,0 +1,286 @@
+import { useCallback, useState } from 'react'
+import {
+  ApiError,
+  createAdminAppointment,
+  previewSeriesConflicts,
+  updateAdminAppointment,
+} from '@/lib/api'
+import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import type { StaffDaySchedule } from '@/types/booking'
+import type {
+  SeriesPreviewResult,
+  SeriesConflictResolution,
+} from '@/lib/api'
+import type { EditingScheduleBaseline } from './types'
+import { appointmentScheduleChanged } from './types'
+
+type PersistDeps = {
+  adminToken: string
+  date: string
+  activeStaffId: string | null
+  aptDraft: AppointmentDraft
+  editingId: string | null
+  editingScheduleBaseline: EditingScheduleBaseline | null
+  closeAppointmentDetail: () => void
+  resetAppointmentForm: () => void
+  clearSelection: () => void
+  load: () => Promise<StaffDaySchedule[] | null>
+  setError: (message: string) => void
+  setWhatsAppNotifyDialogOpen: (open: boolean) => void
+  setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
+  setAppointmentFormOpen: (open: boolean) => void
+  markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
+}
+
+export function useAdminAppointmentPersist({
+  adminToken,
+  date,
+  activeStaffId,
+  aptDraft,
+  editingId,
+  editingScheduleBaseline,
+  closeAppointmentDetail,
+  resetAppointmentForm,
+  clearSelection,
+  load,
+  setError,
+  setWhatsAppNotifyDialogOpen,
+  setWhatsAppNotifyContext,
+  setAppointmentFormOpen,
+  markAppointmentSnapshots,
+}: PersistDeps) {
+  const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
+  const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
+  const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
+
+  function buildServiceStartTimes(): string[] | undefined {
+    const { serviceIds, serviceStartTimes } = aptDraft
+    const filtered = serviceIds.filter((s) => s !== '')
+    if (serviceStartTimes.length === filtered.length && serviceStartTimes.some((t) => t !== '')) {
+      return serviceStartTimes
+    }
+    return undefined
+  }
+
+  const persistAppointment = useCallback(
+    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
+      if (!activeStaffId || !adminToken) return false
+      setError('')
+      try {
+        const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
+        const serviceStartTimes = buildServiceStartTimes()
+        if (editingId) {
+          const { appointment } = await updateAdminAppointment(editingId, adminToken, {
+            staffId: activeStaffId,
+            serviceIds: filteredServiceIds,
+            serviceStartTimes,
+            serviceDurations: aptDraft.serviceDurations,
+            serviceId: filteredServiceIds[0] || '',
+            date,
+            startTime: aptDraft.startTime,
+            customerFirstName: aptDraft.customerFirstName,
+            customerLastName: aptDraft.customerLastName,
+            customerPhone: aptDraft.customerPhone,
+            customerEmail: aptDraft.customerEmail || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
+            notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
+            notifyCustomerWhatsApp,
+          })
+          markAppointmentSnapshots?.([appointment])
+        } else {
+          const isMultiTreatmentSeries =
+            filteredServiceIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
+
+          if (isMultiTreatmentSeries) {
+            const preview = await previewSeriesConflicts(
+              {
+                staffId: activeStaffId,
+                serviceIds: filteredServiceIds,
+                serviceStartTimes,
+                serviceDurations: aptDraft.serviceDurations,
+                date,
+                startTime: aptDraft.startTime,
+                customerFirstName: aptDraft.customerFirstName,
+                customerLastName: aptDraft.customerLastName,
+                customerPhone: aptDraft.customerPhone,
+                customerEmail: aptDraft.customerEmail || undefined,
+                customerNotes: aptDraft.customerNotes || undefined,
+                notes: aptDraft.notes || undefined,
+                customerLocale: aptDraft.customerLocale,
+                scope: 'weekly',
+                endDate: aptDraft.recurrenceEndDate || undefined,
+              },
+              adminToken,
+            )
+
+            if (preview.conflicts.length > 0) {
+              setSeriesConflictPreview(preview)
+              setSeriesConflictOpen(true)
+              return false
+            }
+          }
+
+          const { appointment } = await createAdminAppointment(
+            {
+              staffId: activeStaffId,
+              serviceIds: filteredServiceIds,
+              serviceStartTimes,
+              serviceDurations: aptDraft.serviceDurations,
+              date,
+              startTime: aptDraft.startTime,
+              customerFirstName: aptDraft.customerFirstName,
+              customerLastName: aptDraft.customerLastName,
+              customerPhone: aptDraft.customerPhone,
+              customerEmail: aptDraft.customerEmail || undefined,
+              customerNotes: aptDraft.customerNotes || undefined,
+              notes: aptDraft.notes || undefined,
+              customerLocale: aptDraft.customerLocale,
+              scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
+              endDate:
+                aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
+                  ? aptDraft.recurrenceEndDate
+                  : undefined,
+            },
+            adminToken,
+          )
+          markAppointmentSnapshots?.([appointment])
+        }
+        setWhatsAppNotifyDialogOpen(false)
+        setAppointmentFormOpen(false)
+        closeAppointmentDetail()
+        resetAppointmentForm()
+        clearSelection()
+        await load()
+        return true
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
+        return false
+      }
+    },
+    [
+      activeStaffId,
+      adminToken,
+      editingId,
+      aptDraft,
+      date,
+      resetAppointmentForm,
+      closeAppointmentDetail,
+      clearSelection,
+      load,
+      setError,
+      markAppointmentSnapshots,
+      setWhatsAppNotifyDialogOpen,
+      setAppointmentFormOpen,
+    ],
+  )
+
+  const saveAppointment = useCallback(
+    async (e: React.FormEvent): Promise<boolean> => {
+      e.preventDefault()
+      if (!activeStaffId || !adminToken) return false
+      if (editingId) {
+        const scheduleChanged =
+          editingScheduleBaseline !== null &&
+          appointmentScheduleChanged(editingScheduleBaseline, {
+            staffId: activeStaffId,
+            date,
+            startTime: aptDraft.startTime,
+          })
+        if (scheduleChanged) {
+          setWhatsAppNotifyContext('edit')
+          setWhatsAppNotifyDialogOpen(true)
+          return false
+        }
+        return persistAppointment()
+      }
+      return persistAppointment()
+    },
+    [
+      activeStaffId,
+      adminToken,
+      editingId,
+      editingScheduleBaseline,
+      date,
+      aptDraft.startTime,
+      persistAppointment,
+      setWhatsAppNotifyDialogOpen,
+      setWhatsAppNotifyContext,
+    ],
+  )
+
+  const closeSeriesConflictModal = useCallback(() => {
+    if (seriesConflictBusy) return
+    setSeriesConflictOpen(false)
+    setSeriesConflictPreview(null)
+  }, [seriesConflictBusy])
+
+  const resolveSeriesConflicts = useCallback(
+    async (resolutions: SeriesConflictResolution[]): Promise<boolean> => {
+      if (!activeStaffId || !adminToken) return false
+      setError('')
+      setSeriesConflictBusy(true)
+      try {
+        const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
+        const { appointment } = await createAdminAppointment(
+          {
+            staffId: activeStaffId,
+            serviceIds: filteredServiceIds,
+            date,
+            startTime: aptDraft.startTime,
+            customerFirstName: aptDraft.customerFirstName,
+            customerLastName: aptDraft.customerLastName,
+            customerPhone: aptDraft.customerPhone,
+            customerEmail: aptDraft.customerEmail || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
+            notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
+            scope: 'weekly',
+            endDate: aptDraft.recurrenceEndDate || undefined,
+            conflictResolutions: resolutions,
+          },
+          adminToken,
+        )
+        markAppointmentSnapshots?.([appointment])
+        setSeriesConflictOpen(false)
+        setSeriesConflictPreview(null)
+        setWhatsAppNotifyDialogOpen(false)
+        setAppointmentFormOpen(false)
+        closeAppointmentDetail()
+        resetAppointmentForm()
+        clearSelection()
+        await load()
+        return true
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo crear la serie')
+        return false
+      } finally {
+        setSeriesConflictBusy(false)
+      }
+    },
+    [
+      activeStaffId,
+      adminToken,
+      aptDraft,
+      date,
+      resetAppointmentForm,
+      closeAppointmentDetail,
+      clearSelection,
+      load,
+      setError,
+      markAppointmentSnapshots,
+      setWhatsAppNotifyDialogOpen,
+      setAppointmentFormOpen,
+    ],
+  )
+
+  return {
+    persistAppointment,
+    saveAppointment,
+    seriesConflictOpen,
+    seriesConflictPreview,
+    seriesConflictBusy,
+    closeSeriesConflictModal,
+    resolveSeriesConflicts,
+  }
+}

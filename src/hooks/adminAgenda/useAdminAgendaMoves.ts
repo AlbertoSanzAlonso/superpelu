@@ -45,6 +45,20 @@ export function useAdminAgendaMoves({
 
   const proposeAppointmentMove = useCallback(
     (payload: AppointmentDragEndPayload) => {
+      // Resize — apply immediately
+      if (payload.newDuration) {
+        setMoveBusy(true)
+        updateAdminAppointment(payload.appointment.id, adminToken, {
+          serviceDurations: [payload.newDuration],
+        })
+          .then(() => load({ silent: true }))
+          .catch((err) =>
+            setError(err instanceof ApiError ? err.message : 'Error al cambiar duración'),
+          )
+          .finally(() => setMoveBusy(false))
+        return
+      }
+
       const summary = summarizePendingMoves(pendingMoves)
       const effective = getEffectivePlacement(summary, payload.appointment.id, {
         staffId: payload.fromStaffId,
@@ -94,7 +108,7 @@ export function useAdminAgendaMoves({
         },
       ])
     },
-    [schedules, date, pendingMoves, setError, clearSelection],
+    [schedules, date, pendingMoves, setError, clearSelection, adminToken, load],
   )
 
   const undoLastPendingMove = useCallback(() => {
