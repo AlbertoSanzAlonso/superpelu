@@ -9,7 +9,7 @@ import {
 } from '@/lib/agenda/adminNotifications'
 import { showAdminBrowserNotifications } from '@/lib/agenda/adminBrowserNotifications'
 import { fetchAppointments } from '@/lib/api'
-import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
+import { todaySalon } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
 type ToastEntry = {
@@ -23,17 +23,6 @@ type SeriesTracking = {
   staffName: string
   serviceName: string
   lastAppointment: { id: string; date: string; startTime: string; staffId: string }
-}
-
-/** Devuelve la última fecha de la serie (mismo día de semana que anchorDate, <= endDate). */
-function lastSeriesDate(anchorDate: string, endDate: string): string {
-  const anchor = new Date(anchorDate + 'T12:00:00')
-  const end = new Date(endDate + 'T12:00:00')
-  const anchorDay = anchor.getDay()
-  const diff = (end.getTime() - anchor.getTime()) / (1000 * 60 * 60 * 24)
-  const weeks = Math.floor(diff / 7)
-  const result = new Date(anchor.getTime() + weeks * 7 * 24 * 60 * 60 * 1000)
-  return result.toISOString().slice(0, 10)
 }
 
 export function useAdminAppointmentNotifications(adminToken: string) {
