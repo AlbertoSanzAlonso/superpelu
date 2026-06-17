@@ -20,6 +20,7 @@ import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { CategoryForm } from '@/components/admin/CategoryForm'
 import { ServiceForm } from '@/components/admin/ServiceForm'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type ModalMode = 'create' | 'edit'
 
@@ -61,6 +62,12 @@ export function AdminServicesPage() {
     categoryId: '',
   })
 
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string
+    message: string
+    onConfirm: () => void | Promise<void>
+  } | null>(null)
+
   const loadData = useCallback(async () => {
     if (!adminToken) return
     setLoading(true)
@@ -101,17 +108,24 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleDeleteCategory = async (id: string) => {
-    if (!adminToken || !window.confirm('¿Desactivar esta categoría? Los servicios se mantendrán.')) return
-    setBusy(true)
-    try {
-      await deleteAdminServiceCategory(adminToken, id)
-      await loadData()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error al desactivar')
-    } finally {
-      setBusy(false)
-    }
+  const handleDeleteCategory = (id: string) => {
+    if (!adminToken) return
+    setConfirmAction({
+      title: 'Desactivar categoría',
+      message: '¿Estás seguro de desactivar esta categoría? Los servicios se mantendrán.',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setBusy(true)
+        try {
+          await deleteAdminServiceCategory(adminToken, id)
+          await loadData()
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Error al desactivar')
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   const handleReactivateCategory = async (id: string) => {
@@ -153,17 +167,24 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleDeleteService = async (id: string) => {
-    if (!adminToken || !window.confirm('¿Desactivar este servicio?')) return
-    setBusy(true)
-    try {
-      await deleteAdminService(adminToken, id)
-      await loadData()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error al desactivar')
-    } finally {
-      setBusy(false)
-    }
+  const handleDeleteService = (id: string) => {
+    if (!adminToken) return
+    setConfirmAction({
+      title: 'Desactivar servicio',
+      message: '¿Estás seguro de desactivar este servicio?',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setBusy(true)
+        try {
+          await deleteAdminService(adminToken, id)
+          await loadData()
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Error al desactivar')
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   const handleReactivateService = async (id: string) => {
@@ -509,6 +530,17 @@ export function AdminServicesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmAction != null}
+        title={confirmAction?.title ?? ''}
+        message={confirmAction?.message}
+        confirmLabel={confirmAction?.title.startsWith('Desactivar') ? 'Desactivar' : 'Confirmar'}
+        destructive
+        busy={busy}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction?.onConfirm()}
+      />
     </AgendaWorkspaceShell>
   )
 }

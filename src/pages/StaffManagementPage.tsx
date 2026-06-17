@@ -17,6 +17,7 @@ import {
 import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { StaffForm } from '@/components/admin/StaffForm'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type ModalMode = 'create' | 'edit'
 
@@ -32,6 +33,8 @@ export function StaffManagementPage() {
     mode: ModalMode
     member: AdminStaffMember | null
   }>({ open: false, mode: 'create', member: null })
+
+  const [confirmDelete, setConfirmDelete] = useState<AdminStaffMember | null>(null)
 
   const loadData = useCallback(async () => {
     if (!adminToken) return
@@ -87,10 +90,15 @@ export function StaffManagementPage() {
 
   const handleDelete = async (member: AdminStaffMember) => {
     if (!adminToken) return
-    if (!window.confirm(`¿Eliminar a ${member.name}? Esta acción no se puede deshacer.`)) return
+    setConfirmDelete(member)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!adminToken || !confirmDelete) return
+    setConfirmDelete(null)
     setBusy(true)
     try {
-      await deleteAdminStaff(adminToken, member.id)
+      await deleteAdminStaff(adminToken, confirmDelete.id)
       await loadData()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al eliminar')
@@ -258,6 +266,17 @@ export function StaffManagementPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete != null}
+        title={`Eliminar a ${confirmDelete?.name ?? ''}`}
+        message={`¿Estás seguro de eliminar a ${confirmDelete?.name ?? ''}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        destructive
+        busy={busy}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={handleConfirmDelete}
+      />
     </AgendaWorkspaceShell>
   )
 }
