@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { formatDisplayDate } from '@/lib/core/dates'
 import {
+  ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS,
   adminAppointmentNotificationKindLabel,
   formatAdminAppointmentNotificationTime,
   type AdminAppointmentNotificationItem,
@@ -10,6 +11,7 @@ import { typography } from '@/styles/typography'
 type Props = {
   inbox: AdminAppointmentNotificationItem[]
   open: boolean
+  lastSeenAt: number
   onOpen: () => void
   onClose: () => void
   onSelect: (item: AdminAppointmentNotificationItem) => void
@@ -42,6 +44,7 @@ function kindBadgeClass(kind: AdminAppointmentNotificationItem['kind']): string 
 export function AdminAppointmentNotificationsBell({
   inbox,
   open,
+  lastSeenAt,
   onOpen,
   onClose,
   onSelect,
@@ -57,7 +60,16 @@ export function AdminAppointmentNotificationsBell({
     return () => document.removeEventListener('mousedown', onPointerDown)
   }, [open, onClose])
 
-  const badge = inbox.length
+  const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
+  const recentInbox = useMemo(
+    () => inbox.filter((i) => i.timestamp >= cutoff),
+    [inbox, cutoff],
+  )
+
+  const unseenCount = useMemo(
+    () => recentInbox.filter((i) => i.timestamp > lastSeenAt).length,
+    [recentInbox, lastSeenAt],
+  )
 
   return (
     <div ref={rootRef} className="relative">
@@ -66,15 +78,17 @@ export function AdminAppointmentNotificationsBell({
         onClick={() => (open ? onClose() : onOpen())}
         className="relative flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10"
         aria-label={
-          badge > 0 ? `Novedades en la agenda, ${badge} sin leer` : 'Novedades en la agenda'
+          unseenCount > 0
+            ? `Novedades en la agenda, ${unseenCount} sin leer`
+            : 'Novedades en la agenda'
         }
         aria-expanded={open}
         aria-haspopup="true"
       >
         <BellIcon />
-        {badge > 0 && (
+        {unseenCount > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold tabular-nums text-cream">
-            {badge > 9 ? '9+' : badge}
+            {unseenCount > 9 ? '9+' : unseenCount}
           </span>
         )}
       </button>
@@ -87,34 +101,39 @@ export function AdminAppointmentNotificationsBell({
           <div className="border-b border-gold/15 px-3 py-2">
             <p className={`${typography.label} text-gold`}>Novedades</p>
           </div>
-          {inbox.length === 0 ? (
+          {recentInbox.length === 0 ? (
             <p className="px-3 py-4 text-center text-xs text-charcoal-muted">
               No hay novedades desde la última vez.
             </p>
           ) : (
-            <ul className="max-h-72 overflow-y-auto">
-              {inbox.map((item) => (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className="w-full cursor-pointer border-b border-gold/10 px-3 py-2.5 text-left hover:bg-gold/5"
-                    onClick={() => onSelect(item)}
-                  >
-                    <p className={`text-[10px] font-medium uppercase tracking-wide ${kindBadgeClass(item.kind)}`}>
-                      {adminAppointmentNotificationKindLabel(item.kind)}
-                    </p>
-                    <p className="text-sm font-medium text-charcoal">{item.customerName}</p>
-                    <p className="text-xs text-charcoal-muted">
-                      {item.serviceName} · {item.staffName}
-                    </p>
-                    <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
-                      {formatDisplayDate(item.date)} ·{' '}
-                      {formatAdminAppointmentNotificationTime(item.startTime)}
-                    </p>
-                  </button>
-                </li>
-              ))}
+            <ul className="max-h-[28rem] overflow-y-auto">
+              {recentInbox.map((item) => {
+                const isUnseen = item.timestamp > lastSeenAt
+                return (
+                  <li key={item.key}>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={`w-full cursor-pointer border-b border-gold/10 px-3 py-2.5 text-left hover:bg-gold/5 ${
+                        isUnseen ? 'bg-gold/[0.04]' : ''
+                      }`}
+                      onClick={() => onSelect(item)}
+                    >
+                      <p className={`text-[10px] font-medium uppercase tracking-wide ${kindBadgeClass(item.kind)}`}>
+                        {adminAppointmentNotificationKindLabel(item.kind)}
+                      </p>
+                      <p className="text-sm font-medium text-charcoal">{item.customerName}</p>
+                      <p className="text-xs text-charcoal-muted">
+                        {item.serviceName} · {item.staffName}
+                      </p>
+                      <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
+                        {formatDisplayDate(item.date)} ·{' '}
+                        {formatAdminAppointmentNotificationTime(item.startTime)}
+                      </p>
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

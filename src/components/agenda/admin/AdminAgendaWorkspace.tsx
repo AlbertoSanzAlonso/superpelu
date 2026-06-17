@@ -69,6 +69,7 @@ export function AdminAgendaWorkspace({
           selectionBusy={agenda.gridActionsBusy}
           notificationInbox={notifications.inbox}
           notificationBellOpen={notifications.bellOpen}
+          notificationLastSeenAt={notifications.lastSeenAt}
           onNotificationBellOpen={notifications.openBell}
           onNotificationBellClose={notifications.closeBell}
           onNotificationSelect={openAppointmentFromNotification}

@@ -21,7 +21,7 @@ import { typography } from '@/styles/typography'
 const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
-const CUSTOMERS_PAGE_SIZE = 10
+const CUSTOMERS_PAGE_SIZE = 15
 
 const customerActionButtonClass = `${customersWorkspaceButtonClass} w-full justify-center px-2.5 text-xs normal-case md:w-auto`
 

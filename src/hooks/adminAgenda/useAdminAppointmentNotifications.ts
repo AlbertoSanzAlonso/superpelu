@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS,
   adminAppointmentNotifyDateRange,
   diffAppointmentSnapshots,
   snapshotsFromAppointments,
@@ -22,6 +23,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>([])
   const [bellOpen, setBellOpen] = useState(false)
   const [toasts, setToasts] = useState<ToastEntry[]>([])
+  const [lastSeenAt, setLastSeenAt] = useState(Date.now())
 
   const markAppointmentSnapshots = useCallback((appointments: Iterable<Appointment>) => {
     for (const [id, snapshot] of snapshotsFromAppointments(appointments)) {
@@ -31,15 +33,17 @@ export function useAdminAppointmentNotifications(adminToken: string) {
 
   const ingestNewItems = useCallback((items: AdminAppointmentNotificationItem[]) => {
     if (items.length === 0) return
+    const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
     setInbox((prev) => {
       const seen = new Set(prev.map((i) => i.key))
       const merged = [...prev]
       for (const item of items) {
         if (seen.has(item.key)) continue
+        if (item.timestamp < cutoff) continue
         seen.add(item.key)
         merged.unshift(item)
       }
-      return merged
+      return merged.filter((i) => i.timestamp >= cutoff)
     })
     setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
     showAdminBrowserNotifications(items)
@@ -78,6 +82,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
       setInbox([])
       setToasts([])
       setBellOpen(false)
+      setLastSeenAt(Date.now())
     }
   }, [adminToken])
 
@@ -86,17 +91,22 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   }, [])
 
   const openBell = useCallback(() => {
+    setLastSeenAt(Date.now())
     setBellOpen(true)
   }, [])
 
   const closeBell = useCallback(() => {
     setBellOpen(false)
-    setInbox([])
   }, [])
+
+  const inboxCount = useMemo(
+    () => inbox.filter((i) => i.timestamp > lastSeenAt).length,
+    [inbox, lastSeenAt],
+  )
 
   return {
     inbox,
-    inboxCount: inbox.length,
+    inboxCount,
     bellOpen,
     openBell,
     closeBell,
@@ -104,5 +114,6 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     dismissToast,
     markAppointmentSnapshots,
     pollAppointmentChanges,
+    lastSeenAt,
   }
 }

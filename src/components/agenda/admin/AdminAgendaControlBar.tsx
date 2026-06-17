@@ -40,6 +40,7 @@ type Props = {
   gridInteractionsLocked?: boolean
   notificationInbox?: AdminAppointmentNotificationItem[]
   notificationBellOpen?: boolean
+  notificationLastSeenAt?: number
   onNotificationBellOpen?: () => void
   onNotificationBellClose?: () => void
   onNotificationSelect?: (item: AdminAppointmentNotificationItem) => void
@@ -84,6 +85,7 @@ export function AdminAgendaControlBar({
   gridInteractionsLocked = false,
   notificationInbox = [],
   notificationBellOpen = false,
+  notificationLastSeenAt = Date.now(),
   onNotificationBellOpen,
   onNotificationBellClose,
   onNotificationSelect,
@@ -123,6 +125,7 @@ export function AdminAgendaControlBar({
       <AdminAppointmentNotificationsBell
         inbox={notificationInbox}
         open={notificationBellOpen}
+        lastSeenAt={notificationLastSeenAt}
         onOpen={onNotificationBellOpen}
         onClose={onNotificationBellClose}
         onSelect={onNotificationSelect}

@@ -14,6 +14,7 @@ export type AdminAppointmentNotificationItem = {
   customerName: string
   serviceName: string
   startTime: string
+  timestamp: number
 }
 
 export type AppointmentSnapshot = {
@@ -30,6 +31,7 @@ export type AppointmentSnapshot = {
 
 export const ADMIN_APPOINTMENT_NOTIFY_RANGE_DAYS = 90
 export const ADMIN_APPOINTMENT_TOAST_MS = 6_000
+export const ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS = 3_600_000
 
 const ACTIVE_STATUSES = new Set(['confirmed', 'pending'])
 
@@ -76,6 +78,7 @@ function snapshotToNotificationItem(
     customerName: snapshot.customerName,
     serviceName: snapshot.serviceName,
     startTime: snapshot.startTime,
+    timestamp: Date.now(),
   }
 }
 
