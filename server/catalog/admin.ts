@@ -123,6 +123,10 @@ export async function deleteService(id: string): Promise<void> {
   await sql`UPDATE services SET active = FALSE, updated_at = ${new Date().toISOString()} WHERE id = ${id}`
 }
 
+export async function hardDeleteService(id: string): Promise<void> {
+  await sql`DELETE FROM services WHERE id = ${id}`
+}
+
 export async function listAdminServiceCategories(): Promise<AdminServiceCategory[]> {
   const rows = await sql<(ServiceCategoryRow & { service_count: number })[]>`
     SELECT c.*, COUNT(s.id)::int AS service_count
@@ -224,4 +228,8 @@ export async function updateServiceCategory(
 
 export async function deleteServiceCategory(id: string): Promise<void> {
   await sql`UPDATE service_categories SET active = FALSE, updated_at = ${new Date().toISOString()} WHERE id = ${id}`
+}
+
+export async function hardDeleteServiceCategory(id: string): Promise<void> {
+  await sql`DELETE FROM service_categories WHERE id = ${id}`
 }

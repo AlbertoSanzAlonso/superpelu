@@ -9,7 +9,7 @@ import type { Locale } from '@/i18n/types'
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const LOGO_TIMEOUT_MS = 6_000
 
-let cachedLogoBase64: string | null = null
+let cachedLogoBase64Raw: string | null = null
 
 async function resolveLogoFilePath(): Promise<string> {
   const relative = WHATSAPP_LOGO_IMAGE_PATH.replace(/^\//, '')
@@ -29,11 +29,11 @@ async function resolveLogoFilePath(): Promise<string> {
 }
 
 async function readWhatsAppLogoBase64(): Promise<string> {
-  if (cachedLogoBase64) return cachedLogoBase64
+  if (cachedLogoBase64Raw) return cachedLogoBase64Raw
   const filePath = await resolveLogoFilePath()
   const buf = await readFile(filePath)
-  cachedLogoBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`
-  return cachedLogoBase64
+  cachedLogoBase64Raw = `data:image/jpeg;base64,${buf.toString('base64')}`
+  return cachedLogoBase64Raw
 }
 
 function whatsappLogoImageUrl(): string | null {
@@ -45,8 +45,8 @@ function whatsappLogoImageUrl(): string | null {
 async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {
   const caption = getTranslation(locale).whatsappAppointment.logoCaption
   try {
-    const base64 = await readWhatsAppLogoBase64()
-    await openWaSendImage(chatId, { base64 }, caption)
+    const dataUrl = await readWhatsAppLogoBase64()
+    await openWaSendImage(chatId, dataUrl, caption)
     return
   } catch (err) {
     const url = whatsappLogoImageUrl()
@@ -55,7 +55,7 @@ async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {
       return
     }
     try {
-      await openWaSendImage(chatId, { url }, caption)
+      await openWaSendImage(chatId, url, caption)
     } catch (urlErr) {
       console.error('Superpelu WhatsApp: cabecera con logo omitida:', urlErr)
     }

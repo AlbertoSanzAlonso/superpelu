@@ -30,6 +30,8 @@ export type CreateAppointmentInput = {
   endDate?: string
   /** Resoluciones de conflictos para series con múltiples tratamientos. */
   conflictResolutions?: SeriesConflictResolution[]
+  /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */
+  forceSchedule?: boolean
 }
 
 export type UpdateAppointmentInput = {
@@ -53,4 +55,6 @@ export type UpdateAppointmentInput = {
   customerLocale?: Locale
   /** Si es `false`, no se envía WhatsApp de reprogramación (p. ej. elección del admin). */
   notifyCustomerWhatsApp?: boolean
+  /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */
+  forceSchedule?: boolean
 }

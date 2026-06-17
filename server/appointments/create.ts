@@ -230,20 +230,22 @@ export async function createAppointment(
       time === chainedDefault[index] ? undefined : time,
     )
 
-    const daySlots = await getServiceDaySlotsForServices(input.date, serviceIds, {
-      forStaffPortal: input.forStaffPortal,
-    })
-    if (!daySlots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+    if (!input.forceSchedule) {
+      const daySlots = await getServiceDaySlotsForServices(input.date, serviceIds, {
+        forStaffPortal: input.forStaffPortal,
+      })
+      if (!daySlots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
-    const chain = await resolveChainContinuation(
-      input.date,
-      serviceIds,
-      input.startTime,
-      staffAssignments,
-      { forStaffPortal: input.forStaffPortal },
-      serviceStartOverrides,
-    )
-    if (!chain.complete) throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+      const chain = await resolveChainContinuation(
+        input.date,
+        serviceIds,
+        input.startTime,
+        staffAssignments,
+        { forStaffPortal: input.forStaffPortal },
+        serviceStartOverrides,
+      )
+      if (!chain.complete) throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+    }
 
     return createChainedBookingAppointment(
       { ...input, serviceStartTimes },
@@ -272,13 +274,15 @@ export async function createAppointment(
 
   if (!dateOk) throw new Error('FECHA_INVALIDA')
 
-  const slots = await getAvailableSlotsForServices(
-    input.date,
-    serviceIds,
-    input.staffId,
-    { forStaffPortal: input.forStaffPortal },
-  )
-  if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+  if (!input.forceSchedule) {
+    const slots = await getAvailableSlotsForServices(
+      input.date,
+      serviceIds,
+      input.staffId,
+      { forStaffPortal: input.forStaffPortal },
+    )
+    if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
+  }
 
   const service = await getService(serviceIds[0], { onlineOnly: !input.forStaffPortal })
   if (!service) throw new Error('SERVICIO_INVALIDO')
@@ -325,16 +329,21 @@ export async function createAppointment(
 
   const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
+  const customDuration = input.serviceDurations?.[0] ?? null
+  const useCustomDuration = customDuration != null && customDuration > 0
+  const durationForSegments = useCustomDuration ? customDuration : service.durationMinutes
   const colorGroup = await prepareColorBookingGroupIds(service.id)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
     timeToMinutes(input.startTime),
-    service.durationMinutes,
+    durationForSegments,
   )
 
   const primaryId = await sql.begin(async (tx) => {
     await lockStaffDayForBooking(tx, staff.id, input.date)
-    await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+    if (!input.forceSchedule) {
+      await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+    }
 
     if (colorGroup) {
       const washServiceName = await resolveWashServiceName(locale)
@@ -366,7 +375,9 @@ export async function createAppointment(
     }
 
     const id = randomUUID()
-    const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+    const storedDuration = useCustomDuration
+      ? customDuration
+      : getBookingSpanMinutes(service.id, service.durationMinutes)
     await tx`
       INSERT INTO appointments (
         id, staff_id, staff_name, service_id, service_name, duration_minutes,

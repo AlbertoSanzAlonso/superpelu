@@ -119,11 +119,9 @@ export async function openWaSendText(chatId: string, text: string): Promise<stri
   return data.messageId
 }
 
-export type OpenWaImagePayload = { url: string } | { base64: string }
-
 export async function openWaSendImage(
   chatId: string,
-  image: OpenWaImagePayload,
+  image: string,
   caption?: string,
 ): Promise<string | undefined> {
   const config = getOpenWaConfig()

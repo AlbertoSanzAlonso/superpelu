@@ -94,12 +94,12 @@ export function useStaffAgenda(token: string) {
   }, [load])
 
   useEffect(() => {
-    const firstId = aptDraft.serviceIds[0]
-    if (!firstId || !date) {
+    const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
+    if (filteredIds.length === 0 || !date) {
       setSlots([])
       return
     }
-    fetchMySlots(token, date, firstId, editingId ?? undefined)
+    fetchMySlots(token, date, filteredIds, editingId ?? undefined)
       .then((r) => setSlots(r.slots))
       .catch(() => setSlots([]))
   }, [token, date, aptDraft.serviceIds.join(','), editingId])
@@ -216,14 +216,15 @@ export function useStaffAgenda(token: string) {
     return singleFreeTimeFromGridSummary(gridSummary())
   }, [gridSummary])
 
-  const saveAppointment = useCallback(
-    async (e: React.FormEvent): Promise<boolean> => {
-      e.preventDefault()
-      setError('')
+  const doSave = useCallback(
+    async (forceSchedule = false): Promise<boolean> => {
+      const filteredIds = aptDraft.serviceIds.filter(Boolean)
       try {
         if (editingId) {
           await updateMyAppointment(token, editingId, {
-            serviceId: aptDraft.serviceIds[0] ?? '',
+            serviceIds: filteredIds,
+            serviceStartTimes: aptDraft.serviceStartTimes,
+            serviceDurations: aptDraft.serviceDurations,
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,
@@ -233,10 +234,13 @@ export function useStaffAgenda(token: string) {
             customerNotes: aptDraft.customerNotes || null,
             notes: aptDraft.notes || null,
             customerLocale: aptDraft.customerLocale,
+            forceSchedule,
           })
         } else {
           await createMyAppointment(token, {
-            serviceId: aptDraft.serviceIds[0] ?? '',
+            serviceIds: filteredIds,
+            serviceStartTimes: aptDraft.serviceStartTimes,
+            serviceDurations: aptDraft.serviceDurations,
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,
@@ -251,17 +255,45 @@ export function useStaffAgenda(token: string) {
               aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
                 ? aptDraft.recurrenceEndDate
                 : undefined,
+            forceSchedule,
           })
         }
         resetAppointmentForm()
         await load()
         return true
       } catch (err) {
+        if (
+          !forceSchedule &&
+          err instanceof ApiError &&
+          /horario no disponible|HORARIO/i.test(err.message)
+        ) {
+          confirmUi.setConfirmDialog({
+            title: 'El horario no está disponible',
+            message:
+              'Ese horario está ocupado o fuera del horario laboral. ¿Quieres agendarla de todas formas?',
+            confirmLabel: 'Agendar de todas formas',
+            destructive: false,
+            onConfirm: async () => {
+              confirmUi.closeConfirmDialog()
+              await doSave(true)
+            },
+          })
+          return false
+        }
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
         return false
       }
     },
-    [aptDraft, date, editingId, load, resetAppointmentForm, token],
+    [aptDraft, date, editingId, load, resetAppointmentForm, token, confirmUi],
+  )
+
+  const saveAppointment = useCallback(
+    async (e: React.FormEvent): Promise<boolean> => {
+      e.preventDefault()
+      setError('')
+      return doSave()
+    },
+    [doSave],
   )
 
   const closeNoShowDialog = useCallback(() => {

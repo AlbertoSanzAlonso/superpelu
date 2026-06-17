@@ -263,6 +263,14 @@ export async function createChainedBookingAppointment(
   staffAssignments: string[],
 ): Promise<AppointmentRow> {
   const services = await resolveBookingServices(serviceIds, !input.forStaffPortal)
+  const serviceDurations = input.serviceDurations ?? []
+  const effectiveServices = services.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
 
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,
@@ -297,9 +305,9 @@ export async function createChainedBookingAppointment(
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
   const bookingGroupId = randomUUID()
   const serviceStartTimes =
-    input.serviceStartTimes?.length === services.length
+    input.serviceStartTimes?.length === effectiveServices.length
       ? input.serviceStartTimes
-      : buildFlexibleServiceStartTimes(services, input.startTime, [])
+      : buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
 
   const primaryId = await sql.begin(async (tx) => {
     await lockStaffDaysForBooking(
@@ -307,24 +315,26 @@ export async function createChainedBookingAppointment(
       staffAssignments.map((staffId) => ({ staffId, date: input.date })),
     )
 
-    for (let i = 0; i < services.length; i++) {
+    for (let i = 0; i < effectiveServices.length; i++) {
       const staffId = staffAssignments[i]
       const serviceStartTime = serviceStartTimes[i]
-      const segments = getOccupiedSegmentsForChainService(
-        services,
-        i,
-        timeToMinutes(serviceStartTime),
-      )
-      if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
-        throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+      if (!input.forceSchedule) {
+        const segments = getOccupiedSegmentsForChainService(
+          effectiveServices,
+          i,
+          timeToMinutes(serviceStartTime),
+        )
+        if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
+          throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
+        }
       }
     }
 
     let firstId: string | null = null
     const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
-    for (let i = 0; i < services.length; i++) {
-      const service = services[i]
+    for (let i = 0; i < effectiveServices.length; i++) {
+      const service = effectiveServices[i]
       const staffId = staffAssignments[i]
       const staff = await getStaff(staffId)
       if (!staff?.active) throw new Error('STAFF_INVALIDO')

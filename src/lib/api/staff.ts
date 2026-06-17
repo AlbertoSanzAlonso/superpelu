@@ -79,10 +79,10 @@ export function fetchMySchedule(date: string, token: string) {
 export function fetchMySlots(
   token: string,
   date: string,
-  serviceId: string,
+  serviceIds: string[],
   excludeAppointmentId?: string,
 ) {
-  const params = new URLSearchParams({ date, serviceId })
+  const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') })
   if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
   return staffRequest<{ slots: string[] }>(`/me/slots?${params}`, token).then((r) => ({
     slots: r.slots ?? [],
@@ -99,7 +99,10 @@ export function fetchMyAppointments(token: string, from: string, to: string) {
 export function createMyAppointment(
   token: string,
   payload: {
-    serviceId: string
+    serviceId?: string
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
     date: string
     startTime: string
     customerFirstName: string
@@ -111,6 +114,7 @@ export function createMyAppointment(
     customerLocale?: 'es' | 'en'
     scope?: BlockScope
     endDate?: string
+    forceSchedule?: boolean
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -124,6 +128,9 @@ export function updateMyAppointment(
   id: string,
   payload: Partial<{
     serviceId: string
+    serviceIds: string[]
+    serviceStartTimes: string[]
+    serviceDurations: (number | null)[]
     date: string
     startTime: string
     customerFirstName: string
@@ -133,6 +140,7 @@ export function updateMyAppointment(
     customerNotes?: string | null
     notes: string | null
     customerLocale?: 'es' | 'en'
+    forceSchedule?: boolean
   }>,
 ) {
   return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}`, token, {

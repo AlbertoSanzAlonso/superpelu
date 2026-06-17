@@ -75,6 +75,13 @@ export function deleteAdminService(adminToken: string, id: string) {
   })
 }
 
+export function hardDeleteAdminService(adminToken: string, id: string) {
+  return request<{ ok: true }>(`/admin/services/${encodeURIComponent(id)}/hard`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
+  })
+}
+
 export function fetchAdminServiceCategories(adminToken: string) {
   return request<{ categories: AdminServiceCategory[] }>('/admin/service-categories', {
     headers: adminHeaders(adminToken),
@@ -120,6 +127,13 @@ export function updateAdminServiceCategory(
 
 export function deleteAdminServiceCategory(adminToken: string, id: string) {
   return request<{ ok: true }>(`/admin/service-categories/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
+  })
+}
+
+export function hardDeleteAdminServiceCategory(adminToken: string, id: string) {
+  return request<{ ok: true }>(`/admin/service-categories/${encodeURIComponent(id)}/hard`, {
     method: 'DELETE',
     headers: adminHeaders(adminToken),
   })

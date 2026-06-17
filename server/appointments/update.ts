@@ -246,7 +246,9 @@ export async function updateAppointmentForStaff(
     }
     await sql.begin(async (tx) => {
       await lockStaffDaysForBooking(tx, lockKeys)
-      await assertBookingAvailable(tx, targetStaffId, date, segments, appointmentId)
+      if (!input.forceSchedule) {
+        await assertBookingAvailable(tx, targetStaffId, date, segments, appointmentId)
+      }
       await persistUpdates(tx)
     })
   } else {
@@ -300,6 +302,9 @@ async function replaceAppointment(
     serviceIds,
     serviceStartTimes: input.serviceStartTimes?.length === serviceIds.length
       ? input.serviceStartTimes
+      : undefined,
+    serviceDurations: input.serviceDurations?.length === serviceIds.length
+      ? input.serviceDurations
       : undefined,
     date,
     startTime,

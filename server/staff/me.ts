@@ -5,6 +5,7 @@ import {
   getAppointmentById,
   getAppointmentSeriesMeta,
   getAvailableSlots,
+  getAvailableSlotsForServices,
   listAppointmentsForStaff,
   markAppointmentNoShow,
   rowToPublic,
@@ -104,14 +105,25 @@ me.get('/me/slots', async (c) => {
   if (error) return error
   const date = c.req.query('date')
   const serviceId = c.req.query('serviceId')
+  const serviceIdsRaw = c.req.query('serviceIds')
   const exclude = c.req.query('excludeAppointmentId')
-  if (!date || !serviceId) return c.json({ error: 'Faltan date o serviceId' }, 400)
-  return c.json({
-    slots: await getAvailableSlots(date, serviceId, staff!.id, {
-      forStaffPortal: true,
-      excludeAppointmentId: exclude,
-    }),
-  })
+  if (!date) return c.json({ error: 'Falta date' }, 400)
+  const ids = serviceIdsRaw
+    ? serviceIdsRaw.split(',').filter(Boolean)
+    : serviceId
+      ? [serviceId]
+      : []
+  if (ids.length === 0) return c.json({ error: 'Faltan serviceId o serviceIds' }, 400)
+  const slots = ids.length > 1
+    ? await getAvailableSlotsForServices(date, ids, staff!.id, {
+        forStaffPortal: true,
+        excludeAppointmentId: exclude,
+      })
+    : await getAvailableSlots(date, ids[0], staff!.id, {
+        forStaffPortal: true,
+        excludeAppointmentId: exclude,
+      })
+  return c.json({ slots })
 })
 
 me.get('/me/appointments', async (c) => {
@@ -127,7 +139,10 @@ me.post('/me/appointments', async (c) => {
   const { error, staff } = await requireStaff(c)
   if (error) return error
   const body = await c.req.json<{
-    serviceId: string
+    serviceId?: string
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
     date: string
     startTime: string
     customerName?: string
@@ -140,9 +155,11 @@ me.post('/me/appointments', async (c) => {
     customerLocale?: 'es' | 'en'
     scope?: SeriesScope
     endDate?: string
+    forceSchedule?: boolean
   }>()
+  const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
-  if (!body.serviceId || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
+  if (ids.length === 0 || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   const scope = body.scope ?? 'single'
@@ -154,12 +171,24 @@ me.post('/me/appointments', async (c) => {
   }
   try {
     const row = await createAppointment({
-      ...body,
-      scope,
+      serviceIds: ids,
+      serviceStartTimes: body.serviceStartTimes,
+      serviceDurations: body.serviceDurations,
       staffId: staff!.id,
+      date: body.date,
+      startTime: body.startTime,
+      customerName: body.customerName,
+      customerFirstName: body.customerFirstName,
+      customerLastName: body.customerLastName,
       customerPhone: body.customerPhone ?? '',
+      customerEmail: body.customerEmail,
+      customerNotes: body.customerNotes,
+      notes: body.notes,
       customerLocale: body.customerLocale,
+      scope,
+      endDate: body.endDate,
       forStaffPortal: true,
+      forceSchedule: body.forceSchedule,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -173,6 +202,9 @@ me.patch('/me/appointments/:id', async (c) => {
   if (error) return error
   const body = await c.req.json<{
     serviceId?: string
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
     date?: string
     startTime?: string
     customerName?: string
@@ -183,6 +215,7 @@ me.patch('/me/appointments/:id', async (c) => {
     customerNotes?: string | null
     notes?: string | null
     customerLocale?: 'es' | 'en'
+    forceSchedule?: boolean
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)

@@ -11,10 +11,12 @@ import {
   createService,
   updateService,
   deleteService,
+  hardDeleteService,
   listAdminServiceCategories,
   createServiceCategory,
   updateServiceCategory,
   deleteServiceCategory,
+  hardDeleteServiceCategory,
 } from '@server/catalog/admin.js'
 import { listStaffForService, listStaffForServices, getStaff } from '@server/staff/index.js'
 import { me } from '@server/staff/me.js'
@@ -344,6 +346,14 @@ app.delete('/api/admin/services/:id', async (c) => {
   return c.json({ ok: true })
 })
 
+app.delete('/api/admin/services/:id/hard', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  await hardDeleteService(id)
+  return c.json({ ok: true })
+})
+
 app.get('/api/admin/service-categories', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
@@ -377,6 +387,14 @@ app.delete('/api/admin/service-categories/:id', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
   await deleteServiceCategory(id)
+  return c.json({ ok: true })
+})
+
+app.delete('/api/admin/service-categories/:id/hard', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const id = c.req.param('id')
+  await hardDeleteServiceCategory(id)
   return c.json({ ok: true })
 })
 
@@ -1070,6 +1088,7 @@ app.post('/api/schedule/appointments', async (c) => {
     serviceIds?: string[]
     serviceId?: string
     serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
     date: string
     startTime: string
     customerName?: string
@@ -1082,6 +1101,7 @@ app.post('/api/schedule/appointments', async (c) => {
     customerLocale?: 'es' | 'en'
     scope?: BlockScope
     endDate?: string
+    forceSchedule?: boolean
     conflictResolutions?: { date: string; action: 'skip' | 'reassign' | 'reschedule'; staffId?: string; startTime?: string }[]
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
@@ -1108,6 +1128,7 @@ app.post('/api/schedule/appointments', async (c) => {
       staffId: body.staffId,
       serviceIds: ids,
       serviceStartTimes: body.serviceStartTimes,
+      serviceDurations: body.serviceDurations,
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,
@@ -1121,6 +1142,7 @@ app.post('/api/schedule/appointments', async (c) => {
       scope,
       endDate: body.endDate,
       forStaffPortal: true,
+      forceSchedule: body.forceSchedule,
       conflictResolutions: body.conflictResolutions,
     })
     const grouped =
@@ -1149,6 +1171,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     serviceId?: string
     serviceIds?: string[]
     serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
     date?: string
     startTime?: string
     customerName?: string
@@ -1160,6 +1183,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     notes?: string | null
     customerLocale?: 'es' | 'en'
     notifyCustomerWhatsApp?: boolean
+    forceSchedule?: boolean
   }>()
   try {
     const row = await updateAppointmentForAdmin(c.req.param('id'), body)

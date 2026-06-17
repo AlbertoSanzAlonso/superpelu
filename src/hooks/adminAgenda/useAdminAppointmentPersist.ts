@@ -13,6 +13,7 @@ import type {
 } from '@/lib/api'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 
 type PersistDeps = {
   adminToken: string
@@ -30,6 +31,7 @@ type PersistDeps = {
   setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
   markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
+  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
 }
 
 export function useAdminAppointmentPersist({
@@ -48,6 +50,7 @@ export function useAdminAppointmentPersist({
   setWhatsAppNotifyContext,
   setAppointmentFormOpen,
   markAppointmentSnapshots,
+  setConfirmDialog,
 }: PersistDeps) {
   const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
@@ -62,8 +65,8 @@ export function useAdminAppointmentPersist({
     return undefined
   }
 
-  const persistAppointment = useCallback(
-    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
+  const doPersistAppointment = useCallback(
+    async (notifyCustomerWhatsApp?: boolean, forceSchedule = false): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
       setError('')
       try {
@@ -86,6 +89,7 @@ export function useAdminAppointmentPersist({
             notes: aptDraft.notes || undefined,
             customerLocale: aptDraft.customerLocale,
             notifyCustomerWhatsApp,
+            forceSchedule,
           })
           markAppointmentSnapshots?.([appointment])
         } else {
@@ -141,6 +145,7 @@ export function useAdminAppointmentPersist({
                 aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
                   ? aptDraft.recurrenceEndDate
                   : undefined,
+              forceSchedule,
             },
             adminToken,
           )
@@ -154,6 +159,24 @@ export function useAdminAppointmentPersist({
         await load()
         return true
       } catch (err) {
+        if (
+          !forceSchedule &&
+          err instanceof ApiError &&
+          /horario no disponible|HORARIO/i.test(err.message)
+        ) {
+          setConfirmDialog({
+            title: 'El horario no está disponible',
+            message:
+              'Ese horario está ocupado o fuera del horario laboral. ¿Quieres agendarla de todas formas?',
+            confirmLabel: 'Agendar de todas formas',
+            destructive: false,
+            onConfirm: async () => {
+              setConfirmDialog(null)
+              await doPersistAppointment(notifyCustomerWhatsApp, true)
+            },
+          })
+          return false
+        }
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
         return false
       }
@@ -172,7 +195,15 @@ export function useAdminAppointmentPersist({
       markAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
+      setConfirmDialog,
     ],
+  )
+
+  const persistAppointment = useCallback(
+    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
+      return doPersistAppointment(notifyCustomerWhatsApp)
+    },
+    [doPersistAppointment],
   )
 
   const saveAppointment = useCallback(
@@ -222,25 +253,27 @@ export function useAdminAppointmentPersist({
       setSeriesConflictBusy(true)
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
-        const { appointment } = await createAdminAppointment(
-          {
-            staffId: activeStaffId,
-            serviceIds: filteredServiceIds,
-            date,
-            startTime: aptDraft.startTime,
-            customerFirstName: aptDraft.customerFirstName,
-            customerLastName: aptDraft.customerLastName,
-            customerPhone: aptDraft.customerPhone,
-            customerEmail: aptDraft.customerEmail || undefined,
-            customerNotes: aptDraft.customerNotes || undefined,
-            notes: aptDraft.notes || undefined,
-            customerLocale: aptDraft.customerLocale,
-            scope: 'weekly',
-            endDate: aptDraft.recurrenceEndDate || undefined,
-            conflictResolutions: resolutions,
-          },
-          adminToken,
-        )
+          const { appointment } = await createAdminAppointment(
+            {
+              staffId: activeStaffId,
+              serviceIds: filteredServiceIds,
+              serviceStartTimes: aptDraft.serviceStartTimes,
+              serviceDurations: aptDraft.serviceDurations,
+              date,
+              startTime: aptDraft.startTime,
+              customerFirstName: aptDraft.customerFirstName,
+              customerLastName: aptDraft.customerLastName,
+              customerPhone: aptDraft.customerPhone,
+              customerEmail: aptDraft.customerEmail || undefined,
+              customerNotes: aptDraft.customerNotes || undefined,
+              notes: aptDraft.notes || undefined,
+              customerLocale: aptDraft.customerLocale,
+              scope: 'weekly',
+              endDate: aptDraft.recurrenceEndDate || undefined,
+              conflictResolutions: resolutions,
+            },
+            adminToken,
+          )
         markAppointmentSnapshots?.([appointment])
         setSeriesConflictOpen(false)
         setSeriesConflictPreview(null)

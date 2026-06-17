@@ -45,10 +45,12 @@ export {
   createAdminService,
   updateAdminService,
   deleteAdminService,
+  hardDeleteAdminService,
   fetchAdminServiceCategories,
   createAdminServiceCategory,
   updateAdminServiceCategory,
   deleteAdminServiceCategory,
+  hardDeleteAdminServiceCategory,
 } from './admin-catalog'
 export {
   fetchServices,

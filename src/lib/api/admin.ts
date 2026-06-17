@@ -120,6 +120,7 @@ export type AdminAppointmentPayload = {
   scope?: BlockScope
   endDate?: string
   conflictResolutions?: SeriesConflictResolution[]
+  forceSchedule?: boolean
 }
 
 export type SeriesConflictResolution = {

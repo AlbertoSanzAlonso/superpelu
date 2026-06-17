@@ -248,6 +248,7 @@ export function useAdminAgendaAppointments({
     setWhatsAppNotifyContext,
     setAppointmentFormOpen,
     markAppointmentSnapshots,
+    setConfirmDialog,
   })
 
   const persistCancel = useCallback(
