@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { formatDisplayDate } from '@/lib/core/dates'
-import type { SeriesDateConflict, SeriesConflictResolution } from '@/lib/api/client'
+import type { SeriesDateConflict, SeriesConflictResolution } from '@/lib/api/admin'
 import { typography } from '@/styles/typography'
 
 type Props = {

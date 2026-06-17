@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
-import { fetchStaffSpecialSchedule, updateStaffSpecialSchedule, deleteStaffSpecialDate } from '@/lib/api/client'
+import { fetchStaffSpecialSchedule, updateStaffSpecialSchedule, deleteStaffSpecialDate } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
 import { DAY_NAMES } from './constants'

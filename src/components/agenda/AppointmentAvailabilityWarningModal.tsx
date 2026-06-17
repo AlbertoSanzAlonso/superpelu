@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { fetchStaffAtSlot } from '@/lib/api/client'
+import { fetchStaffAtSlot } from '@/lib/api/booking'
 import type { StaffMember } from '@/types/booking'
 import { typography } from '@/styles/typography'
 

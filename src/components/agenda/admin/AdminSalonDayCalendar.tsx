@@ -338,9 +338,6 @@ function StaffColumn({
             pendingVisual={getPendingVisualForAppointment(pendingMoveSummary, apt.id)}
             dragEnabled={dragEnabled}
             columnTopFromClientY={columnTopFromClientY}
-            onResizeEnd={(aptId, newDuration, newStartTime) => {
-              onEditAppointment(schedule.staffId, apt)
-            }}
           />
         ))}
 

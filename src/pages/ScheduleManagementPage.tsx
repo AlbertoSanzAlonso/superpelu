@@ -8,7 +8,7 @@ import {
   fetchFullSchedule,
   updateSalonSchedule,
   updateStaffSchedule,
-} from '@/lib/api/client'
+} from '@/lib/api/admin'
 import type { FullScheduleData } from '@/types/schedule'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { SpecialScheduleSection } from '@/components/schedule/SpecialScheduleSection'

@@ -15,8 +15,8 @@ import {
   deleteAdminServiceCategory,
   type AdminService,
   type AdminServiceCategory,
-  ApiError,
-} from '@/lib/api/client'
+} from '@/lib/api/admin-catalog'
+import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { CategoryForm } from '@/components/admin/CategoryForm'
 import { ServiceForm } from '@/components/admin/ServiceForm'

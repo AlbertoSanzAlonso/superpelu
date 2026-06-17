@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import type { AdminServiceCategory } from '@/lib/api/client'
+import type { AdminServiceCategory } from '@/lib/api/admin-catalog'
 
 const labelClass = 'block text-xs uppercase tracking-wide text-gold mb-1'
 const fieldClass =

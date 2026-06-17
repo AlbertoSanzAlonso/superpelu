@@ -31,7 +31,6 @@ type Props = {
   dragEnabled: boolean
   previewOnly?: boolean
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
-  onResizeEnd?: (appointmentId: string, newDuration: number, newStartTime?: string) => void
 }
 
 function appointmentVisualBounds(
@@ -68,7 +67,6 @@ export function DraggableAppointmentBlock({
   dragEnabled,
   previewOnly = false,
   columnTopFromClientY,
-  onResizeEnd,
 }: Props) {
   const { activeDrag, startDrag, startResize } = useAppointmentDrag()
   const isDraggingThis = activeDrag?.appointment.id === apt.id

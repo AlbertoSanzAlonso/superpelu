@@ -1,7 +1,7 @@
 import type { Appointment, BookableService, StaffDaySchedule } from '@/types/booking'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
-import { ApiError } from '@/lib/api'
+import { ApiError } from './request'
 
 const API_BASE = '/api'
 

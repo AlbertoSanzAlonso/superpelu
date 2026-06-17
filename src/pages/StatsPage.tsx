@@ -4,7 +4,7 @@ import { useAdminSession } from '@/hooks/useAdminSession'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
-import { fetchStats, type StatsResponse } from '@/lib/api/client'
+import { fetchStats, type StatsResponse } from '@/lib/api/admin'
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Enero', '02': 'Febrero', '03': 'Marzo', '04': 'Abril',
