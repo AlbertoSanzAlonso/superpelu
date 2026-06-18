@@ -12,6 +12,7 @@ import {
   APPOINTMENT_STATUS_NO_SHOW,
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
+import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -115,6 +116,12 @@ export function AgendaAppointmentModal({
 
   const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
   const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
+
+  const serviceOverlaps = useMemo(
+    () => checkServiceOverlaps(draft, services),
+    [draft, services],
+  )
+  const hasOverlaps = serviceOverlaps.length > 0
 
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
@@ -379,6 +386,17 @@ export function AgendaAppointmentModal({
                   >
                     <span className="text-sm leading-none">+</span> Añadir tratamiento
                   </button>
+
+                  {hasOverlaps && (
+                    <div className="rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+                      <p className="font-semibold">Horarios solapados:</p>
+                      {serviceOverlaps.map((overlap, idx) => (
+                        <p key={idx}>
+                          {overlap.nameA} y {overlap.nameB} se solapan
+                        </p>
+                      ))}
+                    </div>
+                  )}
 
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>

@@ -32,6 +32,8 @@ export type CreateAppointmentInput = {
   conflictResolutions?: SeriesConflictResolution[]
   /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */
   forceSchedule?: boolean
+  /** Al editar, excluye esta cita de la comprobación de disponibilidad. */
+  excludeAppointmentId?: string
 }
 
 export type UpdateAppointmentInput = {

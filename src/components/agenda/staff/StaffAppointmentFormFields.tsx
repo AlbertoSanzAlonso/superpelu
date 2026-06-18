@@ -10,6 +10,7 @@ import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
@@ -189,6 +190,12 @@ export function StaffAppointmentFormFields({
     return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, [])
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, services])
 
+  const serviceOverlaps = useMemo(
+    () => checkServiceOverlaps(draft, services),
+    [draft, services],
+  )
+  const hasOverlaps = serviceOverlaps.length > 0
+
   const servicesSection = (
     <div className="space-y-2">
       <p className={`${typography.label} text-gold`}>Tratamientos</p>
@@ -293,6 +300,16 @@ export function StaffAppointmentFormFields({
       >
         <span className="text-sm leading-none">+</span> Añadir tratamiento
       </button>
+      {hasOverlaps && (
+        <div className="rounded border border-red-300 bg-red-50 p-2 text-xs text-red-700">
+          <p className="font-semibold">Horarios solapados:</p>
+          {serviceOverlaps.map((overlap, idx) => (
+            <p key={idx}>
+              {overlap.nameA} y {overlap.nameB} se solapan
+            </p>
+          ))}
+        </div>
+      )}
     </div>
   )
 

@@ -315,9 +315,10 @@ async function replaceAppointment(
       input.customerEmail !== undefined ? (input.customerEmail ?? undefined) : (existing.customer_email ?? undefined),
     customerNotes:
       input.customerNotes !== undefined ? (input.customerNotes ?? undefined) : undefined,
-    notes: input.notes !== undefined ? (input.notes ?? undefined) : (existing.notes ?? undefined),
+    notes: input.notes !== undefined ? (input.notes ?? undefined) : undefined,
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
     forStaffPortal: true,
+    excludeAppointmentId: existing.id,
   })
 
   // Delete old appointment(s) silently

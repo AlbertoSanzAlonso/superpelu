@@ -125,10 +125,19 @@ export async function resolveChainContinuation(
   options: SlotOptions = {},
   serviceStartOverrides: (string | undefined)[] = [],
 ): Promise<ChainContinuationResult> {
-  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
-  if (services.length < 2) {
+  const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  if (rawServices.length < 2) {
     throw new Error('SERVICIO_INVALIDO')
   }
+
+  const serviceDurations = options.serviceDurations ?? []
+  const services = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
 
   const overrides = serviceStartOverrides.length
     ? serviceStartOverrides

@@ -178,6 +178,8 @@ export type SlotOptions = {
   excludeAppointmentId?: string
   /** Panel del profesional: sin límite de días de antelación pública. */
   forStaffPortal?: boolean
+  /** Duraciones personalizadas por tratamiento (minutos). */
+  serviceDurations?: (number | null)[]
 }
 
 export type ResolvedBookingService = BookingServiceLine & {
@@ -228,7 +230,15 @@ export async function getAvailableSlotsForServices(
 
   if (!dateAllowed) return []
 
-  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const serviceDurations = options.serviceDurations ?? []
+  const services = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
   const staff = await getStaff(staffId)
   if (!staff || !staff.active) return []
 
@@ -339,7 +349,15 @@ export async function getServiceDaySlotsForServices(
     : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
   if (!dateAllowed) return []
 
-  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const serviceDurations = options.serviceDurations ?? []
+  const services = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
   const firstSpan = getFirstServiceBookingSpan(services)
   const candidateStarts = new Set<string>()
   const staffForFirst = await listStaffForService(serviceIds[0])
@@ -402,7 +420,15 @@ export async function getStaffAvailableAtSlotForServices(
     return available
   }
 
-  const services = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)
+  const serviceDurations = options.serviceDurations ?? []
+  const services = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
   const staffList = await listStaffForService(serviceIds[0])
   const available: PublicStaff[] = []
   for (const member of staffList) {

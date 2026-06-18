@@ -241,6 +241,8 @@ export async function createAppointment(
     if (!input.forceSchedule) {
       const daySlots = await getServiceDaySlotsForServices(input.date, serviceIds, {
         forStaffPortal: input.forStaffPortal,
+        excludeAppointmentId: input.excludeAppointmentId,
+        serviceDurations,
       })
       if (!daySlots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
@@ -249,7 +251,7 @@ export async function createAppointment(
         serviceIds,
         input.startTime,
         staffAssignments,
-        { forStaffPortal: input.forStaffPortal },
+        { forStaffPortal: input.forStaffPortal, excludeAppointmentId: input.excludeAppointmentId, serviceDurations },
         serviceStartOverrides,
       )
       if (!chain.complete) throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
