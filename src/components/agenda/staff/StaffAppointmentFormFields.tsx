@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
@@ -9,6 +9,7 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
+import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
@@ -167,6 +168,17 @@ export function StaffAppointmentFormFields({
     [serviceIds, draft.serviceDurations, draft.serviceStartTimes, onDraftChange, normalizeStartTimes],
   )
 
+  const chainedStartTimes = useMemo(() => {
+    if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
+    const filteredIds = draft.serviceIds.filter(id => id !== '')
+    const selectedServices = filteredIds.map(id => {
+      const svc = services.find(s => s.id === id)
+      return svc ? { id: svc.id, category: svc.categoryId ?? '', durationMinutes: svc.durationMinutes } : null
+    }).filter(Boolean) as { id: string; category: string; durationMinutes: number }[]
+    if (selectedServices.length === 0) return []
+    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, [])
+  }, [draft.startTime, draft.serviceIds, services])
+
   const servicesSection = (
     <div className="space-y-2">
       <p className={`${typography.label} text-gold`}>Tratamientos</p>
@@ -228,7 +240,9 @@ export function StaffAppointmentFormFields({
                       className={selectCn}
                     >
                       <option value="">
-                        {draft.startTime ? 'Automática (encadenada)' : 'Elige hora primero'}
+                        {draft.startTime && chainedStartTimes[index]
+                          ? chainedStartTimes[index]
+                          : 'Elige hora primero'}
                       </option>
                       {timeOptions.map((slot) => (
                         <option key={slot} value={slot}>

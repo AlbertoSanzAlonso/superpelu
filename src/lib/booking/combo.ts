@@ -119,7 +119,7 @@ export function buildFlexibleServiceStartTimes(
   overrides: ReadonlyArray<string | undefined> = [],
 ): string[] {
   const numericOverrides = overrides.map((override) =>
-    override !== undefined ? timeToMinutes(override) : undefined,
+    override !== undefined && override !== '' ? timeToMinutes(override) : undefined,
   )
   return buildChainStartMinutes(services, timeToMinutes(visitStartTime), numericOverrides).map(
     minutesToTime,
