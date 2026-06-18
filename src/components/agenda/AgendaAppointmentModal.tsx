@@ -145,7 +145,11 @@ export function AgendaAppointmentModal({
     (index: number, time: string) => {
       const times = [...(draft.serviceStartTimes.length === draft.serviceIds.length ? draft.serviceStartTimes : [])]
       times[index] = time
-      onDraftChange({ serviceStartTimes: times })
+      const patch: Partial<typeof draft> = { serviceStartTimes: times }
+      if (index === 0 && time) {
+        patch.startTime = time
+      }
+      onDraftChange(patch)
     },
     [draft.serviceStartTimes, draft.serviceIds.length, onDraftChange],
   )

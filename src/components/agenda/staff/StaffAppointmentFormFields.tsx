@@ -110,7 +110,11 @@ export function StaffAppointmentFormFields({
     (index: number, time: string) => {
       const times = normalizeStartTimes(draft.serviceIds, draft.serviceStartTimes)
       times[index] = time
-      onDraftChange({ serviceStartTimes: times })
+      const patch: Partial<AppointmentDraft> = { serviceStartTimes: times }
+      if (index === 0 && time) {
+        patch.startTime = time
+      }
+      onDraftChange(patch)
     },
     [draft.serviceIds, draft.serviceStartTimes, onDraftChange, normalizeStartTimes],
   )
