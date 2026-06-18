@@ -220,12 +220,20 @@ export async function createAppointment(
       }
     }
 
-    const services = await resolveBookingServices(serviceIds, !input.forStaffPortal)
+    const rawServices = await resolveBookingServices(serviceIds, !input.forStaffPortal)
+    const serviceDurations = input.serviceDurations ?? []
+    const effectiveServices = rawServices.map((s, i) => ({
+      ...s,
+      durationMinutes:
+        serviceDurations[i] != null && serviceDurations[i] > 0
+          ? serviceDurations[i]
+          : s.durationMinutes,
+    }))
     const serviceStartTimes =
       input.serviceStartTimes?.length === serviceIds.length
         ? input.serviceStartTimes
-        : buildFlexibleServiceStartTimes(services, input.startTime, [])
-    const chainedDefault = buildFlexibleServiceStartTimes(services, input.startTime, [])
+        : buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+    const chainedDefault = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
     const serviceStartOverrides = serviceStartTimes.map((time, index) =>
       time === chainedDefault[index] || !time ? undefined : time,
     )

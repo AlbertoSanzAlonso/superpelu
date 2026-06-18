@@ -174,14 +174,20 @@ export function StaffAppointmentFormFields({
 
   const chainedStartTimes = useMemo(() => {
     if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
-    const filteredIds = draft.serviceIds.filter(id => id !== '')
-    const selectedServices = filteredIds.map(id => {
+    const selectedServices = draft.serviceIds.map((id, i) => {
+      if (!id) return null
       const svc = services.find(s => s.id === id)
-      return svc ? { id: svc.id, category: svc.categoryId ?? '', durationMinutes: svc.durationMinutes } : null
+      if (!svc) return null
+      const customDuration = draft.serviceDurations[i]
+      return {
+        id: svc.id,
+        category: svc.categoryId ?? '',
+        durationMinutes: customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
+      }
     }).filter(Boolean) as { id: string; category: string; durationMinutes: number }[]
     if (selectedServices.length === 0) return []
     return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, [])
-  }, [draft.startTime, draft.serviceIds, services])
+  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, services])
 
   const servicesSection = (
     <div className="space-y-2">

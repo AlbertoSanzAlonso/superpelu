@@ -77,8 +77,16 @@ export async function previewRecurringChainConflicts(
   )
   if (dates.length === 0) throw new Error('FECHA_INVALIDA')
 
-  const services = await resolveBookingServices(serviceIds, false)
-  const serviceStartTimes = buildFlexibleServiceStartTimes(services, input.startTime, [])
+  const rawServices = await resolveBookingServices(serviceIds, false)
+  const serviceDurations = input.serviceDurations ?? []
+  const effectiveServices = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
+  const serviceStartTimes = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
 
   const conflicts: SeriesDateConflict[] = []
   const okDates: string[] = []
@@ -86,16 +94,16 @@ export async function previewRecurringChainConflicts(
   for (const day of dates) {
     let dayHasConflict = false
 
-    for (let i = 0; i < services.length; i++) {
+    for (let i = 0; i < effectiveServices.length; i++) {
       const staffId = staffAssignments[i]
       const staff = await getStaff(staffId)
       if (!staff?.active) continue
 
-      const service = services[i]
+      const service = effectiveServices[i]
       const svcStart = serviceStartTimes[i]
       const chainOptions = {
         forStaffPortal: true,
-        chainServices: services,
+        chainServices: effectiveServices,
         chainServiceIndex: i,
       }
 
@@ -181,8 +189,16 @@ export async function createRecurringChainedAppointment(
     resolutionMap.set(r.date, r)
   }
 
-  const services = await resolveBookingServices(serviceIds, false)
-  const defaultStartTimes = buildFlexibleServiceStartTimes(services, input.startTime, [])
+  const rawServices = await resolveBookingServices(serviceIds, false)
+  const serviceDurations = input.serviceDurations ?? []
+  const effectiveServices = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && serviceDurations[i] > 0
+        ? serviceDurations[i]
+        : s.durationMinutes,
+  }))
+  const defaultStartTimes = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
 
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,
@@ -226,7 +242,7 @@ export async function createRecurringChainedAppointment(
 
     if (resolution?.action === 'reassign' && resolution.staffId) {
       dayStaffAssignments = dayStaffAssignments.map((s) => s)
-      const conflictIdx = services.findIndex((_, i) => {
+      const conflictIdx = effectiveServices.findIndex((_, i) => {
         const conflictStaff = staffAssignments[i]
         return conflictStaff !== resolution.staffId
       })
@@ -236,7 +252,7 @@ export async function createRecurringChainedAppointment(
     }
 
     if (resolution?.action === 'reschedule' && resolution.startTime) {
-      dayStartTimes = buildFlexibleServiceStartTimes(services, resolution.startTime, [])
+      dayStartTimes = buildFlexibleServiceStartTimes(effectiveServices, resolution.startTime, [])
     }
 
     datesToCreate.push({
@@ -263,11 +279,11 @@ export async function createRecurringChainedAppointment(
     for (const dayPlan of datesToCreate) {
       const bookingGroupId = randomUUID()
 
-      for (let i = 0; i < services.length; i++) {
+      for (let i = 0; i < effectiveServices.length; i++) {
         const staffId = dayPlan.staffAssignments[i]
         const serviceStartTime = dayPlan.serviceStartTimes[i]
         const segments = getOccupiedSegmentsForChainService(
-          services,
+          effectiveServices,
           i,
           timeToMinutes(serviceStartTime),
         )
@@ -276,8 +292,8 @@ export async function createRecurringChainedAppointment(
         }
       }
 
-      for (let i = 0; i < services.length; i++) {
-        const service = services[i]
+      for (let i = 0; i < effectiveServices.length; i++) {
+        const service = effectiveServices[i]
         const staffId = dayPlan.staffAssignments[i]
         const staff = await getStaff(staffId)
         if (!staff?.active) throw new Error('STAFF_INVALIDO')
@@ -289,7 +305,7 @@ export async function createRecurringChainedAppointment(
         if (usesColorSplitBooking(service.id)) {
           const colorGroup = await prepareColorBookingGroupIds(service.id)
           if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-          const skipWash = getColorWashReplacementIndex(services) === i + 1
+          const skipWash = getColorWashReplacementIndex(effectiveServices) === i + 1
           const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
           await insertColorBookingGroup(
             {
