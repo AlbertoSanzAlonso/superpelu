@@ -17,10 +17,10 @@ type LoginMode = 'admin' | 'staff'
 
 export function AdminAgendaPage() {
   const [loginMode, setLoginMode] = useState<LoginMode>('admin')
-  const [adminToken, setAdminToken] = useState(() => sessionStorage.getItem(ADMIN_TOKEN_KEY) ?? '')
-  const [staffToken, setStaffToken] = useState(() => sessionStorage.getItem(STAFF_TOKEN_KEY) ?? '')
+  const [adminToken, setAdminToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY) ?? '')
+  const [staffToken, setStaffToken] = useState(() => localStorage.getItem(STAFF_TOKEN_KEY) ?? '')
   const [staffUser, setStaffUser] = useState<StaffSession | null>(() => {
-    const raw = sessionStorage.getItem(STAFF_USER_KEY)
+    const raw = localStorage.getItem(STAFF_USER_KEY)
     return raw ? (JSON.parse(raw) as StaffSession) : null
   })
 
@@ -110,11 +110,11 @@ export function AdminAgendaPage() {
     verifyStaffToken(staffToken)
       .then((res) => {
         setStaffUser(res.staff)
-        sessionStorage.setItem(STAFF_USER_KEY, JSON.stringify(res.staff))
+        localStorage.setItem(STAFF_USER_KEY, JSON.stringify(res.staff))
       })
       .catch(() => {
-        sessionStorage.removeItem(STAFF_TOKEN_KEY)
-        sessionStorage.removeItem(STAFF_USER_KEY)
+        localStorage.removeItem(STAFF_TOKEN_KEY)
+        localStorage.removeItem(STAFF_USER_KEY)
         setStaffToken('')
         setStaffUser(null)
       })
@@ -126,7 +126,7 @@ export function AdminAgendaPage() {
     setLoginError('')
     try {
       await verifyAdminToken(adminPassword.trim())
-      sessionStorage.setItem(ADMIN_TOKEN_KEY, adminPassword.trim())
+      localStorage.setItem(ADMIN_TOKEN_KEY, adminPassword.trim())
       setAdminToken(adminPassword.trim())
       setAdminPassword('')
     } catch (err) {
@@ -142,8 +142,8 @@ export function AdminAgendaPage() {
     setLoginError('')
     try {
       const res = await staffLogin(staffName.trim(), staffPassword)
-      sessionStorage.setItem(STAFF_TOKEN_KEY, res.token)
-      sessionStorage.setItem(STAFF_USER_KEY, JSON.stringify(res.staff))
+      localStorage.setItem(STAFF_TOKEN_KEY, res.token)
+      localStorage.setItem(STAFF_USER_KEY, JSON.stringify(res.staff))
       setStaffToken(res.token)
       setStaffUser(res.staff)
       setStaffPassword('')
@@ -155,8 +155,8 @@ export function AdminAgendaPage() {
   }
 
   function handleStaffLogout() {
-    sessionStorage.removeItem(STAFF_TOKEN_KEY)
-    sessionStorage.removeItem(STAFF_USER_KEY)
+    localStorage.removeItem(STAFF_TOKEN_KEY)
+    localStorage.removeItem(STAFF_USER_KEY)
     setStaffToken('')
     setStaffUser(null)
   }
@@ -167,7 +167,7 @@ export function AdminAgendaPage() {
   }, [adminToken])
 
   function handleAdminLogout() {
-    sessionStorage.removeItem(ADMIN_TOKEN_KEY)
+    localStorage.removeItem(ADMIN_TOKEN_KEY)
     setAdminToken('')
   }
 

@@ -69,13 +69,20 @@ export function StaffAppointmentFormFields({
   const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
   const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
 
+  const normalizeStartTimes = useCallback(
+    (ids: string[], times: string[]): string[] => {
+      return ids.map((_, i) => (i < times.length ? times[i] : ''))
+    },
+    [],
+  )
+
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
       const next = [...serviceIds]
       if (index === 0 && id === '') {
         const hadService = serviceIds[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], serviceDurations: [], startTime: '' })
+          onDraftChange({ serviceIds: [], serviceDurations: [], serviceStartTimes: [], startTime: '' })
         }
         return
       }
@@ -92,28 +99,41 @@ export function StaffAppointmentFormFields({
       } else {
         newDurations[index] = null
       }
-      onDraftChange({ serviceIds: next, serviceDurations: newDurations })
+      const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
+      onDraftChange({ serviceIds: next, serviceDurations: newDurations, serviceStartTimes: newTimes })
     },
-    [serviceIds, draft.serviceDurations, services, onDraftChange],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, services, onDraftChange, normalizeStartTimes],
+  )
+
+  const setServiceStartTime = useCallback(
+    (index: number, time: string) => {
+      const times = normalizeStartTimes(draft.serviceIds, draft.serviceStartTimes)
+      times[index] = time
+      onDraftChange({ serviceStartTimes: times })
+    },
+    [draft.serviceIds, draft.serviceStartTimes, onDraftChange, normalizeStartTimes],
   )
 
   const addService = useCallback(() => {
     const next = [...serviceIds.filter((s) => s !== ''), '']
-    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations })
-  }, [serviceIds, draft.serviceDurations, onDraftChange])
+    const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
+    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations, serviceStartTimes: newTimes })
+  }, [serviceIds, draft.serviceDurations, draft.serviceStartTimes, onDraftChange, normalizeStartTimes])
 
   const removeService = useCallback(
     (index: number) => {
       const next = serviceIds.filter((_, i) => i !== index)
       const cleaned = next.filter((s) => s !== '')
       const durations = normalizeDurations(serviceIds, draft.serviceDurations).filter((_, i) => i !== index)
+      const times = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter((_, i) => i !== index)
       onDraftChange({
         serviceIds: cleaned,
         serviceDurations: durations,
+        serviceStartTimes: times,
         startTime: cleaned.length === 0 ? '' : draft.startTime,
       })
     },
-    [serviceIds, draft.serviceDurations, onDraftChange],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.startTime, onDraftChange, normalizeStartTimes],
   )
 
   const setServiceDuration = useCallback(
@@ -132,13 +152,19 @@ export function StaffAppointmentFormFields({
         const idAtI = serviceIds[i]
         return idAtI !== undefined && idAtI !== ''
       })
+      const newTimes = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter((_, i) => {
+        const idAtI = serviceIds[i]
+        return idAtI !== undefined && idAtI !== ''
+      })
       const [movedId] = newIds.splice(fromIndex, 1)
       const [movedDuration] = newDurations.splice(fromIndex, 1)
+      const [movedTime] = newTimes.splice(fromIndex, 1)
       newIds.splice(toIndex, 0, movedId)
       newDurations.splice(toIndex, 0, movedDuration)
-      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations })
+      newTimes.splice(toIndex, 0, movedTime)
+      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations, serviceStartTimes: newTimes })
     },
-    [serviceIds, draft.serviceDurations, onDraftChange],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, onDraftChange, normalizeStartTimes],
   )
 
   const servicesSection = (
@@ -193,6 +219,27 @@ export function StaffAppointmentFormFields({
                 />
                 {serviceId && (
                   <div>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>
+                      Hora de inicio
+                    </label>
+                    <select
+                      value={draft.serviceStartTimes[index] ?? ''}
+                      onChange={(e) => setServiceStartTime(index, e.target.value)}
+                      className={selectCn}
+                    >
+                      <option value="">
+                        {draft.startTime ? 'Automática (encadenada)' : 'Elige hora primero'}
+                      </option>
+                      {timeOptions.map((slot) => (
+                        <option key={slot} value={slot}>
+                          {slot}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {serviceId && (
+                  <div>
                     <select
                       value={draft.serviceDurations[index] ?? ''}
                       onChange={(e) => {
@@ -233,7 +280,7 @@ export function StaffAppointmentFormFields({
           <select
             required
             value={draft.startTime}
-            onChange={(e) => onDraftChange({ startTime: e.target.value })}
+            onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
             className={selectCn}
             disabled={!hasServices}
           >
@@ -253,7 +300,7 @@ export function StaffAppointmentFormFields({
           <select
             required
             value={draft.startTime}
-            onChange={(e) => onDraftChange({ startTime: e.target.value })}
+            onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
             className={selectCn}
             disabled={!hasServices}
           >

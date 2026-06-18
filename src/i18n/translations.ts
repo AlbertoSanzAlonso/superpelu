@@ -525,7 +525,7 @@ const es = {
           'En superpelubenalmadena.es utilizamos cookies y almacenamiento local estrictamente necesarios para el funcionamiento del sitio, así como contenidos de terceros que pueden instalar sus propias cookies:',
         ],
         list: [
-          'Cookies técnicas / almacenamiento de sesión: en las áreas privadas de agenda y administración se guarda un identificador de sesión en el navegador (sessionStorage) para mantener el acceso mientras dura la visita. No se utilizan con fines publicitarios.',
+          'Cookies técnicas / almacenamiento de sesión: en las áreas privadas de agenda y administración se guarda un identificador de sesión en el navegador (localStorage) para mantener el acceso entre visitas. No se utilizan con fines publicitarios.',
           'Google Maps: en la página del salón mostramos un mapa incrustado de Google que puede instalar cookies propias (por ejemplo, NID, CONSENT) para mostrar la ubicación y mejorar el servicio de mapas.',
           'Google Fonts: las tipografías del sitio se cargan desde los servidores de Google, que pueden registrar datos técnicos de acceso (dirección IP, navegador, etc.).',
         ],
@@ -1090,7 +1090,7 @@ const en = {
           'On superpelubenalmadena.es we use cookies and local storage strictly necessary for the site to function, as well as third-party content that may install its own cookies:',
         ],
         list: [
-          'Technical cookies / session storage: in the private schedule and admin areas, a session identifier is stored in the browser (sessionStorage) to maintain access during your visit. They are not used for advertising purposes.',
+          'Technical cookies / session storage: in the private schedule and admin areas, a session identifier is stored in the browser (localStorage) to maintain access between visits. They are not used for advertising purposes.',
           'Google Maps: on the salon page we display an embedded Google map that may install its own cookies (for example, NID, CONSENT) to show the location and improve the maps service.',
           'Google Fonts: the site\'s typefaces are loaded from Google\'s servers, which may record technical access data (IP address, browser, etc.).',
         ],
