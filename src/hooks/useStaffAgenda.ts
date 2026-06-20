@@ -42,6 +42,7 @@ export function useStaffAgenda(token: string) {
   const [schedule, setSchedule] = useState<StaffDaySchedule | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
   const [slots, setSlots] = useState<string[]>([])
+  const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [gridActionsBusy, setGridActionsBusy] = useState(false)
@@ -100,8 +101,14 @@ export function useStaffAgenda(token: string) {
       return
     }
     fetchMySlots(token, date, filteredIds, editingId ?? undefined)
-      .then((r) => setSlots(r.slots))
-      .catch(() => setSlots([]))
+      .then((r) => {
+        setSlots(r.slots)
+        setSlotsOverHours(r.slotsOverHours)
+      })
+      .catch(() => {
+        setSlots([])
+        setSlotsOverHours([])
+      })
   }, [token, date, aptDraft.serviceIds.join(','), editingId])
 
   const resetAppointmentForm = useCallback((keepServiceIds = true) => {
@@ -423,6 +430,7 @@ export function useStaffAgenda(token: string) {
     schedule,
     services,
     slots,
+    slotsOverHours,
     loading,
     error,
     aptDraft,

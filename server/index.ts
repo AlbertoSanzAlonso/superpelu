@@ -32,6 +32,7 @@ import {
   markAppointmentNoShow,
   getAvailableSlots,
   getAvailableSlotsForServices,
+  getOverHoursSlotsForServices,
   getAppointmentsByBookingGroup,
   getServiceDaySlots,
   getServiceDaySlotsForServices,
@@ -1012,16 +1013,14 @@ app.get('/api/schedule/slots', async (c) => {
   if (ids.length === 0) {
     return c.json({ error: 'Faltan serviceIds' }, 400)
   }
+  const slotOptions = { forStaffPortal: true as const, excludeAppointmentId: exclude }
   const slots = ids.length > 1
-    ? await getAvailableSlotsForServices(date, ids, staffId, {
-        forStaffPortal: true,
-        excludeAppointmentId: exclude,
-      })
-    : await getAvailableSlots(date, ids[0], staffId, {
-        forStaffPortal: true,
-        excludeAppointmentId: exclude,
-      })
-  return c.json({ slots })
+    ? await getAvailableSlotsForServices(date, ids, staffId, slotOptions)
+    : await getAvailableSlots(date, ids[0], staffId, slotOptions)
+  const slotsOverHours = ids.length > 1
+    ? await getOverHoursSlotsForServices(date, ids, staffId, slotOptions)
+    : []
+  return c.json({ slots, slotsOverHours })
 })
 
 app.post('/api/schedule/appointments/preview-series', async (c) => {

@@ -22,5 +22,15 @@
       "@server/*": ["server/*"]
     }
   },
-  "include": ["server", "src"]
+  "include": ["server", "src"],
+  "exclude": [
+    "src/components",
+    "src/hooks",
+    "src/pages",
+    "src/styles",
+    "src/assets",
+    "src/main.tsx",
+    "src/App.tsx",
+    "src/vite-env.d.ts"
+  ]
 }

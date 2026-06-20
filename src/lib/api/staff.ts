@@ -84,8 +84,9 @@ export function fetchMySlots(
 ) {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') })
   if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
-  return staffRequest<{ slots: string[] }>(`/me/slots?${params}`, token).then((r) => ({
+  return staffRequest<{ slots: string[]; slotsOverHours?: string[] }>(`/me/slots?${params}`, token).then((r) => ({
     slots: r.slots ?? [],
+    slotsOverHours: r.slotsOverHours ?? [],
   }))
 }
 

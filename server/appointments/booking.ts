@@ -102,8 +102,9 @@ export async function isBookingUnavailable(
   date: string,
   segments: OccupiedSegment[],
   excludeAppointmentId?: string,
+  allowOverHours = false,
 ): Promise<boolean> {
-  if (!(await segmentsFitInStaffWorkWindows(staffId, date, segments))) {
+  if (!allowOverHours && !(await segmentsFitInStaffWorkWindows(staffId, date, segments))) {
     return true
   }
 
@@ -139,8 +140,9 @@ export async function assertBookingAvailable(
   date: string,
   segments: OccupiedSegment[],
   excludeAppointmentId?: string,
+  allowOverHours = false,
 ): Promise<void> {
-  if (await isBookingUnavailable(query, staffId, date, segments, excludeAppointmentId)) {
+  if (await isBookingUnavailable(query, staffId, date, segments, excludeAppointmentId, allowOverHours)) {
     throw new Error('HORARIO_NO_DISPONIBLE')
   }
 }
@@ -171,6 +173,7 @@ export async function isStaffFreeForServiceAt(
     date,
     segments,
     options.excludeAppointmentId,
+    options.allowOverHours,
   ))
 }
 
@@ -180,6 +183,8 @@ export type SlotOptions = {
   forStaffPortal?: boolean
   /** Duraciones personalizadas por tratamiento (minutos). */
   serviceDurations?: (number | null)[]
+  /** Salta la comprobación de franja horaria (staff/admin confirman fuera de horario). */
+  allowOverHours?: boolean
 }
 
 export type ResolvedBookingService = BookingServiceLine & {
@@ -262,6 +267,67 @@ export async function getAvailableSlotsForServices(
         !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
       ) {
         slots.add(minutesToTime(start))
+      }
+    }
+  }
+
+  return filterPastSlotsForToday(date, [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)))
+}
+
+/**
+ * Slots en el tramo final del día laboral que solo fallan porque la cadena de
+ * tratamientos se extiende más allá del cierre, sin ningún conflicto real.
+ * Solo para staff/admin portal (forStaffPortal requerido).
+ */
+export async function getOverHoursSlotsForServices(
+  date: string,
+  serviceIds: string[],
+  staffId: string,
+  options: SlotOptions = {},
+): Promise<string[]> {
+  if (!options.forStaffPortal || serviceIds.length === 0) return []
+
+  const dateAllowed = isValidDateString(date) && isSalonOpenDay(date)
+  if (!dateAllowed) return []
+
+  const rawServices = await resolveBookingServices(serviceIds, false)
+  const serviceDurations = options.serviceDurations ?? []
+  const services = rawServices.map((s, i) => ({
+    ...s,
+    durationMinutes:
+      serviceDurations[i] != null && (serviceDurations[i] as number) > 0
+        ? (serviceDurations[i] as number)
+        : s.durationMinutes,
+  }))
+
+  const staff = await getStaff(staffId)
+  if (!staff || !staff.active) return []
+  for (const service of services) {
+    if (!(await staffCanPerformService(staffId, service.id))) return []
+  }
+
+  const windows = await getStaffDayWindows(staffId, date)
+  if (windows.length === 0) return []
+
+  const workWindows = staffDayWindowsAsWorkWindows(windows)
+  const slots = new Set<string>()
+
+  for (const window of windows) {
+    for (
+      let start = window.startMinutes;
+      start < window.endMinutes;
+      start += schedule.slotMinutes
+    ) {
+      const segments = getChainedBookingSegments(services, start)
+      const fitsWindow = segments.every((seg) =>
+        segmentFitsInWorkWindows(seg.startMinutes, seg.durationMinutes, workWindows),
+      )
+      if (!fitsWindow) {
+        // Solo falla por horario: comprobar si hay conflictos reales
+        const hasConflict = await isBookingUnavailable(
+          sql, staffId, date, segments, options.excludeAppointmentId, true,
+        )
+        if (!hasConflict) slots.add(minutesToTime(start))
       }
     }
   }

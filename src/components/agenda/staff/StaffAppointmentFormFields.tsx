@@ -33,6 +33,7 @@ type Props = {
   draft: AppointmentDraft
   services: BookableService[]
   slots: string[]
+  slotsOverHours?: string[]
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -51,6 +52,7 @@ export function StaffAppointmentFormFields({
   draft,
   services,
   slots,
+  slotsOverHours = [],
   onDraftChange,
   onSubmit,
   onClose,
@@ -63,6 +65,8 @@ export function StaffAppointmentFormFields({
   compact = false,
 }: Props) {
   const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
+  const overHoursSet = new Set(slotsOverHours)
+  const isOverHoursSelected = draft.startTime ? overHoursSet.has(draft.startTime) : false
   const selectCn = compact
     ? 'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
     : 'w-full border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:opacity-50'
@@ -318,47 +322,39 @@ export function StaffAppointmentFormFields({
 
   const infoSection = (
     <div className={compact ? `space-y-3 ${formCompactClass}` : 'space-y-4'}>
-      {compact ? (
-        <div>
-          <label className={timeLabelCn}>Hora</label>
-          <select
-            required
-            value={draft.startTime}
-            onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
-            className={selectCn}
-            disabled={!hasServices}
-          >
-            <option value="">
-              {hasServices ? 'Elige hora' : 'Tratamiento primero'}
+      <div>
+        <label className={timeLabelCn}>Hora</label>
+        <select
+          required
+          value={draft.startTime}
+          onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
+          className={selectCn}
+          disabled={!hasServices}
+        >
+          <option value="">
+            {hasServices ? (compact ? 'Elige hora' : 'Primero elige el tratamiento') : 'Tratamiento primero'}
+          </option>
+          {timeOptions.map((slot) => (
+            <option key={slot} value={slot}>
+              {slot}
             </option>
-            {timeOptions.map((slot) => (
-              <option key={slot} value={slot}>
-                {slot}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : (
-        <div>
-          <label className={timeLabelCn}>Hora</label>
-          <select
-            required
-            value={draft.startTime}
-            onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
-            className={selectCn}
-            disabled={!hasServices}
-          >
-            <option value="">
-              {hasServices ? 'Elige hora' : 'Primero elige el tratamiento'}
-            </option>
-            {timeOptions.map((slot) => (
-              <option key={slot} value={slot}>
-                {slot}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+          ))}
+          {slotsOverHours.length > 0 && (
+            <optgroup label="⚠ Fuera del horario del salón">
+              {slotsOverHours.map((slot) => (
+                <option key={slot} value={slot}>
+                  ⚠ {slot}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        {isOverHoursSelected && (
+          <p className="mt-1 text-xs text-amber-700">
+            Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
+          </p>
+        )}
+      </div>
 
       {adminToken && !editingId ? (
         <AppointmentCustomerEntry

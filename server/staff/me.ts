@@ -6,6 +6,7 @@ import {
   getAppointmentSeriesMeta,
   getAvailableSlots,
   getAvailableSlotsForServices,
+  getOverHoursSlotsForServices,
   listAppointmentsForStaff,
   markAppointmentNoShow,
   rowToPublic,
@@ -114,16 +115,14 @@ me.get('/me/slots', async (c) => {
       ? [serviceId]
       : []
   if (ids.length === 0) return c.json({ error: 'Faltan serviceId o serviceIds' }, 400)
+  const slotOptions = { forStaffPortal: true as const, excludeAppointmentId: exclude }
   const slots = ids.length > 1
-    ? await getAvailableSlotsForServices(date, ids, staff!.id, {
-        forStaffPortal: true,
-        excludeAppointmentId: exclude,
-      })
-    : await getAvailableSlots(date, ids[0], staff!.id, {
-        forStaffPortal: true,
-        excludeAppointmentId: exclude,
-      })
-  return c.json({ slots })
+    ? await getAvailableSlotsForServices(date, ids, staff!.id, slotOptions)
+    : await getAvailableSlots(date, ids[0], staff!.id, slotOptions)
+  const slotsOverHours = ids.length > 1
+    ? await getOverHoursSlotsForServices(date, ids, staff!.id, slotOptions)
+    : []
+  return c.json({ slots, slotsOverHours })
 })
 
 me.get('/me/appointments', async (c) => {

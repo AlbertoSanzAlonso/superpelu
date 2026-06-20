@@ -187,9 +187,9 @@ export function fetchAdminMultiSlots(
 ) {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(','), staffId })
   if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
-  return request<{ slots?: string[] }>(`/schedule/slots?${params}`, {
+  return request<{ slots?: string[]; slotsOverHours?: string[] }>(`/schedule/slots?${params}`, {
     headers: adminHeaders(adminToken),
-  }).then((res) => ({ slots: res.slots ?? [] }))
+  }).then((res) => ({ slots: res.slots ?? [], slotsOverHours: res.slotsOverHours ?? [] }))
 }
 
 export function fetchAdminBlockSeries(adminToken: string, blockId: string) {

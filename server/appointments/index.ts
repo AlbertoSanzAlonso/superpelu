@@ -2,6 +2,7 @@
 export {
   getAvailableSlots,
   getAvailableSlotsForServices,
+  getOverHoursSlotsForServices,
   getServiceDaySlots,
   getServiceDaySlotsForServices,
   getStaffAvailableAtSlot,
