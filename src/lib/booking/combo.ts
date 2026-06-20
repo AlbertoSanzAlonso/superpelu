@@ -4,9 +4,9 @@ import {
   type BookingServiceWithCategory,
 } from '@/lib/booking/colorCombo'
 import {
+  COLOR_SPLIT_SEGMENT_MINUTES,
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
-  getWashPhaseStartMinutes,
   type OccupiedSegment,
 } from '@/lib/booking/occupancy'
 
@@ -89,7 +89,8 @@ function buildChainStartMinutes(
     }
 
     if (replacementIndex != null && i === replacementIndex) {
-      cursor = getWashPhaseStartMinutes(starts[replacementIndex - 1]!)
+      // Si el siguiente servicio reemplaza el lavado, empieza justo al terminar el color (30 min).
+      cursor = starts[replacementIndex - 1]! + COLOR_SPLIT_SEGMENT_MINUTES
     }
 
     starts.push(cursor)
@@ -99,7 +100,7 @@ function buildChainStartMinutes(
       if (i < colorIndex) {
         cursor += services[i].durationMinutes
       } else if (i === colorIndex) {
-        // La pausa de exposición no avanza el cursor; el siguiente va al slot de lavado.
+        // El servicio que reemplaza el lavado arranca justo al terminar el tramo de color.
       } else if (i === replacementIndex) {
         cursor += services[i].durationMinutes
       } else if (i > replacementIndex) {

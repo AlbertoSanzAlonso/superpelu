@@ -119,9 +119,7 @@ me.get('/me/slots', async (c) => {
   const slots = ids.length > 1
     ? await getAvailableSlotsForServices(date, ids, staff!.id, slotOptions)
     : await getAvailableSlots(date, ids[0], staff!.id, slotOptions)
-  const slotsOverHours = ids.length > 1
-    ? await getOverHoursSlotsForServices(date, ids, staff!.id, slotOptions)
-    : []
+  const slotsOverHours = await getOverHoursSlotsForServices(date, ids, staff!.id, slotOptions)
   return c.json({ slots, slotsOverHours })
 })
 

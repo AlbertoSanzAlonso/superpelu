@@ -1017,9 +1017,7 @@ app.get('/api/schedule/slots', async (c) => {
   const slots = ids.length > 1
     ? await getAvailableSlotsForServices(date, ids, staffId, slotOptions)
     : await getAvailableSlots(date, ids[0], staffId, slotOptions)
-  const slotsOverHours = ids.length > 1
-    ? await getOverHoursSlotsForServices(date, ids, staffId, slotOptions)
-    : []
+  const slotsOverHours = await getOverHoursSlotsForServices(date, ids, staffId, slotOptions)
   return c.json({ slots, slotsOverHours })
 })
 
