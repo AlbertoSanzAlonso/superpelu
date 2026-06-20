@@ -22,5 +22,5 @@
       "@server/*": ["server/*"]
     }
   },
-  "include": ["server"]
+  "include": ["server", "src"]
 }

@@ -187,8 +187,8 @@ export function StaffAppointmentFormFields({
       }
     }).filter(Boolean) as { id: string; category: string; durationMinutes: number }[]
     if (selectedServices.length === 0) return []
-    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, [])
-  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, services])
+    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, draft.serviceStartTimes)
+  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
     () => checkServiceOverlaps(draft, services),
@@ -200,9 +200,9 @@ export function StaffAppointmentFormFields({
     <div className="space-y-2">
       <p className={`${typography.label} text-gold`}>Tratamientos</p>
       {serviceIds.map((serviceId, index) => {
-        const filledIds = serviceIds.filter((s) => s !== '')
-        const isFirst = filledIds.length > 0 && serviceId === filledIds[0]
-        const isLast = filledIds.length > 0 && serviceId === filledIds[filledIds.length - 1]
+        const filledCount = serviceIds.filter((s) => s !== '').length
+        const isFirst = index === 0 || !serviceId
+        const isLast = !serviceId || index >= filledCount - 1
 
         return (
           <div key={index} className="relative rounded border border-gold/15 p-3">
@@ -210,8 +210,8 @@ export function StaffAppointmentFormFields({
               <div className="flex shrink-0 flex-col gap-0.5 pt-1">
                 <button
                   type="button"
-                  disabled={isFirst || !serviceId}
-                  onClick={() => moveService(filledIds.indexOf(serviceId), filledIds.indexOf(serviceId) - 1)}
+                  disabled={isFirst}
+                  onClick={() => moveService(index, index - 1)}
                   className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
                   aria-label="Subir tratamiento"
                 >
@@ -219,8 +219,8 @@ export function StaffAppointmentFormFields({
                 </button>
                 <button
                   type="button"
-                  disabled={isLast || !serviceId}
-                  onClick={() => moveService(filledIds.indexOf(serviceId), filledIds.indexOf(serviceId) + 1)}
+                  disabled={isLast}
+                  onClick={() => moveService(index, index + 1)}
                   className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
                   aria-label="Bajar tratamiento"
                 >
@@ -246,7 +246,7 @@ export function StaffAppointmentFormFields({
                   loading={services.length === 0}
                   onServiceChange={(id) => setServiceAtIndex(index, id)}
                 />
-                {serviceId && (
+                {serviceId && index > 0 && (
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>
                       Hora de inicio
@@ -271,6 +271,9 @@ export function StaffAppointmentFormFields({
                 )}
                 {serviceId && (
                   <div>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>
+                      Duración
+                    </label>
                     <select
                       value={draft.serviceDurations[index] ?? ''}
                       onChange={(e) => {
