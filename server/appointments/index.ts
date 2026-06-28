@@ -8,21 +8,21 @@ export {
   getStaffAvailableAtSlot,
   getStaffAvailableAtSlotForServices,
   type SlotOptions,
-} from '@server/appointments/booking.js'
+} from './booking.js'
 
 export {
   parseServiceStartOverrides,
   resolveChainContinuation,
   type BookingChainSegmentPlan,
   type ChainContinuationResult,
-} from '@server/appointments/chain.js'
+} from './chain.js'
 
 export {
   createAppointment,
   getAppointmentSeriesMeta,
   type AppointmentSeriesMode,
   type CreateAppointmentInput,
-} from '@server/appointments/create.js'
+} from './create.js'
 
 export {
   getAppointmentById,
@@ -31,13 +31,13 @@ export {
   listAppointmentsDueForReminder,
   listAppointmentsForStaff,
   markReminderSent,
-} from '@server/appointments/queries.js'
+} from './queries.js'
 
 export {
   updateAppointmentForAdmin,
   updateAppointmentForStaff,
   type UpdateAppointmentInput,
-} from '@server/appointments/update.js'
+} from './update.js'
 
 export {
   cancelAppointment,
@@ -47,4 +47,4 @@ export {
   markAppointmentNoShow,
   rescheduleAppointmentByCustomer,
   rowToPublic,
-} from '@server/appointments/lifecycle.js'
+} from './lifecycle.js'
