@@ -229,10 +229,14 @@ export async function createAppointment(
           ? serviceDurations[i]
           : s.durationMinutes,
     }))
-    const serviceStartTimes =
+    const rawServiceStartTimes =
       input.serviceStartTimes?.length === serviceIds.length
         ? input.serviceStartTimes
         : buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+    // Garantizar que el índice 0 siempre tiene la hora de inicio (puede llegar vacío del cliente)
+    const serviceStartTimes = rawServiceStartTimes.map((t, i) =>
+      i === 0 && !t ? input.startTime : t,
+    )
     const chainedDefault = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
     const serviceStartOverrides = serviceStartTimes.map((time, index) =>
       time === chainedDefault[index] || !time ? undefined : time,

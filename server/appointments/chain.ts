@@ -14,7 +14,7 @@ import {
 import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
-import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
+import { COLOR_SPLIT_SEGMENT_MINUTES, getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
   insertColorBookingGroup,
@@ -324,14 +324,15 @@ export async function createChainedBookingAppointment(
       staffAssignments.map((staffId) => ({ staffId, date: input.date })),
     )
 
+    const allStartMinutes = serviceStartTimes.map(timeToMinutes)
     for (let i = 0; i < effectiveServices.length; i++) {
       const staffId = staffAssignments[i]
-      const serviceStartTime = serviceStartTimes[i]
       if (!input.forceSchedule) {
         const segments = getOccupiedSegmentsForChainService(
           effectiveServices,
           i,
-          timeToMinutes(serviceStartTime),
+          allStartMinutes[i],
+          allStartMinutes,
         )
         if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
           throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
@@ -353,7 +354,15 @@ export async function createChainedBookingAppointment(
       if (usesColorSplitBooking(service.id)) {
         const colorGroup = await prepareColorBookingGroupIds(service.id)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-        const skipWash = getColorWashReplacementIndex(services) === i + 1
+        // skipWash solo si el siguiente tratamiento cae exactamente en el slot del lavado
+        const replacementIdx = getColorWashReplacementIndex(services)
+        const washSlotTime = replacementIdx != null
+          ? `${String(Math.floor((timeToMinutes(serviceStartTime) + COLOR_SPLIT_SEGMENT_MINUTES) / 60)).padStart(2, '0')}:${String((timeToMinutes(serviceStartTime) + COLOR_SPLIT_SEGMENT_MINUTES) % 60).padStart(2, '0')}`
+          : null
+        const skipWash =
+          replacementIdx === i + 1 &&
+          washSlotTime != null &&
+          serviceStartTimes[replacementIdx] === washSlotTime
         const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
         await insertColorBookingGroup(
           {

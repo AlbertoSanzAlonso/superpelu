@@ -57,10 +57,11 @@ export function useAdminAppointmentPersist({
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
 
   function buildServiceStartTimes(): string[] | undefined {
-    const { serviceIds, serviceStartTimes } = aptDraft
+    const { serviceIds, serviceStartTimes, startTime } = aptDraft
     const filtered = serviceIds.filter((s) => s !== '')
     if (serviceStartTimes.length === filtered.length && serviceStartTimes.some((t) => t !== '')) {
-      return serviceStartTimes
+      // El índice 0 siempre usa startTime si está vacío (el servicio base no tiene picker propio)
+      return serviceStartTimes.map((t, i) => (i === 0 && !t ? startTime : t))
     }
     return undefined
   }

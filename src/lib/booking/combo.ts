@@ -16,14 +16,15 @@ export type { BookingServiceLine } from '@/lib/booking/colorCombo'
 export function getChainedBookingSegments(
   services: readonly BookingServiceWithCategory[],
   startMinutes: number,
+  overrides: ReadonlyArray<number | undefined> = [],
 ): OccupiedSegment[] {
   const replacementIndex = getColorWashReplacementIndex(services)
 
   if (replacementIndex != null) {
-    const startTimes = buildChainStartMinutes(services, startMinutes, [])
+    const startTimes = buildChainStartMinutes(services, startMinutes, overrides)
     const all: OccupiedSegment[] = []
     for (let i = 0; i < services.length; i++) {
-      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i]))
+      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i], startTimes))
     }
     return all
   }
@@ -88,8 +89,9 @@ function buildChainStartMinutes(
       cursor = override
     }
 
-    if (replacementIndex != null && i === replacementIndex) {
-      // Si el siguiente servicio reemplaza el lavado, empieza justo al terminar el color (30 min).
+    if (replacementIndex != null && i === replacementIndex && override === undefined) {
+      // Si el siguiente servicio reemplaza el lavado y no hay override manual,
+      // empieza justo al terminar el tramo de color (30 min).
       cursor = starts[replacementIndex - 1]! + COLOR_SPLIT_SEGMENT_MINUTES
     }
 

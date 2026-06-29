@@ -246,10 +246,16 @@ export function useStaffAgenda(token: string) {
     async (forceSchedule = false): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       try {
+        const normalizedStartTimes =
+          aptDraft.serviceStartTimes.length === filteredIds.length &&
+          aptDraft.serviceStartTimes.some((t) => t !== '')
+            ? aptDraft.serviceStartTimes.map((t, i) => (i === 0 && !t ? aptDraft.startTime : t))
+            : aptDraft.serviceStartTimes
+
         if (editingId) {
           await updateMyAppointment(token, editingId, {
             serviceIds: filteredIds,
-            serviceStartTimes: aptDraft.serviceStartTimes,
+            serviceStartTimes: normalizedStartTimes,
             serviceDurations: aptDraft.serviceDurations,
             date,
             startTime: aptDraft.startTime,
@@ -265,7 +271,7 @@ export function useStaffAgenda(token: string) {
         } else {
           await createMyAppointment(token, {
             serviceIds: filteredIds,
-            serviceStartTimes: aptDraft.serviceStartTimes,
+            serviceStartTimes: normalizedStartTimes,
             serviceDurations: aptDraft.serviceDurations,
             date,
             startTime: aptDraft.startTime,
