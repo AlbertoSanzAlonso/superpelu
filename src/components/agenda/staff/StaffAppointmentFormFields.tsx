@@ -18,6 +18,14 @@ const formCompactClass =
 
 const DURATION_OPTIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 5)
 
+/** Todos los slots de 30 min entre 8:00 y 21:00. */
+const ALL_DAY_SLOTS = Array.from({ length: 27 }, (_, i) => {
+  const totalMin = 8 * 60 + i * 30
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+})
+
 /** Asegura que serviceDurations tenga la misma longitud que ids,
  *  preservando los valores existentes y rellenando con null los nuevos índices. */
 function normalizeDurations(
@@ -34,6 +42,9 @@ type Props = {
   services: BookableService[]
   slots: string[]
   slotsOverHours?: string[]
+  /** Slots disponibles para cada servicio por separado (índice = posición en serviceIds).
+   *  Permite al usuario elegir cualquier hora para tratamientos adicionales e indica cuáles están ocupadas. */
+  serviceSlots?: string[][]
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -53,6 +64,7 @@ export function StaffAppointmentFormFields({
   services,
   slots,
   slotsOverHours = [],
+  serviceSlots,
   onDraftChange,
   onSubmit,
   onClose,
@@ -250,29 +262,72 @@ export function StaffAppointmentFormFields({
                   loading={services.length === 0}
                   onServiceChange={(id) => setServiceAtIndex(index, id)}
                 />
-                {serviceId && index > 0 && (
-                  <div>
-                    <label className={`${typography.label} mb-0.5 block text-xs`}>
-                      Hora de inicio
-                    </label>
-                    <select
-                      value={draft.serviceStartTimes[index] ?? ''}
-                      onChange={(e) => setServiceStartTime(index, e.target.value)}
-                      className={selectCn}
-                    >
-                      <option value="">
-                        {draft.startTime && chainedStartTimes[index]
-                          ? chainedStartTimes[index]
-                          : 'Elige hora primero'}
-                      </option>
-                      {timeOptions.map((slot) => (
-                        <option key={slot} value={slot}>
-                          {slot}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+                {serviceId && index > 0 && (() => {
+                  const currentVal = draft.serviceStartTimes[index] ?? ''
+                  const perSvcFree = serviceSlots?.[index] ?? []
+                  const hasSvcSlots = perSvcFree.length > 0
+                  // Slots libres: usar los del servicio si están disponibles; si no, los del chain
+                  const freeOptions = hasSvcSlots ? perSvcFree : timeOptions
+                  // Slots ocupados: slots del día no disponibles (solo cuando tenemos info de disponibilidad)
+                  const freeSet = new Set(freeOptions)
+                  const occupiedOptions = hasSvcSlots
+                    ? ALL_DAY_SLOTS.filter((t) => !freeSet.has(t))
+                    : []
+                  const isOccupied = currentVal !== '' && !freeSet.has(currentVal)
+                  // Incluir el valor actual si no está ya en ninguna lista
+                  const extraCurrent =
+                    currentVal !== '' && !freeSet.has(currentVal) && !occupiedOptions.includes(currentVal)
+                      ? [currentVal]
+                      : []
+                  const chainedLabel = draft.startTime && chainedStartTimes[index]
+                    ? chainedStartTimes[index]
+                    : 'Automática (encadenada)'
+
+                  return (
+                    <div>
+                      <label className={`${typography.label} mb-0.5 block text-xs`}>
+                        Hora de inicio
+                      </label>
+                      <select
+                        value={currentVal}
+                        onChange={(e) => setServiceStartTime(index, e.target.value)}
+                        className={selectCn}
+                      >
+                        <option value="">{chainedLabel}</option>
+                        {freeOptions.map((slot) => (
+                          <option key={slot} value={slot}>{slot}</option>
+                        ))}
+                        {occupiedOptions.length > 0 && (
+                          <optgroup label="⚠ Hora ocupada">
+                            {[...extraCurrent, ...occupiedOptions].map((slot) => (
+                              <option key={slot} value={slot}>⚠ {slot}</option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                      {isOccupied && freeOptions.length > 0 && (
+                        <p className="mt-1 text-xs text-amber-700">
+                          Este horario está ocupado.{' '}
+                          {freeOptions.length > 0 && (
+                            <>
+                              Alternativas:{' '}
+                              {freeOptions.slice(0, 5).map((t, i) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  onClick={() => setServiceStartTime(index, t)}
+                                  className="cursor-pointer font-medium underline"
+                                >
+                                  {t}{i < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
+                                </button>
+                              ))}
+                            </>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  )
+                })()}
                 {serviceId && (
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>

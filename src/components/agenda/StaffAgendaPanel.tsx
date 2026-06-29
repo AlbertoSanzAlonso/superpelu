@@ -139,6 +139,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         services={agenda.services}
         slots={agenda.slots}
         slotsOverHours={agenda.slotsOverHours}
+        serviceSlots={agenda.serviceSlotsPerIndex}
         onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
         onSubmit={handleSubmit}
         onClose={closeAppointmentForm}

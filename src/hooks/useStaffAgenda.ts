@@ -43,6 +43,7 @@ export function useStaffAgenda(token: string) {
   const [services, setServices] = useState<BookableService[]>([])
   const [slots, setSlots] = useState<string[]>([])
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
+  const [serviceSlotsPerIndex, setServiceSlotsPerIndex] = useState<string[][]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [gridActionsBusy, setGridActionsBusy] = useState(false)
@@ -109,6 +110,24 @@ export function useStaffAgenda(token: string) {
         setSlots([])
         setSlotsOverHours([])
       })
+  }, [token, date, aptDraft.serviceIds.join(','), editingId])
+
+  // Slots disponibles por servicio individual (para tratamientos adicionales)
+  useEffect(() => {
+    const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
+    if (filteredIds.length <= 1 || !date) {
+      setServiceSlotsPerIndex([])
+      return
+    }
+    Promise.all(
+      filteredIds.map((id, i) =>
+        i === 0
+          ? Promise.resolve([] as string[])
+          : fetchMySlots(token, date, [id], editingId ?? undefined)
+              .then((r) => [...r.slots, ...r.slotsOverHours])
+              .catch(() => [] as string[]),
+      ),
+    ).then((results) => setServiceSlotsPerIndex(results))
   }, [token, date, aptDraft.serviceIds.join(','), editingId])
 
   const resetAppointmentForm = useCallback((keepServiceIds = true) => {
@@ -431,6 +450,7 @@ export function useStaffAgenda(token: string) {
     services,
     slots,
     slotsOverHours,
+    serviceSlotsPerIndex,
     loading,
     error,
     aptDraft,

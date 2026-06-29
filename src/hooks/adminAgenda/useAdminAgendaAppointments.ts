@@ -57,6 +57,7 @@ export function useAdminAgendaAppointments({
   const [slots, setSlots] = useState<string[]>([])
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
   const [slotsConflict, setSlotsConflict] = useState<string | null>(null)
+  const [serviceSlotsPerIndex, setServiceSlotsPerIndex] = useState<string[][]>([])
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [appointmentFormOpen, setAppointmentFormOpen] = useState(false)
@@ -122,6 +123,24 @@ export function useAdminAgendaAppointments({
         setSlotsConflict(null)
       })
   }, [activeStaffId, aptDraft.serviceIds.join(','), aptDraft.startTime, date, adminToken, editingId])
+
+  // Slots disponibles por servicio individual (para tratamientos adicionales)
+  useEffect(() => {
+    const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
+    if (!activeStaffId || filteredIds.length <= 1 || !date || !adminToken) {
+      setServiceSlotsPerIndex([])
+      return
+    }
+    Promise.all(
+      filteredIds.map((id, i) =>
+        i === 0
+          ? Promise.resolve([] as string[])
+          : fetchAdminMultiSlots(date, [id], activeStaffId, adminToken, editingId ?? undefined)
+              .then((r) => [...r.slots, ...r.slotsOverHours])
+              .catch(() => [] as string[]),
+      ),
+    ).then((results) => setServiceSlotsPerIndex(results))
+  }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
@@ -412,6 +431,7 @@ export function useAdminAgendaAppointments({
     slots,
     slotsOverHours,
     slotsConflict,
+    serviceSlotsPerIndex,
     aptDraft,
     setAptDraft,
     editingId,
