@@ -68,6 +68,9 @@ export type DayScheduleAppointment = {
   durationMinutes: number
   serviceId: string
   serviceName: string
+  /** ID del profesional al que pertenece esta cita. */
+  staffId: string
+  staffName: string
   categoryId: string | null
   customerName: string
   customerPhone: string

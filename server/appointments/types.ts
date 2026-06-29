@@ -44,6 +44,8 @@ export type UpdateAppointmentInput = {
   serviceStartTimes?: string[]
   /** Duración personalizada por tratamiento (minutos). Si no se envía, se usa la del catálogo. */
   serviceDurations?: (number | null)[]
+  /** Profesional por tratamiento (misma longitud que serviceIds). Si falta en posición i, usa staffId. */
+  staffAssignments?: string[]
   staffId?: string
   date?: string
   startTime?: string

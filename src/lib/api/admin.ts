@@ -101,6 +101,7 @@ export function fetchAdminSlots(
 
 export type AdminAppointmentPayload = {
   staffId: string
+  staffAssignments?: string[]
   serviceIds: string[]
   serviceId?: string
   /** Hora de inicio individual por tratamiento (misma longitud que serviceIds); si falta, se encadenan desde startTime. */

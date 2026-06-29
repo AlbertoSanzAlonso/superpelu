@@ -58,6 +58,8 @@ export type DayScheduleAppointment = {
   durationMinutes: number
   serviceId: string
   serviceName: string
+  staffId: string
+  staffName: string
   categoryId: string | null
   customerName: string
   customerPhone: string
@@ -148,6 +150,8 @@ export async function getStaffDaySchedule(
       durationMinutes: row.duration_minutes,
       serviceId: row.service_id,
       serviceName: row.service_name,
+      staffId: row.staff_id,
+      staffName: row.staff_name,
       categoryId: row.category_id ?? null,
       customerName: row.customer_name,
       customerPhone: row.customer_phone,

@@ -74,8 +74,13 @@ export function useAdminAppointmentPersist({
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
         const serviceStartTimes = buildServiceStartTimes()
         if (editingId) {
+          const staffAssignments =
+            aptDraft.staffAssignments.length === filteredServiceIds.length
+              ? aptDraft.staffAssignments
+              : undefined
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
+            staffAssignments,
             serviceIds: filteredServiceIds,
             serviceStartTimes,
             serviceDurations: aptDraft.serviceDurations,

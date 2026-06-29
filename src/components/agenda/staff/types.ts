@@ -9,6 +9,8 @@ export type AppointmentDraft = {
   serviceStartTimes: string[]
   /** Duración personalizada por tratamiento (minutos). Si es null/undefined, se usa la del catálogo. */
   serviceDurations: (number | null)[]
+  /** Profesional asignado por tratamiento (misma longitud que serviceIds). Si vacío en posición i, usa el profesional activo. */
+  staffAssignments: string[]
   startTime: string
   customerFirstName: string
   customerLastName: string
@@ -28,6 +30,7 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   serviceIds: [],
   serviceStartTimes: [],
   serviceDurations: [],
+  staffAssignments: [],
   startTime: '',
   customerFirstName: '',
   customerLastName: '',
@@ -47,13 +50,11 @@ export function appointmentToDraft(
     notes: string | null
     locale?: string | null
   },
+  /** Hermanos del mismo booking_group_id ordenados por startTime (incluye apt). */
+  siblings?: DayScheduleAppointment[],
 ): AppointmentDraft {
   const { firstName, lastName } = splitCustomerName(apt.customerName)
-  return {
-    serviceIds: [apt.serviceId],
-    serviceStartTimes: [],
-    serviceDurations: [apt.durationMinutes],
-    startTime: apt.startTime,
+  const base = {
     customerFirstName: firstName,
     customerLastName: lastName,
     customerPhone: apt.customerPhone,
@@ -61,7 +62,29 @@ export function appointmentToDraft(
     customerNotes: customerProfile?.notes ?? apt.customerNotes ?? '',
     notes: apt.notes ?? '',
     customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
-    recurrenceScope: 'single',
+    recurrenceScope: 'single' as AppointmentRecurrenceScope,
     recurrenceEndDate: '',
+  }
+
+  if (siblings && siblings.length > 1) {
+    // Ordenar por hora de inicio y poblar el grupo completo
+    const sorted = [...siblings].sort((a, b) => (a.startTime < b.startTime ? -1 : 1))
+    return {
+      ...base,
+      serviceIds: sorted.map((s) => s.serviceId),
+      serviceStartTimes: sorted.map((s) => s.startTime),
+      serviceDurations: sorted.map((s) => s.durationMinutes),
+      staffAssignments: sorted.map((s) => s.staffId ?? ''),
+      startTime: sorted[0]!.startTime,
+    }
+  }
+
+  return {
+    ...base,
+    serviceIds: [apt.serviceId],
+    serviceStartTimes: [],
+    serviceDurations: [apt.durationMinutes],
+    staffAssignments: [apt.staffId ?? ''],
+    startTime: apt.startTime,
   }
 }

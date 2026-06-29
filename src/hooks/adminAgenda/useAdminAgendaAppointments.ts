@@ -227,7 +227,20 @@ export function useAdminAgendaAppointments({
       })
       setDetailEditMode(false)
       setViewingAppointment({ staffId, staffName, apt })
-      setAptDraft(appointmentToDraft(apt))
+
+      // Si pertenece a un grupo multi-tratamiento, cargar todos los hermanos
+      let siblings: DayScheduleAppointment[] | undefined
+      if (apt.bookingGroupId) {
+        const allApts = schedules.flatMap((s) => s.appointments)
+        const groupApts = allApts.filter(
+          (a) => a.bookingGroupId === apt.bookingGroupId && a.colorGroupRole !== 'wash',
+        )
+        if (groupApts.length > 1) {
+          siblings = groupApts
+        }
+      }
+
+      setAptDraft(appointmentToDraft(apt, undefined, siblings))
       setDetailCustomerRegistered(false)
 
       if (!adminToken || !apt.customerPhone) return
@@ -236,14 +249,15 @@ export function useAdminAgendaAppointments({
           setDetailCustomerRegistered(true)
           setDetailReviewRequestSentAt(detail.customer.reviewRequestSentAt ?? null)
           setAptDraft((prev) => ({
-            ...appointmentToDraft(apt, {
-              email: detail.customer.email,
-              notes: detail.customer.notes,
-              locale: detail.customer.locale,
-            }),
+            ...appointmentToDraft(
+              apt,
+              { email: detail.customer.email, notes: detail.customer.notes, locale: detail.customer.locale },
+              siblings,
+            ),
             notes: prev.notes,
             serviceIds: prev.serviceIds,
             serviceStartTimes: prev.serviceStartTimes,
+            staffAssignments: prev.staffAssignments,
             startTime: prev.startTime,
           }))
         })

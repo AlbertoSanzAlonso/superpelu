@@ -299,6 +299,9 @@ async function replaceAppointment(
 
   const created = await createAppointment({
     staffId: targetStaffId,
+    staffAssignments: input.staffAssignments?.length === serviceIds.length
+      ? input.staffAssignments
+      : undefined,
     serviceIds,
     serviceStartTimes: input.serviceStartTimes?.length === serviceIds.length
       ? input.serviceStartTimes

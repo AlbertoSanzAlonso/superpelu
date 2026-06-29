@@ -145,10 +145,25 @@ export function useStaffAgenda(token: string) {
     }))
   }, [])
 
-  const startEditAppointment = useCallback((apt: DayScheduleAppointment) => {
-    setEditingId(apt.id)
-    setAptDraft(appointmentToDraft(apt))
-  }, [])
+  const startEditAppointment = useCallback(
+    (apt: DayScheduleAppointment) => {
+      setEditingId(apt.id)
+
+      // Si pertenece a un grupo multi-tratamiento, cargar todos los hermanos visibles en este schedule
+      let siblings: DayScheduleAppointment[] | undefined
+      if (apt.bookingGroupId && schedule) {
+        const groupApts = schedule.appointments.filter(
+          (a) => a.bookingGroupId === apt.bookingGroupId && a.colorGroupRole !== 'wash',
+        )
+        if (groupApts.length > 1) {
+          siblings = groupApts
+        }
+      }
+
+      setAptDraft(appointmentToDraft(apt, undefined, siblings))
+    },
+    [schedule],
+  )
 
   const selectFreeSlot = useCallback(
     (time: string) => {
@@ -260,10 +275,15 @@ export function useStaffAgenda(token: string) {
             : aptDraft.serviceStartTimes
 
         if (editingId) {
+          const staffAssignments =
+            aptDraft.staffAssignments.length === filteredIds.length
+              ? aptDraft.staffAssignments
+              : undefined
           await updateMyAppointment(token, editingId, {
             serviceIds: filteredIds,
             serviceStartTimes: normalizedStartTimes,
             serviceDurations: aptDraft.serviceDurations,
+            staffAssignments,
             date,
             startTime: aptDraft.startTime,
             customerFirstName: aptDraft.customerFirstName,

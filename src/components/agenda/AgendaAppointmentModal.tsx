@@ -123,29 +123,45 @@ export function AgendaAppointmentModal({
   )
   const hasOverlaps = serviceOverlaps.length > 0
 
+  const normalizeArr = useCallback(
+    <T,>(ids: string[], arr: T[], fill: T): T[] => ids.map((_, i) => (i < arr.length ? arr[i] : fill)),
+    [],
+  )
+
+  const setStaffAtIndex = useCallback(
+    (index: number, id: string) => {
+      const assignments = normalizeArr(draft.serviceIds, draft.staffAssignments, '')
+      assignments[index] = id
+      onDraftChange({ staffAssignments: assignments })
+    },
+    [draft.serviceIds, draft.staffAssignments, onDraftChange, normalizeArr],
+  )
+
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
       const next = [...serviceIds]
       if (index === 0 && id === '') {
         const hadService = serviceIds[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], serviceStartTimes: [], serviceDurations: [], startTime: '' })
+          onDraftChange({ serviceIds: [], serviceStartTimes: [], serviceDurations: [], staffAssignments: [], startTime: '' })
         }
         return
       }
       next[index] = id
       const selectedService = services.find(s => s.id === id)
-      const newDurations = [...(draft.serviceDurations.length === next.length ? draft.serviceDurations : [])]
+      const newDurations = [...normalizeArr(next, draft.serviceDurations, null as number | null)]
       if (selectedService) {
         newDurations[index] = selectedService.durationMinutes
       }
+      const newAssignments = normalizeArr(next, draft.staffAssignments, '')
       onDraftChange({
         serviceIds: next,
         serviceStartTimes: draft.serviceStartTimes.length === next.length ? draft.serviceStartTimes : [],
         serviceDurations: newDurations,
+        staffAssignments: newAssignments,
       })
     },
-    [serviceIds, draft.serviceStartTimes, draft.serviceDurations, services, onDraftChange],
+    [serviceIds, draft.serviceStartTimes, draft.serviceDurations, draft.staffAssignments, services, onDraftChange, normalizeArr],
   )
 
   const setServiceStartTime = useCallback(
@@ -171,8 +187,10 @@ export function AgendaAppointmentModal({
   )
 
   const addService = useCallback(() => {
-    onDraftChange({ serviceIds: [...serviceIds.filter((s) => s !== ''), ''] })
-  }, [serviceIds, onDraftChange])
+    const next = [...serviceIds.filter((s) => s !== ''), '']
+    const newAssignments = normalizeArr(next, draft.staffAssignments, '')
+    onDraftChange({ serviceIds: next, staffAssignments: newAssignments })
+  }, [serviceIds, draft.staffAssignments, onDraftChange, normalizeArr])
 
   const removeService = useCallback(
     (index: number) => {
@@ -184,10 +202,14 @@ export function AgendaAppointmentModal({
       const durations = draft.serviceDurations.length === serviceIds.length
         ? draft.serviceDurations.filter((_, i) => i !== index)
         : []
+      const assignments = draft.staffAssignments.length === serviceIds.length
+        ? draft.staffAssignments.filter((_, i) => i !== index)
+        : []
       onDraftChange({
         serviceIds: cleaned,
         serviceStartTimes: times,
         serviceDurations: durations,
+        staffAssignments: assignments,
         startTime: cleaned.length === 0 ? '' : draft.startTime,
       })
     },
@@ -295,7 +317,7 @@ export function AgendaAppointmentModal({
                   <p className={`${typography.caption} capitalize text-charcoal-muted`}>
                     {formatDisplayDate(date)}
                   </p>
-                  {staffOptions.length > 0 && (
+                  {staffOptions.length > 0 && serviceIds.filter(Boolean).length <= 1 && (
                     <div>
                       <label className={`${typography.label} mb-0.5 block text-xs`}>
                         Profesional
@@ -335,6 +357,22 @@ export function AgendaAppointmentModal({
                         loading={services.length === 0}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
+                      {serviceId && staffOptions.length > 1 && (
+                        <div>
+                          <label className={`${typography.label} mb-0.5 block text-xs`}>
+                            Especialista
+                          </label>
+                          <select
+                            value={draft.staffAssignments[index] ?? staffId}
+                            onChange={(e) => setStaffAtIndex(index, e.target.value)}
+                            className={selectCn}
+                          >
+                            {staffOptions.map((s) => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       {serviceId && (
                         <div>
                           <label className={`${typography.label} mb-0.5 block text-xs`}>

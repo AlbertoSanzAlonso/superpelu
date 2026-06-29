@@ -47,6 +47,8 @@ type Props = {
   serviceSlots?: string[][]
   /** Para cada tratamiento adicional con hora ocupada, el primer profesional alternativo libre a esa hora (null = ninguno o no aplica). */
   serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
+  /** Lista de profesionales disponibles para el selector por tratamiento. */
+  staffList?: { id: string; name: string }[]
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -68,6 +70,7 @@ export function StaffAppointmentFormFields({
   slotsOverHours = [],
   serviceSlots,
   serviceAlternativeStaff,
+  staffList,
   onDraftChange,
   onSubmit,
   onClose,
@@ -97,13 +100,29 @@ export function StaffAppointmentFormFields({
     [],
   )
 
+  const normalizeStaffAssignments = useCallback(
+    (ids: string[], assignments: string[]): string[] => {
+      return ids.map((_, i) => (i < assignments.length ? assignments[i] : ''))
+    },
+    [],
+  )
+
+  const setStaffAtIndex = useCallback(
+    (index: number, staffId: string) => {
+      const assignments = normalizeStaffAssignments(draft.serviceIds, draft.staffAssignments)
+      assignments[index] = staffId
+      onDraftChange({ staffAssignments: assignments })
+    },
+    [draft.serviceIds, draft.staffAssignments, onDraftChange, normalizeStaffAssignments],
+  )
+
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
       const next = [...serviceIds]
       if (index === 0 && id === '') {
         const hadService = serviceIds[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], serviceDurations: [], serviceStartTimes: [], startTime: '' })
+          onDraftChange({ serviceIds: [], serviceDurations: [], serviceStartTimes: [], staffAssignments: [], startTime: '' })
         }
         return
       }
@@ -121,9 +140,10 @@ export function StaffAppointmentFormFields({
         newDurations[index] = null
       }
       const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
-      onDraftChange({ serviceIds: next, serviceDurations: newDurations, serviceStartTimes: newTimes })
+      const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments)
+      onDraftChange({ serviceIds: next, serviceDurations: newDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, services, onDraftChange, normalizeStartTimes],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, services, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
   )
 
   const setServiceStartTime = useCallback(
@@ -151,14 +171,16 @@ export function StaffAppointmentFormFields({
       const cleaned = next.filter((s) => s !== '')
       const durations = normalizeDurations(serviceIds, draft.serviceDurations).filter((_, i) => i !== index)
       const times = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter((_, i) => i !== index)
+      const assignments = normalizeStaffAssignments(serviceIds, draft.staffAssignments).filter((_, i) => i !== index)
       onDraftChange({
         serviceIds: cleaned,
         serviceDurations: durations,
         serviceStartTimes: times,
+        staffAssignments: assignments,
         startTime: cleaned.length === 0 ? '' : draft.startTime,
       })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.startTime, onDraftChange, normalizeStartTimes],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, draft.startTime, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
   )
 
   const setServiceDuration = useCallback(
@@ -172,24 +194,25 @@ export function StaffAppointmentFormFields({
 
   const moveService = useCallback(
     (fromIndex: number, toIndex: number) => {
+      const filledFilter = (_: unknown, i: number) => {
+        const idAtI = serviceIds[i]
+        return idAtI !== undefined && idAtI !== ''
+      }
       const newIds = [...serviceIds.filter((s) => s !== '')]
-      const newDurations = normalizeDurations(serviceIds, draft.serviceDurations).filter((_, i) => {
-        const idAtI = serviceIds[i]
-        return idAtI !== undefined && idAtI !== ''
-      })
-      const newTimes = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter((_, i) => {
-        const idAtI = serviceIds[i]
-        return idAtI !== undefined && idAtI !== ''
-      })
+      const newDurations = normalizeDurations(serviceIds, draft.serviceDurations).filter(filledFilter)
+      const newTimes = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter(filledFilter)
+      const newAssignments = normalizeStaffAssignments(serviceIds, draft.staffAssignments).filter(filledFilter)
       const [movedId] = newIds.splice(fromIndex, 1)
       const [movedDuration] = newDurations.splice(fromIndex, 1)
       const [movedTime] = newTimes.splice(fromIndex, 1)
+      const [movedAssignment] = newAssignments.splice(fromIndex, 1)
       newIds.splice(toIndex, 0, movedId)
       newDurations.splice(toIndex, 0, movedDuration)
       newTimes.splice(toIndex, 0, movedTime)
-      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations, serviceStartTimes: newTimes })
+      newAssignments.splice(toIndex, 0, movedAssignment)
+      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, onDraftChange, normalizeStartTimes],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
   )
 
   const chainedStartTimes = useMemo(() => {
@@ -265,6 +288,23 @@ export function StaffAppointmentFormFields({
                   loading={services.length === 0}
                   onServiceChange={(id) => setServiceAtIndex(index, id)}
                 />
+                {serviceId && staffList && staffList.length > 1 && (
+                  <div>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>
+                      Especialista
+                    </label>
+                    <select
+                      value={draft.staffAssignments[index] ?? ''}
+                      onChange={(e) => setStaffAtIndex(index, e.target.value)}
+                      className={selectCn}
+                    >
+                      <option value="">— Predeterminado —</option>
+                      {staffList.map((s) => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 {serviceId && index > 0 && (() => {
                   const currentVal = draft.serviceStartTimes[index] ?? ''
                   const perSvcFree = serviceSlots?.[index] ?? []

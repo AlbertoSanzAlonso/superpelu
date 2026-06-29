@@ -256,6 +256,7 @@ me.patch('/me/appointments/:id', async (c) => {
     serviceIds?: string[]
     serviceStartTimes?: string[]
     serviceDurations?: (number | null)[]
+    staffAssignments?: string[]
     date?: string
     startTime?: string
     customerName?: string

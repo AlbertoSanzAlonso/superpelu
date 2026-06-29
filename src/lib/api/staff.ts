@@ -158,6 +158,7 @@ export function updateMyAppointment(
     serviceIds: string[]
     serviceStartTimes: string[]
     serviceDurations: (number | null)[]
+    staffAssignments: string[]
     date: string
     startTime: string
     customerFirstName: string

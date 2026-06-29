@@ -209,6 +209,7 @@ export function AdminAgendaWorkspace({
           slotsOverHours={agenda.slotsOverHours}
           serviceSlots={agenda.serviceSlotsPerIndex}
           serviceAlternativeStaff={agenda.serviceAlternativeStaff}
+          staffList={agenda.schedules.map((s) => ({ id: s.staffId, name: s.staffName }))}
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}
