@@ -974,6 +974,7 @@ const adminScheduleErrors: Record<string, string> = {
   STAFF_NO_REALIZA_SERVICIO: 'Este profesional no realiza ese servicio',
   FECHA_INVALIDA: 'Fecha no disponible',
   HORARIO_NO_DISPONIBLE: 'Ese horario no está disponible',
+  HORARIO_ENCADENADO_NO_DISPONIBLE: 'Ese horario no está disponible para todos los tratamientos',
   CITA_NO_ENCONTRADA: 'Cita no encontrada',
   TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',

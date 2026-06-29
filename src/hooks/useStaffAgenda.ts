@@ -291,7 +291,7 @@ export function useStaffAgenda(token: string) {
         if (
           !forceSchedule &&
           err instanceof ApiError &&
-          /horario no disponible|HORARIO/i.test(err.message)
+          /horario no disponible|no está disponible/i.test(err.message)
         ) {
           confirmUi.setConfirmDialog({
             title: 'El horario no está disponible',
