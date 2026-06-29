@@ -313,10 +313,17 @@ export async function createChainedBookingAppointment(
   const reminderSentAt =
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
   const bookingGroupId = randomUUID()
-  const serviceStartTimes =
+  // Si hay horas manuales, calcular el encadenado con esos overrides para que los índices
+  // vacíos tomen la hora correcta según el contexto real (no el default sin overrides).
+  const rawServiceStartTimes =
     input.serviceStartTimes?.length === effectiveServices.length
       ? input.serviceStartTimes
-      : buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+      : []
+  const serviceStartTimes = buildFlexibleServiceStartTimes(
+    effectiveServices,
+    input.startTime,
+    rawServiceStartTimes,
+  )
 
   const primaryId = await sql.begin(async (tx) => {
     await lockStaffDaysForBooking(
