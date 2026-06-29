@@ -37,10 +37,13 @@ function getBearer(c: { req: { header: (name: string) => string | undefined } })
   return auth?.startsWith('Bearer ') ? auth.slice(7).trim() : undefined
 }
 
-async function requireStaff(c: Parameters<Parameters<typeof me.get>[1]>[0]) {
+async function requireStaff(c: {
+  req: { header: (name: string) => string | undefined }
+  json: (data: unknown, status?: number) => Response
+}) {
   const staff = await resolveStaffSession(getBearer(c))
   if (!staff) {
-    return { error: c.json({ error: 'No autorizado' }, 401) as Response, staff: null as StaffRow | null }
+    return { error: c.json({ error: 'No autorizado' }, 401), staff: null as StaffRow | null }
   }
   return { error: null, staff }
 }

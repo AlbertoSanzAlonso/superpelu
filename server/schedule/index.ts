@@ -55,8 +55,8 @@ export async function getSalonSchedule(): Promise<SalonScheduleData> {
     openDaysSet.add(row.day_of_week)
   }
 
-  let openTime = salonSchedule.openTime
-  let closeTime = salonSchedule.closeTime
+  let openTime: string = salonSchedule.openTime
+  let closeTime: string = salonSchedule.closeTime
   for (const ranges of Object.values(weeklyWindows)) {
     for (const r of ranges) {
       if (timeToMinutes(r.start) < timeToMinutes(openTime)) openTime = r.start

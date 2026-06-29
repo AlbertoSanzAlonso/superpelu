@@ -1,5 +1,5 @@
 import { serve } from '@hono/node-server'
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
 import { cors } from 'hono/cors'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,7 +34,6 @@ import {
   getAvailableSlotsForServices,
   getOverHoursSlotsForServices,
   getAppointmentsByBookingGroup,
-  getServiceDaySlots,
   getServiceDaySlotsForServices,
   getStaffAvailableAtSlot,
   getStaffAvailableAtSlotForServices,
@@ -48,7 +47,6 @@ import {
 import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
 import {
   buildIcs,
-  buildLinkPreviewMetaTags,
   buildManageUrl,
   decodeId,
   encodeId,
@@ -72,7 +70,6 @@ import {
   renderNotFoundPage,
   isMultiTreatmentVisit,
   resolveCustomerBookingContext,
-  resolvePageLocale,
   visitChangesPromptHtml,
 } from '@server/customers/pages.js'
 import { notifyCustomerBookingVisitFinished } from '@server/notifications/whatsapp.js'
@@ -112,7 +109,6 @@ import { sendCustomerReviewRequest } from '@server/notifications/review.js'
 import { initDatabase, sql } from '@server/db.js'
 import {
   getFullSchedule,
-  getSalonSchedule,
   setSalonSchedule,
   setStaffSchedule,
   type ScheduleTimeRange,
@@ -217,7 +213,7 @@ app.get('/api/admin/schedule', async (c) => {
 app.put('/api/admin/schedule/salon', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({}))
+  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({} as { weeklyWindows?: Record<string, ScheduleTimeRange[]> }))
   if (!body.weeklyWindows || typeof body.weeklyWindows !== 'object') {
     return c.json({ error: 'Falta weeklyWindows' }, 400)
   }
@@ -229,7 +225,7 @@ app.put('/api/admin/schedule/staff/:staffId', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const staffId = c.req.param('staffId')
-  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({}))
+  const body = await c.req.json<{ weeklyWindows?: Record<string, ScheduleTimeRange[]> }>().catch(() => ({} as { weeklyWindows?: Record<string, ScheduleTimeRange[]> }))
   if (!body.weeklyWindows || typeof body.weeklyWindows !== 'object') {
     return c.json({ error: 'Falta weeklyWindows' }, 400)
   }
@@ -508,7 +504,7 @@ app.post('/api/admin/whatsapp/test', async (c) => {
     return c.json({ error: 'OpenWA no configurado (OPENWA_ENABLED y credenciales)' }, 400)
   }
 
-  const body = await c.req.json<{ phone?: string; text?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ phone?: string; text?: string }>().catch(() => ({} as { phone?: string; text?: string }))
   const phone = body.phone?.trim()
   if (!phone) return c.json({ error: 'Falta phone (E.164, p. ej. +34600111222)' }, 400)
 
@@ -914,7 +910,7 @@ app.post('/api/customers/:phone/review-request', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
 
   const phone = decodeURIComponent(c.req.param('phone'))
-  const body = await c.req.json<{ appointmentId?: string }>().catch(() => ({}))
+  const body = await c.req.json<{ appointmentId?: string }>().catch(() => ({} as { appointmentId?: string }))
   try {
     const result = await sendCustomerReviewRequest(phone, {
       appointmentId: body?.appointmentId,
@@ -1360,7 +1356,7 @@ function customerPage(
 type CustomerPageStatus = 200 | 400 | 404 | 409
 
 function replyCustomerPage(
-  c: { req: { url: string; path: string; query: (key: string) => string | undefined } },
+  c: Context,
   title: string,
   bodyHtml: string,
   locale: Locale,
@@ -1456,7 +1452,6 @@ app.get('/c/:code', async (c) => {
     )
   }
 
-  const manageUrl = buildManageUrl(linkRow)
   const t = cp(locale).cancel
   const aptSuffix = activeRows.length > 1 ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
   const langSuffix = customerLangSuffix(locale)

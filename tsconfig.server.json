@@ -31,6 +31,15 @@
     "src/assets",
     "src/main.tsx",
     "src/App.tsx",
-    "src/vite-env.d.ts"
+    "src/vite-env.d.ts",
+    "src/i18n/LocaleProvider.tsx",
+    "src/i18n/useTranslation.ts",
+    "src/lib/agenda/adminBrowserNotifications.ts",
+    "src/lib/api",
+    "src/lib/booking/calendar.ts",
+    "src/lib/supabaseClient.ts",
+    "src/data/galleryImages.ts",
+    "src/data/marketingServices.ts",
+    "src/data/galleryContent.ts"
   ]
 }

@@ -1,4 +1,4 @@
-import { sql, type CustomerRow } from '@server/db.js'
+import { sql, type AppointmentRow, type CustomerRow } from '@server/db.js'
 import {
   formatCustomerDisplayName,
   splitCustomerName,
@@ -247,7 +247,7 @@ export async function listCustomerAppointments(phone: string) {
   const normalized = normalizePhone(phone)
   if (!normalized) return []
 
-  return sql`
+  return sql<AppointmentRow[]>`
     SELECT * FROM appointments
     WHERE customer_phone = ${normalized}
     ORDER BY appointment_date DESC, start_time DESC

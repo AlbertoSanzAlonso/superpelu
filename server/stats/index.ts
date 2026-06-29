@@ -79,7 +79,8 @@ export async function getStats() {
     `,
   ])
 
-  const totalOrigin = originDistribution.reduce((sum: number, r: { count: number }) => sum + r.count, 0)
+  const originList = originDistribution as unknown as { origin: string; count: number }[]
+  const totalOrigin = originList.reduce((sum, r) => sum + r.count, 0)
 
   return {
     totalAppointments,
@@ -89,7 +90,7 @@ export async function getStats() {
     topStaff,
     appointmentsByDay,
     appointmentsByMonth,
-    originDistribution: originDistribution.map((r: { origin: string; count: number }) => ({
+    originDistribution: originList.map((r) => ({
       origin: r.origin,
       count: r.count,
       percentage: totalOrigin > 0 ? Math.round((r.count / totalOrigin) * 100) : 0,
