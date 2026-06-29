@@ -14,7 +14,7 @@ import {
 import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
-import { COLOR_SPLIT_SEGMENT_MINUTES, getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
+import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
   insertColorBookingGroup,
@@ -332,7 +332,6 @@ export async function createChainedBookingAppointment(
           effectiveServices,
           i,
           allStartMinutes[i],
-          allStartMinutes,
         )
         if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
           throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
@@ -354,15 +353,9 @@ export async function createChainedBookingAppointment(
       if (usesColorSplitBooking(service.id)) {
         const colorGroup = await prepareColorBookingGroupIds(service.id)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-        // skipWash solo si el siguiente tratamiento cae exactamente en el slot del lavado
-        const replacementIdx = getColorWashReplacementIndex(services)
-        const washSlotTime = replacementIdx != null
-          ? `${String(Math.floor((timeToMinutes(serviceStartTime) + COLOR_SPLIT_SEGMENT_MINUTES) / 60)).padStart(2, '0')}:${String((timeToMinutes(serviceStartTime) + COLOR_SPLIT_SEGMENT_MINUTES) % 60).padStart(2, '0')}`
-          : null
-        const skipWash =
-          replacementIdx === i + 1 &&
-          washSlotTime != null &&
-          serviceStartTimes[replacementIdx] === washSlotTime
+        // Siempre eliminar el lavado cuando hay un servicio de peluquería concatenado después.
+        // La profesional lava implícitamente antes de iniciar el siguiente tratamiento.
+        const skipWash = getColorWashReplacementIndex(services) === i + 1
         const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
         await insertColorBookingGroup(
           {

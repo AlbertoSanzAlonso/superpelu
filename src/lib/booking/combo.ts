@@ -24,7 +24,7 @@ export function getChainedBookingSegments(
     const startTimes = buildChainStartMinutes(services, startMinutes, overrides)
     const all: OccupiedSegment[] = []
     for (let i = 0; i < services.length; i++) {
-      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i], startTimes))
+      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i]))
     }
     return all
   }

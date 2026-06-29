@@ -53,7 +53,6 @@ export function getOccupiedSegmentsForChainService(
   services: readonly BookingServiceWithCategory[],
   serviceIndex: number,
   startMinutes: number,
-  allStartMinutes?: readonly number[],
 ): OccupiedSegment[] {
   const service = services[serviceIndex]
   const replacementIndex = getColorWashReplacementIndex(services)
@@ -63,14 +62,9 @@ export function getOccupiedSegmentsForChainService(
     serviceIndex === replacementIndex - 1 &&
     usesColorSplitBooking(service.id)
   ) {
-    // El reemplazo sólo aplica cuando el siguiente servicio empieza exactamente en el slot del lavado.
-    // Si tiene un tiempo diferente (override posterior al lavado), el color ocupa los 90 min completos.
-    if (allStartMinutes) {
-      const washTime = startMinutes + COLOR_SPLIT_SEGMENT_MINUTES
-      if (allStartMinutes[replacementIndex] !== washTime) {
-        return getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
-      }
-    }
+    // Cuando hay un servicio de peluquería concatenado tras el color,
+    // el lavado se elimina siempre. El color solo bloquea la aplicación (30 min).
+    // La profesional lava implícitamente antes de iniciar el siguiente servicio.
     return [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   }
 
