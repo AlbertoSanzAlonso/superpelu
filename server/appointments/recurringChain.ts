@@ -30,7 +30,7 @@ import {
   resolveBookingServices,
 } from '@server/appointments/booking.js'
 import { collectDatesForSeriesScope } from '@server/appointments/seriesDates.js'
-import { timeToMinutes } from '@server/appointments/time.js'
+import { timeToMinutes, minutesToTime } from '@server/appointments/time.js'
 
 export type SeriesConflictResolution = {
   date: string
@@ -86,7 +86,14 @@ export async function previewRecurringChainConflicts(
         ? serviceDurations[i]
         : s.durationMinutes,
   }))
-  const serviceStartTimes = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+  // Respetar los tiempos manuales que el usuario ha fijado para cada servicio
+  const rawStartTimeOverrides =
+    input.serviceStartTimes?.length === serviceIds.length ? input.serviceStartTimes : []
+  const serviceStartTimes = buildFlexibleServiceStartTimes(
+    effectiveServices,
+    input.startTime,
+    rawStartTimeOverrides,
+  )
 
   const conflicts: SeriesDateConflict[] = []
   const okDates: string[] = []
@@ -198,7 +205,14 @@ export async function createRecurringChainedAppointment(
         ? serviceDurations[i]
         : s.durationMinutes,
   }))
-  const defaultStartTimes = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+  // Respetar los tiempos manuales que el usuario ha fijado para cada servicio
+  const rawStartTimeOverrides =
+    input.serviceStartTimes?.length === serviceIds.length ? input.serviceStartTimes : []
+  const defaultStartTimes = buildFlexibleServiceStartTimes(
+    effectiveServices,
+    input.startTime,
+    rawStartTimeOverrides,
+  )
 
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,
@@ -252,7 +266,17 @@ export async function createRecurringChainedAppointment(
     }
 
     if (resolution?.action === 'reschedule' && resolution.startTime) {
-      dayStartTimes = buildFlexibleServiceStartTimes(effectiveServices, resolution.startTime, [])
+      // Desplazar todos los tiempos en función del offset respecto al inicio original,
+      // preservando los gaps manuales entre servicios
+      const shiftMinutes = timeToMinutes(resolution.startTime) - timeToMinutes(input.startTime)
+      const shiftedOverrides = defaultStartTimes.map((t) =>
+        t ? minutesToTime(timeToMinutes(t) + shiftMinutes) : '',
+      )
+      dayStartTimes = buildFlexibleServiceStartTimes(
+        effectiveServices,
+        resolution.startTime,
+        shiftedOverrides,
+      )
     }
 
     datesToCreate.push({
