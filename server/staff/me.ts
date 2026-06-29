@@ -13,6 +13,7 @@ import {
   updateAppointmentForStaff,
   type AppointmentSeriesMode,
 } from '@server/appointments/index.js'
+import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
 import type { SeriesScope } from '@server/appointments/seriesDates.js'
 import { getStaffDaySchedule } from '@server/staff/schedule.js'
 import { listServicesForStaff } from '@server/staff/index.js'
@@ -136,6 +137,53 @@ me.get('/me/appointments', async (c) => {
   return c.json({ appointments: rows.map(rowToPublic) })
 })
 
+me.post('/me/appointments/preview-series', async (c) => {
+  const { error, staff } = await requireStaff(c)
+  if (error) return error
+  const body = await c.req.json<{
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
+    date: string
+    startTime: string
+    customerFirstName?: string
+    customerLastName?: string
+    customerPhone: string
+    customerEmail?: string
+    customerNotes?: string
+    notes?: string
+    customerLocale?: 'es' | 'en'
+    endDate?: string
+  }>().catch(() => null)
+  if (!body || !body.date || !body.startTime || !body.customerPhone) {
+    return c.json({ error: 'Datos incompletos' }, 400)
+  }
+  try {
+    const result = await previewRecurringChainConflicts({
+      staffId: staff!.id,
+      serviceIds: body.serviceIds ?? [],
+      serviceStartTimes: body.serviceStartTimes,
+      serviceDurations: body.serviceDurations,
+      date: body.date,
+      startTime: body.startTime,
+      customerFirstName: body.customerFirstName,
+      customerLastName: body.customerLastName,
+      customerPhone: body.customerPhone,
+      customerEmail: body.customerEmail,
+      customerNotes: body.customerNotes,
+      notes: body.notes,
+      customerLocale: body.customerLocale,
+      scope: 'weekly',
+      endDate: body.endDate,
+      forStaffPortal: true,
+    })
+    return c.json(result)
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    return c.json({ error: code }, 400)
+  }
+})
+
 me.post('/me/appointments', async (c) => {
   const { error, staff } = await requireStaff(c)
   if (error) return error
@@ -157,6 +205,7 @@ me.post('/me/appointments', async (c) => {
     scope?: SeriesScope
     endDate?: string
     forceSchedule?: boolean
+    conflictResolutions?: import('@server/appointments/recurringChain.js').SeriesConflictResolution[]
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
@@ -190,6 +239,7 @@ me.post('/me/appointments', async (c) => {
       endDate: body.endDate,
       forStaffPortal: true,
       forceSchedule: body.forceSchedule,
+      conflictResolutions: body.conflictResolutions,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -255,7 +305,9 @@ me.get('/me/appointments/:id/series', async (c) => {
 me.delete('/me/appointments/:id', async (c) => {
   const { error, staff } = await requireStaff(c)
   if (error) return error
-  const mode = (c.req.query('mode') === 'series' ? 'series' : 'single') as AppointmentSeriesMode
+  const modeParam = c.req.query('mode')
+  const mode: AppointmentSeriesMode =
+    modeParam === 'series' ? 'series' : modeParam === 'group' ? 'group' : 'single'
   const ok = await deleteAppointmentForStaff(c.req.param('id'), staff!.id, mode)
   if (!ok) return c.json({ error: 'Cita no encontrada' }, 404)
   return c.json({ ok: true })

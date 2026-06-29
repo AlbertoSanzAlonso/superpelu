@@ -87,6 +87,8 @@ export function useAdminAgendaAppointments({
   const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
   const [cancelScopeOpen, setCancelScopeOpen] = useState(false)
   const [cancelScopeSeries, setCancelScopeSeries] = useState<AppointmentSeriesMeta | null>(null)
+  const [cancelScopeGroupCount, setCancelScopeGroupCount] = useState<number>(0)
+  const [cancelScopeGroupServices, setCancelScopeGroupServices] = useState<string[]>([])
   const [pendingCancelMode, setPendingCancelMode] = useState<AppointmentSeriesMode>('single')
 
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
@@ -349,6 +351,8 @@ export function useAdminAgendaAppointments({
   const closeCancelScopeModal = useCallback(() => {
     setCancelScopeOpen(false)
     setCancelScopeSeries(null)
+    setCancelScopeGroupCount(0)
+    setCancelScopeGroupServices([])
     setPendingCancelId(null)
   }, [])
 
@@ -369,6 +373,33 @@ export function useAdminAgendaAppointments({
           viewingAppointment?.apt.id === id
             ? viewingAppointment.apt
             : schedules.flatMap((s) => s.appointments).find((a) => a.id === id)
+
+        // Detectar si pertenece a una visita multi-tratamiento
+        if (apt?.bookingGroupId) {
+          const siblingsInGroup = schedules
+            .flatMap((s) => s.appointments)
+            .filter(
+              (a) =>
+                a.bookingGroupId === apt.bookingGroupId &&
+                a.status === 'confirmed' &&
+                a.colorGroupRole !== 'wash',
+            )
+          if (siblingsInGroup.length > 1) {
+            const groupServices = siblingsInGroup.map((a) => a.serviceName ?? '').filter(Boolean)
+            setPendingCancelId(id)
+            setCancelScopeGroupCount(siblingsInGroup.length)
+            setCancelScopeGroupServices(groupServices)
+            // Si además tiene serie, cargar también la serie
+            if (apt.seriesId && adminToken) {
+              try {
+                const series = await fetchAdminAppointmentSeries(adminToken, id)
+                if (series.count > 1) setCancelScopeSeries(series)
+              } catch { /* continuar sin serie */ }
+            }
+            setCancelScopeOpen(true)
+            return
+          }
+        }
 
         if (apt?.seriesId && adminToken) {
           try {
@@ -454,6 +485,8 @@ export function useAdminAgendaAppointments({
     setPendingNoShowId(null)
     setCancelScopeOpen(false)
     setCancelScopeSeries(null)
+    setCancelScopeGroupCount(0)
+    setCancelScopeGroupServices([])
   }, [])
 
   return {
@@ -509,6 +542,8 @@ export function useAdminAgendaAppointments({
     formStaffId: appointmentFormOpen && !editingId ? activeStaffId : null,
     cancelScopeOpen,
     cancelScopeSeries,
+    cancelScopeGroupCount,
+    cancelScopeGroupServices,
     closeCancelScopeModal,
     confirmCancelScope,
     seriesConflictOpen: persist.seriesConflictOpen,

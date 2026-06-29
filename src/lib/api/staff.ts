@@ -1,6 +1,7 @@
 import type { Appointment, BookableService, StaffDaySchedule } from '@/types/booking'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
+import type { SeriesPreviewResult, SeriesConflictResolution } from './admin'
 import { ApiError } from './request'
 
 const API_BASE = '/api'
@@ -97,6 +98,30 @@ export function fetchMyAppointments(token: string, from: string, to: string) {
   )
 }
 
+export function previewMySeriesConflicts(
+  token: string,
+  payload: {
+    serviceIds?: string[]
+    serviceStartTimes?: string[]
+    serviceDurations?: (number | null)[]
+    date: string
+    startTime: string
+    customerFirstName: string
+    customerLastName?: string
+    customerPhone: string
+    customerEmail?: string
+    customerNotes?: string
+    notes?: string
+    customerLocale?: 'es' | 'en'
+    endDate?: string
+  },
+) {
+  return staffRequest<SeriesPreviewResult>('/me/appointments/preview-series', token, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export function createMyAppointment(
   token: string,
   payload: {
@@ -116,6 +141,7 @@ export function createMyAppointment(
     scope?: BlockScope
     endDate?: string
     forceSchedule?: boolean
+    conflictResolutions?: SeriesConflictResolution[]
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -162,7 +188,7 @@ export function deleteMyAppointment(
   id: string,
   mode: AppointmentSeriesMode = 'single',
 ) {
-  const params = mode === 'series' ? '?mode=series' : ''
+  const params = mode !== 'single' ? `?mode=${mode}` : ''
   return staffRequest<{ ok: true }>(`/me/appointments/${id}${params}`, token, { method: 'DELETE' })
 }
 

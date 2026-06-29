@@ -65,7 +65,7 @@ export async function getAppointmentSeriesMeta(
   }
 }
 
-export type AppointmentSeriesMode = 'single' | 'series'
+export type AppointmentSeriesMode = 'single' | 'series' | 'group'
 
 export async function listSeriesRootAppointments(
   seriesId: string,

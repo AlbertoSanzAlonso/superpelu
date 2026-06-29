@@ -59,6 +59,21 @@ export async function deleteAppointmentForStaff(
   const existing = await getAppointmentById(appointmentId)
   if (!existing || existing.staff_id !== staffId) return false
 
+  if (mode === 'group' && existing.booking_group_id) {
+    const siblings = await getAppointmentsByBookingGroup(existing.booking_group_id)
+    const toDelete = siblings.filter((r) => !isColorGroupWashRow(r.color_group_role))
+    if (toDelete.length === 0) return false
+    const ids = toDelete.map((r) => r.id)
+    await sql`DELETE FROM appointments WHERE id = ANY(${ids}::text[])`
+    if (existing.status !== 'cancelled') {
+      void notifyAdminAppointmentCancelled(existing)
+      void notifyAppointmentCancelled(existing).catch((err) => {
+        console.error('Superpelu WhatsApp (visita eliminada):', err)
+      })
+    }
+    return true
+  }
+
   if (mode === 'series' && existing.series_id) {
     const result = await sql`
       DELETE FROM appointments
@@ -318,6 +333,25 @@ export async function cancelAppointment(
 ): Promise<AppointmentRow | undefined> {
   const existing = await getAppointmentById(id)
   if (!existing) return undefined
+
+  if (options?.mode === 'group' && existing.booking_group_id) {
+    const siblings = await getAppointmentsByBookingGroup(existing.booking_group_id)
+    const rootsToCancel = siblings.filter(
+      (r) => r.status === 'confirmed' && !isColorGroupWashRow(r.color_group_role),
+    )
+    for (const row of rootsToCancel) {
+      await cancelSingleOccurrence(row, { notifyCustomer: false, notifyAdmin: false })
+    }
+    if (rootsToCancel.length > 0) {
+      if (options?.notifyAdmin !== false) void notifyAdminAppointmentCancelled(existing)
+      if (options?.notifyCustomer) {
+        void notifyAppointmentCancelled(existing).catch((err) => {
+          console.error('Superpelu WhatsApp (visita cancelada):', err)
+        })
+      }
+    }
+    return getAppointmentById(id)
+  }
 
   if (options?.mode === 'series' && existing.series_id) {
     return cancelAppointmentSeries(existing, options)

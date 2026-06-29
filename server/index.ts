@@ -1294,12 +1294,10 @@ app.patch('/api/appointments/:id/cancel', async (c) => {
     typeof body === 'object' &&
     body !== null &&
     (body as { notifyCustomerWhatsApp?: boolean }).notifyCustomerWhatsApp === true
-  const mode =
-    typeof body === 'object' &&
-    body !== null &&
-    (body as { mode?: string }).mode === 'series'
-      ? 'series'
-      : 'single'
+  const modeRaw =
+    typeof body === 'object' && body !== null ? (body as { mode?: string }).mode : undefined
+  const mode: import('@server/appointments/series.js').AppointmentSeriesMode =
+    modeRaw === 'series' ? 'series' : modeRaw === 'group' ? 'group' : 'single'
 
   const row = await cancelAppointment(c.req.param('id'), { notifyCustomer, mode })
   if (!row) {

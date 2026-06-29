@@ -224,6 +224,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     cancelAppointmentById: appointments.cancelAppointmentById,
     cancelScopeOpen: appointments.cancelScopeOpen,
     cancelScopeSeries: appointments.cancelScopeSeries,
+    cancelScopeGroupCount: appointments.cancelScopeGroupCount,
+    cancelScopeGroupServices: appointments.cancelScopeGroupServices,
     closeCancelScopeModal: appointments.closeCancelScopeModal,
     confirmCancelScope: appointments.confirmCancelScope,
     seriesConflictOpen: appointments.seriesConflictOpen,

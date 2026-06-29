@@ -245,12 +245,14 @@ export function AdminAgendaWorkspace({
         />
       )}
 
-      {agenda.cancelScopeSeries && (
+      {(agenda.cancelScopeSeries != null || agenda.cancelScopeGroupCount > 1) && (
         <CancelAppointmentScopeModal
           open={agenda.cancelScopeOpen}
           series={agenda.cancelScopeSeries}
           viewDate={selectedDate}
           action="cancel"
+          bookingGroupCount={agenda.cancelScopeGroupCount > 1 ? agenda.cancelScopeGroupCount : undefined}
+          bookingGroupServices={agenda.cancelScopeGroupServices}
           onClose={agenda.closeCancelScopeModal}
           onConfirm={agenda.confirmCancelScope}
         />

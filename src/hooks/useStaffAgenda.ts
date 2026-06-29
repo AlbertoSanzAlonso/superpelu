@@ -17,8 +17,10 @@ import {
   fetchMyServices,
   fetchMySlots,
   updateMyAppointment,
+  previewMySeriesConflicts,
 } from '@/lib/api/staff'
 import { ApiError } from '@/lib/api'
+import type { SeriesPreviewResult, SeriesConflictResolution } from '@/lib/api/admin'
 import {
   blockGroupsFromGridSummary,
   singleFreeTimeFromGridSummary,
@@ -59,6 +61,11 @@ export function useStaffAgenda(token: string) {
   const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
   const [cancelScopeOpen, setCancelScopeOpen] = useState(false)
   const [cancelScopeSeries, setCancelScopeSeries] = useState<AppointmentSeriesMeta | null>(null)
+  const [cancelScopeGroupCount, setCancelScopeGroupCount] = useState<number>(0)
+  const [cancelScopeGroupServices, setCancelScopeGroupServices] = useState<string[]>([])
+  const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
+  const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
+  const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [pendingRemoveSuccess, setPendingRemoveSuccess] = useState<(() => void) | undefined>()
 
@@ -243,7 +250,7 @@ export function useStaffAgenda(token: string) {
   }, [gridSummary])
 
   const doSave = useCallback(
-    async (forceSchedule = false): Promise<boolean> => {
+    async (forceSchedule = false, conflictResolutions?: SeriesConflictResolution[]): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       try {
         const normalizedStartTimes =
@@ -269,6 +276,31 @@ export function useStaffAgenda(token: string) {
             forceSchedule,
           })
         } else {
+          const isMultiTreatmentSeries = filteredIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
+
+          if (isMultiTreatmentSeries && !conflictResolutions) {
+            const preview = await previewMySeriesConflicts(token, {
+              serviceIds: filteredIds,
+              serviceStartTimes: normalizedStartTimes.length > 0 ? normalizedStartTimes : undefined,
+              serviceDurations: aptDraft.serviceDurations,
+              date,
+              startTime: aptDraft.startTime,
+              customerFirstName: aptDraft.customerFirstName,
+              customerLastName: aptDraft.customerLastName,
+              customerPhone: aptDraft.customerPhone,
+              customerEmail: aptDraft.customerEmail || undefined,
+              customerNotes: aptDraft.customerNotes || undefined,
+              notes: aptDraft.notes || undefined,
+              customerLocale: aptDraft.customerLocale,
+              endDate: aptDraft.recurrenceEndDate || undefined,
+            })
+            if (preview.conflicts.length > 0) {
+              setSeriesConflictPreview(preview)
+              setSeriesConflictOpen(true)
+              return false
+            }
+          }
+
           await createMyAppointment(token, {
             serviceIds: filteredIds,
             serviceStartTimes: normalizedStartTimes,
@@ -288,6 +320,7 @@ export function useStaffAgenda(token: string) {
                 ? aptDraft.recurrenceEndDate
                 : undefined,
             forceSchedule,
+            ...(conflictResolutions ? { conflictResolutions } : {}),
           })
         }
         resetAppointmentForm()
@@ -362,6 +395,8 @@ export function useStaffAgenda(token: string) {
   const closeCancelScopeModal = useCallback(() => {
     setCancelScopeOpen(false)
     setCancelScopeSeries(null)
+    setCancelScopeGroupCount(0)
+    setCancelScopeGroupServices([])
     setPendingRemoveId(null)
     setPendingRemoveSuccess(undefined)
   }, [])
@@ -371,13 +406,21 @@ export function useStaffAgenda(token: string) {
       if (!pendingRemoveId) return
       setCancelScopeOpen(false)
       const count = cancelScopeSeries?.count ?? 1
+      const groupCount = cancelScopeGroupCount
       confirmUi.setConfirmDialog({
-        title: mode === 'series' ? '¿Eliminar todas las citas periódicas?' : '¿Eliminar esta cita?',
+        title:
+          mode === 'series'
+            ? '¿Eliminar todas las citas periódicas?'
+            : mode === 'group'
+              ? '¿Eliminar toda la visita?'
+              : '¿Eliminar este tratamiento?',
         message:
           mode === 'series'
             ? `Se eliminarán ${count} citas de la serie. Se avisará al cliente por WhatsApp y al salón por email.`
-            : 'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
-        confirmLabel: mode === 'series' ? 'Eliminar todas' : 'Eliminar cita',
+            : mode === 'group'
+              ? `Se eliminarán los ${groupCount} tratamientos de esta visita. Se avisará al cliente y al salón.`
+              : 'Se avisará al cliente por WhatsApp y al salón por email. Si la cita era mañana, no se enviará el recordatorio automático.',
+        confirmLabel: mode === 'series' ? 'Eliminar todas' : mode === 'group' ? 'Eliminar visita' : 'Eliminar tratamiento',
         destructive: true,
         onConfirm: async () => {
           setError('')
@@ -387,6 +430,8 @@ export function useStaffAgenda(token: string) {
             pendingRemoveSuccess?.()
             setPendingRemoveId(null)
             setCancelScopeSeries(null)
+            setCancelScopeGroupCount(0)
+            setCancelScopeGroupServices([])
             setPendingRemoveSuccess(undefined)
             await load()
           } catch {
@@ -411,6 +456,32 @@ export function useStaffAgenda(token: string) {
     (id: string, onSuccess?: () => void) => {
       void (async () => {
         const apt = schedule?.appointments.find((a) => a.id === id)
+
+        // Detectar si pertenece a una visita multi-tratamiento
+        if (apt?.bookingGroupId) {
+          const siblingsInGroup = (schedule?.appointments ?? []).filter(
+            (a) =>
+              a.bookingGroupId === apt.bookingGroupId &&
+              a.status === 'confirmed' &&
+              a.colorGroupRole !== 'wash',
+          )
+          if (siblingsInGroup.length > 1) {
+            const groupServices = siblingsInGroup.map((a) => a.serviceName ?? '').filter(Boolean)
+            setPendingRemoveId(id)
+            setCancelScopeGroupCount(siblingsInGroup.length)
+            setCancelScopeGroupServices(groupServices)
+            if (apt.seriesId) {
+              try {
+                const series = await fetchMyAppointmentSeries(token, id)
+                if (series.count > 1) setCancelScopeSeries(series)
+              } catch { /* continuar sin serie */ }
+            }
+            setPendingRemoveSuccess(() => onSuccess)
+            setCancelScopeOpen(true)
+            return
+          }
+        }
+
         if (apt?.seriesId) {
           try {
             const series = await fetchMyAppointmentSeries(token, id)
@@ -497,7 +568,28 @@ export function useStaffAgenda(token: string) {
     runConfirmDialog: confirmUi.runConfirmDialog,
     cancelScopeOpen,
     cancelScopeSeries,
+    cancelScopeGroupCount,
+    cancelScopeGroupServices,
     closeCancelScopeModal,
     confirmRemoveScope,
+    seriesConflictOpen,
+    seriesConflictPreview,
+    seriesConflictBusy,
+    closeSeriesConflictModal: () => {
+      setSeriesConflictOpen(false)
+      setSeriesConflictPreview(null)
+    },
+    resolveSeriesConflicts: async (resolutions: SeriesConflictResolution[]) => {
+      setSeriesConflictBusy(true)
+      try {
+        await doSave(false, resolutions)
+        setSeriesConflictOpen(false)
+        setSeriesConflictPreview(null)
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
+      } finally {
+        setSeriesConflictBusy(false)
+      }
+    },
   }
 }

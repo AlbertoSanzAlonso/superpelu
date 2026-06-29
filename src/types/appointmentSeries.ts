@@ -14,4 +14,4 @@ export type AppointmentSeriesMeta = {
   customerName: string
 }
 
-export type AppointmentSeriesMode = 'single' | 'series'
+export type AppointmentSeriesMode = 'single' | 'series' | 'group'

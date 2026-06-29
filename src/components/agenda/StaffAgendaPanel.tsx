@@ -7,6 +7,7 @@ import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaCont
 import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppointmentFormModal'
 import { StaffAppointmentList } from '@/components/agenda/staff/StaffAppointmentList'
 import { CancelAppointmentScopeModal } from '@/components/agenda/CancelAppointmentScopeModal'
+import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { BlockCreateNoteModal } from '@/components/agenda/BlockCreateNoteModal'
 import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { StaffTimeGrid } from '@/components/agenda/staff/StaffTimeGrid'
@@ -196,12 +197,14 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         />
       )}
 
-      {agenda.cancelScopeSeries && (
+      {(agenda.cancelScopeSeries != null || agenda.cancelScopeGroupCount > 1) && (
         <CancelAppointmentScopeModal
           open={agenda.cancelScopeOpen}
           series={agenda.cancelScopeSeries}
           viewDate={agenda.date}
           action="delete"
+          bookingGroupCount={agenda.cancelScopeGroupCount > 1 ? agenda.cancelScopeGroupCount : undefined}
+          bookingGroupServices={agenda.cancelScopeGroupServices}
           onClose={agenda.closeCancelScopeModal}
           onConfirm={agenda.confirmRemoveScope}
         />
@@ -218,6 +221,17 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         onClose={agenda.closeConfirmDialog}
         onConfirm={agenda.runConfirmDialog}
       />
+
+      {agenda.seriesConflictOpen && agenda.seriesConflictPreview && (
+        <SeriesConflictModal
+          open={agenda.seriesConflictOpen}
+          conflicts={agenda.seriesConflictPreview.conflicts}
+          totalDates={agenda.seriesConflictPreview.dates.length}
+          okDatesCount={agenda.seriesConflictPreview.okDates.length}
+          onResolve={(resolutions) => void agenda.resolveSeriesConflicts(resolutions)}
+          onClose={agenda.closeSeriesConflictModal}
+        />
+      )}
     </AgendaWorkspaceShell>
   )
 }
