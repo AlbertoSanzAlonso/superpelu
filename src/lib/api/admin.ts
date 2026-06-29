@@ -192,6 +192,19 @@ export function fetchAdminMultiSlots(
   }).then((res) => ({ slots: res.slots ?? [], slotsOverHours: res.slotsOverHours ?? [] }))
 }
 
+export function fetchStaffAtSlotAdmin(
+  date: string,
+  serviceId: string,
+  startTime: string,
+  adminToken: string,
+) {
+  const params = new URLSearchParams({ date, serviceId, startTime })
+  return request<{ staff: { id: string; name: string; role: string | null }[] }>(
+    `/schedule/staff-at-slot?${params}`,
+    { headers: adminHeaders(adminToken) },
+  ).then((res) => ({ staff: res.staff ?? [] }))
+}
+
 export function fetchAdminBlockSeries(adminToken: string, blockId: string) {
   return request<{ series: BlockSeriesMeta }>(`/schedule/blocks/${blockId}/series`, {
     headers: adminHeaders(adminToken),

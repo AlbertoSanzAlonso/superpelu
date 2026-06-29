@@ -10,6 +10,7 @@ import {
   markAppointmentNoShow,
   fetchAdminAppointmentSeries,
   fetchAdminMultiSlots,
+  fetchStaffAtSlotAdmin,
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
 } from '@/lib/api'
@@ -58,6 +59,9 @@ export function useAdminAgendaAppointments({
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
   const [slotsConflict, setSlotsConflict] = useState<string | null>(null)
   const [serviceSlotsPerIndex, setServiceSlotsPerIndex] = useState<string[][]>([])
+  const [serviceAlternativeStaff, setServiceAlternativeStaff] = useState<
+    ({ id: string; name: string } | null)[]
+  >([])
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
   const [appointmentFormOpen, setAppointmentFormOpen] = useState(false)
@@ -141,6 +145,34 @@ export function useAdminAgendaAppointments({
       ),
     ).then((results) => setServiceSlotsPerIndex(results))
   }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
+
+  // Profesionales alternativos cuando un tratamiento adicional tiene hora ocupada
+  useEffect(() => {
+    const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
+    if (!activeStaffId || filteredIds.length <= 1 || !date || !adminToken || serviceSlotsPerIndex.length === 0) {
+      setServiceAlternativeStaff([])
+      return
+    }
+    Promise.all(
+      filteredIds.map(async (id, i) => {
+        if (i === 0) return null
+        const selectedTime = aptDraft.serviceStartTimes[i]
+        if (!selectedTime) return null
+        const freeForThis = serviceSlotsPerIndex[i] ?? []
+        if (freeForThis.includes(selectedTime)) return null
+        return fetchStaffAtSlotAdmin(date, id, selectedTime, adminToken)
+          .then((r) => r.staff.filter((s) => s.id !== activeStaffId)[0] ?? null)
+          .catch(() => null)
+      }),
+    ).then((results) => setServiceAlternativeStaff(results))
+  }, [
+    activeStaffId,
+    aptDraft.serviceIds.join(','),
+    aptDraft.serviceStartTimes.join(','),
+    date,
+    adminToken,
+    serviceSlotsPerIndex,
+  ])
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
@@ -432,6 +464,7 @@ export function useAdminAgendaAppointments({
     slotsOverHours,
     slotsConflict,
     serviceSlotsPerIndex,
+    serviceAlternativeStaff,
     aptDraft,
     setAptDraft,
     editingId,

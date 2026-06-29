@@ -13,6 +13,7 @@ type Props = {
   slots: string[]
   slotsOverHours?: string[]
   serviceSlots?: string[][]
+  serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -33,6 +34,7 @@ export function StaffAppointmentFormModal({
   slots,
   slotsOverHours = [],
   serviceSlots,
+  serviceAlternativeStaff,
   onDraftChange,
   onSubmit,
   onClose,
@@ -93,6 +95,7 @@ export function StaffAppointmentFormModal({
             slots={slots}
             slotsOverHours={slotsOverHours}
             serviceSlots={serviceSlots}
+            serviceAlternativeStaff={serviceAlternativeStaff}
             onDraftChange={onDraftChange}
             onSubmit={onSubmit}
             onClose={onClose}

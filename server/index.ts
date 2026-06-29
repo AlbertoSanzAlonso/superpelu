@@ -1021,6 +1021,19 @@ app.get('/api/schedule/slots', async (c) => {
   return c.json({ slots, slotsOverHours })
 })
 
+app.get('/api/schedule/staff-at-slot', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const date = c.req.query('date')
+  const serviceId = c.req.query('serviceId')
+  const startTime = c.req.query('startTime')
+  if (!date || !serviceId || !startTime) {
+    return c.json({ error: 'Faltan date, serviceId o startTime' }, 400)
+  }
+  const staff = await getStaffAvailableAtSlot(date, serviceId, startTime, { forStaffPortal: true })
+  return c.json({ staff })
+})
+
 app.post('/api/schedule/appointments/preview-series', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)

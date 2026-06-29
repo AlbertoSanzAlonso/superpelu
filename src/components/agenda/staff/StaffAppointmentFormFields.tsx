@@ -45,6 +45,8 @@ type Props = {
   /** Slots disponibles para cada servicio por separado (índice = posición en serviceIds).
    *  Permite al usuario elegir cualquier hora para tratamientos adicionales e indica cuáles están ocupadas. */
   serviceSlots?: string[][]
+  /** Para cada tratamiento adicional con hora ocupada, el primer profesional alternativo libre a esa hora (null = ninguno o no aplica). */
+  serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -65,6 +67,7 @@ export function StaffAppointmentFormFields({
   slots,
   slotsOverHours = [],
   serviceSlots,
+  serviceAlternativeStaff,
   onDraftChange,
   onSubmit,
   onClose,
@@ -305,25 +308,33 @@ export function StaffAppointmentFormFields({
                           </optgroup>
                         )}
                       </select>
-                      {isOccupied && freeOptions.length > 0 && (
-                        <p className="mt-1 text-xs text-amber-700">
-                          Este horario está ocupado.{' '}
+                      {isOccupied && (
+                        <div className="mt-1 space-y-0.5 text-xs text-amber-700">
                           {freeOptions.length > 0 && (
-                            <>
-                              Alternativas:{' '}
-                              {freeOptions.slice(0, 5).map((t, i) => (
+                            <p>
+                              Otras horas disponibles:{' '}
+                              {freeOptions.slice(0, 5).map((t, i2) => (
                                 <button
                                   key={t}
                                   type="button"
                                   onClick={() => setServiceStartTime(index, t)}
                                   className="cursor-pointer font-medium underline"
                                 >
-                                  {t}{i < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
+                                  {t}{i2 < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
                                 </button>
                               ))}
-                            </>
+                            </p>
                           )}
-                        </p>
+                          {serviceAlternativeStaff?.[index] != null && (
+                            <p>
+                              A esta hora está libre:{' '}
+                              <span className="font-medium">{serviceAlternativeStaff[index]!.name}</span>
+                            </p>
+                          )}
+                          {isOccupied && freeOptions.length === 0 && !serviceAlternativeStaff?.[index] && (
+                            <p>Sin disponibilidad para este tratamiento.</p>
+                          )}
+                        </div>
                       )}
                     </div>
                   )
