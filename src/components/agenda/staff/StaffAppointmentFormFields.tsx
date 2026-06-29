@@ -269,12 +269,21 @@ export function StaffAppointmentFormFields({
                   const currentVal = draft.serviceStartTimes[index] ?? ''
                   const perSvcFree = serviceSlots?.[index] ?? []
                   const hasSvcSlots = perSvcFree.length > 0
-                  // Slots libres: usar los del servicio si están disponibles; si no, los del chain
-                  const freeOptions = hasSvcSlots ? perSvcFree : timeOptions
-                  // Slots ocupados: slots del día no disponibles (solo cuando tenemos info de disponibilidad)
+                  // Mínimo lógico: hora en que termina el tratamiento anterior
+                  const chainedMin = chainedStartTimes[index] ?? ''
+                  // Slots libres filtrados a partir del mínimo lógico
+                  const freeOptions = (hasSvcSlots ? perSvcFree : timeOptions).filter(
+                    (t) => !chainedMin || t >= chainedMin,
+                  )
                   const freeSet = new Set(freeOptions)
+                  // Slots ocupados: solo entre chainedMin y el último slot libre del día
+                  const lastFree = freeOptions.length > 0 ? freeOptions[freeOptions.length - 1] : null
                   const occupiedOptions = hasSvcSlots
-                    ? ALL_DAY_SLOTS.filter((t) => !freeSet.has(t))
+                    ? ALL_DAY_SLOTS.filter((t) => {
+                        if (chainedMin && t < chainedMin) return false
+                        if (lastFree && t > lastFree) return false
+                        return !freeSet.has(t)
+                      })
                     : []
                   const isOccupied = currentVal !== '' && !freeSet.has(currentVal)
                   // Incluir el valor actual si no está ya en ninguna lista
