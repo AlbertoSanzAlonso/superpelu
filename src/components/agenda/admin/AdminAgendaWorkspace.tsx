@@ -40,6 +40,9 @@ export function AdminAgendaWorkspace({
   const activeStaffName =
     agenda.schedules.find((s) => s.staffId === agenda.activeStaffId)?.staffName ?? ''
 
+  const appointmentModalOpen =
+    agenda.appointmentFormOpen || agenda.viewingAppointment != null
+
   function closeAppointmentForm() {
     agenda.setAppointmentFormOpen(false)
     agenda.resetAppointmentForm()
@@ -75,7 +78,7 @@ export function AdminAgendaWorkspace({
           onNotificationSelect={openAppointmentFromNotification}
         />
 
-        {agenda.error && (
+        {agenda.error && !appointmentModalOpen && (
           <p
             className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-center text-xs text-red-800"
             role="alert"
@@ -164,6 +167,7 @@ export function AdminAgendaWorkspace({
       {agenda.viewingAppointment && (
         <AgendaAppointmentModal
           open
+          error={agenda.error}
           mode={agenda.detailEditMode ? 'edit' : 'view'}
           date={selectedDate}
           staffId={agenda.viewingAppointment.staffId}
@@ -203,6 +207,7 @@ export function AdminAgendaWorkspace({
         <StaffAppointmentFormModal
           open
           date={selectedDate}
+          error={agenda.error}
           staffName={activeStaffName}
           editingId={null}
           draft={agenda.aptDraft}

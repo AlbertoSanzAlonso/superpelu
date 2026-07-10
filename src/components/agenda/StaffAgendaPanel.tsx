@@ -87,7 +87,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
           selectionBusy={agenda.gridActionsBusy}
         />
 
-        {agenda.error && (
+        {agenda.error && !appointmentFormOpen && (
           <p
             className="border-b border-red-200 bg-red-50 px-3 py-1.5 text-center text-xs text-red-800"
             role="alert"
@@ -135,6 +135,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
       <StaffAppointmentFormModal
         open={appointmentFormOpen}
         date={agenda.date}
+        error={agenda.error}
         editingId={agenda.editingId}
         draft={agenda.aptDraft}
         services={agenda.services}

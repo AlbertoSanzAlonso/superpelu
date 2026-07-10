@@ -44,6 +44,7 @@ type Props = {
   reviewRequestSentAt?: string | null
   onReviewRequestSent?: (sentAt: string) => void
   onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
+  error?: string
 }
 
 export function AgendaAppointmentModal({
@@ -71,6 +72,7 @@ export function AgendaAppointmentModal({
   reviewRequestSentAt = null,
   onReviewRequestSent,
   onCustomerRegisteredChange,
+  error,
 }: Props) {
   const appointmentStatus = appointment.status ?? 'confirmed'
   const showNoShowAction =
@@ -251,6 +253,15 @@ export function AgendaAppointmentModal({
             ✕
           </button>
         </div>
+
+        {error && (
+          <div
+            className="shrink-0 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 sm:px-5"
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
 
         {mode === 'view' ? (
           <>
