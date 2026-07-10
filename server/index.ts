@@ -2025,6 +2025,7 @@ if (hasDist) {
     }
     const filePath = resolveDistFile(c.req.path)
     if (filePath) {
+      const relative = c.req.path.replace(/^\//, '')
       const ext = path.extname(filePath).toLowerCase()
       const type = staticMime[ext] ?? 'application/octet-stream'
       const headers: Record<string, string> = { 'Content-Type': type }
