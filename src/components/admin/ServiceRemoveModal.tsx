@@ -42,7 +42,7 @@ export function ServiceRemoveModal({
             type="button"
             disabled={busy}
             onClick={() => onConfirm('deactivate')}
-            className="w-full border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:opacity-50"
+            className="w-full cursor-pointer border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="font-medium">Desactivar</span>
             <span className={`${typography.caption} mt-0.5 block`}>
@@ -54,7 +54,7 @@ export function ServiceRemoveModal({
             type="button"
             disabled={busy}
             onClick={() => onConfirm('delete')}
-            className="w-full border border-red-200 p-3 text-left text-sm transition-colors hover:border-red-400 hover:bg-red-50 disabled:opacity-50"
+            className="w-full cursor-pointer border border-red-200 p-3 text-left text-sm transition-colors hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="font-medium text-red-800">Eliminar permanentemente</span>
             <span className={`${typography.caption} mt-0.5 block text-red-700/80`}>
