@@ -54,11 +54,11 @@ function ServiceListRow({
   return (
     <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
       <div className="min-w-0">
-        <p className={`break-words text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
+        <p className={`break-words text-xs leading-snug md:text-sm ${svc.active ? '' : 'opacity-50 line-through'}`}>
           {svc.nameEs}
         </p>
         {svc.nameEn && (
-          <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">{svc.nameEn}</p>
+          <p className="mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted md:block">{svc.nameEn}</p>
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -142,16 +142,16 @@ function CategoryListRow({
         </span>
         <div className="min-w-0 flex-1">
           <p
-            className={`break-words text-sm font-medium leading-snug ${
+            className={`break-words text-xs font-medium leading-snug md:text-sm ${
               cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
             }`}
           >
             {cat.nameEs}
           </p>
           {cat.nameEn && (
-            <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">{cat.nameEn}</p>
+            <p className="mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted md:block">{cat.nameEn}</p>
           )}
-          <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
+          <p className="mt-1 hidden text-xs tabular-nums text-charcoal-muted md:block">
             {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
           </p>
         </div>
@@ -493,8 +493,8 @@ export function AdminServicesPage() {
             {uncategorizedServices.length > 0 && (
               <div className="border-b border-gold/10">
                 <div className="px-4 py-3 bg-gold/5">
-                  <p className="font-medium text-sm text-charcoal">Sin categoría</p>
-                  <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
+                  <p className="text-xs font-medium text-charcoal md:text-sm">Sin categoría</p>
+                  <p className="mt-1 hidden text-xs tabular-nums text-charcoal-muted md:block">
                     {uncategorizedServices.length} servicio{uncategorizedServices.length === 1 ? '' : 's'}
                   </p>
                 </div>
