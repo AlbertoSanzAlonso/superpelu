@@ -10,6 +10,7 @@ export type BookingServiceLine = {
   id: string
   durationMinutes: number
   categoryId?: string | null
+  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
 }
 
 export type BookingServiceWithCategory = BookingServiceLine
@@ -68,7 +69,9 @@ export function getOccupiedSegmentsForChainService(
     return [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   }
 
-  return getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
+  return getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes, {
+    bookingPattern: service.bookingPattern,
+  })
 }
 
 export function getFirstServiceBookingSpan(services: readonly BookingServiceWithCategory[]): number {
@@ -77,5 +80,5 @@ export function getFirstServiceBookingSpan(services: readonly BookingServiceWith
   if (usesColorSplitBooking(first.id) && getColorWashReplacementIndex(services) === 1) {
     return COLOR_SPLIT_SEGMENT_MINUTES
   }
-  return getBookingSpanMinutes(first.id, first.durationMinutes)
+  return getBookingSpanMinutes(first.id, first.durationMinutes, first.bookingPattern)
 }

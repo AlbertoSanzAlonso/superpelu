@@ -24,6 +24,7 @@ import { CategoryForm, type CategoryFormData } from '@/components/admin/Category
 import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
 import { ServiceRemoveModal, type ServiceRemoveAction } from '@/components/admin/ServiceRemoveModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { formatPatternSummary, isSegmentedPattern } from '@/lib/booking/servicePattern'
 
 type ModalMode = 'create' | 'edit'
 
@@ -238,7 +239,9 @@ function ServiceListRow({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
-          {svc.durationMinutes} min
+          {svc.bookingPattern && isSegmentedPattern(svc.bookingPattern)
+            ? formatPatternSummary(svc.bookingPattern)
+            : `${svc.durationMinutes} min`}
         </span>
         {svc.bookableOnline && (
           <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
@@ -947,7 +950,7 @@ export function AdminServicesPage() {
 
       {serviceModal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md border border-gold/30 bg-cream p-6 shadow-xl">
+          <div className="w-full max-w-lg border border-gold/30 bg-cream p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className={`${typography.label} mb-4 text-gold`}>
               {serviceModal.mode === 'create' ? 'Nuevo servicio' : 'Editar servicio'}
             </h2>

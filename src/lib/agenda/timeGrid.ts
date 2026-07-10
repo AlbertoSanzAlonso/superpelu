@@ -69,7 +69,7 @@ function appendWorkingSlotCell(
       a.serviceId,
       timeToMinutes(a.startTime),
       a.durationMinutes,
-      { colorGroupRole: a.colorGroupRole },
+      { colorGroupRole: a.colorGroupRole, bookingPattern: a.bookingPattern },
     )
     return occupiedSegmentsOverlap([slotSegment], aptSegments)
   })
@@ -79,7 +79,7 @@ function appendWorkingSlotCell(
       apt.serviceId,
       timeToMinutes(apt.startTime),
       apt.durationMinutes,
-      { colorGroupRole: apt.colorGroupRole },
+      { colorGroupRole: apt.colorGroupRole, bookingPattern: apt.bookingPattern },
     )
     const isSegmentStart = aptSegments.some((seg) => seg.startMinutes === slotStart)
     const serviceLabel = isColorGroupWashRow(apt.colorGroupRole)

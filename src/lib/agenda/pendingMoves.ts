@@ -77,6 +77,7 @@ export function appointmentAtStartTime(
     startTime,
     occupiedSlots: appointmentOccupiedSlots(apt.serviceId, startTime, apt.durationMinutes, {
       colorGroupRole: apt.colorGroupRole,
+      bookingPattern: apt.bookingPattern,
     }),
   }
 }

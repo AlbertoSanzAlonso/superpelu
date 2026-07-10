@@ -1,4 +1,10 @@
 import { sql, type ServiceRow, type ServiceCategoryRow } from '@server/db.js'
+import {
+  normalizeBookingPattern,
+  parseBookingPattern,
+  patternTotalSpanMinutes,
+  type ServiceBookingPattern,
+} from '@/lib/booking/servicePattern'
 
 function slugifyServiceName(nameEs: string): string {
   const base = nameEs
@@ -48,6 +54,7 @@ export type AdminService = {
   bookableOnline: boolean
   active: boolean
   sortOrder: number
+  bookingPattern: ServiceBookingPattern | null
 }
 
 export type AdminServiceCategory = {
@@ -78,6 +85,7 @@ export async function listAdminServices(): Promise<AdminService[]> {
     bookableOnline: row.bookable_online,
     active: row.active,
     sortOrder: row.sort_order,
+    bookingPattern: parseBookingPattern(row.booking_pattern),
   }))
 }
 
@@ -89,16 +97,40 @@ export async function createService(data: {
   categoryId: string | null
   bookableOnline: boolean
   sortOrder: number
+  bookingPattern?: ServiceBookingPattern | null
 }): Promise<AdminService> {
   const id = data.id?.trim() || (await generateUniqueServiceId(data.nameEs))
+  const bookingPattern = normalizeBookingPattern(data.bookingPattern)
+  const durationMinutes =
+    bookingPattern != null ? patternTotalSpanMinutes(bookingPattern) : data.durationMinutes
   const now = new Date().toISOString()
   const row = await sql<AdminService[]>`
-    INSERT INTO services (id, name, name_en, duration_minutes, category_id, bookable_online, active, sort_order, created_at, updated_at)
-    VALUES (${id}, ${data.nameEs}, ${data.nameEn}, ${data.durationMinutes}, ${data.categoryId}, ${data.bookableOnline}, TRUE, ${data.sortOrder}, ${now}, ${now})
-    RETURNING id, name AS "nameEs", name_en AS "nameEn", duration_minutes AS "durationMinutes", category_id AS "categoryId", bookable_online AS "bookableOnline", active, sort_order AS "sortOrder"
+    INSERT INTO services (
+      id, name, name_en, duration_minutes, category_id, bookable_online, active, sort_order,
+      booking_pattern, created_at, updated_at
+    )
+    VALUES (
+      ${id}, ${data.nameEs}, ${data.nameEn}, ${durationMinutes}, ${data.categoryId},
+      ${data.bookableOnline}, TRUE, ${data.sortOrder},
+      ${bookingPattern != null ? sql.json(bookingPattern) : null}, ${now}, ${now}
+    )
+    RETURNING
+      id,
+      name AS "nameEs",
+      name_en AS "nameEn",
+      duration_minutes AS "durationMinutes",
+      category_id AS "categoryId",
+      bookable_online AS "bookableOnline",
+      active,
+      sort_order AS "sortOrder",
+      booking_pattern AS "bookingPattern"
   `
   await linkServiceToActiveStaff(id)
-  return { ...row[0], categoryNameEs: null }
+  return {
+    ...row[0],
+    categoryNameEs: null,
+    bookingPattern: parseBookingPattern(row[0].bookingPattern),
+  }
 }
 
 export async function updateService(
@@ -111,6 +143,7 @@ export async function updateService(
     bookableOnline?: boolean
     active?: boolean
     sortOrder?: number
+    bookingPattern?: ServiceBookingPattern | null
   },
 ): Promise<void> {
   const sets: string[] = []
@@ -125,7 +158,17 @@ export async function updateService(
     sets.push(`name_en = $${idx++}`)
     vals.push(data.nameEn)
   }
-  if (data.durationMinutes !== undefined) {
+  if (data.bookingPattern !== undefined) {
+    const bookingPattern = normalizeBookingPattern(data.bookingPattern)
+    sets.push(`booking_pattern = $${idx++}`)
+    vals.push(bookingPattern != null ? JSON.stringify(bookingPattern) : null)
+    sets.push(`duration_minutes = $${idx++}`)
+    vals.push(
+      bookingPattern != null
+        ? patternTotalSpanMinutes(bookingPattern)
+        : (data.durationMinutes ?? null),
+    )
+  } else if (data.durationMinutes !== undefined) {
     sets.push(`duration_minutes = $${idx++}`)
     vals.push(data.durationMinutes)
   }

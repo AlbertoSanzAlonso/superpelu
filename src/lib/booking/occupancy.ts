@@ -1,8 +1,17 @@
+import {
+  isSegmentedPattern,
+  patternToOccupiedSegments,
+  patternTotalSpanMinutes,
+  type ServiceBookingPattern,
+} from '@/lib/booking/servicePattern'
+
 /** Tramos de 30 min con 30 min de pausa (tiempo de exposición del color). */
 export const COLOR_SPLIT_SEGMENT_MINUTES = 30
 export const COLOR_SPLIT_GAP_MINUTES = 30
 export const COLOR_SPLIT_TOTAL_SPAN_MINUTES =
   COLOR_SPLIT_SEGMENT_MINUTES * 2 + COLOR_SPLIT_GAP_MINUTES
+
+export type { ServiceBookingPattern } from '@/lib/booking/servicePattern'
 
 export const WASH_COLOR_SERVICE_ID = 'svc-wash-color'
 
@@ -27,6 +36,7 @@ export type OccupiedSegment = {
 
 export type OccupiedSegmentOptions = {
   colorGroupRole?: string | null
+  bookingPattern?: ServiceBookingPattern | null
 }
 
 export function usesColorSplitBooking(serviceId: string): boolean {
@@ -58,7 +68,14 @@ export function getWashPhaseStartMinutes(colorStartMinutes: number): number {
   return colorStartMinutes + COLOR_SPLIT_SEGMENT_MINUTES + COLOR_SPLIT_GAP_MINUTES
 }
 
-export function getBookingSpanMinutes(serviceId: string, durationMinutes: number): number {
+export function getBookingSpanMinutes(
+  serviceId: string,
+  durationMinutes: number,
+  bookingPattern?: ServiceBookingPattern | null,
+): number {
+  if (bookingPattern && isSegmentedPattern(bookingPattern)) {
+    return patternTotalSpanMinutes(bookingPattern)
+  }
   if (usesColorSplitBooking(serviceId)) return COLOR_SPLIT_TOTAL_SPAN_MINUTES
   return durationMinutes
 }
@@ -79,7 +96,12 @@ export function getOccupiedSegmentsForBooking(
   serviceId: string,
   startMinutes: number,
   durationMinutes: number,
+  options?: OccupiedSegmentOptions,
 ): OccupiedSegment[] {
+  const pattern = options?.bookingPattern
+  if (pattern && isSegmentedPattern(pattern)) {
+    return patternToOccupiedSegments(pattern, startMinutes)
+  }
   if (!usesColorSplitBooking(serviceId)) {
     return [{ startMinutes, durationMinutes }]
   }
@@ -102,8 +124,12 @@ export function getOccupiedSegmentsForAppointment(
   if (isColorGroupColorRow(role) || isColorGroupWashRow(role)) {
     return [{ startMinutes, durationMinutes }]
   }
+  const pattern = options?.bookingPattern
+  if (pattern && isSegmentedPattern(pattern)) {
+    return patternToOccupiedSegments(pattern, startMinutes)
+  }
   if (isLegacyColorSplitAppointment(serviceId, durationMinutes, role)) {
-    return getOccupiedSegmentsForBooking(serviceId, startMinutes, durationMinutes)
+    return getOccupiedSegmentsForBooking(serviceId, startMinutes, durationMinutes, options)
   }
   return [{ startMinutes, durationMinutes }]
 }
@@ -145,13 +171,37 @@ export function formatAppointmentTimeRange(
   startTime: string,
   durationMinutes: number,
   locale: 'es' | 'en' = 'es',
-  options?: { rangeSeparator?: 'dash' | 'word'; colorGroupRole?: string | null },
+  options?: {
+    rangeSeparator?: 'dash' | 'word'
+    colorGroupRole?: string | null
+    bookingPattern?: ServiceBookingPattern | null
+  },
 ): string {
   const separator = options?.rangeSeparator ?? 'dash'
   const role = options?.colorGroupRole
+  const pattern = options?.bookingPattern
+  const showPatternRange = pattern && isSegmentedPattern(pattern)
+
   const showSplitRange =
     usesColorSplitBooking(serviceId) &&
     (isColorGroupColorRow(role) || isLegacyColorSplitAppointment(serviceId, durationMinutes, role))
+
+  if (showPatternRange) {
+    const start = timeToMinutes(startTime)
+    const connector = locale === 'en' ? 'and' : 'y'
+    const parts: string[] = []
+    let cursor = start
+    for (const step of pattern) {
+      if (step.type === 'work') {
+        const end = cursor + step.minutes
+        parts.push(rangeBetween(minutesToTime(cursor), minutesToTime(end), locale, separator))
+        cursor = end
+      } else {
+        cursor += step.minutes
+      }
+    }
+    return parts.join(` ${connector} `)
+  }
 
   if (!showSplitRange) {
     const start = timeToMinutes(startTime)

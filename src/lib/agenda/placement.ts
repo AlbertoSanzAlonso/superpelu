@@ -218,7 +218,7 @@ function validateAppointmentMoveOnSchedule(
     appointment.serviceId,
     startMinutes,
     appointment.durationMinutes,
-    { colorGroupRole: appointment.colorGroupRole },
+    { colorGroupRole: appointment.colorGroupRole, bookingPattern: appointment.bookingPattern },
   )
 
   for (const seg of segments) {
@@ -245,7 +245,7 @@ function validateAppointmentMoveOnSchedule(
       other.serviceId,
       timeToMinutes(other.startTime),
       other.durationMinutes,
-      { colorGroupRole: other.colorGroupRole },
+      { colorGroupRole: other.colorGroupRole, bookingPattern: other.bookingPattern },
     )
     if (occupiedSegmentsOverlap(segments, otherSegments)) {
       return { ok: false, message: 'Ese horario ya tiene otra cita.' }

@@ -1,5 +1,6 @@
 import { sql, type AppointmentRow } from "@server/db.js"
 import { getService } from "@server/catalog/services.js"
+import { parseBookingPattern } from "@/lib/booking/servicePattern"
 import { getStaffDayWindows, type StaffDayWindow } from "@server/staff/availability.js"
 import { segmentFitsInWorkWindows, type WorkTimeWindow } from "@/lib/core/scheduleHours"
 import { isRangeBlockedByStaff } from "@server/staff/blocks.js"
@@ -45,17 +46,23 @@ async function getExcludedBookingGroupId(
   return rows[0]?.booking_group_id ?? null
 }
 
+type OccupiedAppointmentRow = AppointmentRow & {
+  booking_pattern: unknown | null
+}
+
 async function getOccupiedAppointmentsForStaffOnDate(
   query: DbClient,
   date: string,
   staffId: string,
   excludeAppointmentId?: string,
-): Promise<AppointmentRow[]> {
-  const rows = await query<AppointmentRow[]>`
-    SELECT * FROM appointments
-    WHERE appointment_date = ${date} AND staff_id = ${staffId}
-      AND status NOT IN ('cancelled', 'no_show')
-    ORDER BY start_time ASC
+): Promise<OccupiedAppointmentRow[]> {
+  const rows = await query<OccupiedAppointmentRow[]>`
+    SELECT a.*, s.booking_pattern
+    FROM appointments a
+    LEFT JOIN services s ON s.id = a.service_id
+    WHERE a.appointment_date = ${date} AND a.staff_id = ${staffId}
+      AND a.status NOT IN ('cancelled', 'no_show')
+    ORDER BY a.start_time ASC
   `
 
   const excludeColorGroupId = await getExcludedColorGroupId(query, excludeAppointmentId)
@@ -125,7 +132,10 @@ export async function isBookingUnavailable(
       apt.service_id,
       timeToMinutes(apt.start_time),
       apt.duration_minutes,
-      { colorGroupRole: apt.color_group_role },
+      {
+        colorGroupRole: apt.color_group_role,
+        bookingPattern: parseBookingPattern(apt.booking_pattern),
+      },
     )
     if (occupiedSegmentsOverlap(segments, aptSegments)) {
       return true
@@ -166,7 +176,9 @@ export async function isStaffFreeForServiceAt(
           options.chainServiceIndex,
           startMinutes,
         )
-      : getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
+      : getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes, {
+          bookingPattern: service.bookingPattern,
+        })
   return !(await isBookingUnavailable(
     sql,
     staffId,
@@ -191,6 +203,7 @@ export type ResolvedBookingService = BookingServiceLine & {
   nameEs: string
   nameEn: string
   categoryId: string | null
+  bookingPattern: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
 }
 
 export async function resolveBookingServices(
@@ -207,6 +220,7 @@ export async function resolveBookingServices(
       categoryId: service.categoryId,
       nameEs: service.nameEs,
       nameEn: service.nameEn ?? '',
+      bookingPattern: service.bookingPattern,
     })
   }
   return lines
@@ -366,7 +380,9 @@ export async function getAvailableSlots(
       start < window.endMinutes;
       start += schedule.slotMinutes
     ) {
-      const segments = getOccupiedSegmentsForBooking(service.id, start, durationMinutes)
+      const segments = getOccupiedSegmentsForBooking(service.id, start, durationMinutes, {
+        bookingPattern: service.bookingPattern,
+      })
       if (
         !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
       ) {

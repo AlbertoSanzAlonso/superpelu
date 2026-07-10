@@ -321,6 +321,7 @@ type CreateServiceBody = {
   categoryId: string | null
   bookableOnline: boolean
   sortOrder: number
+  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
 }
 
 type UpdateServiceBody = {
@@ -331,6 +332,7 @@ type UpdateServiceBody = {
   bookableOnline?: boolean
   active?: boolean
   sortOrder?: number
+  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
 }
 
 type CreateCategoryBody = {

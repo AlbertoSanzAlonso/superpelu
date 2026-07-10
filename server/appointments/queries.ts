@@ -4,9 +4,12 @@ import { COLOR_GROUP_ROLE } from '@/lib/booking/occupancy'
 
 export async function getAppointmentById(
   id: string,
-): Promise<AppointmentRow | undefined> {
-  const rows = await sql<AppointmentRow[]>`
-    SELECT * FROM appointments WHERE id = ${id}
+): Promise<(AppointmentRow & { booking_pattern?: unknown | null }) | undefined> {
+  const rows = await sql<(AppointmentRow & { booking_pattern: unknown | null })[]>`
+    SELECT a.*, s.booking_pattern
+    FROM appointments a
+    LEFT JOIN services s ON s.id = a.service_id
+    WHERE a.id = ${id}
   `
   return rows[0]
 }

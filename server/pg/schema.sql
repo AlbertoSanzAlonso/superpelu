@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS services (
   updated_at TIMESTAMPTZ NOT NULL
 );
 
+ALTER TABLE services
+  ADD COLUMN IF NOT EXISTS booking_pattern JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_services_active_sort
   ON services (active, sort_order, name);
 

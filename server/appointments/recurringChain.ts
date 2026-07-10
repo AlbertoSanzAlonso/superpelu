@@ -363,7 +363,11 @@ export async function createRecurringChainedAppointment(
         }
 
         const id = randomUUID()
-        const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+        const storedDuration = getBookingSpanMinutes(
+          service.id,
+          service.durationMinutes,
+          service.bookingPattern,
+        )
         await tx`
           INSERT INTO appointments (
             id, staff_id, staff_name, service_id, service_name, duration_minutes,

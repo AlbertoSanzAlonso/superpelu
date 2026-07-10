@@ -6,6 +6,7 @@ import { schedule } from '@server/config.js'
 import { getBlocksForStaffOnDate, rowBlockToPublic } from '@server/staff/blocks.js'
 import { getStaff, listActiveStaff } from '@server/staff/index.js'
 import type { AppointmentRow } from '@server/db.js'
+import { parseBookingPattern } from '@/lib/booking/servicePattern'
 import {
   appointmentOccupiedSlots,
   getOccupiedSegmentsForAppointment,
@@ -36,13 +37,14 @@ function overlaps(
 
 type OccupiedRow = AppointmentRow & {
   category_id: string | null
+  booking_pattern: unknown | null
   customer_locale: string | null
   customer_notes: string | null
 }
 
 async function getOccupiedOnDate(date: string, staffId: string): Promise<OccupiedRow[]> {
   return sql<OccupiedRow[]>`
-    SELECT a.*, s.category_id, c.locale AS customer_locale, c.notes AS customer_notes
+    SELECT a.*, s.category_id, s.booking_pattern, c.locale AS customer_locale, c.notes AS customer_notes
     FROM appointments a
     LEFT JOIN services s ON s.id = a.service_id
     LEFT JOIN customers c ON c.phone = a.customer_phone
@@ -70,6 +72,7 @@ export type DayScheduleAppointment = {
   status: string
   createdAt: string
   occupiedSlots: { startTime: string; endTime: string }[]
+  bookingPattern: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
   colorGroupId: string | null
   colorGroupRole: string | null
   bookingGroupId: string | null
@@ -137,11 +140,12 @@ export async function getStaffDaySchedule(
   }))
   const appointments: DayScheduleAppointment[] = occupied.map((row) => {
     const startMinutes = timeToMinutes(row.start_time)
+    const bookingPattern = parseBookingPattern(row.booking_pattern)
     const occupiedSlots = appointmentOccupiedSlots(
       row.service_id,
       row.start_time,
       row.duration_minutes,
-      { colorGroupRole: row.color_group_role },
+      { colorGroupRole: row.color_group_role, bookingPattern },
     )
     return {
       id: row.id,
@@ -162,6 +166,7 @@ export async function getStaffDaySchedule(
       status: row.status,
       createdAt: row.created_at,
       occupiedSlots,
+      bookingPattern,
       colorGroupId: row.color_group_id,
       colorGroupRole: row.color_group_role,
       bookingGroupId: row.booking_group_id,
@@ -185,7 +190,10 @@ export async function getStaffDaySchedule(
           apt.service_id,
           timeToMinutes(apt.start_time),
           apt.duration_minutes,
-          { colorGroupRole: apt.color_group_role },
+          {
+            colorGroupRole: apt.color_group_role,
+            bookingPattern: parseBookingPattern(apt.booking_pattern),
+          },
         )
         return occupiedSegmentsOverlap([slotSegment], aptSegments)
       })

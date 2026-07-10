@@ -1,4 +1,5 @@
 import { salonServiceById } from '@/data/salonServices'
+import { parseBookingPattern, type ServiceBookingPattern } from '@/lib/booking/servicePattern'
 import { sql, type ServiceRow } from '@server/db.js'
 
 export type PublicService = {
@@ -8,6 +9,11 @@ export type PublicService = {
   durationMinutes: number
   categoryId: string | null
   showDurationInBooking: boolean
+  bookingPattern: ServiceBookingPattern | null
+}
+
+function rowBookingPattern(row: ServiceRow): ServiceBookingPattern | null {
+  return parseBookingPattern(row.booking_pattern)
 }
 
 function rowToPublic(row: ServiceRow): PublicService {
@@ -19,6 +25,7 @@ function rowToPublic(row: ServiceRow): PublicService {
     durationMinutes: row.duration_minutes,
     categoryId: row.category_id ?? null,
     showDurationInBooking: catalog?.showDurationInBooking !== false,
+    bookingPattern: rowBookingPattern(row),
   }
 }
 

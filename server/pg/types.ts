@@ -84,6 +84,7 @@ export type ServiceRow = {
   bookable_online: boolean
   active: boolean
   sort_order: number
+  booking_pattern: unknown | null
   created_at: string
   updated_at: string
 }

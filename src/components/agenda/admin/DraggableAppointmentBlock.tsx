@@ -34,7 +34,7 @@ type Props = {
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
 }
 
-function appointmentVisualBounds(
+function slotsWithLayout(
   apt: DayScheduleAppointment,
   range: CalendarDayRange,
   startTimeOverride?: string,
@@ -44,20 +44,34 @@ function appointmentVisualBounds(
     startTimeOverride != null
       ? appointmentOccupiedSlots(apt.serviceId, startTime, apt.durationMinutes, {
           colorGroupRole: apt.colorGroupRole,
+          bookingPattern: apt.bookingPattern,
         })
       : apt.occupiedSlots.length > 0
         ? apt.occupiedSlots
         : [{ startTime: apt.startTime, endTime: apt.endTime }]
 
-  const tops = slots.map((s) => eventTopPx(s.startTime, range))
-  const bottoms = slots.map((s) => {
-    const duration = timeToMinutes(s.endTime) - timeToMinutes(s.startTime)
-    return eventTopPx(s.startTime, range) + eventHeightPx(duration, range)
+  const layouts = slots.map((slot) => {
+    const duration = timeToMinutes(slot.endTime) - timeToMinutes(slot.startTime)
+    const top = eventTopPx(slot.startTime, range)
+    const height = eventHeightPx(duration, range)
+    return { ...slot, top, height }
   })
 
-  const top = Math.min(...tops)
-  const bottom = Math.max(...bottoms)
-  return { top, height: bottom - top, slots }
+  const top = layouts.length > 0 ? Math.min(...layouts.map((l) => l.top)) : 0
+  const bottom =
+    layouts.length > 0
+      ? Math.max(...layouts.map((l) => l.top + l.height))
+      : 0
+
+  return { top, height: bottom - top, slots: layouts }
+}
+
+function appointmentVisualBounds(
+  apt: DayScheduleAppointment,
+  range: CalendarDayRange,
+  startTimeOverride?: string,
+) {
+  return slotsWithLayout(apt, range, startTimeOverride)
 }
 
 export function DraggableAppointmentBlock({
@@ -142,6 +156,7 @@ export function DraggableAppointmentBlock({
     startTime: string,
     className: string,
     pointerHandlers?: React.HTMLAttributes<HTMLDivElement>,
+    showDetails = true,
   ) => (
     <div
       key={key}
@@ -154,50 +169,71 @@ export function DraggableAppointmentBlock({
       }
       {...pointerHandlers}
     >
-      {/* Resize handle - top edge */}
-      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
+      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && showDetails && (
         <div
           className="absolute inset-x-0 top-0 z-10 h-2.5 cursor-ns-resize hover:bg-gold/30"
           onPointerDown={(e) => handleResizePointerDown('top', e, top)}
         />
       )}
-      
-      {/* Resize handle - bottom edge */}
-      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && (
+
+      {!previewOnly && dragEnabled && !isColorGroupWashRow(apt.colorGroupRole) && showDetails && (
         <div
           className="absolute inset-x-0 bottom-0 z-10 h-2.5 cursor-ns-resize hover:bg-gold/30"
           onPointerDown={(e) => handleResizePointerDown('bottom', e, top)}
         />
       )}
-      
-      <span className="flex items-center gap-1 font-medium">
-        {isColorGroupWashRow(apt.colorGroupRole) && (
-          <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
-        )}
-        <span className="truncate">
-          {apt.customerName} —{' '}
-          {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
-        </span>
-      </span>
-      <span className="mt-0.5 block opacity-80 tabular-nums">
-        {formatAppointmentTimeRange(apt.serviceId, startTime, apt.durationMinutes, 'es', {
-          colorGroupRole: apt.colorGroupRole,
-        })}
-      </span>
-      {apt.notes?.trim() && height >= 44 && (
-        <span className="mt-0.5 block truncate opacity-75 italic">{apt.notes.trim()}</span>
+
+      {showDetails && (
+        <>
+          <span className="flex items-center gap-1 font-medium">
+            {isColorGroupWashRow(apt.colorGroupRole) && (
+              <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
+            )}
+            <span className="truncate">
+              {apt.customerName} —{' '}
+              {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
+            </span>
+          </span>
+          <span className="mt-0.5 block opacity-80 tabular-nums">
+            {formatAppointmentTimeRange(apt.serviceId, startTime, apt.durationMinutes, 'es', {
+              colorGroupRole: apt.colorGroupRole,
+              bookingPattern: apt.bookingPattern,
+            })}
+          </span>
+          {apt.notes?.trim() && height >= 44 && (
+            <span className="mt-0.5 block truncate opacity-75 italic">{apt.notes.trim()}</span>
+          )}
+        </>
       )}
     </div>
   )
 
+  const renderBoundsBlocks = (
+    prefix: string,
+    layout: ReturnType<typeof appointmentVisualBounds>,
+    className: string,
+    pointerHandlers?: React.HTMLAttributes<HTMLDivElement>,
+  ) => {
+    const multiSlot = layout.slots.length > 1
+    return layout.slots.map((slot, index) =>
+      renderBlock(
+        `${prefix}-${index}`,
+        slot.top,
+        slot.height,
+        slot.startTime,
+        className,
+        pointerHandlers,
+        !multiSlot || index === 0,
+      ),
+    )
+  }
+
   return (
     <>
       {showAtOrigin &&
-        renderBlock(
+        renderBoundsBlocks(
           `${apt.id}-origin`,
-          originBounds.top,
-          originBounds.height,
-          originStartTime,
+          originBounds,
           [
             'agenda-appointment-block--origin',
             isPendingSource ? 'opacity-35' : '',
@@ -212,11 +248,9 @@ export function DraggableAppointmentBlock({
 
       {(isPendingTarget || previewOnly) &&
         !isDraggingThis &&
-        renderBlock(
+        renderBoundsBlocks(
           `${apt.id}-pending`,
-          displayBounds.top,
-          displayBounds.height,
-          displayStartTime,
+          displayBounds,
           [
             'agenda-appointment-block--pending z-40 border-2 border-dashed border-gold ring-2 ring-gold/40',
             isPendingTarget && !previewOnly && dragEnabled

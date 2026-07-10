@@ -94,6 +94,7 @@ async function createRecurringStaffAppointment(
     service.id,
     timeToMinutes(input.startTime),
     service.durationMinutes,
+    { bookingPattern: service.bookingPattern },
   )
   const seriesId = randomUUID()
   const usesColorSplit = usesColorSplitBooking(service.id)
@@ -148,7 +149,11 @@ async function createRecurringStaffAppointment(
       }
 
       const id = randomUUID()
-      const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
+      const storedDuration = getBookingSpanMinutes(
+        service.id,
+        service.durationMinutes,
+        service.bookingPattern,
+      )
       await tx`
         INSERT INTO appointments (
           id, staff_id, staff_name, service_id, service_name, duration_minutes,
@@ -350,6 +355,7 @@ export async function createAppointment(
     service.id,
     timeToMinutes(input.startTime),
     durationForSegments,
+    { bookingPattern: useCustomDuration ? null : service.bookingPattern },
   )
 
   const primaryId = await sql.begin(async (tx) => {
@@ -396,7 +402,7 @@ export async function createAppointment(
     const id = randomUUID()
     const storedDuration = useCustomDuration
       ? customDuration
-      : getBookingSpanMinutes(service.id, service.durationMinutes)
+      : getBookingSpanMinutes(service.id, service.durationMinutes, service.bookingPattern)
     await tx`
       INSERT INTO appointments (
         id, staff_id, staff_name, service_id, service_name, duration_minutes,

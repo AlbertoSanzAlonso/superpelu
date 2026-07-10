@@ -1,4 +1,5 @@
 import { request, adminHeaders } from './request'
+import type { ServiceBookingPattern } from '@/lib/booking/servicePattern'
 
 export type AdminService = {
   id: string
@@ -10,6 +11,7 @@ export type AdminService = {
   bookableOnline: boolean
   active: boolean
   sortOrder: number
+  bookingPattern: ServiceBookingPattern | null
 }
 
 export type AdminServiceCategory = {
@@ -38,6 +40,7 @@ export function createAdminService(
     categoryId: string | null
     bookableOnline: boolean
     sortOrder: number
+    bookingPattern?: ServiceBookingPattern | null
   },
 ) {
   return request<{ service: AdminService }>('/admin/services', {
@@ -58,6 +61,7 @@ export function updateAdminService(
     bookableOnline?: boolean
     active?: boolean
     sortOrder?: number
+    bookingPattern?: ServiceBookingPattern | null
   },
 ) {
   return request<{ ok: true }>(`/admin/services/${encodeURIComponent(id)}`, {

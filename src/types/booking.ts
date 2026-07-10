@@ -15,6 +15,7 @@ export type BookableService = {
   durationMinutes: number
   categoryId: string | null
   showDurationInBooking?: boolean
+  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
 }
 
 export type StaffMember = {
@@ -83,6 +84,7 @@ export type DayScheduleAppointment = {
   status: string
   createdAt: string
   occupiedSlots: AppointmentOccupiedSlot[]
+  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
   colorGroupId?: string | null
   colorGroupRole?: string | null
   /** Varias citas de la misma visita (reserva multi-tratamiento). */

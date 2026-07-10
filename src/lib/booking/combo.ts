@@ -37,6 +37,7 @@ export function getChainedBookingSegments(
       service.id,
       cursor,
       service.durationMinutes,
+      { bookingPattern: service.bookingPattern },
     )
     all.push(...segments)
     cursor = Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
@@ -109,7 +110,11 @@ function buildChainStartMinutes(
         cursor += services[i].durationMinutes
       }
     } else {
-      cursor += getBookingSpanMinutes(services[i].id, services[i].durationMinutes)
+      cursor += getBookingSpanMinutes(
+        services[i].id,
+        services[i].durationMinutes,
+        services[i].bookingPattern,
+      )
     }
   }
 

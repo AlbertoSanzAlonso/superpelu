@@ -94,7 +94,9 @@ export async function updateAppointmentForStaff(
     segments = [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   } else {
     const durationForSegments = useCustomDuration ? customDuration : service.durationMinutes
-    segments = getOccupiedSegmentsForBooking(service.id, startMinutes, durationForSegments)
+    segments = getOccupiedSegmentsForBooking(service.id, startMinutes, durationForSegments, {
+      bookingPattern: useCustomDuration ? null : service.bookingPattern,
+    })
   }
   const scheduleChanging =
     date !== existing.appointment_date ||
@@ -108,7 +110,7 @@ export async function updateAppointmentForStaff(
       ? COLOR_SPLIT_SEGMENT_MINUTES
       : useCustomDuration
         ? customDuration
-        : getBookingSpanMinutes(service.id, service.durationMinutes)
+        : getBookingSpanMinutes(service.id, service.durationMinutes, service.bookingPattern)
 
   const hasCustomerPatch =
     input.customerName !== undefined ||

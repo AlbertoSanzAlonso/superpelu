@@ -24,6 +24,7 @@ import {
   isColorGroupColorRow,
   isColorGroupWashRow,
 } from "@/lib/booking/occupancy"
+import { parseBookingPattern } from "@/lib/booking/servicePattern"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
   listSeriesRootAppointments,
@@ -164,7 +165,9 @@ export async function rescheduleAppointmentByCustomer(
   const startMinutes = timeToMinutes(startTime)
   const bookingSegments =
     existing.color_group_id && isColorGroupColorRow(existing.color_group_role)
-      ? getOccupiedSegmentsForBooking(service.id, startMinutes, appointmentDuration)
+      ? getOccupiedSegmentsForBooking(service.id, startMinutes, appointmentDuration, {
+          bookingPattern: service.bookingPattern,
+        })
       : [
           {
             startMinutes,
@@ -427,7 +430,8 @@ export async function markAppointmentNoShow(
   return row
 }
 
-export function rowToPublic(row: AppointmentRow) {
+export function rowToPublic(row: AppointmentRow & { booking_pattern?: unknown | null }) {
+  const bookingPattern = parseBookingPattern(row.booking_pattern)
   const durationMinutes = getCustomerFacingDurationMinutes(
     row.service_id,
     row.duration_minutes,
@@ -441,11 +445,12 @@ export function rowToPublic(row: AppointmentRow) {
     serviceName: row.service_name,
     durationMinutes,
     colorGroupRole: row.color_group_role,
+    bookingPattern,
     occupiedSlots: appointmentOccupiedSlots(
       row.service_id,
       row.start_time,
       row.duration_minutes,
-      { colorGroupRole: row.color_group_role },
+      { colorGroupRole: row.color_group_role, bookingPattern },
     ),
     date: row.appointment_date,
     startTime: row.start_time,
