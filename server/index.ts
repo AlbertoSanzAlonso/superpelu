@@ -2027,13 +2027,21 @@ if (hasDist) {
     if (filePath) {
       const ext = path.extname(filePath).toLowerCase()
       const type = staticMime[ext] ?? 'application/octet-stream'
-      return c.body(fs.readFileSync(filePath), 200, { 'Content-Type': type })
+      const headers: Record<string, string> = { 'Content-Type': type }
+      if (relative === 'index.html') {
+        headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+      } else if (relative.startsWith('assets/')) {
+        headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+      }
+      return c.body(fs.readFileSync(filePath), 200, headers)
     }
     const html = injectSpaLinkPreviewMeta(
       fs.readFileSync(path.join(distPath, 'index.html'), 'utf-8'),
       c.req.path,
     )
-    return c.html(html)
+    return c.html(html, 200, {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    })
   })
 } else {
   console.warn('Superpelu: dist/index.html no encontrado — solo API disponible')

@@ -4,6 +4,7 @@ import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
 import { customersWorkspaceButtonClass, customersWorkspaceLinkClass } from '@/components/customers/CustomersWorkspaceHeader'
 import { useAdminSession } from '@/hooks/useAdminSession'
+import { useCompactServicesList } from '@/hooks/useCompactServicesList'
 import {
   fetchAdminServices,
   fetchAdminServiceCategories,
@@ -108,94 +109,106 @@ function IconRefresh() {
 
 function ServiceListRow({
   svc,
+  compact,
   onEdit,
   onDeactivate,
   onReactivate,
 }: {
   svc: AdminService
+  compact: boolean
   onEdit: () => void
   onDeactivate: () => void
   onReactivate: () => void
 }) {
   const nameEs = firstLine(svc.nameEs)
 
-  return (
-    <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5 lg:px-8 lg:py-3">
-      <div className="flex items-center gap-1.5">
-        <p
-          className={`services-item-title min-w-0 flex-1 truncate text-[11px] leading-tight lg:overflow-visible lg:whitespace-normal lg:text-sm ${
-            svc.active ? '' : 'opacity-50 line-through'
-          }`}
-          title={nameEs}
-        >
-          {nameEs}
-        </p>
-        <div className="services-item-actions-icon flex shrink-0 items-center gap-0.5 lg:hidden">
-          {svc.active ? (
-            <>
-              <AdminIconButton label="Editar" onClick={onEdit}>
-                <IconPencil />
+  if (compact) {
+    return (
+      <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5">
+        <div className="flex items-center gap-1.5">
+          <p
+            className={`min-w-0 flex-1 truncate text-[11px] leading-tight ${
+              svc.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+            }`}
+            title={nameEs}
+          >
+            {nameEs}
+          </p>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {svc.active ? (
+              <>
+                <AdminIconButton label="Editar" onClick={onEdit}>
+                  <IconPencil />
+                </AdminIconButton>
+                <AdminIconButton label="Desactivar" variant="danger" onClick={onDeactivate}>
+                  <IconTrash />
+                </AdminIconButton>
+              </>
+            ) : (
+              <AdminIconButton label="Reactivar" onClick={onReactivate}>
+                <IconRefresh />
               </AdminIconButton>
-              <AdminIconButton label="Desactivar" variant="danger" onClick={onDeactivate}>
-                <IconTrash />
-              </AdminIconButton>
-            </>
-          ) : (
-            <AdminIconButton label="Reactivar" onClick={onReactivate}>
-              <IconRefresh />
-            </AdminIconButton>
-          )}
+            )}
+          </div>
         </div>
       </div>
-      <div className="services-item-meta hidden lg:block">
+    )
+  }
+
+  return (
+    <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
+      <div className="min-w-0">
+        <p className={`break-words text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
+          {nameEs}
+        </p>
         {svc.nameEn && (
-          <p className="services-item-en mt-0.5 break-words text-xs leading-snug text-charcoal-muted">
+          <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">
             {firstLine(svc.nameEn)}
           </p>
         )}
-        <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
-            {svc.durationMinutes} min
-          </span>
-          {svc.bookableOnline && (
-            <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
-          )}
-          {!svc.active && (
-            <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
-          )}
-          {svc.active ? (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs !px-2 !py-0.5"
-                onClick={onEdit}
-              >
-                Editar
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-                onClick={onDeactivate}
-              >
-                Desactivar
-              </Button>
-            </>
-          ) : (
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
+          {svc.durationMinutes} min
+        </span>
+        {svc.bookableOnline && (
+          <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
+        )}
+        {!svc.active && (
+          <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
+        )}
+        {svc.active ? (
+          <>
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="text-xs !px-2 !py-0.5"
-              onClick={onReactivate}
+              onClick={onEdit}
             >
-              Reactivar
+              Editar
             </Button>
-          )}
-        </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDeactivate}
+            >
+              Desactivar
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-xs !px-2 !py-0.5"
+            onClick={onReactivate}
+          >
+            Reactivar
+          </Button>
+        )}
       </div>
     </div>
   )
@@ -204,6 +217,7 @@ function ServiceListRow({
 function CategoryListRow({
   cat,
   serviceCount,
+  compact,
   expanded,
   onToggle,
   onEdit,
@@ -212,6 +226,7 @@ function CategoryListRow({
 }: {
   cat: AdminServiceCategory
   serviceCount: number
+  compact: boolean
   expanded: boolean
   onToggle: () => void
   onEdit: () => void
@@ -220,59 +235,87 @@ function CategoryListRow({
 }) {
   const nameEs = firstLine(cat.nameEs)
 
-  return (
-    <div className="border-b border-gold/10">
-      <div className="flex items-center gap-1 px-3 py-2 lg:px-0 lg:py-0">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left hover:bg-gold/5 lg:w-full lg:items-start lg:px-4 lg:py-3"
-          onClick={onToggle}
-          aria-expanded={expanded}
-        >
-          <span
-            className="shrink-0 text-[10px] text-charcoal-muted transition-transform lg:mt-0.5 lg:text-xs"
-            style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
-            aria-hidden
+  if (compact) {
+    return (
+      <div className="border-b border-gold/10">
+        <div className="flex items-center gap-1 px-3 py-2">
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left hover:bg-gold/5"
+            onClick={onToggle}
+            aria-expanded={expanded}
           >
-            ▶
-          </span>
-          <div className="min-w-0 flex-1">
+            <span
+              className="shrink-0 text-[10px] text-charcoal-muted transition-transform"
+              style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+              aria-hidden
+            >
+              ▶
+            </span>
             <p
-              className={`services-category-title truncate text-[11px] font-medium leading-tight lg:overflow-visible lg:whitespace-normal lg:text-sm ${
+              className={`min-w-0 flex-1 truncate text-[11px] font-medium leading-tight ${
                 cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
               }`}
               title={nameEs}
             >
               {nameEs}
             </p>
-            {cat.nameEn && (
-              <p className="services-category-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
-                {firstLine(cat.nameEn)}
-              </p>
+          </button>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {cat.active ? (
+              <>
+                <AdminIconButton label="Editar categoría" onClick={onEdit}>
+                  <IconPencil />
+                </AdminIconButton>
+                <AdminIconButton label="Desactivar categoría" variant="danger" onClick={onDeactivate}>
+                  <IconTrash />
+                </AdminIconButton>
+              </>
+            ) : (
+              <AdminIconButton label="Reactivar categoría" onClick={onReactivate}>
+                <IconRefresh />
+              </AdminIconButton>
             )}
-            <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
-              {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
-            </p>
           </div>
-        </button>
-        <div className="services-category-actions-icon flex shrink-0 items-center gap-0.5 lg:hidden">
-          {cat.active ? (
-            <>
-              <AdminIconButton label="Editar categoría" onClick={onEdit}>
-                <IconPencil />
-              </AdminIconButton>
-              <AdminIconButton label="Desactivar categoría" variant="danger" onClick={onDeactivate}>
-                <IconTrash />
-              </AdminIconButton>
-            </>
-          ) : (
-            <AdminIconButton label="Reactivar categoría" onClick={onReactivate}>
-              <IconRefresh />
-            </AdminIconButton>
-          )}
         </div>
       </div>
-      <div className="services-category-actions-text hidden flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2 lg:flex">
+    )
+  }
+
+  return (
+    <div className="border-b border-gold/10">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-start gap-2 px-4 py-3 text-left hover:bg-gold/5"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <span
+          className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+          aria-hidden
+        >
+          ▶
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`break-words text-sm font-medium leading-snug ${
+              cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+            }`}
+          >
+            {nameEs}
+          </p>
+          {cat.nameEn && (
+            <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">
+              {firstLine(cat.nameEn)}
+            </p>
+          )}
+          <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
+            {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
+          </p>
+        </div>
+      </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2">
         {cat.active ? (
           <>
             <Button
@@ -315,6 +358,7 @@ function CategoryListRow({
 
 export function AdminServicesPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
+  const compact = useCompactServicesList()
 
   const [services, setServices] = useState<AdminService[]>([])
   const [categories, setCategories] = useState<AdminServiceCategory[]>([])
@@ -551,6 +595,7 @@ export function AdminServicesPage() {
                   <CategoryListRow
                     cat={cat}
                     serviceCount={catServices.length}
+                    compact={compact}
                     expanded={expanded}
                     onToggle={() => setExpandedCategoryId(expanded ? null : cat.id)}
                     onEdit={() => setCategoryModal({ open: true, mode: 'edit', category: cat })}
@@ -569,6 +614,7 @@ export function AdminServicesPage() {
                           <ServiceListRow
                             key={svc.id}
                             svc={svc}
+                            compact={compact}
                             onEdit={() =>
                               setServiceModal({
                                 open: true,
@@ -608,16 +654,21 @@ export function AdminServicesPage() {
 
             {uncategorizedServices.length > 0 && (
               <div className="border-b border-gold/10">
-                <div className="px-3 py-2 bg-gold/5 lg:px-4 lg:py-3">
-                  <p className="services-category-title text-[11px] font-medium text-charcoal lg:text-sm">Sin categoría</p>
-                  <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
-                    {uncategorizedServices.length} servicio{uncategorizedServices.length === 1 ? '' : 's'}
+                <div className="bg-gold/5 px-3 py-2">
+                  <p className={`font-medium text-charcoal ${compact ? 'text-[11px]' : 'text-sm'}`}>
+                    Sin categoría
                   </p>
+                  {!compact && (
+                    <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
+                      {uncategorizedServices.length} servicio{uncategorizedServices.length === 1 ? '' : 's'}
+                    </p>
+                  )}
                 </div>
                 {uncategorizedServices.map((svc) => (
                   <ServiceListRow
                     key={svc.id}
                     svc={svc}
+                    compact={compact}
                     onEdit={() =>
                       setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })
                     }
