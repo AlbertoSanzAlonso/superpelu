@@ -13,9 +13,8 @@ import {
 } from "@server/notifications/email.js"
 import {
   hoursUntilAppointment,
-  isSalonOpenDay,
-  isWithinSalonBookingWindow,
 } from "@/lib/core/dates"
+import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   appointmentOccupiedSlots,
   COLOR_GROUP_ROLE,
@@ -139,8 +138,7 @@ export async function rescheduleAppointmentByCustomer(
 
   if (
     !isValidDateString(date) ||
-    !isSalonOpenDay(date) ||
-    !isWithinSalonBookingWindow(date) ||
+    !(await isBookingDateAllowed(date)) ||
     !(await isStaffWorkingOnDate(staffId, date))
   ) {
     throw new Error('FECHA_INVALIDA')

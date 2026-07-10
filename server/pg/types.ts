@@ -106,4 +106,12 @@ export type StaffSpecialAvailabilityRow = {
   special_date: string
   start_time: string
   end_time: string
+  is_closed: boolean
+}
+
+export type SalonSpecialScheduleRow = {
+  special_date: string
+  start_time: string
+  end_time: string
+  is_closed: boolean
 }

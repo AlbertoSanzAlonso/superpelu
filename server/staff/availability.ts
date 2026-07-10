@@ -1,8 +1,7 @@
 import { sql } from '@server/db.js'
-import { rangesToWorkWindows } from '@/lib/core/scheduleHours'
-import { dayOfWeekFromDateString, isSalonOpenDay } from '@/lib/core/dates'
-import { getSalonSchedule } from '@server/schedule/index.js'
-import { getSpecialScheduleForDate } from '@server/schedule/special.js'
+import { dayOfWeekFromDateString } from '@/lib/core/dates'
+import { getSalonDayWindows, type SalonDayWindow } from '@server/schedule/salonDay.js'
+import { resolveStaffSpecialSchedule } from '@server/schedule/special.js'
 
 export type StaffDayWindow = {
   startMinutes: number
@@ -28,15 +27,43 @@ function rowToWindow(row: { start_time: string; end_time: string }): StaffDayWin
   }
 }
 
-async function salonFallbackWindows(dayOfWeek: number): Promise<StaffDayWindow[]> {
-  const salon = await getSalonSchedule()
-  const ranges = salon.weeklyWindows[dayOfWeek] ?? []
-  return rangesToWorkWindows(ranges).map((w) => ({
-    startMinutes: timeToMinutes(w.startTime),
-    endMinutes: timeToMinutes(w.endTime),
-    startTime: w.startTime,
-    endTime: w.endTime,
-  }))
+function rangesToStaffDayWindows(
+  ranges: { start: string; end: string }[],
+): StaffDayWindow[] {
+  return ranges
+    .map((range) => rowToWindow({ start_time: range.start, end_time: range.end }))
+    .filter((window): window is StaffDayWindow => window !== null)
+}
+
+function intersectStaffWithSalonWindows(
+  staffWindows: StaffDayWindow[],
+  salonWindows: SalonDayWindow[],
+): StaffDayWindow[] {
+  const result: StaffDayWindow[] = []
+  for (const staffWindow of staffWindows) {
+    for (const salonWindow of salonWindows) {
+      const startMinutes = Math.max(staffWindow.startMinutes, salonWindow.startMinutes)
+      const endMinutes = Math.min(staffWindow.endMinutes, salonWindow.endMinutes)
+      if (endMinutes <= startMinutes) continue
+      result.push({
+        startMinutes,
+        endMinutes,
+        startTime: minutesToTime(startMinutes),
+        endTime: minutesToTime(endMinutes),
+      })
+    }
+  }
+  return result.sort((a, b) => a.startMinutes - b.startMinutes)
+}
+
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+function salonWindowsAsStaffWindows(salonWindows: SalonDayWindow[]): StaffDayWindow[] {
+  return salonWindows.map((window) => ({ ...window }))
 }
 
 /** Franjas laborales del profesional para un día (puede haber varias, p. ej. mañana y tarde). */
@@ -44,14 +71,13 @@ export async function getStaffDayWindows(
   staffId: string,
   date: string,
 ): Promise<StaffDayWindow[]> {
-  if (!isSalonOpenDay(date)) return []
-
-  const special = await getSpecialScheduleForDate(staffId, date)
-  if (special.length > 0) {
-    return special
-      .map((r) => rowToWindow({ start_time: r.start, end_time: r.end }))
-      .filter((w): w is StaffDayWindow => w !== null)
+  const staffSpecial = await resolveStaffSpecialSchedule(staffId, date)
+  if (staffSpecial !== null) {
+    return rangesToStaffDayWindows(staffSpecial)
   }
+
+  const salonWindows = await getSalonDayWindows(date)
+  if (salonWindows.length === 0) return []
 
   const dayOfWeek = dayOfWeekFromDateString(date)
   const rows = await sql<{ start_time: string; end_time: string }[]>`
@@ -65,12 +91,13 @@ export async function getStaffDayWindows(
       SELECT COUNT(*)::text AS count FROM staff_availability WHERE staff_id = ${staffId}
     `
     if (Number(count) === 0) {
-      return salonFallbackWindows(dayOfWeek)
+      return salonWindowsAsStaffWindows(salonWindows)
     }
     return []
   }
 
-  return rows.map(rowToWindow).filter((w): w is StaffDayWindow => w !== null)
+  const staffWindows = rows.map(rowToWindow).filter((window): window is StaffDayWindow => window !== null)
+  return intersectStaffWithSalonWindows(staffWindows, salonWindows)
 }
 
 /** Primera franja del día (compatibilidad). Preferir getStaffDayWindows. */

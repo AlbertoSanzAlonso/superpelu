@@ -210,16 +210,28 @@ export function ScheduleManagementPage() {
           </div>
 
           {activeTab === 'especiales' ? (
-            <div className="mb-4">
-              <p className={`${typography.label} mb-3`}>Horarios especiales</p>
-              <p className="text-xs text-charcoal-muted mb-4">
-                Define horarios excepcionales para una profesional en fechas concretas.
-                Estos horarios tienen prioridad sobre el horario semanal habitual.
-              </p>
-              <SpecialScheduleSection
-                staffList={data?.staff ?? []}
-                adminToken={adminToken!}
-              />
+            <div className="mb-4 space-y-8">
+              <section>
+                <p className={`${typography.label} mb-2`}>Salon</p>
+                <p className="mb-4 text-xs text-charcoal-muted">
+                  Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.).
+                  Tiene prioridad sobre el horario semanal habitual.
+                </p>
+                <SpecialScheduleSection scope="salon" adminToken={adminToken!} />
+              </section>
+
+              <section className="border-t border-gold/15 pt-6">
+                <p className={`${typography.label} mb-2`}>Personal</p>
+                <p className="mb-4 text-xs text-charcoal-muted">
+                  Horario excepcional de una profesional concreta. Tiene prioridad sobre su horario semanal
+                  y sobre el del salon ese dia.
+                </p>
+                <SpecialScheduleSection
+                  scope="staff"
+                  staffList={data?.staff ?? []}
+                  adminToken={adminToken!}
+                />
+              </section>
             </div>
           ) : (
             <>

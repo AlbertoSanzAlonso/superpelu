@@ -13,7 +13,7 @@ import {
 import { getChainedBookingSegments, type BookingServiceLine } from "@/lib/booking/combo"
 import { getFirstServiceBookingSpan, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { schedule } from "@server/config.js"
-import { isSalonOpenDay, isWithinSalonBookingWindow } from "@/lib/core/dates"
+import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   getOccupiedSegmentsForAppointment,
   getOccupiedSegmentsForBooking,
@@ -21,7 +21,7 @@ import {
   type OccupiedSegment,
 } from "@/lib/booking/occupancy"
 import type { DbClient } from "@server/appointments/lock.js"
-import { filterPastSlotsForToday, isValidDateString, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
+import { filterPastSlotsForToday, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
 
 async function getExcludedColorGroupId(
   query: DbClient,
@@ -229,10 +229,7 @@ export async function getAvailableSlotsForServices(
     return getAvailableSlots(date, serviceIds[0], staffId, options)
   }
 
-  const dateAllowed = options.forStaffPortal
-    ? isValidDateString(date) && isSalonOpenDay(date)
-    : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
-
+  const dateAllowed = await isBookingDateAllowed(date, { forStaffPortal: options.forStaffPortal })
   if (!dateAllowed) return []
 
   const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)
@@ -287,7 +284,7 @@ export async function getOverHoursSlotsForServices(
 ): Promise<string[]> {
   if (!options.forStaffPortal || serviceIds.length === 0) return []
 
-  const dateAllowed = isValidDateString(date) && isSalonOpenDay(date)
+  const dateAllowed = await isBookingDateAllowed(date, { forStaffPortal: true })
   if (!dateAllowed) return []
 
   const rawServices = await resolveBookingServices(serviceIds, false)
@@ -341,10 +338,7 @@ export async function getAvailableSlots(
   staffId: string,
   options: SlotOptions = {},
 ): Promise<string[]> {
-  const dateAllowed = options.forStaffPortal
-    ? isValidDateString(date) && isSalonOpenDay(date)
-    : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
-
+  const dateAllowed = await isBookingDateAllowed(date, { forStaffPortal: options.forStaffPortal })
   if (!dateAllowed) return []
 
   const service = await getService(serviceId, { onlineOnly: !options.forStaffPortal })
@@ -410,9 +404,7 @@ export async function getServiceDaySlotsForServices(
     return [...merged].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))
   }
 
-  const dateAllowed = options.forStaffPortal
-    ? isValidDateString(date) && isSalonOpenDay(date)
-    : isValidDateString(date) && isSalonOpenDay(date) && isWithinSalonBookingWindow(date)
+  const dateAllowed = await isBookingDateAllowed(date, { forStaffPortal: options.forStaffPortal })
   if (!dateAllowed) return []
 
   const rawServices = await resolveBookingServices(serviceIds, !options.forStaffPortal)

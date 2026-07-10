@@ -1,8 +1,8 @@
 import {
   addDaysToDateString,
   dayOfWeekFromDateString,
-  isSalonOpenDay,
 } from '@/lib/core/dates'
+import { isSalonOpenOnDate } from '@server/schedule/salonDay.js'
 import { isStaffWorkingOnDate } from '@server/staff/availability.js'
 
 export type SeriesScope = 'single' | 'range' | 'weekly'
@@ -30,7 +30,7 @@ export async function collectDatesForSeriesScope(
       if (weeklyRespectsEndDate && endDate && cursor > endDate) break
       if (
         dayOfWeekFromDateString(cursor) === targetDow &&
-        isSalonOpenDay(cursor) &&
+        (await isSalonOpenOnDate(cursor)) &&
         (await isStaffWorkingOnDate(staffId, cursor))
       ) {
         dates.push(cursor)
@@ -47,7 +47,7 @@ export async function collectDatesForSeriesScope(
   const dates: string[] = []
   let cursor = anchorDate
   while (cursor <= endDate) {
-    if (isSalonOpenDay(cursor) && (await isStaffWorkingOnDate(staffId, cursor))) {
+    if ((await isSalonOpenOnDate(cursor)) && (await isStaffWorkingOnDate(staffId, cursor))) {
       dates.push(cursor)
     }
     cursor = addDaysToDateString(cursor, 1)

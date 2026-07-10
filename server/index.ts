@@ -79,10 +79,10 @@ import { normalizeLocale, type Locale } from '@/i18n/types'
 import {
   addDaysToDateString,
   formatDisplayDate,
-  isSalonOpenDay,
   isWithinSalonBookingWindow,
   todaySalon,
 } from '@/lib/core/dates'
+import { isSalonOpenOnDate } from '@server/schedule/salonDay.js'
 import { schedule } from '@server/config.js'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import { splitCustomerName } from '@/lib/customer/name'
@@ -117,6 +117,9 @@ import {
   getStaffSpecialSchedule,
   setStaffSpecialSchedule,
   deleteStaffSpecialDate,
+  getSalonSpecialSchedule,
+  setSalonSpecialSchedule,
+  deleteSalonSpecialDate,
 } from '@server/schedule/special.js'
 import {
   getOpenWaAdminConfig,
@@ -264,6 +267,37 @@ app.delete('/api/admin/schedule/special/:staffId', async (c) => {
   const date = c.req.query('date')
   if (!date) return c.json({ error: 'Falta date' }, 400)
   await deleteStaffSpecialDate(staffId, date)
+  return c.json({ ok: true })
+})
+
+app.get('/api/admin/schedule/salon/special', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const dateFrom = c.req.query('from')
+  const dateTo = c.req.query('to')
+  const specialDays = await getSalonSpecialSchedule(dateFrom, dateTo)
+  return c.json({ specialDays })
+})
+
+app.put('/api/admin/schedule/salon/special', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const body = await c.req.json<{ specialDays?: Record<string, ScheduleTimeRange[]> }>().catch(
+    () => ({} as { specialDays?: Record<string, ScheduleTimeRange[]> }),
+  )
+  if (!body.specialDays || typeof body.specialDays !== 'object') {
+    return c.json({ error: 'Falta specialDays' }, 400)
+  }
+  const result = await setSalonSpecialSchedule(body.specialDays!)
+  return c.json({ specialDays: result })
+})
+
+app.delete('/api/admin/schedule/salon/special', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const date = c.req.query('date')
+  if (!date) return c.json({ error: 'Falta date' }, 400)
+  await deleteSalonSpecialDate(date)
   return c.json({ ok: true })
 })
 
@@ -1742,7 +1776,7 @@ app.get('/m/:code', async (c) => {
       : ''
 
   let slotsHtml = ''
-  if (!isSalonOpenDay(selectedDate) || !isWithinSalonBookingWindow(selectedDate)) {
+  if (!(await isSalonOpenOnDate(selectedDate)) || !isWithinSalonBookingWindow(selectedDate)) {
     slotsHtml = `<p class="muted">${escapeHtml(t.salonClosed)}</p>`
   } else if (selectedStaffId) {
     const slots = await getAvailableSlots(selectedDate, row.service_id, selectedStaffId, {

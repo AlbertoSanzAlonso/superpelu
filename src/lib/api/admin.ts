@@ -391,6 +391,43 @@ export function deleteStaffSpecialDate(
   )
 }
 
+export function fetchSalonSpecialSchedule(
+  adminToken: string,
+  dateFrom?: string,
+  dateTo?: string,
+) {
+  const params = new URLSearchParams()
+  if (dateFrom) params.set('from', dateFrom)
+  if (dateTo) params.set('to', dateTo)
+  const qs = params.toString()
+  return request<{ specialDays: Record<string, ScheduleTimeRange[]> }>(
+    `/admin/schedule/salon/special${qs ? `?${qs}` : ''}`,
+    { headers: adminHeaders(adminToken) },
+  )
+}
+
+export function updateSalonSpecialSchedule(
+  adminToken: string,
+  specialDays: Record<string, ScheduleTimeRange[]>,
+) {
+  return request<{ specialDays: Record<string, ScheduleTimeRange[]> }>(
+    '/admin/schedule/salon/special',
+    {
+      method: 'PUT',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ specialDays }),
+    },
+  )
+}
+
+export function deleteSalonSpecialDate(adminToken: string, date: string) {
+  const params = new URLSearchParams({ date })
+  return request<{ ok: true }>(`/admin/schedule/salon/special?${params}`, {
+    method: 'DELETE',
+    headers: adminHeaders(adminToken),
+  })
+}
+
 export function updateStaffSchedule(
   adminToken: string,
   staffId: string,

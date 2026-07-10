@@ -1,19 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
-import { fetchStaffSpecialSchedule, updateStaffSpecialSchedule, deleteStaffSpecialDate } from '@/lib/api/admin'
+import {
+  deleteSalonSpecialDate,
+  deleteStaffSpecialDate,
+  fetchSalonSpecialSchedule,
+  fetchStaffSpecialSchedule,
+  updateSalonSpecialSchedule,
+  updateStaffSpecialSchedule,
+} from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
 import { DAY_NAMES } from './constants'
 import type { ScheduleTimeRange } from '@/types/schedule'
 
-export function SpecialScheduleSection({
-  staffList,
-  adminToken,
-}: {
-  staffList: { staffId: string; staffName: string }[]
-  adminToken: string
-}) {
+type SpecialScheduleSectionProps =
+  | {
+      scope: 'salon'
+      adminToken: string
+    }
+  | {
+      scope: 'staff'
+      adminToken: string
+      staffList: { staffId: string; staffName: string }[]
+    }
+
+export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
+  const { adminToken, scope } = props
+  const staffList = scope === 'staff' ? props.staffList : []
   const [selectedStaffId, setSelectedStaffId] = useState(staffList[0]?.staffId ?? '')
   const [specialDays, setSpecialDays] = useState<Record<string, ScheduleTimeRange[]>>({})
   const [loading, setLoading] = useState(false)
@@ -22,39 +36,61 @@ export function SpecialScheduleSection({
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
 
+  useEffect(() => {
+    if (scope === 'staff' && staffList.length > 0 && !selectedStaffId) {
+      setSelectedStaffId(staffList[0].staffId)
+    }
+  }, [scope, staffList, selectedStaffId])
+
   const load = useCallback(async () => {
-    if (!selectedStaffId) return
+    if (scope === 'staff' && !selectedStaffId) return
     setLoading(true)
     setError('')
     try {
-      const res = await fetchStaffSpecialSchedule(adminToken, selectedStaffId)
+      const res =
+        scope === 'salon'
+          ? await fetchSalonSpecialSchedule(adminToken)
+          : await fetchStaffSpecialSchedule(adminToken, selectedStaffId)
       setSpecialDays(res.specialDays)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
-  }, [adminToken, selectedStaffId])
+  }, [adminToken, scope, selectedStaffId])
 
   useEffect(() => {
     load()
   }, [load])
 
   const addDate = () => {
-    if (!newDate) return
-    if (specialDays[newDate]) return
+    if (!newDate || specialDays[newDate]) return
     setSpecialDays((prev) => ({ ...prev, [newDate]: [{ start: '10:00', end: '14:00' }] }))
     setNewDate('')
+    setSaved(false)
   }
 
   const updateDateRanges = (date: string, ranges: ScheduleTimeRange[]) => {
     setSpecialDays((prev) => ({ ...prev, [date]: ranges }))
+    setSaved(false)
+  }
+
+  const toggleClosed = (date: string) => {
+    setSpecialDays((prev) => ({
+      ...prev,
+      [date]: (prev[date]?.length ?? 0) > 0 ? [] : [{ start: '10:00', end: '14:00' }],
+    }))
+    setSaved(false)
   }
 
   const removeDate = async (date: string) => {
     setError('')
     try {
-      await deleteStaffSpecialDate(adminToken, selectedStaffId, date)
+      if (scope === 'salon') {
+        await deleteSalonSpecialDate(adminToken, date)
+      } else {
+        await deleteStaffSpecialDate(adminToken, selectedStaffId, date)
+      }
       setSpecialDays((prev) => {
         const next = { ...prev }
         delete next[date]
@@ -66,12 +102,15 @@ export function SpecialScheduleSection({
   }
 
   const handleSave = async () => {
-    if (!selectedStaffId) return
+    if (scope === 'staff' && !selectedStaffId) return
     setSaving(true)
     setSaved(false)
     setError('')
     try {
-      const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
+      const res =
+        scope === 'salon'
+          ? await updateSalonSpecialSchedule(adminToken, specialDays)
+          : await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
       setSpecialDays(res.specialDays)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -99,27 +138,29 @@ export function SpecialScheduleSection({
         </div>
       )}
 
-      <div className="mb-4">
-        <p className={`${typography.label} mb-2`}>Profesional</p>
-        <div className="flex flex-wrap gap-1.5">
-          {staffList.map((s) => (
-            <button
-              key={s.staffId}
-              type="button"
-              onClick={() => setSelectedStaffId(s.staffId)}
-              className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
-                selectedStaffId === s.staffId
-                  ? 'border-gold bg-gold/15 text-gold-dark'
-                  : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
-              }`}
-            >
-              {s.staffName}
-            </button>
-          ))}
+      {scope === 'staff' && (
+        <div className="mb-4">
+          <p className={`${typography.label} mb-2`}>Profesional</p>
+          <div className="flex flex-wrap gap-1.5">
+            {staffList.map((s) => (
+              <button
+                key={s.staffId}
+                type="button"
+                onClick={() => setSelectedStaffId(s.staffId)}
+                className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
+                  selectedStaffId === s.staffId
+                    ? 'border-gold bg-gold/15 text-gold-dark'
+                    : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
+                }`}
+              >
+                {s.staffName}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {selectedStaffId && (
+      {(scope === 'salon' || selectedStaffId) && (
         <>
           <div className="mb-4 flex items-end gap-3">
             <div>
@@ -147,7 +188,11 @@ export function SpecialScheduleSection({
           {loading ? (
             <p className={`${typography.body} text-charcoal-muted`}>Cargando horarios especiales...</p>
           ) : sortedDates.length === 0 ? (
-            <p className={`${typography.body} text-charcoal-muted`}>No hay horarios especiales para esta profesional.</p>
+            <p className={`${typography.body} text-charcoal-muted`}>
+              {scope === 'salon'
+                ? 'No hay dias especiales del salon.'
+                : 'No hay horarios especiales para esta profesional.'}
+            </p>
           ) : (
             <div className="mb-4 space-y-4">
               {sortedDates.map((date) => {
@@ -161,9 +206,9 @@ export function SpecialScheduleSection({
                 const isClosed = specialDays[date].length === 0
                 return (
                   <div key={date} className="border border-gold/15 bg-cream/60 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`${typography.label}`}>
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={typography.label}>
                           {dayName}, {displayDate}
                         </span>
                         {isClosed && (
@@ -172,13 +217,22 @@ export function SpecialScheduleSection({
                           </span>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeDate(date)}
-                        className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
-                      >
-                        Eliminar
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => toggleClosed(date)}
+                          className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                        >
+                          {isClosed ? 'Abrir dia' : 'Cerrar dia'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeDate(date)}
+                          className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
+                        >
+                          Eliminar
+                        </button>
+                      </div>
                     </div>
                     {!isClosed && (
                       <DateRangeEditor
@@ -198,7 +252,7 @@ export function SpecialScheduleSection({
               variant="solid"
               size="sm"
               onClick={handleSave}
-              disabled={saving || loading}
+              disabled={saving || loading || (scope === 'staff' && !selectedStaffId)}
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </Button>

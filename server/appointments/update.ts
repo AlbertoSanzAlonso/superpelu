@@ -12,7 +12,8 @@ import {
 } from "@server/customers/index.js"
 import { notifyAppointmentRescheduled } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentUpdated } from "@server/notifications/email.js"
-import { hoursUntilAppointment, isSalonOpenDay } from "@/lib/core/dates"
+import { hoursUntilAppointment } from "@/lib/core/dates"
+import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   COLOR_GROUP_ROLE,
   COLOR_SPLIT_SEGMENT_MINUTES,
@@ -61,7 +62,7 @@ export async function updateAppointmentForStaff(
 
   if (
     !isValidDateString(date) ||
-    !isSalonOpenDay(date) ||
+    !(await isBookingDateAllowed(date, { forStaffPortal: true })) ||
     !(await isStaffWorkingOnDate(targetStaffId, date))
   ) {
     throw new Error('FECHA_INVALIDA')

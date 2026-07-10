@@ -72,7 +72,7 @@ Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 
 ## Base de datos (PostgreSQL en el servidor)
 
-Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `salon_schedule`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `salon_schedule`, `salon_special_schedule`, `staff_special_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
 
 **Conexión:** `DATABASE_URL` en Coolify o `.env` local (Postgres del mismo stack o servicio dedicado). Variables `SUPABASE_*` son legado opcional en `server/pg/client.ts`; en producción suele bastar la URI al Postgres del servidor.
 
@@ -83,6 +83,8 @@ Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 
 `salon_schedule`: horario semanal del salón (`day_of_week`, `start_time`, `end_time`). Se sincroniza desde `src/data/schedule.ts` al arrancar si está vacía. Editable desde `/horarios`.
+
+`salon_special_schedule` y `staff_special_availability`: horarios excepcionales por **fecha concreta** (`special_date`, `start_time`, `end_time`, `is_closed`). Editable desde `/horarios` → pestaña **Especiales**. Prioridad: especial personal > especial salón > horario semanal. Un día con `is_closed` (franjas vacías en UI) cierra ese día aunque el horario habitual sea distinto; un domingo con franjas abre el salón aunque el semanal cierre domingos.
 
 Esquema versionado en `server/pg/schema.sql` (aplicado al arrancar).
 
@@ -194,16 +196,24 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 
 - **`ScheduleManagementPage` (`/horarios`):** editor de horarios semanales del salón y de cada profesional.
 - Enlace desde `AdminAgendaControlBar` → «Horarios» (junto a «Clientes»).
-- **Tabs:** «Salón» (horario general) + una pestaña por profesional (Susana, Mónica, etc.).
-- **Editor:** 7 días (lunes–domingo), checkbox para abrir/cerrar día, múltiples franjas por día (inicio/fin), botón «+ Franja».
+- **Tabs:** «Salón» (horario general) + **«Especiales»** (días concretos del año) + una pestaña por profesional.
+- **Editor semanal:** 7 días (lunes–domingo), checkbox para abrir/cerrar día, múltiples franjas por día (inicio/fin), botón «+ Franja».
+- **Editor especiales** (`SpecialScheduleSection`, `DateRangeEditor`):
+  - **Salón:** fechas excepcionales del negocio (festivos, aperturas fuera de horario habitual).
+  - **Personal:** fechas excepcionales por profesional; prevalece sobre el especial del salón y sobre su horario semanal.
+  - Añadir fecha, franjas, «Cerrar día» / «Abrir día», eliminar excepción.
 - **Persistencia:**
-  - Salón → tabla `salon_schedule` (nueva).
-  - Personal → tabla `staff_availability` (existente, ya se usaba para disponibilidad).
-- **Fallback:** si un profesional no tiene horarios en BD, usa los del salón; si el salón no tiene, usa `src/data/schedule.ts`.
-- **API:** `server/schedule/index.ts` — `getFullSchedule()`, `setSalonSchedule()`, `setStaffSchedule()`.
-- **Tipos:** `src/types/schedule.ts` — `FullScheduleData`, `SalonScheduleData`, `StaffScheduleData`, `ScheduleTimeRange`.
-- **Cliente API:** `fetchFullSchedule()`, `updateSalonSchedule()`, `updateStaffSchedule()` en `src/lib/api/client.ts`.
-- **Componente:** `ScheduleEditor` (inline en `ScheduleManagementPage.tsx`).
+  - Salón semanal → `salon_schedule`.
+  - Salón especial → `salon_special_schedule`.
+  - Personal semanal → `staff_availability`.
+  - Personal especial → `staff_special_availability`.
+- **Fallback:** si un profesional no tiene horarios en BD, usa los del salón (incl. especiales); si el salón no tiene semanal en BD, usa `src/data/schedule.ts`.
+- **Resolución en servidor:** `server/schedule/salonDay.ts` (`getSalonDayWindows`, `isSalonOpenOnDate`, `isBookingDateAllowed`); `server/staff/availability.ts` (`getStaffDayWindows`); slots y validación de citas usan estas funciones (no el `isSalonOpenDay` estático de `src/data/schedule.ts`).
+- **API semanal:** `server/schedule/index.ts` — `getFullSchedule()`, `setSalonSchedule()`, `setStaffSchedule()`.
+- **API especiales:** `server/schedule/special.ts` — CRUD salón y personal.
+- **Tipos:** `src/types/schedule.ts` — `FullScheduleData`, `SalonSpecialScheduleData`, `StaffSpecialScheduleData`, `ScheduleTimeRange`.
+- **Cliente API:** `fetchFullSchedule()`, `updateSalonSchedule()`, `updateStaffSchedule()`, `fetchSalonSpecialSchedule()`, `updateSalonSpecialSchedule()`, `fetchStaffSpecialSchedule()`, `updateStaffSpecialSchedule()` en `src/lib/api/admin.ts`.
+- **Componentes:** `ScheduleEditor`, `SpecialScheduleSection`, `DateRangeEditor` en `src/components/schedule/`.
 
 ### UI de agenda — shell común
 
@@ -269,6 +279,8 @@ Leyenda admin: `AdminCalendarLegend`. Grilla staff: `agendaColorLegend`.
 | GET | `/api/admin/schedule` | Horarios completos (salón + todo el personal) |
 | PUT | `/api/admin/schedule/salon` | Actualizar horario del salón (`{ weeklyWindows }`) |
 | PUT | `/api/admin/schedule/staff/:staffId` | Actualizar horario de un profesional (`{ weeklyWindows }`) |
+| GET/PUT/DELETE | `/api/admin/schedule/salon/special` | Días especiales del salón (`{ specialDays }`; DELETE `?date=`) |
+| GET/PUT/DELETE | `/api/admin/schedule/special/:staffId` | Días especiales de un profesional (`{ specialDays }`; DELETE `?date=`) |
 
 ### Profesional (`server/staff/me.ts` bajo `/api`)
 
@@ -292,10 +304,13 @@ Sesión: header `Authorization: Bearer <token>` (UUID, 14 días).
 | `src/i18n/translations.ts` | Textos ES/EN centralizados |
 | `server/staff/schedule.ts` | Día por profesional, `occupiedSlots` |
 | `server/staff/blocks.ts` | Series de bloqueos |
-| `server/staff/availability.ts` | Franjas laborales del profesional por día (lee `staff_availability` + fallback `salon_schedule`) |
-| `server/schedule/index.ts` | Gestión horarios salón y personal (`getFullSchedule`, `setSalonSchedule`, `setStaffSchedule`) |
-| `src/pages/ScheduleManagementPage.tsx` | Página `/horarios` — editor de horarios (salón + por profesional) |
-| `src/types/schedule.ts` | Tipos `FullScheduleData`, `SalonScheduleData`, `StaffScheduleData`, `ScheduleTimeRange` |
+| `server/staff/availability.ts` | Franjas laborales del profesional por día (`staff_special_availability` → `salon_special_schedule` / `salon_schedule` / semanal) |
+| `server/schedule/index.ts` | Horario semanal salón y personal (`getFullSchedule`, `setSalonSchedule`, `setStaffSchedule`) |
+| `server/schedule/special.ts` | Días especiales salón y personal (CRUD) |
+| `server/schedule/salonDay.ts` | Franjas del salón por fecha; `isSalonOpenOnDate`, `isBookingDateAllowed` |
+| `src/pages/ScheduleManagementPage.tsx` | Página `/horarios` — semanal + pestaña Especiales |
+| `src/components/schedule/SpecialScheduleSection.tsx` | Editor días especiales (salón y personal) |
+| `src/types/schedule.ts` | Tipos `FullScheduleData`, `SalonSpecialScheduleData`, `StaffSpecialScheduleData`, `ScheduleTimeRange` |
 | `src/lib/booking/occupancy.ts` | Tramos coloración, solapes, formato horario |
 | `src/lib/agenda/timeGrid.ts` | Grilla staff (segmentos ocupados) |
 | `src/lib/catalog/servicePicker.ts` | Labels especialidad/tratamiento; `getAllServiceCategories()` para reserva pública |

@@ -23,3 +23,7 @@ export type StaffSpecialScheduleData = {
   staffName: string
   specialDays: Record<string, ScheduleTimeRange[]>
 }
+
+export type SalonSpecialScheduleData = {
+  specialDays: Record<string, ScheduleTimeRange[]>
+}

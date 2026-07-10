@@ -37,6 +37,9 @@ export {
   fetchStaffSpecialSchedule,
   updateStaffSpecialSchedule,
   deleteStaffSpecialDate,
+  fetchSalonSpecialSchedule,
+  updateSalonSpecialSchedule,
+  deleteSalonSpecialDate,
   updateStaffSchedule,
   fetchStats,
 } from './admin'

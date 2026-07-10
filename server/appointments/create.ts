@@ -14,7 +14,8 @@ import {
 } from "@server/customers/index.js"
 import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
-import { hoursUntilAppointment, isSalonOpenDay, isWithinSalonBookingWindow } from "@/lib/core/dates"
+import { hoursUntilAppointment } from "@/lib/core/dates"
+import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
@@ -37,7 +38,7 @@ import {
 import { createChainedBookingAppointment, resolveChainContinuation } from "@server/appointments/chain.js"
 import { collectDatesForSeriesScope } from "@server/appointments/seriesDates.js"
 import { createRecurringChainedAppointment } from "@server/appointments/recurringChain.js"
-import { isValidDateString, timeToMinutes } from "@server/appointments/time.js"
+import { timeToMinutes } from "@server/appointments/time.js"
 import type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { AppointmentSeriesMode } from "@server/appointments/series.js"
@@ -198,11 +199,7 @@ export async function createAppointment(
       }
     }
 
-    const dateOk = input.forStaffPortal
-      ? isValidDateString(input.date) && isSalonOpenDay(input.date)
-      : isValidDateString(input.date) &&
-        isSalonOpenDay(input.date) &&
-        isWithinSalonBookingWindow(input.date)
+    const dateOk = await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })
     if (!dateOk) throw new Error('FECHA_INVALIDA')
 
     const scope = input.scope ?? 'single'
@@ -280,14 +277,9 @@ export async function createAppointment(
     }
   }
 
-  const dateOk = input.forStaffPortal
-    ? isValidDateString(input.date) &&
-      isSalonOpenDay(input.date) &&
-      (await isStaffWorkingOnDate(input.staffId, input.date))
-    : isValidDateString(input.date) &&
-      isSalonOpenDay(input.date) &&
-      isWithinSalonBookingWindow(input.date) &&
-      (await isStaffWorkingOnDate(input.staffId, input.date))
+  const dateOk =
+    (await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })) &&
+    (await isStaffWorkingOnDate(input.staffId, input.date))
 
   if (!dateOk) throw new Error('FECHA_INVALIDA')
 
