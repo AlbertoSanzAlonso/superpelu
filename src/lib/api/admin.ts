@@ -551,7 +551,6 @@ export function createAdminStaff(
     role: string | null
     phone: string | null
     email: string | null
-    password: string
     sortOrder: number
   },
 ) {
@@ -570,7 +569,6 @@ export function updateAdminStaff(
     role?: string | null
     phone?: string | null
     email?: string | null
-    password?: string
     active?: boolean
     sortOrder?: number
   },

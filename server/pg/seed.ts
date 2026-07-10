@@ -6,7 +6,6 @@ import {
   salonStaffMembers,
 } from '@/data/salonStaff'
 import { sql } from '@server/pg/client.js'
-import { hashPassword } from '@server/password.js'
 import { seedSalonScheduleIfMissing } from '@server/schedule/index.js'
 
 function nowIso(): string {
@@ -95,7 +94,7 @@ export async function syncSalonStaff(): Promise<void> {
         id, name, role, phone, email, active, sort_order, password_hash, created_at, updated_at
       ) VALUES (
         ${member.id}, ${member.name}, ${member.role}, ${member.phone}, ${member.email},
-        TRUE, ${member.sortOrder}, ${hashPassword(member.password)}, ${now}, ${now}
+        TRUE, ${member.sortOrder}, NULL, ${now}, ${now}
       )
       ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
@@ -104,7 +103,6 @@ export async function syncSalonStaff(): Promise<void> {
         email = EXCLUDED.email,
         active = TRUE,
         sort_order = EXCLUDED.sort_order,
-        password_hash = EXCLUDED.password_hash,
         updated_at = EXCLUDED.updated_at
     `
   }
@@ -187,16 +185,6 @@ export async function seedStaffAvailabilityIfMissing(): Promise<void> {
   }
 }
 
-export async function seedStaffPasswordsIfMissing(): Promise<void> {
-  for (const member of salonStaffMembers) {
-    await sql`
-      UPDATE staff SET password_hash = ${hashPassword(member.password)}
-      WHERE id = ${member.id}
-        AND (password_hash IS NULL OR password_hash = '')
-    `
-  }
-}
-
 export async function runSeed(): Promise<void> {
   await seedServiceCategories()
   await syncSalonServices()
@@ -206,5 +194,4 @@ export async function runSeed(): Promise<void> {
   await seedSalonScheduleIfMissing()
   await syncStaffAvailabilityFromCatalog()
   await seedStaffAvailabilityIfMissing()
-  await seedStaffPasswordsIfMissing()
 }

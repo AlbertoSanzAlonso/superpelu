@@ -454,7 +454,6 @@ type CreateStaffBody = {
   role: string | null
   phone: string | null
   email: string | null
-  password: string
   sortOrder: number
 }
 
@@ -463,7 +462,6 @@ type UpdateStaffBody = {
   role?: string | null
   phone?: string | null
   email?: string | null
-  password?: string
   active?: boolean
   sortOrder?: number
 }
@@ -480,8 +478,8 @@ app.post('/api/admin/staff', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const raw = await c.req.json().catch(() => ({}))
   const body = raw as CreateStaffBody
-  if (!body.name || !body.password) {
-    return c.json({ error: 'Faltan campos obligatorios (name, password)' }, 400)
+  if (!body.name) {
+    return c.json({ error: 'Faltan campos obligatorios (name)' }, 400)
   }
   const member = await createStaff(body)
   return c.json({ staff: member }, 201)

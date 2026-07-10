@@ -1,5 +1,4 @@
 import { sql, type StaffRow } from '@server/db.js'
-import { hashPassword } from '@server/password.js'
 
 function slugifyStaffName(name: string): string {
   const base = name
@@ -78,15 +77,13 @@ export async function createStaff(data: {
   role: string | null
   phone: string | null
   email: string | null
-  password: string
   sortOrder: number
 }): Promise<AdminStaffMember> {
   const id = data.id?.trim() || (await generateUniqueStaffId(data.name))
   const now = new Date().toISOString()
-  const passwordHash = hashPassword(data.password)
   const row = await sql<StaffRow[]>`
     INSERT INTO staff (id, name, role, phone, email, password_hash, active, sort_order, created_at, updated_at)
-    VALUES (${id}, ${data.name}, ${data.role}, ${data.phone}, ${data.email}, ${passwordHash}, TRUE, ${data.sortOrder}, ${now}, ${now})
+    VALUES (${id}, ${data.name}, ${data.role}, ${data.phone}, ${data.email}, NULL, TRUE, ${data.sortOrder}, ${now}, ${now})
     RETURNING *
   `
   await linkStaffToActiveServices(id)
@@ -100,7 +97,6 @@ export async function updateStaff(
     role?: string | null
     phone?: string | null
     email?: string | null
-    password?: string
     active?: boolean
     sortOrder?: number
   },
@@ -124,10 +120,6 @@ export async function updateStaff(
   if (data.email !== undefined) {
     sets.push(`email = $${idx++}`)
     vals.push(data.email)
-  }
-  if (data.password !== undefined) {
-    sets.push(`password_hash = $${idx++}`)
-    vals.push(hashPassword(data.password))
   }
   if (data.active !== undefined) {
     sets.push(`active = $${idx++}`)

@@ -20,7 +20,6 @@ export function StaffForm({
     role: string | null
     phone: string | null
     email: string | null
-    password: string
   }) => void
   onCancel: () => void
   busy: boolean
@@ -29,17 +28,15 @@ export function StaffForm({
   const [role, setRole] = useState(initial?.role ?? 'Profesional')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
-  const [password, setPassword] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || (mode === 'create' && !password.trim())) return
+    if (!name.trim()) return
     onSave({
       name: name.trim(),
       role: role.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
-      password: mode === 'create' ? password : password || '',
     })
   }
 
@@ -85,19 +82,6 @@ export function StaffForm({
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={fieldClass}
-        />
-      </div>
-      <div>
-        <label className={labelClass} htmlFor="sf-password">
-          {mode === 'create' ? 'Contraseña' : 'Nueva contraseña (dejar vacío para mantener)'}
-        </label>
-        <input
-          id="sf-password"
-          type="password"
-          required={mode === 'create'}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
           className={fieldClass}
         />
       </div>

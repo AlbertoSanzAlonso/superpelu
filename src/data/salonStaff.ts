@@ -7,8 +7,6 @@ export type SalonStaffMember = {
   phone: string
   email: string
   sortOrder: number
-  /** Contraseña inicial (se guarda hasheada en SQLite). Cambiar en producción. */
-  password: string
   weeklyHours?: Partial<Record<number, readonly SalonTimeRange[]>>
 }
 
@@ -21,7 +19,6 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 0,
-    password: 'Superpelu2026',
   },
   {
     id: 'monica',
@@ -30,7 +27,6 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 1,
-    password: 'Superpelu2026',
   },
   {
     id: 'andrea',
@@ -39,7 +35,6 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 2,
-    password: 'Superpelu2026',
   },
   {
     id: 'olga',
@@ -48,7 +43,6 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 3,
-    password: 'Superpelu2026',
   },
   {
     id: 'sol',
@@ -57,7 +51,6 @@ export const salonStaffMembers: SalonStaffMember[] = [
     phone: '',
     email: '',
     sortOrder: 4,
-    password: 'Superpelu2026',
   },
 ]
 

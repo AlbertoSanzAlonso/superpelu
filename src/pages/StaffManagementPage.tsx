@@ -7,6 +7,7 @@ import {
   customersWorkspaceLinkClass,
 } from '@/components/customers/CustomersWorkspaceHeader'
 import { useAdminSession } from '@/hooks/useAdminSession'
+import { useCompactServicesList } from '@/hooks/useCompactServicesList'
 import {
   fetchAdminStaff,
   createAdminStaff,
@@ -39,10 +40,12 @@ function nextSortOrderForStaff(staff: AdminStaffMember[]) {
 function AdminIconButton({
   label,
   onClick,
+  variant = 'default',
   children,
 }: {
   label: string
   onClick: () => void
+  variant?: 'default' | 'danger'
   children: ReactNode
 }) {
   return (
@@ -51,10 +54,50 @@ function AdminIconButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={adminIconBtnClass}
+      className={`${adminIconBtnClass} ${variant === 'danger' ? 'hover:border-red-300 hover:text-red-600' : ''}`}
     >
       {children}
     </button>
+  )
+}
+
+function IconPencil() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.434.263l-3 1a1 1 0 01-1.263-1.263l1-3a1 1 0 01.263-.434l8.5-8.5z" />
+    </svg>
+  )
+}
+
+function IconTrash() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function IconRefresh() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00-1.449-.39A7 7 0 003.062 7.016l-.31-.31H5.185a.75.75 0 000-1.5H1.943a.75.75 0 00-.75.75v4.243a.75.75 0 001.5 0v-2.43l.31.31a5.5 5.5 0 008.862 3.138.75.75 0 001.449-.39z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function IconXMark() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+    </svg>
   )
 }
 
@@ -74,8 +117,204 @@ function IconChevronDown() {
   )
 }
 
+function StaffListRow({
+  member,
+  compact,
+  canMoveUp,
+  canMoveDown,
+  onEdit,
+  onDeactivate,
+  onReactivate,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+}: {
+  member: AdminStaffMember
+  compact: boolean
+  canMoveUp: boolean
+  canMoveDown: boolean
+  onEdit: () => void
+  onDeactivate: () => void
+  onReactivate: () => void
+  onDelete: () => void
+  onMoveUp: () => void
+  onMoveDown: () => void
+}) {
+  if (compact) {
+    return (
+      <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5">
+        <div className="flex items-center gap-1.5">
+          <p
+            className={`min-w-0 flex-1 truncate text-[11px] leading-tight ${
+              member.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+            }`}
+            title={member.name}
+          >
+            {member.name}
+          </p>
+          <div className="flex shrink-0 items-center gap-0.5">
+            {member.active && (
+              <>
+                <AdminIconButton
+                  label="Subir"
+                  onClick={() => {
+                    if (canMoveUp) onMoveUp()
+                  }}
+                >
+                  <span className={canMoveUp ? '' : 'opacity-25'}>
+                    <IconChevronUp />
+                  </span>
+                </AdminIconButton>
+                <AdminIconButton
+                  label="Bajar"
+                  onClick={() => {
+                    if (canMoveDown) onMoveDown()
+                  }}
+                >
+                  <span className={canMoveDown ? '' : 'opacity-25'}>
+                    <IconChevronDown />
+                  </span>
+                </AdminIconButton>
+              </>
+            )}
+            {member.active ? (
+              <>
+                <AdminIconButton label="Editar" onClick={onEdit}>
+                  <IconPencil />
+                </AdminIconButton>
+                <AdminIconButton label="Desactivar" variant="danger" onClick={onDeactivate}>
+                  <IconTrash />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar" variant="danger" onClick={onDelete}>
+                  <IconXMark />
+                </AdminIconButton>
+              </>
+            ) : (
+              <>
+                <AdminIconButton label="Reactivar" onClick={onReactivate}>
+                  <IconRefresh />
+                </AdminIconButton>
+                <AdminIconButton label="Editar" onClick={onEdit}>
+                  <IconPencil />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar" variant="danger" onClick={onDelete}>
+                  <IconXMark />
+                </AdminIconButton>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
+      <div className="min-w-0">
+        <p className={`break-words text-sm leading-snug ${member.active ? '' : 'opacity-50 line-through'}`}>
+          {member.name}
+        </p>
+        {(member.phone || member.email) && (
+          <p className="mt-0.5 truncate text-xs leading-snug text-charcoal-muted">
+            {[member.phone, member.email].filter(Boolean).join(' · ')}
+          </p>
+        )}
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {!member.active && (
+          <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
+        )}
+        {member.active ? (
+          <>
+            <div className="flex items-center gap-0.5">
+              <AdminIconButton
+                label="Subir"
+                onClick={() => {
+                  if (canMoveUp) onMoveUp()
+                }}
+              >
+                <span className={canMoveUp ? '' : 'opacity-25'}>
+                  <IconChevronUp />
+                </span>
+              </AdminIconButton>
+              <AdminIconButton
+                label="Bajar"
+                onClick={() => {
+                  if (canMoveDown) onMoveDown()
+                }}
+              >
+                <span className={canMoveDown ? '' : 'opacity-25'}>
+                  <IconChevronDown />
+                </span>
+              </AdminIconButton>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onEdit}
+            >
+              Editar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onDeactivate}
+            >
+              Desactivar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onReactivate}
+            >
+              Reactivar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onEdit}
+            >
+              Editar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function StaffManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
+  const compact = useCompactServicesList()
 
   const [staff, setStaff] = useState<AdminStaffMember[]>([])
   const [loading, setLoading] = useState(false)
@@ -112,7 +351,6 @@ export function StaffManagementPage() {
     role: string | null
     phone: string | null
     email: string | null
-    password: string
   }) => {
     if (!adminToken) return
     setBusy(true)
@@ -129,7 +367,6 @@ export function StaffManagementPage() {
           phone: data.phone,
           email: data.email,
         }
-        if (data.password) patch.password = data.password
         await updateAdminStaff(adminToken, modal.member.id, patch)
       }
       setModal({ open: false, mode: 'create', member: null })
@@ -264,7 +501,7 @@ export function StaffManagementPage() {
         </p>
       )}
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         {loading ? (
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
         ) : staff.length === 0 ? (
@@ -272,80 +509,21 @@ export function StaffManagementPage() {
             No hay personal registrado. Añade tu primer profesional.
           </p>
         ) : (
-          <div className="divide-y divide-gold/10">
+          <div className="w-full max-w-full divide-y divide-gold/10">
             {sortedStaff.map((member, index) => (
-              <div key={member.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gold/5">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-medium ${member.active ? '' : 'opacity-50 line-through'}`}>
-                      {member.name}
-                    </span>
-                    {member.role && (
-                      <span className="text-xs text-charcoal-muted">{member.role}</span>
-                    )}
-                    {!member.active && (
-                      <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
-                    )}
-                  </div>
-                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-charcoal-muted tabular-nums">
-                    {member.phone && <span>{member.phone}</span>}
-                    {member.email && <span>{member.email}</span>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {member.active && (
-                    <div className="flex items-center gap-0.5">
-                      <AdminIconButton
-                        label="Subir"
-                        onClick={() => {
-                          if (index > 0) void handleMoveStaff(member.id, 'up')
-                        }}
-                      >
-                        <span className={index > 0 ? '' : 'opacity-25'}>
-                          <IconChevronUp />
-                        </span>
-                      </AdminIconButton>
-                      <AdminIconButton
-                        label="Bajar"
-                        onClick={() => {
-                          if (index < sortedStaff.length - 1) void handleMoveStaff(member.id, 'down')
-                        }}
-                      >
-                        <span className={index < sortedStaff.length - 1 ? '' : 'opacity-25'}>
-                          <IconChevronDown />
-                        </span>
-                      </AdminIconButton>
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs !px-2 !py-0.5"
-                    onClick={() => setModal({ open: true, mode: 'edit', member })}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs !px-2 !py-0.5"
-                    onClick={() => handleToggleActive(member)}
-                  >
-                    {member.active ? 'Desactivar' : 'Reactivar'}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-                    onClick={() => handleDelete(member)}
-                  >
-                    Eliminar
-                  </Button>
-                </div>
-              </div>
+              <StaffListRow
+                key={member.id}
+                member={member}
+                compact={compact}
+                canMoveUp={index > 0}
+                canMoveDown={index < sortedStaff.length - 1}
+                onMoveUp={() => void handleMoveStaff(member.id, 'up')}
+                onMoveDown={() => void handleMoveStaff(member.id, 'down')}
+                onEdit={() => setModal({ open: true, mode: 'edit', member })}
+                onDeactivate={() => handleToggleActive(member)}
+                onReactivate={() => handleToggleActive(member)}
+                onDelete={() => handleDelete(member)}
+              />
             ))}
           </div>
         )}
