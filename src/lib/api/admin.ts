@@ -546,7 +546,7 @@ export function fetchAdminStaff(adminToken: string) {
 export function createAdminStaff(
   adminToken: string,
   data: {
-    id: string
+    id?: string
     name: string
     role: string | null
     phone: string | null

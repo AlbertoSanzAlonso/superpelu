@@ -449,7 +449,7 @@ app.delete('/api/admin/service-categories/:id/hard', async (c) => {
 // ── Staff CRUD (admin) ──────────────────────────────────────────────
 
 type CreateStaffBody = {
-  id: string
+  id?: string
   name: string
   role: string | null
   phone: string | null
@@ -480,8 +480,8 @@ app.post('/api/admin/staff', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const raw = await c.req.json().catch(() => ({}))
   const body = raw as CreateStaffBody
-  if (!body.id || !body.name || !body.password) {
-    return c.json({ error: 'Faltan campos obligatorios (id, name, password)' }, 400)
+  if (!body.name || !body.password) {
+    return c.json({ error: 'Faltan campos obligatorios (name, password)' }, 400)
   }
   const member = await createStaff(body)
   return c.json({ staff: member }, 201)

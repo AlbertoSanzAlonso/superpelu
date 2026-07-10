@@ -16,53 +16,39 @@ export function StaffForm({
   mode: 'create' | 'edit'
   initial: AdminStaffMember | null
   onSave: (data: {
-    id: string
     name: string
     role: string | null
     phone: string | null
     email: string | null
     password: string
-    sortOrder: number
   }) => void
   onCancel: () => void
   busy: boolean
 }) {
-  const [id, setId] = useState(initial?.id ?? '')
   const [name, setName] = useState(initial?.name ?? '')
   const [role, setRole] = useState(initial?.role ?? 'Profesional')
   const [phone, setPhone] = useState(initial?.phone ?? '')
   const [email, setEmail] = useState(initial?.email ?? '')
   const [password, setPassword] = useState('')
-  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || (mode === 'create' && (!id.trim() || !password.trim()))) return
+    if (!name.trim() || (mode === 'create' && !password.trim())) return
     onSave({
-      id: id.trim(),
       name: name.trim(),
       role: role.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
       password: mode === 'create' ? password : password || '',
-      sortOrder,
     })
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {mode === 'create' && (
-        <div>
-          <label className={labelClass} htmlFor="sf-id">ID único</label>
-          <input
-            id="sf-id"
-            required
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            className={fieldClass}
-            placeholder="ej: nombre-apellido"
-          />
-        </div>
+      {mode === 'edit' && initial && (
+        <p className="text-xs text-charcoal-muted">
+          ID interno: <span className="font-mono text-charcoal">{initial.id}</span>
+        </p>
       )}
       <div>
         <label className={labelClass} htmlFor="sf-name">Nombre</label>
@@ -115,16 +101,9 @@ export function StaffForm({
           className={fieldClass}
         />
       </div>
-      <div>
-        <label className={labelClass} htmlFor="sf-order">Orden</label>
-        <input
-          id="sf-order"
-          type="number"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(Number(e.target.value))}
-          className={fieldClass}
-        />
-      </div>
+      <p className="text-xs text-charcoal-muted">
+        El orden en el listado se ajusta con las flechas arriba/abajo.
+      </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancelar

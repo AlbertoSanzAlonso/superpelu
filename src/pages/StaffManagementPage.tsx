@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
@@ -20,6 +20,59 @@ import { StaffForm } from '@/components/admin/StaffForm'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type ModalMode = 'create' | 'edit'
+
+const tagClass =
+  'inline-block rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium'
+
+const adminIconBtnClass =
+  'flex size-6 shrink-0 items-center justify-center border border-gold/25 bg-cream text-charcoal-muted hover:border-gold hover:text-gold'
+
+function sortStaffForDisplay(list: AdminStaffMember[]) {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'))
+}
+
+function nextSortOrderForStaff(staff: AdminStaffMember[]) {
+  if (staff.length === 0) return 0
+  return Math.max(...staff.map((member) => member.sortOrder)) + 10
+}
+
+function AdminIconButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className={adminIconBtnClass}
+    >
+      {children}
+    </button>
+  )
+}
+
+function IconChevronUp() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path fillRule="evenodd" d="M10 3a.75.75 0 01.53.22l4.5 4.5a.75.75 0 11-1.06 1.06L10 5.06 6.03 9.03a.75.75 0 11-1.06-1.06l4.5-4.5A.75.75 0 0110 3z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function IconChevronDown() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path fillRule="evenodd" d="M10 17a.75.75 0 01-.53-.22l-4.5-4.5a.75.75 0 111.06-1.06L10 14.94l3.97-3.97a.75.75 0 111.06 1.06l-4.5 4.5A.75.75 0 0110 17z" clipRule="evenodd" />
+    </svg>
+  )
+}
 
 export function StaffManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
@@ -55,26 +108,26 @@ export function StaffManagementPage() {
   }, [authOk, loadData])
 
   const handleSave = async (data: {
-    id: string
     name: string
     role: string | null
     phone: string | null
     email: string | null
     password: string
-    sortOrder: number
   }) => {
     if (!adminToken) return
     setBusy(true)
     try {
       if (modal.mode === 'create') {
-        await createAdminStaff(adminToken, data)
+        await createAdminStaff(adminToken, {
+          ...data,
+          sortOrder: nextSortOrderForStaff(staff),
+        })
       } else if (modal.member) {
         const patch: Record<string, unknown> = {
           name: data.name,
           role: data.role,
           phone: data.phone,
           email: data.email,
-          sortOrder: data.sortOrder,
         }
         if (data.password) patch.password = data.password
         await updateAdminStaff(adminToken, modal.member.id, patch)
@@ -83,6 +136,33 @@ export function StaffManagementPage() {
       await loadData()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al guardar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleMoveStaff = async (staffId: string, direction: 'up' | 'down') => {
+    if (!adminToken) return
+    const ordered = sortStaffForDisplay(staff)
+    const index = ordered.findIndex((member) => member.id === staffId)
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
+
+    const nextOrder = [...ordered]
+    const [moved] = nextOrder.splice(index, 1)
+    nextOrder.splice(targetIndex, 0, moved)
+
+    setBusy(true)
+    setError('')
+    try {
+      await Promise.all(
+        nextOrder.map((member, orderIndex) =>
+          updateAdminStaff(adminToken, member.id, { sortOrder: orderIndex * 10 }),
+        ),
+      )
+      await loadData()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo reordenar')
     } finally {
       setBusy(false)
     }
@@ -131,8 +211,7 @@ export function StaffManagementPage() {
     )
   }
 
-  const tagClass =
-    'inline-block rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium'
+  const sortedStaff = sortStaffForDisplay(staff)
 
   return (
     <AgendaWorkspaceShell>
@@ -194,7 +273,7 @@ export function StaffManagementPage() {
           </p>
         ) : (
           <div className="divide-y divide-gold/10">
-            {staff.map((member) => (
+            {sortedStaff.map((member, index) => (
               <div key={member.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gold/5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -209,13 +288,35 @@ export function StaffManagementPage() {
                     )}
                   </div>
                   <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-charcoal-muted tabular-nums">
-                    <span>ID: {member.id}</span>
                     {member.phone && <span>{member.phone}</span>}
                     {member.email && <span>{member.email}</span>}
-                    <span>Orden: {member.sortOrder}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {member.active && (
+                    <div className="flex items-center gap-0.5">
+                      <AdminIconButton
+                        label="Subir"
+                        onClick={() => {
+                          if (index > 0) void handleMoveStaff(member.id, 'up')
+                        }}
+                      >
+                        <span className={index > 0 ? '' : 'opacity-25'}>
+                          <IconChevronUp />
+                        </span>
+                      </AdminIconButton>
+                      <AdminIconButton
+                        label="Bajar"
+                        onClick={() => {
+                          if (index < sortedStaff.length - 1) void handleMoveStaff(member.id, 'down')
+                        }}
+                      >
+                        <span className={index < sortedStaff.length - 1 ? '' : 'opacity-25'}>
+                          <IconChevronDown />
+                        </span>
+                      </AdminIconButton>
+                    </div>
+                  )}
                   <Button
                     type="button"
                     variant="ghost"

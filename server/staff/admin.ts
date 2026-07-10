@@ -1,6 +1,44 @@
 import { sql, type StaffRow } from '@server/db.js'
 import { hashPassword } from '@server/password.js'
 
+function slugifyStaffName(name: string): string {
+  const base = name
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+  return base || 'profesional'
+}
+
+async function generateUniqueStaffId(name: string): Promise<string> {
+  const slug = slugifyStaffName(name)
+  let candidate = slug
+  let suffix = 2
+  while (true) {
+    const rows = await sql<{ id: string }[]>`
+      SELECT id FROM staff WHERE id = ${candidate} LIMIT 1
+    `
+    if (rows.length === 0) return candidate
+    candidate = `${slug}-${suffix}`
+    suffix += 1
+  }
+}
+
+async function linkStaffToActiveServices(staffId: string): Promise<void> {
+  const serviceRows = await sql<{ id: string }[]>`
+    SELECT id FROM services WHERE active = TRUE
+  `
+  for (const { id: serviceId } of serviceRows) {
+    await sql`
+      INSERT INTO staff_services (staff_id, service_id)
+      VALUES (${staffId}, ${serviceId})
+      ON CONFLICT DO NOTHING
+    `
+  }
+}
+
 export type AdminStaffMember = {
   id: string
   name: string
@@ -35,7 +73,7 @@ export async function listAdminStaff(): Promise<AdminStaffMember[]> {
 }
 
 export async function createStaff(data: {
-  id: string
+  id?: string
   name: string
   role: string | null
   phone: string | null
@@ -43,13 +81,15 @@ export async function createStaff(data: {
   password: string
   sortOrder: number
 }): Promise<AdminStaffMember> {
+  const id = data.id?.trim() || (await generateUniqueStaffId(data.name))
   const now = new Date().toISOString()
   const passwordHash = hashPassword(data.password)
   const row = await sql<StaffRow[]>`
     INSERT INTO staff (id, name, role, phone, email, password_hash, active, sort_order, created_at, updated_at)
-    VALUES (${data.id}, ${data.name}, ${data.role}, ${data.phone}, ${data.email}, ${passwordHash}, TRUE, ${data.sortOrder}, ${now}, ${now})
+    VALUES (${id}, ${data.name}, ${data.role}, ${data.phone}, ${data.email}, ${passwordHash}, TRUE, ${data.sortOrder}, ${now}, ${now})
     RETURNING *
   `
+  await linkStaffToActiveServices(id)
   return rowToAdmin(row[0])
 }
 
