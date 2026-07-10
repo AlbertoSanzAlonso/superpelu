@@ -139,6 +139,7 @@ export function useStaffAgenda(token: string) {
 
   const resetAppointmentForm = useCallback((keepServiceIds = true) => {
     setEditingId(null)
+    setError('')
     setAptDraft((d) => ({
       ...EMPTY_APPOINTMENT_DRAFT,
       serviceIds: keepServiceIds ? d.serviceIds : [],

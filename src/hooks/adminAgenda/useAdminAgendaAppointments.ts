@@ -240,8 +240,9 @@ export function useAdminAgendaAppointments({
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
     setForceSchedule(false)
+    setError('')
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
-  }, [])
+  }, [setError])
 
   const selectStaff = useCallback((staffId: string) => {
     setActiveStaffId(staffId)
@@ -274,8 +275,9 @@ export function useAdminAgendaAppointments({
     setEditingScheduleBaseline(null)
     setDetailCustomerRegistered(false)
     setDetailReviewRequestSentAt(null)
+    setError('')
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
-  }, [])
+  }, [setError])
 
   const openAppointmentDetail = useCallback(
     (staffId: string, apt: DayScheduleAppointment) => {
