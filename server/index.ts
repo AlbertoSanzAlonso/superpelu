@@ -1868,6 +1868,7 @@ app.get('/m/:code', async (c) => {
   } else if (selectedStaffId) {
     const slots = await getAvailableSlots(selectedDate, row.service_id, selectedStaffId, {
       excludeAppointmentId: row.id,
+      serviceDurations: [row.duration_minutes],
     })
     if (slots.length === 0) {
       slotsHtml = `<p class="muted">${escapeHtml(t.noSlots)}</p>`

@@ -352,6 +352,12 @@ export async function getAvailableSlots(
   const windows = await getStaffDayWindows(staffId, date)
   if (windows.length === 0) return []
 
+  const customDuration = options.serviceDurations?.[0]
+  const durationMinutes =
+    customDuration != null && customDuration > 0
+      ? customDuration
+      : service.durationMinutes
+
   const slots = new Set<string>()
 
   for (const window of windows) {
@@ -360,7 +366,7 @@ export async function getAvailableSlots(
       start < window.endMinutes;
       start += schedule.slotMinutes
     ) {
-      const segments = getOccupiedSegmentsForBooking(service.id, start, service.durationMinutes)
+      const segments = getOccupiedSegmentsForBooking(service.id, start, durationMinutes)
       if (
         !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
       ) {

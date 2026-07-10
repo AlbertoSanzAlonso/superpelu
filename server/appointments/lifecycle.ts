@@ -18,7 +18,6 @@ import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   appointmentOccupiedSlots,
   COLOR_GROUP_ROLE,
-  getBookingSpanMinutes,
   getCustomerFacingDurationMinutes,
   getOccupiedSegmentsForBooking,
   getWashPhaseStartMinutes,
@@ -144,8 +143,11 @@ export async function rescheduleAppointmentByCustomer(
     throw new Error('FECHA_INVALIDA')
   }
 
+  const appointmentDuration = existing.duration_minutes
+
   const slots = await getAvailableSlots(date, serviceId, staffId, {
     excludeAppointmentId: appointmentId,
+    serviceDurations: [appointmentDuration],
   })
   if (!slots.includes(startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
@@ -162,11 +164,11 @@ export async function rescheduleAppointmentByCustomer(
   const startMinutes = timeToMinutes(startTime)
   const bookingSegments =
     existing.color_group_id && isColorGroupColorRow(existing.color_group_role)
-      ? getOccupiedSegmentsForBooking(service.id, startMinutes, service.durationMinutes)
+      ? getOccupiedSegmentsForBooking(service.id, startMinutes, appointmentDuration)
       : [
           {
             startMinutes,
-            durationMinutes: getBookingSpanMinutes(service.id, service.durationMinutes),
+            durationMinutes: appointmentDuration,
           },
         ]
 
@@ -201,12 +203,11 @@ export async function rescheduleAppointmentByCustomer(
           AND color_group_role = ${COLOR_GROUP_ROLE.wash}
       `
     } else {
-      const storedDuration = getBookingSpanMinutes(service.id, service.durationMinutes)
       await tx`
         UPDATE appointments SET
           staff_id = ${staffId},
           staff_name = ${staff.name},
-          duration_minutes = ${storedDuration},
+          duration_minutes = ${appointmentDuration},
           appointment_date = ${date},
           start_time = ${startTime},
           reminder_sent_at = ${reminderSentAt}
