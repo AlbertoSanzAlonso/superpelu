@@ -52,16 +52,16 @@ function ServiceListRow({
   onReactivate: () => void
 }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 sm:flex-row sm:items-center sm:gap-3 sm:px-8 sm:py-2">
-      <div className="min-w-0 flex-1">
-        <p className={`text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
+    <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
+      <div className="min-w-0">
+        <p className={`break-words text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
           {svc.nameEs}
         </p>
         {svc.nameEn && (
-          <p className="mt-0.5 text-xs leading-snug text-charcoal-muted">{svc.nameEn}</p>
+          <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">{svc.nameEn}</p>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
           {svc.durationMinutes} min
         </span>
@@ -102,6 +102,95 @@ function ServiceListRow({
           >
             Reactivar
           </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function CategoryListRow({
+  cat,
+  serviceCount,
+  expanded,
+  onToggle,
+  onEdit,
+  onDeactivate,
+  onReactivate,
+}: {
+  cat: AdminServiceCategory
+  serviceCount: number
+  expanded: boolean
+  onToggle: () => void
+  onEdit: () => void
+  onDeactivate: () => void
+  onReactivate: () => void
+}) {
+  return (
+    <div className="border-b border-gold/10">
+      <button
+        type="button"
+        className="flex w-full cursor-pointer items-start gap-2 px-4 py-3 text-left hover:bg-gold/5"
+        onClick={onToggle}
+        aria-expanded={expanded}
+      >
+        <span
+          className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform"
+          style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+          aria-hidden
+        >
+          ▶
+        </span>
+        <div className="min-w-0 flex-1">
+          <p
+            className={`break-words text-sm font-medium leading-snug ${
+              cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+            }`}
+          >
+            {cat.nameEs}
+          </p>
+          {cat.nameEn && (
+            <p className="mt-0.5 break-words text-xs leading-snug text-charcoal-muted">{cat.nameEn}</p>
+          )}
+          <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
+            {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
+          </p>
+        </div>
+      </button>
+      <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2">
+        {cat.active ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onEdit}
+            >
+              Editar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDeactivate}
+            >
+              Desactivar
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactiva</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onReactivate}
+            >
+              Reactivar
+            </Button>
+          </>
         )}
       </div>
     </div>
@@ -284,26 +373,26 @@ export function AdminServicesPage() {
             ← Agenda
           </Link>
           <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Servicios</h1>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Link to="/personal" className={customersWorkspaceLinkClass}>
-              Personal
-            </Link>
-            <Link to="/horarios" className={customersWorkspaceLinkClass}>
-              Horarios
-            </Link>
-            <Link to="/clientes" className={customersWorkspaceLinkClass}>
-              Clientes
-            </Link>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className={customersWorkspaceButtonClass}
-              onClick={handleLogout}
-            >
-              Salir
-            </Button>
-          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          <Link to="/personal" className={customersWorkspaceLinkClass}>
+            Personal
+          </Link>
+          <Link to="/horarios" className={customersWorkspaceLinkClass}>
+            Horarios
+          </Link>
+          <Link to="/clientes" className={customersWorkspaceLinkClass}>
+            Clientes
+          </Link>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={customersWorkspaceButtonClass}
+            onClick={handleLogout}
+          >
+            Salir
+          </Button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button
@@ -333,81 +422,25 @@ export function AdminServicesPage() {
         </p>
       )}
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         {loading ? (
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
         ) : (
-          <div className="divide-y divide-gold/10">
+          <div className="w-full max-w-full divide-y divide-gold/10">
             {categories.map((cat) => {
               const catServices = servicesForCategory(cat.id)
               const expanded = expandedCategoryId === cat.id
               return (
                 <div key={cat.id}>
-                  <div
-                    className="flex cursor-pointer flex-col gap-2 px-4 py-3 hover:bg-gold/5 sm:flex-row sm:items-center sm:gap-3"
-                    onClick={() => setExpandedCategoryId(expanded ? null : cat.id)}
-                  >
-                    <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
-                      <span
-                        className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform sm:mt-0"
-                        style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
-                      >
-                        ▶
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className={`font-medium text-sm leading-snug ${cat.active ? '' : 'opacity-50 line-through'}`}>
-                          {cat.nameEs}
-                        </p>
-                        {cat.nameEn && (
-                          <p className="mt-0.5 text-xs leading-snug text-charcoal-muted">{cat.nameEn}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div
-                      className="flex flex-wrap items-center gap-2 pl-5 sm:pl-0"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span className="text-xs tabular-nums text-charcoal-muted">
-                        {catServices.length} servicio{catServices.length === 1 ? '' : 's'}
-                      </span>
-                      {cat.active ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs !px-2 !py-0.5"
-                          onClick={() => {
-                            setCategoryModal({ open: true, mode: 'edit', category: cat })
-                          }}
-                        >
-                          Editar
-                        </Button>
-                      ) : (
-                        <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactiva</span>
-                      )}
-                      {cat.active ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-                          onClick={() => handleDeleteCategory(cat.id)}
-                        >
-                          Desactivar
-                        </Button>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs !px-2 !py-0.5"
-                          onClick={() => handleReactivateCategory(cat.id)}
-                        >
-                          Reactivar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  <CategoryListRow
+                    cat={cat}
+                    serviceCount={catServices.length}
+                    expanded={expanded}
+                    onToggle={() => setExpandedCategoryId(expanded ? null : cat.id)}
+                    onEdit={() => setCategoryModal({ open: true, mode: 'edit', category: cat })}
+                    onDeactivate={() => handleDeleteCategory(cat.id)}
+                    onReactivate={() => handleReactivateCategory(cat.id)}
+                  />
 
                   {expanded && (
                     <div className="border-t border-gold/5 bg-cream/30">
@@ -458,14 +491,12 @@ export function AdminServicesPage() {
             })}
 
             {uncategorizedServices.length > 0 && (
-              <div>
-                <div className="flex items-center gap-3 px-4 py-3 bg-gold/5">
-                  <div className="min-w-0 flex-1">
-                    <span className="font-medium text-sm">Sin categoría</span>
-                  </div>
-                  <span className="text-xs tabular-nums text-charcoal-muted">
+              <div className="border-b border-gold/10">
+                <div className="px-4 py-3 bg-gold/5">
+                  <p className="font-medium text-sm text-charcoal">Sin categoría</p>
+                  <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
                     {uncategorizedServices.length} servicio{uncategorizedServices.length === 1 ? '' : 's'}
-                  </span>
+                  </p>
                 </div>
                 {uncategorizedServices.map((svc) => (
                   <ServiceListRow
