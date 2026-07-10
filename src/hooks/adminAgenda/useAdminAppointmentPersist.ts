@@ -131,9 +131,15 @@ export function useAdminAppointmentPersist({
             }
           }
 
+          const staffAssignments =
+            aptDraft.staffAssignments.length === filteredServiceIds.length
+              ? aptDraft.staffAssignments.map((id, i) => id || activeStaffId)
+              : undefined
+
           const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
+              staffAssignments,
               serviceIds: filteredServiceIds,
               serviceStartTimes,
               serviceDurations: aptDraft.serviceDurations,

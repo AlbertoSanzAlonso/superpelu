@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
@@ -123,6 +123,28 @@ export function StaffAppointmentFormFields({
     (index: number) => draft.staffAssignments[index] || defaultStaffId || '',
     [draft.staffAssignments, defaultStaffId],
   )
+
+  useEffect(() => {
+    if (!defaultStaffId || editingId) return
+    const filledIds = draft.serviceIds.filter((id) => id !== '')
+    if (filledIds.length === 0) return
+    const assignments = normalizeStaffAssignments(draft.serviceIds, draft.staffAssignments)
+    let changed = false
+    for (let i = 0; i < draft.serviceIds.length; i++) {
+      if (draft.serviceIds[i] !== '' && !assignments[i]) {
+        assignments[i] = defaultStaffId
+        changed = true
+      }
+    }
+    if (changed) onDraftChange({ staffAssignments: assignments })
+  }, [
+    defaultStaffId,
+    draft.serviceIds,
+    draft.staffAssignments,
+    editingId,
+    normalizeStaffAssignments,
+    onDraftChange,
+  ])
 
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {

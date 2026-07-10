@@ -102,9 +102,10 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const toggleSlot = useCallback(
     (staffId: string, staffName: string, time: string) => {
       if (gridInteractionsLocked) return
+      appointments.selectStaff(staffId)
       selectionState.toggleSlot(staffId, staffName, time)
     },
-    [gridInteractionsLocked, selectionState.toggleSlot],
+    [gridInteractionsLocked, appointments.selectStaff, selectionState.toggleSlot],
   )
 
   const requestBlockSelectedSlots = useCallback(() => {
