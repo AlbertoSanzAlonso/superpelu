@@ -21,6 +21,8 @@ export {
   previewSeriesConflicts,
   updateAdminAppointment,
   fetchAdminMultiSlots,
+  fetchAdminDaySlots,
+  fetchAdminChainContinuation,
   fetchStaffAtSlotAdmin,
   fetchAdminBlockSeries,
   createAdminBlock,

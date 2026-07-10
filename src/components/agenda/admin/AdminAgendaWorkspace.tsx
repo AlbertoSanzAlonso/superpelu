@@ -227,14 +227,11 @@ export function AdminAgendaWorkspace({
         serviceIds={agenda.aptDraft.serviceIds}
         startTime={agenda.aptDraft.startTime}
         currentStaffId={agenda.activeStaffId ?? ''}
-        onClose={() => {
-          agenda.setAptDraft((d) => ({ ...d, startTime: '' }))
-        }}
-        onConfirm={() => {
-          agenda.setAptDraft((d) => d)
-        }}
+        onClose={agenda.dismissSlotsConflict}
+        onConfirm={agenda.confirmSlotsConflict}
         onChangeStaff={(staffId) => {
           agenda.selectStaff(staffId)
+          agenda.setAptDraft((d) => ({ ...d, staffAssignments: [] }))
         }}
       />
 

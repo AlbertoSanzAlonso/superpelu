@@ -3,7 +3,7 @@ import type { Customer, CustomerDetail } from '@/types/customers'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 import type { FullScheduleData, SalonScheduleData, ScheduleTimeRange } from '@/types/schedule'
-import { request, adminHeaders } from './request'
+import { request, adminHeaders, encodeServiceStartOverrides } from './request'
 
 export function verifyAdminToken(adminToken: string) {
   return request<{ ok: true }>('/auth/verify', {
@@ -179,18 +179,81 @@ export function updateAdminAppointment(
   })
 }
 
+function appendServiceDurations(
+  params: URLSearchParams,
+  serviceDurations?: (number | null)[],
+) {
+  if (!serviceDurations?.length) return
+  params.set(
+    'serviceDurations',
+    serviceDurations.map((duration) =>
+      duration != null && duration > 0 ? String(duration) : '',
+    ).join(','),
+  )
+}
+
 export function fetchAdminMultiSlots(
   date: string,
   serviceIds: string[],
   staffId: string,
   adminToken: string,
   excludeAppointmentId?: string,
+  serviceDurations?: (number | null)[],
 ) {
   const params = new URLSearchParams({ date, serviceIds: serviceIds.join(','), staffId })
   if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
+  appendServiceDurations(params, serviceDurations)
   return request<{ slots?: string[]; slotsOverHours?: string[] }>(`/schedule/slots?${params}`, {
     headers: adminHeaders(adminToken),
   }).then((res) => ({ slots: res.slots ?? [], slotsOverHours: res.slotsOverHours ?? [] }))
+}
+
+export function fetchAdminDaySlots(
+  date: string,
+  serviceIds: string[],
+  adminToken: string,
+  excludeAppointmentId?: string,
+  serviceDurations?: (number | null)[],
+) {
+  const params = new URLSearchParams({ date, serviceIds: serviceIds.join(',') })
+  if (excludeAppointmentId) params.set('excludeAppointmentId', excludeAppointmentId)
+  appendServiceDurations(params, serviceDurations)
+  return request<{ slots?: string[] }>(`/schedule/day-slots?${params}`, {
+    headers: adminHeaders(adminToken),
+  }).then((res) => res.slots ?? [])
+}
+
+export function fetchAdminChainContinuation(
+  date: string,
+  serviceIds: string[],
+  startTime: string,
+  staffAssignments: string[],
+  adminToken: string,
+  options: {
+    excludeAppointmentId?: string
+    serviceDurations?: (number | null)[]
+    serviceStartOverrides?: (string | undefined)[]
+  } = {},
+) {
+  const params = new URLSearchParams({
+    date,
+    serviceIds: serviceIds.join(','),
+    startTime,
+    staffAssignments: staffAssignments.join(','),
+  })
+  if (options.excludeAppointmentId) {
+    params.set('excludeAppointmentId', options.excludeAppointmentId)
+  }
+  appendServiceDurations(params, options.serviceDurations)
+  if (options.serviceStartOverrides?.length) {
+    params.set(
+      'serviceStartOverrides',
+      encodeServiceStartOverrides(options.serviceStartOverrides),
+    )
+  }
+  return request<import('@/types/booking').BookingChainContinuation>(`/schedule/chain?${params}`, {
+    headers: adminHeaders(adminToken),
+  })
 }
 
 export function fetchStaffAtSlotAdmin(

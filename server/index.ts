@@ -155,6 +155,16 @@ function parseServiceIds(serviceId?: string | null, serviceIds?: string | null):
   return null
 }
 
+function parseServiceDurationsQuery(raw?: string | null): (number | null)[] | undefined {
+  if (raw == null || raw === '') return undefined
+  return raw.split(',').map((value) => {
+    const trimmed = value.trim()
+    if (!trimmed) return null
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  })
+}
+
 app.onError((err, c) => {
   const path = c.req.path
   if (path.startsWith('/api/')) {
@@ -1030,6 +1040,7 @@ app.get('/api/schedule/slots', async (c) => {
   const serviceIdsRaw = c.req.query('serviceIds')
   const staffId = c.req.query('staffId')
   const exclude = c.req.query('excludeAppointmentId')
+  const serviceDurations = parseServiceDurationsQuery(c.req.query('serviceDurations'))
   if (!date || !staffId) {
     return c.json({ error: 'Faltan date o staffId' }, 400)
   }
@@ -1044,12 +1055,83 @@ app.get('/api/schedule/slots', async (c) => {
   if (ids.length === 0) {
     return c.json({ error: 'Faltan serviceIds' }, 400)
   }
-  const slotOptions = { forStaffPortal: true as const, excludeAppointmentId: exclude }
+  const slotOptions = {
+    forStaffPortal: true as const,
+    excludeAppointmentId: exclude,
+    serviceDurations,
+  }
   const slots = ids.length > 1
     ? await getAvailableSlotsForServices(date, ids, staffId, slotOptions)
     : await getAvailableSlots(date, ids[0], staffId, slotOptions)
   const slotsOverHours = await getOverHoursSlotsForServices(date, ids, staffId, slotOptions)
   return c.json({ slots, slotsOverHours })
+})
+
+app.get('/api/schedule/day-slots', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const date = c.req.query('date')
+  const serviceIdsRaw = c.req.query('serviceIds')
+  const exclude = c.req.query('excludeAppointmentId')
+  const serviceDurations = parseServiceDurationsQuery(c.req.query('serviceDurations'))
+  if (!date || !serviceIdsRaw) {
+    return c.json({ error: 'Faltan date o serviceIds' }, 400)
+  }
+  const ids = serviceIdsRaw.split(',').filter(Boolean)
+  if (ids.length === 0) {
+    return c.json({ error: 'Faltan serviceIds' }, 400)
+  }
+  const slots = await getServiceDaySlotsForServices(date, ids, {
+    forStaffPortal: true,
+    excludeAppointmentId: exclude,
+    serviceDurations,
+  })
+  return c.json({ slots })
+})
+
+app.get('/api/schedule/chain', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const date = c.req.query('date')
+  const serviceIdsRaw = c.req.query('serviceIds')
+  const startTime = c.req.query('startTime')
+  const staffAssignments =
+    c.req.query('staffAssignments')
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? []
+  const exclude = c.req.query('excludeAppointmentId')
+  const serviceDurations = parseServiceDurationsQuery(c.req.query('serviceDurations'))
+  if (!date || !serviceIdsRaw || !startTime) {
+    return c.json({ error: 'Faltan date, serviceIds o startTime' }, 400)
+  }
+  const ids = serviceIdsRaw.split(',').filter(Boolean)
+  if (ids.length < 2) {
+    return c.json({ error: 'Se requieren al menos 2 serviceIds' }, 400)
+  }
+  const serviceStartOverrides = parseServiceStartOverrides(
+    c.req.query('serviceStartOverrides'),
+    ids.length,
+  )
+  try {
+    return c.json(
+      await resolveChainContinuation(
+        date,
+        ids,
+        startTime,
+        staffAssignments,
+        {
+          forStaffPortal: true,
+          excludeAppointmentId: exclude,
+          serviceDurations,
+        },
+        serviceStartOverrides,
+      ),
+    )
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    return c.json({ error: code }, 400)
+  }
 })
 
 app.get('/api/schedule/staff-at-slot', async (c) => {

@@ -22,6 +22,7 @@ type PersistDeps = {
   aptDraft: AppointmentDraft
   editingId: string | null
   editingScheduleBaseline: EditingScheduleBaseline | null
+  forceSchedule?: boolean
   closeAppointmentDetail: () => void
   resetAppointmentForm: () => void
   clearSelection: () => void
@@ -41,6 +42,7 @@ export function useAdminAppointmentPersist({
   aptDraft,
   editingId,
   editingScheduleBaseline,
+  forceSchedule = false,
   closeAppointmentDetail,
   resetAppointmentForm,
   clearSelection,
@@ -67,8 +69,9 @@ export function useAdminAppointmentPersist({
   }
 
   const doPersistAppointment = useCallback(
-    async (notifyCustomerWhatsApp?: boolean, forceSchedule = false): Promise<boolean> => {
+    async (notifyCustomerWhatsApp?: boolean, forceScheduleOverride = false): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
+      const allowForcedSchedule = forceScheduleOverride || forceSchedule
       setError('')
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
@@ -95,7 +98,7 @@ export function useAdminAppointmentPersist({
             notes: aptDraft.notes || undefined,
             customerLocale: aptDraft.customerLocale,
             notifyCustomerWhatsApp,
-            forceSchedule,
+            forceSchedule: allowForcedSchedule,
           })
           markAppointmentSnapshots?.([appointment])
         } else {
@@ -157,7 +160,7 @@ export function useAdminAppointmentPersist({
                 aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
                   ? aptDraft.recurrenceEndDate
                   : undefined,
-              forceSchedule,
+              forceSchedule: allowForcedSchedule,
             },
             adminToken,
           )
@@ -172,7 +175,7 @@ export function useAdminAppointmentPersist({
         return true
       } catch (err) {
         if (
-          !forceSchedule &&
+          !allowForcedSchedule &&
           err instanceof ApiError &&
           /horario no disponible|no está disponible/i.test(err.message)
         ) {
@@ -199,6 +202,7 @@ export function useAdminAppointmentPersist({
       editingId,
       aptDraft,
       date,
+      forceSchedule,
       resetAppointmentForm,
       closeAppointmentDetail,
       clearSelection,
