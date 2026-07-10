@@ -54,11 +54,17 @@ function ServiceListRow({
   return (
     <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
       <div className="min-w-0">
-        <p className={`break-words text-xs leading-snug md:text-sm ${svc.active ? '' : 'opacity-50 line-through'}`}>
+        <p
+          className={`services-item-title break-words text-[11px] leading-tight lg:text-sm ${
+            svc.active ? '' : 'opacity-50 line-through'
+          }`}
+        >
           {svc.nameEs}
         </p>
         {svc.nameEn && (
-          <p className="mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted md:block">{svc.nameEn}</p>
+          <p className="services-item-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
+            {svc.nameEn}
+          </p>
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -129,12 +135,12 @@ function CategoryListRow({
     <div className="border-b border-gold/10">
       <button
         type="button"
-        className="flex w-full cursor-pointer items-start gap-2 px-4 py-3 text-left hover:bg-gold/5"
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left hover:bg-gold/5 lg:items-start lg:px-4 lg:py-3"
         onClick={onToggle}
         aria-expanded={expanded}
       >
         <span
-          className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform"
+          className="shrink-0 text-[10px] text-charcoal-muted transition-transform lg:mt-0.5 lg:text-xs"
           style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
           aria-hidden
         >
@@ -142,21 +148,23 @@ function CategoryListRow({
         </span>
         <div className="min-w-0 flex-1">
           <p
-            className={`break-words text-xs font-medium leading-snug md:text-sm ${
+            className={`services-category-title break-words text-[11px] font-medium leading-tight lg:text-sm ${
               cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
             }`}
           >
             {cat.nameEs}
           </p>
           {cat.nameEn && (
-            <p className="mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted md:block">{cat.nameEn}</p>
+            <p className="services-category-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
+              {cat.nameEn}
+            </p>
           )}
-          <p className="mt-1 hidden text-xs tabular-nums text-charcoal-muted md:block">
+          <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
             {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
           </p>
         </div>
       </button>
-      <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-1.5 border-t border-gold/5 bg-cream/20 px-3 py-1.5 lg:gap-2 lg:px-4 lg:py-2">
         {cat.active ? (
           <>
             <Button
@@ -426,7 +434,7 @@ export function AdminServicesPage() {
         {loading ? (
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
         ) : (
-          <div className="w-full max-w-full divide-y divide-gold/10">
+          <div className="services-admin-list w-full max-w-full divide-y divide-gold/10">
             {categories.map((cat) => {
               const catServices = servicesForCategory(cat.id)
               const expanded = expandedCategoryId === cat.id
@@ -492,9 +500,9 @@ export function AdminServicesPage() {
 
             {uncategorizedServices.length > 0 && (
               <div className="border-b border-gold/10">
-                <div className="px-4 py-3 bg-gold/5">
-                  <p className="text-xs font-medium text-charcoal md:text-sm">Sin categoría</p>
-                  <p className="mt-1 hidden text-xs tabular-nums text-charcoal-muted md:block">
+                <div className="px-3 py-2 bg-gold/5 lg:px-4 lg:py-3">
+                  <p className="services-category-title text-[11px] font-medium text-charcoal lg:text-sm">Sin categoría</p>
+                  <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
                     {uncategorizedServices.length} servicio{uncategorizedServices.length === 1 ? '' : 's'}
                   </p>
                 </div>

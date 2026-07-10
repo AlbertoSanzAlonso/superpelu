@@ -127,6 +127,21 @@
   .agenda-appointment-block--origin {
     transition: opacity 150ms ease;
   }
+
+  /* /servicios — listado compacto en móvil y tablet */
+  @media (max-width: 1023px) {
+    .services-admin-list .services-category-en,
+    .services-admin-list .services-category-count,
+    .services-admin-list .services-item-en {
+      display: none !important;
+    }
+
+    .services-admin-list .services-category-title,
+    .services-admin-list .services-item-title {
+      font-size: 0.6875rem;
+      line-height: 1.3;
+    }
+  }
 }
 
 @keyframes fadeUp {
