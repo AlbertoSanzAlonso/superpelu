@@ -6,6 +6,12 @@ const labelClass = 'block text-xs uppercase tracking-wide text-gold mb-1'
 const fieldClass =
   'w-full border border-gold/30 bg-cream px-3 py-2 font-sans text-sm text-charcoal outline-none transition-colors focus:border-gold'
 
+export type CategoryFormData = {
+  id: string
+  nameEs: string
+  nameEn: string
+}
+
 export function CategoryForm({
   mode,
   initial,
@@ -15,14 +21,13 @@ export function CategoryForm({
 }: {
   mode: 'create' | 'edit'
   initial: AdminServiceCategory | null
-  onSave: (data: { id: string; nameEs: string; nameEn: string; sortOrder: number }) => void
+  onSave: (data: CategoryFormData) => void
   onCancel: () => void
   busy: boolean
 }) {
   const [id, setId] = useState(initial?.id ?? '')
   const [nameEs, setNameEs] = useState(initial?.nameEs ?? '')
   const [nameEn, setNameEn] = useState(initial?.nameEn ?? '')
-  const [sortOrderText, setSortOrderText] = useState(String(initial?.sortOrder ?? 0))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +36,6 @@ export function CategoryForm({
       id: id.trim(),
       nameEs: nameEs.trim(),
       nameEn: nameEn.trim(),
-      sortOrder: Number(sortOrderText) || 0,
     })
   }
 
@@ -69,19 +73,9 @@ export function CategoryForm({
           className={fieldClass}
         />
       </div>
-      <div>
-        <label className={labelClass} htmlFor="cat-order">Orden</label>
-        <input
-          id="cat-order"
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          value={sortOrderText}
-          onChange={(e) => setSortOrderText(e.target.value.replace(/\D/g, ''))}
-          className={fieldClass}
-          autoComplete="off"
-        />
-      </div>
+      <p className="text-xs text-charcoal-muted">
+        El orden de las categorías se ajusta en el listado con las flechas arriba/abajo.
+      </p>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancelar

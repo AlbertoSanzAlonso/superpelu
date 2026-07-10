@@ -19,7 +19,7 @@ import {
 } from '@/lib/api/admin-catalog'
 import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
-import { CategoryForm } from '@/components/admin/CategoryForm'
+import { CategoryForm, type CategoryFormData } from '@/components/admin/CategoryForm'
 import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
@@ -131,6 +131,15 @@ function nextSortOrderForCategory(services: AdminService[], categoryId: string |
   const inCategory = services.filter((service) => service.categoryId === categoryId)
   if (inCategory.length === 0) return 0
   return Math.max(...inCategory.map((service) => service.sortOrder)) + 10
+}
+
+function sortCategoriesForDisplay(list: AdminServiceCategory[]) {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.nameEs.localeCompare(b.nameEs, 'es'))
+}
+
+function nextSortOrderForCategories(categories: AdminServiceCategory[]) {
+  if (categories.length === 0) return 0
+  return Math.max(...categories.map((category) => category.sortOrder)) + 10
 }
 
 function ServiceListRow({
@@ -305,6 +314,10 @@ function CategoryListRow({
   onEdit,
   onDeactivate,
   onReactivate,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: {
   cat: AdminServiceCategory
   serviceCount: number
@@ -314,6 +327,10 @@ function CategoryListRow({
   onEdit: () => void
   onDeactivate: () => void
   onReactivate: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
 }) {
   const nameEs = firstLine(cat.nameEs)
 
@@ -344,6 +361,30 @@ function CategoryListRow({
             </p>
           </button>
           <div className="flex shrink-0 items-center gap-0.5">
+            {cat.active && (onMoveUp || onMoveDown) && (
+              <>
+                <AdminIconButton
+                  label="Subir categoría"
+                  onClick={() => {
+                    if (canMoveUp) onMoveUp?.()
+                  }}
+                >
+                  <span className={canMoveUp ? '' : 'opacity-25'}>
+                    <IconChevronUp />
+                  </span>
+                </AdminIconButton>
+                <AdminIconButton
+                  label="Bajar categoría"
+                  onClick={() => {
+                    if (canMoveDown) onMoveDown?.()
+                  }}
+                >
+                  <span className={canMoveDown ? '' : 'opacity-25'}>
+                    <IconChevronDown />
+                  </span>
+                </AdminIconButton>
+              </>
+            )}
             {cat.active ? (
               <>
                 <AdminIconButton label="Editar categoría" onClick={onEdit}>
@@ -400,6 +441,30 @@ function CategoryListRow({
       <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2">
         {cat.active ? (
           <>
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex items-center gap-0.5">
+                <AdminIconButton
+                  label="Subir categoría"
+                  onClick={() => {
+                    if (canMoveUp) onMoveUp?.()
+                  }}
+                >
+                  <span className={canMoveUp ? '' : 'opacity-25'}>
+                    <IconChevronUp />
+                  </span>
+                </AdminIconButton>
+                <AdminIconButton
+                  label="Bajar categoría"
+                  onClick={() => {
+                    if (canMoveDown) onMoveDown?.()
+                  }}
+                >
+                  <span className={canMoveDown ? '' : 'opacity-25'}>
+                    <IconChevronDown />
+                  </span>
+                </AdminIconButton>
+              </div>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -489,19 +554,53 @@ export function AdminServicesPage() {
     if (authOk) void loadData()
   }, [authOk, loadData])
 
-  const handleSaveCategory = async (data: { id: string; nameEs: string; nameEn: string; sortOrder: number }) => {
+  const handleSaveCategory = async (data: CategoryFormData) => {
     if (!adminToken) return
     setBusy(true)
     try {
+      const current = categoryModal.category
       if (categoryModal.mode === 'create') {
-        await createAdminServiceCategory(adminToken, data)
-      } else if (categoryModal.category) {
-        await updateAdminServiceCategory(adminToken, categoryModal.category.id, data)
+        await createAdminServiceCategory(adminToken, {
+          ...data,
+          sortOrder: nextSortOrderForCategories(categories),
+        })
+      } else if (current) {
+        await updateAdminServiceCategory(adminToken, current.id, {
+          nameEs: data.nameEs,
+          nameEn: data.nameEn,
+        })
       }
       setCategoryModal({ open: false, mode: 'create', category: null })
       await loadData()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al guardar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleMoveCategory = async (categoryId: string, direction: 'up' | 'down') => {
+    if (!adminToken) return
+    const ordered = sortCategoriesForDisplay(categories)
+    const index = ordered.findIndex((category) => category.id === categoryId)
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
+
+    const nextOrder = [...ordered]
+    const [moved] = nextOrder.splice(index, 1)
+    nextOrder.splice(targetIndex, 0, moved)
+
+    setBusy(true)
+    setError('')
+    try {
+      await Promise.all(
+        nextOrder.map((category, orderIndex) =>
+          updateAdminServiceCategory(adminToken, category.id, { sortOrder: orderIndex * 10 }),
+        ),
+      )
+      await loadData()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo reordenar')
     } finally {
       setBusy(false)
     }
@@ -646,6 +745,8 @@ export function AdminServicesPage() {
 
   const uncategorizedServices = sortServicesForDisplay(services.filter((s) => !s.categoryId))
 
+  const sortedCategories = sortCategoriesForDisplay(categories)
+
   return (
     <AgendaWorkspaceShell>
       <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
@@ -708,7 +809,7 @@ export function AdminServicesPage() {
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
         ) : (
           <div className="services-admin-list w-full max-w-full divide-y divide-gold/10">
-            {categories.map((cat) => {
+            {sortedCategories.map((cat, index) => {
               const catServices = servicesForCategory(cat.id)
               const expanded = expandedCategoryId === cat.id
               return (
@@ -718,6 +819,10 @@ export function AdminServicesPage() {
                     serviceCount={catServices.length}
                     compact={compact}
                     expanded={expanded}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < sortedCategories.length - 1}
+                    onMoveUp={() => void handleMoveCategory(cat.id, 'up')}
+                    onMoveDown={() => void handleMoveCategory(cat.id, 'down')}
                     onToggle={() => setExpandedCategoryId(expanded ? null : cat.id)}
                     onEdit={() => setCategoryModal({ open: true, mode: 'edit', category: cat })}
                     onDeactivate={() => handleDeleteCategory(cat.id)}
@@ -804,7 +909,7 @@ export function AdminServicesPage() {
               </div>
             )}
 
-            {categories.length === 0 && services.length === 0 && (
+            {sortedCategories.length === 0 && services.length === 0 && (
               <p className={`${typography.body} p-8 text-center`}>
                 No hay servicios ni categorías. Crea tu primera categoría o servicio.
               </p>
