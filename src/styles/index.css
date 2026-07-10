@@ -132,7 +132,9 @@
   @media (max-width: 1023px) {
     .services-admin-list .services-category-en,
     .services-admin-list .services-category-count,
-    .services-admin-list .services-item-en {
+    .services-admin-list .services-category-actions-text,
+    .services-admin-list .services-item-en,
+    .services-admin-list .services-item-meta {
       display: none !important;
     }
 

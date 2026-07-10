@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
@@ -40,6 +40,72 @@ type ServiceModalState = {
 const tagClass =
   'inline-block rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium'
 
+const adminIconBtnClass =
+  'flex size-6 shrink-0 items-center justify-center border border-gold/25 bg-cream text-charcoal-muted hover:border-gold hover:text-gold'
+
+function firstLine(text: string): string {
+  return text.split('\n')[0]?.trim() || text
+}
+
+function AdminIconButton({
+  label,
+  onClick,
+  variant = 'default',
+  children,
+}: {
+  label: string
+  onClick: () => void
+  variant?: 'default' | 'danger'
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className={`${adminIconBtnClass} ${variant === 'danger' ? 'hover:border-red-300 hover:text-red-600' : ''}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function IconPencil() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.434.263l-3 1a1 1 0 01-1.263-1.263l1-3a1 1 0 01.263-.434l8.5-8.5z" />
+    </svg>
+  )
+}
+
+function IconTrash() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function IconRefresh() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00-1.449-.39A7 7 0 003.062 7.016l-.31-.31H5.185a.75.75 0 000-1.5H1.943a.75.75 0 00-.75.75v4.243a.75.75 0 001.5 0v-2.43l.31.31a5.5 5.5 0 008.862 3.138.75.75 0 001.449-.39z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
 function ServiceListRow({
   svc,
   onEdit,
@@ -51,64 +117,85 @@ function ServiceListRow({
   onDeactivate: () => void
   onReactivate: () => void
 }) {
+  const nameEs = firstLine(svc.nameEs)
+
   return (
-    <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
-      <div className="min-w-0">
+    <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5 lg:px-8 lg:py-3">
+      <div className="flex items-center gap-1.5">
         <p
-          className={`services-item-title break-words text-[11px] leading-tight lg:text-sm ${
+          className={`services-item-title min-w-0 flex-1 truncate text-[11px] leading-tight lg:overflow-visible lg:whitespace-normal lg:text-sm ${
             svc.active ? '' : 'opacity-50 line-through'
           }`}
+          title={nameEs}
         >
-          {svc.nameEs}
+          {nameEs}
         </p>
+        <div className="services-item-actions-icon flex shrink-0 items-center gap-0.5 lg:hidden">
+          {svc.active ? (
+            <>
+              <AdminIconButton label="Editar" onClick={onEdit}>
+                <IconPencil />
+              </AdminIconButton>
+              <AdminIconButton label="Desactivar" variant="danger" onClick={onDeactivate}>
+                <IconTrash />
+              </AdminIconButton>
+            </>
+          ) : (
+            <AdminIconButton label="Reactivar" onClick={onReactivate}>
+              <IconRefresh />
+            </AdminIconButton>
+          )}
+        </div>
+      </div>
+      <div className="services-item-meta hidden lg:block">
         {svc.nameEn && (
-          <p className="services-item-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
-            {svc.nameEn}
+          <p className="services-item-en mt-0.5 break-words text-xs leading-snug text-charcoal-muted">
+            {firstLine(svc.nameEn)}
           </p>
         )}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
-          {svc.durationMinutes} min
-        </span>
-        {svc.bookableOnline && (
-          <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
-        )}
-        {!svc.active && (
-          <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
-        )}
-        {svc.active ? (
-          <>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
+            {svc.durationMinutes} min
+          </span>
+          {svc.bookableOnline && (
+            <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
+          )}
+          {!svc.active && (
+            <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
+          )}
+          {svc.active ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs !px-2 !py-0.5"
+                onClick={onEdit}
+              >
+                Editar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+                onClick={onDeactivate}
+              >
+                Desactivar
+              </Button>
+            </>
+          ) : (
             <Button
               type="button"
               variant="ghost"
               size="sm"
               className="text-xs !px-2 !py-0.5"
-              onClick={onEdit}
+              onClick={onReactivate}
             >
-              Editar
+              Reactivar
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-              onClick={onDeactivate}
-            >
-              Desactivar
-            </Button>
-          </>
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-xs !px-2 !py-0.5"
-            onClick={onReactivate}
-          >
-            Reactivar
-          </Button>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
@@ -131,40 +218,61 @@ function CategoryListRow({
   onDeactivate: () => void
   onReactivate: () => void
 }) {
+  const nameEs = firstLine(cat.nameEs)
+
   return (
     <div className="border-b border-gold/10">
-      <button
-        type="button"
-        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left hover:bg-gold/5 lg:items-start lg:px-4 lg:py-3"
-        onClick={onToggle}
-        aria-expanded={expanded}
-      >
-        <span
-          className="shrink-0 text-[10px] text-charcoal-muted transition-transform lg:mt-0.5 lg:text-xs"
-          style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
-          aria-hidden
+      <div className="flex items-center gap-1 px-3 py-2 lg:px-0 lg:py-0">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left hover:bg-gold/5 lg:w-full lg:items-start lg:px-4 lg:py-3"
+          onClick={onToggle}
+          aria-expanded={expanded}
         >
-          ▶
-        </span>
-        <div className="min-w-0 flex-1">
-          <p
-            className={`services-category-title break-words text-[11px] font-medium leading-tight lg:text-sm ${
-              cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
-            }`}
+          <span
+            className="shrink-0 text-[10px] text-charcoal-muted transition-transform lg:mt-0.5 lg:text-xs"
+            style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+            aria-hidden
           >
-            {cat.nameEs}
-          </p>
-          {cat.nameEn && (
-            <p className="services-category-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
-              {cat.nameEn}
+            ▶
+          </span>
+          <div className="min-w-0 flex-1">
+            <p
+              className={`services-category-title truncate text-[11px] font-medium leading-tight lg:overflow-visible lg:whitespace-normal lg:text-sm ${
+                cat.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+              }`}
+              title={nameEs}
+            >
+              {nameEs}
             </p>
+            {cat.nameEn && (
+              <p className="services-category-en mt-0.5 hidden break-words text-xs leading-snug text-charcoal-muted lg:block">
+                {firstLine(cat.nameEn)}
+              </p>
+            )}
+            <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
+              {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
+            </p>
+          </div>
+        </button>
+        <div className="services-category-actions-icon flex shrink-0 items-center gap-0.5 lg:hidden">
+          {cat.active ? (
+            <>
+              <AdminIconButton label="Editar categoría" onClick={onEdit}>
+                <IconPencil />
+              </AdminIconButton>
+              <AdminIconButton label="Desactivar categoría" variant="danger" onClick={onDeactivate}>
+                <IconTrash />
+              </AdminIconButton>
+            </>
+          ) : (
+            <AdminIconButton label="Reactivar categoría" onClick={onReactivate}>
+              <IconRefresh />
+            </AdminIconButton>
           )}
-          <p className="services-category-count mt-1 hidden text-xs tabular-nums text-charcoal-muted lg:block">
-            {serviceCount} servicio{serviceCount === 1 ? '' : 's'}
-          </p>
         </div>
-      </button>
-      <div className="flex flex-wrap items-center gap-1.5 border-t border-gold/5 bg-cream/20 px-3 py-1.5 lg:gap-2 lg:px-4 lg:py-2">
+      </div>
+      <div className="services-category-actions-text hidden flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2 lg:flex">
         {cat.active ? (
           <>
             <Button
