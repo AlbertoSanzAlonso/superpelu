@@ -322,6 +322,7 @@ async function replaceAppointment(
     notes: input.notes !== undefined ? (input.notes ?? undefined) : undefined,
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
     forStaffPortal: true,
+    forceSchedule: input.forceSchedule,
     excludeAppointmentId: existing.id,
   })
 

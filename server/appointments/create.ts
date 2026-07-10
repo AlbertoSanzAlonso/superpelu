@@ -288,7 +288,11 @@ export async function createAppointment(
       input.date,
       serviceIds,
       input.staffId,
-      { forStaffPortal: input.forStaffPortal },
+      {
+        forStaffPortal: input.forStaffPortal,
+        excludeAppointmentId: input.excludeAppointmentId,
+        serviceDurations: input.serviceDurations,
+      },
     )
     if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
   }
@@ -351,7 +355,13 @@ export async function createAppointment(
   const primaryId = await sql.begin(async (tx) => {
     await lockStaffDayForBooking(tx, staff.id, input.date)
     if (!input.forceSchedule) {
-      await assertBookingAvailable(tx, staff.id, input.date, bookingSegments)
+      await assertBookingAvailable(
+        tx,
+        staff.id,
+        input.date,
+        bookingSegments,
+        input.excludeAppointmentId,
+      )
     }
 
     if (colorGroup) {
