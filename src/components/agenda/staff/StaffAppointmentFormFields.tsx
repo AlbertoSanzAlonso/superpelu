@@ -257,10 +257,10 @@ export function StaffAppointmentFormFields({
       const customDuration = draft.serviceDurations[i]
       return {
         id: svc.id,
-        category: svc.categoryId ?? '',
+        categoryId: svc.categoryId ?? '',
         durationMinutes: customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
       }
-    }).filter(Boolean) as { id: string; category: string; durationMinutes: number }[]
+    }).filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
     if (selectedServices.length === 0) return []
     return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, draft.serviceStartTimes)
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])

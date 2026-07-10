@@ -27,7 +27,7 @@ function resolveServiceLines(
     const catalog = services.find((service) => service.id === id)
     return {
       id,
-      category: catalog?.categoryId ?? '',
+      categoryId: catalog?.categoryId ?? '',
       durationMinutes:
         customDuration != null && customDuration > 0
           ? customDuration

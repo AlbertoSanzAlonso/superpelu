@@ -1,5 +1,5 @@
 import { GOOGLE_REVIEW_WRITE_URL } from '@/data/googleReview'
-import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
+import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { formatDisplayDate } from '@/lib/core/dates'
 import type { AppointmentRow } from '@server/pg/types'
 import type { Locale } from './types'
@@ -31,7 +31,6 @@ function resolveGroupRows(
 function appendServiceLines(
   lines: string[],
   rows: AppointmentRow[],
-  locale: Locale,
   wa: ReturnType<typeof getTranslation>['whatsappAppointment'],
 ): void {
   if (rows.length <= 1) {
@@ -43,14 +42,7 @@ function appendServiceLines(
 
   lines.push(`💇 ${wa.treatmentsHeading}`)
   for (const apt of rows) {
-    const timeRange = formatAppointmentTimeRange(
-      apt.service_id,
-      apt.start_time,
-      apt.duration_minutes,
-      locale,
-      { rangeSeparator: 'word', colorGroupRole: apt.color_group_role },
-    )
-    lines.push(`   • ${apt.service_name} (${timeRange})`)
+    lines.push(`   • ${apt.service_name}`)
   }
 
   const staffNames = [...new Set(rows.map((apt) => apt.staff_name).filter(Boolean))]
@@ -94,19 +86,6 @@ export function buildWhatsAppAppointmentMessage(
 
   const dateLabel = formatDisplayDate(row.appointment_date, locale)
   const visitStart = groupRows[0]?.start_time ?? row.start_time
-  const visitEndRow = groupRows[groupRows.length - 1] ?? row
-  const visitEndRange = formatAppointmentTimeRange(
-    visitEndRow.service_id,
-    visitEndRow.start_time,
-    visitEndRow.duration_minutes,
-    locale,
-    { rangeSeparator: 'word', colorGroupRole: visitEndRow.color_group_role },
-  )
-  const visitEndTime = visitEndRange.includes(' a ')
-    ? visitEndRange.split(' a ').pop()!
-    : visitEndRange.includes(' to ')
-      ? visitEndRange.split(' to ').pop()!
-      : visitEndRange
 
   const lines = [
     wa.greeting(firstName),
@@ -114,18 +93,10 @@ export function buildWhatsAppAppointmentMessage(
     heading,
     '',
     `📅 ${dateLabel}`,
-    groupRows.length > 1
-      ? `🕐 ${visitStart} a ${visitEndTime}`
-      : `🕐 ${formatAppointmentTimeRange(
-          row.service_id,
-          row.start_time,
-          row.duration_minutes,
-          locale,
-          { rangeSeparator: 'word', colorGroupRole: row.color_group_role },
-        )}`,
+    `🕐 ${visitStart}`,
   ]
 
-  appendServiceLines(lines, groupRows, locale, wa)
+  appendServiceLines(lines, groupRows, wa)
 
   if (kind === 'cancelled' || kind === 'no_show') {
     const rebookLabel = kind === 'no_show' ? wa.noShowRebookLabel : wa.bookAgainLabel

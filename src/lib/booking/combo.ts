@@ -3,12 +3,7 @@ import {
   getOccupiedSegmentsForChainService,
   type BookingServiceWithCategory,
 } from '@/lib/booking/colorCombo'
-import {
-  COLOR_SPLIT_SEGMENT_MINUTES,
-  getBookingSpanMinutes,
-  getOccupiedSegmentsForBooking,
-  type OccupiedSegment,
-} from '@/lib/booking/occupancy'
+import { getWashPhaseStartMinutes, type OccupiedSegment } from '@/lib/booking/occupancy'
 
 export type { BookingServiceLine } from '@/lib/booking/colorCombo'
 
@@ -18,31 +13,11 @@ export function getChainedBookingSegments(
   startMinutes: number,
   overrides: ReadonlyArray<number | undefined> = [],
 ): OccupiedSegment[] {
-  const replacementIndex = getColorWashReplacementIndex(services)
-
-  if (replacementIndex != null) {
-    const startTimes = buildChainStartMinutes(services, startMinutes, overrides)
-    const all: OccupiedSegment[] = []
-    for (let i = 0; i < services.length; i++) {
-      all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i]))
-    }
-    return all
-  }
-
-  let cursor = startMinutes
+  const startTimes = buildChainStartMinutes(services, startMinutes, overrides)
   const all: OccupiedSegment[] = []
-
-  for (const service of services) {
-    const segments = getOccupiedSegmentsForBooking(
-      service.id,
-      cursor,
-      service.durationMinutes,
-      { bookingPattern: service.bookingPattern },
-    )
-    all.push(...segments)
-    cursor = Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
+  for (let i = 0; i < services.length; i++) {
+    all.push(...getOccupiedSegmentsForChainService(services, i, startTimes[i]))
   }
-
   return all
 }
 
@@ -75,6 +50,15 @@ export function getChainedServiceStartTimes(
  * Horas de inicio por tratamiento: encadenado desde `visitStartTime`, con aplazamientos
  * puntuales en `overrides[i]` (el resto sigue en cadena desde el anterior).
  */
+function endMinutesAfterChainService(
+  services: readonly BookingServiceWithCategory[],
+  serviceIndex: number,
+  startMinutes: number,
+): number {
+  const segments = getOccupiedSegmentsForChainService(services, serviceIndex, startMinutes)
+  return Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
+}
+
 function buildChainStartMinutes(
   services: readonly BookingServiceWithCategory[],
   visitStartMinutes: number,
@@ -82,40 +66,23 @@ function buildChainStartMinutes(
 ): number[] {
   const replacementIndex = getColorWashReplacementIndex(services)
   const starts: number[] = []
-  let cursor = visitStartMinutes
 
   for (let i = 0; i < services.length; i++) {
-    const override = overrides[i]
-    if (override !== undefined) {
-      cursor = override
-    }
+    let start: number
 
-    if (replacementIndex != null && i === replacementIndex && override === undefined) {
-      // Si el siguiente servicio reemplaza el lavado y no hay override manual,
-      // empieza justo al terminar el tramo de color (30 min).
-      cursor = starts[replacementIndex - 1]! + COLOR_SPLIT_SEGMENT_MINUTES
-    }
-
-    starts.push(cursor)
-
-    if (replacementIndex != null) {
-      const colorIndex = replacementIndex - 1
-      if (i < colorIndex) {
-        cursor += services[i].durationMinutes
-      } else if (i === colorIndex) {
-        // El servicio que reemplaza el lavado arranca justo al terminar el tramo de color.
-      } else if (i === replacementIndex) {
-        cursor += services[i].durationMinutes
-      } else if (i > replacementIndex) {
-        cursor += services[i].durationMinutes
-      }
+    if (overrides[i] !== undefined) {
+      start = overrides[i]!
+    } else if (i === 0) {
+      start = visitStartMinutes
+    } else if (replacementIndex != null && i === replacementIndex) {
+      // Sustituye el aclarado: misma hora en que iría el lavado (30 min aplicación + 30 min pausa).
+      start = getWashPhaseStartMinutes(starts[replacementIndex - 1]!)
     } else {
-      cursor += getBookingSpanMinutes(
-        services[i].id,
-        services[i].durationMinutes,
-        services[i].bookingPattern,
-      )
+      // Encadenar justo al terminar el tratamiento anterior (sin saltar a huecos libres del día).
+      start = endMinutesAfterChainService(services, i - 1, starts[i - 1]!)
     }
+
+    starts.push(start)
   }
 
   return starts

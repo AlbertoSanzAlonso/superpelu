@@ -33,7 +33,7 @@ export function findColorServiceIndex(services: readonly { id: string }[]): numb
 
 /**
  * Si hay coloración y el tratamiento inmediatamente posterior es de peluquería (no estética),
- * ese servicio ocupa el slot de lavado/aclarado en lugar de encadenarse tras los 90 min.
+ * ese servicio sustituye el aclarado y empieza a la misma hora que iría el lavado.
  */
 export function getColorWashReplacementIndex(
   services: readonly BookingServiceWithCategory[],
