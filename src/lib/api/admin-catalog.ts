@@ -32,7 +32,6 @@ export function fetchAdminServices(adminToken: string) {
 export function createAdminService(
   adminToken: string,
   data: {
-    id: string
     nameEs: string
     nameEn: string
     durationMinutes: number

@@ -52,6 +52,8 @@ type Props = {
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
   onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
+  activeStaffId?: string | null
+  onSelectStaff: (staffId: string, staffName: string) => void
 }
 
 function StaffInitial({ name }: { name: string }) {
@@ -223,22 +225,40 @@ function BlockEvent({
 
 const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 
-function StaffColumnHeader({ schedule }: { schedule: StaffDaySchedule }) {
+function StaffColumnHeader({
+  schedule,
+  selected,
+  onSelectStaff,
+}: {
+  schedule: StaffDaySchedule
+  selected: boolean
+  onSelectStaff: (staffId: string, staffName: string) => void
+}) {
   return (
     <div
-      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3 backdrop-blur-none`}
+      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 px-3 backdrop-blur-none ${
+        selected ? 'bg-gold/15' : 'bg-cream'
+      }`}
     >
       <StaffInitial name={schedule.staffName} />
-      {schedule.working && schedule.windows.length > 0 ? (
-        <div className="min-w-0">
-          <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
-          <p className="text-[10px] tabular-nums text-charcoal-muted">
-            {formatWorkWindowsLabel(schedule.windows)}
-          </p>
-        </div>
-      ) : (
-        <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
-      )}
+      <button
+        type="button"
+        onClick={() => onSelectStaff(schedule.staffId, schedule.staffName)}
+        className="min-w-0 cursor-pointer text-left transition-colors hover:text-gold"
+        aria-label={`Seleccionar ${schedule.staffName}`}
+        aria-pressed={selected}
+      >
+        {schedule.working && schedule.windows.length > 0 ? (
+          <div className="min-w-0">
+            <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
+            <p className="text-[10px] tabular-nums text-charcoal-muted">
+              {formatWorkWindowsLabel(schedule.windows)}
+            </p>
+          </div>
+        ) : (
+          <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
+        )}
+      </button>
     </div>
   )
 }
@@ -259,6 +279,8 @@ function StaffColumn({
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
+  activeStaffId,
+  onSelectStaff,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -275,6 +297,8 @@ function StaffColumn({
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
+  activeStaffId: string | null
+  onSelectStaff: (staffId: string, staffName: string) => void
 }) {
   const { activeDrag, isDragSessionActive } = useAppointmentDrag()
   const isDropTarget = activeDrag?.targetStaffId === schedule.staffId
@@ -311,7 +335,11 @@ function StaffColumn({
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
-      <StaffColumnHeader schedule={schedule} />
+      <StaffColumnHeader
+        schedule={schedule}
+        selected={activeStaffId === schedule.staffId}
+        onSelectStaff={onSelectStaff}
+      />
 
       <div className="relative" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} windows={columnWindows} />
@@ -399,6 +427,8 @@ export function AdminSalonDayCalendar({
   onEditAppointment,
   onOpenBlock,
   onProposeAppointmentMove,
+  activeStaffId = null,
+  onSelectStaff,
 }: Props) {
   const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
   const gutterWindows = useMemo(
@@ -481,6 +511,8 @@ export function AdminSalonDayCalendar({
                 onToggleSlot={onToggleSlot}
                 onEditAppointment={onEditAppointment}
                 onOpenBlock={onOpenBlock}
+                activeStaffId={activeStaffId}
+                onSelectStaff={onSelectStaff}
               />
             ))}
           </div>

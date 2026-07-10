@@ -19,7 +19,7 @@ import {
 import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { CategoryForm } from '@/components/admin/CategoryForm'
-import { ServiceForm } from '@/components/admin/ServiceForm'
+import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type ModalMode = 'create' | 'edit'
@@ -39,6 +39,74 @@ type ServiceModalState = {
 
 const tagClass =
   'inline-block rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium'
+
+function ServiceListRow({
+  svc,
+  onEdit,
+  onDeactivate,
+  onReactivate,
+}: {
+  svc: AdminService
+  onEdit: () => void
+  onDeactivate: () => void
+  onReactivate: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 sm:flex-row sm:items-center sm:gap-3 sm:px-8 sm:py-2">
+      <div className="min-w-0 flex-1">
+        <p className={`text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
+          {svc.nameEs}
+        </p>
+        {svc.nameEn && (
+          <p className="mt-0.5 text-xs leading-snug text-charcoal-muted">{svc.nameEn}</p>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="shrink-0 text-xs tabular-nums text-charcoal-muted">
+          {svc.durationMinutes} min
+        </span>
+        {svc.bookableOnline && (
+          <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
+        )}
+        {!svc.active && (
+          <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
+        )}
+        {svc.active ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onEdit}
+            >
+              Editar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDeactivate}
+            >
+              Desactivar
+            </Button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-xs !px-2 !py-0.5"
+            onClick={onReactivate}
+          >
+            Reactivar
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export function AdminServicesPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
@@ -141,15 +209,7 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleSaveService = async (data: {
-    id: string
-    nameEs: string
-    nameEn: string
-    durationMinutes: number
-    categoryId: string | null
-    bookableOnline: boolean
-    sortOrder: number
-  }) => {
+  const handleSaveService = async (data: ServiceFormData) => {
     if (!adminToken) return
     setBusy(true)
     try {
@@ -245,7 +305,7 @@ export function AdminServicesPage() {
             </Button>
           </div>
         </div>
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="solid"
@@ -284,24 +344,32 @@ export function AdminServicesPage() {
               return (
                 <div key={cat.id}>
                   <div
-                    className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-gold/5"
+                    className="flex cursor-pointer flex-col gap-2 px-4 py-3 hover:bg-gold/5 sm:flex-row sm:items-center sm:gap-3"
                     onClick={() => setExpandedCategoryId(expanded ? null : cat.id)}
                   >
-                    <span className="text-xs text-charcoal-muted transition-transform" style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}>
-                      ▶
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <span className={`font-medium text-sm ${cat.active ? '' : 'opacity-50 line-through'}`}>
-                        {cat.nameEs}
+                    <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
+                      <span
+                        className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform sm:mt-0"
+                        style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
+                      >
+                        ▶
                       </span>
-                      {cat.nameEn && (
-                        <span className="ml-2 text-xs text-charcoal-muted">{cat.nameEn}</span>
-                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className={`font-medium text-sm leading-snug ${cat.active ? '' : 'opacity-50 line-through'}`}>
+                          {cat.nameEs}
+                        </p>
+                        {cat.nameEn && (
+                          <p className="mt-0.5 text-xs leading-snug text-charcoal-muted">{cat.nameEn}</p>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-xs tabular-nums text-charcoal-muted">
-                      {catServices.length} servicio{catServices.length === 1 ? '' : 's'}
-                    </span>
-                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div
+                      className="flex flex-wrap items-center gap-2 pl-5 sm:pl-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="text-xs tabular-nums text-charcoal-muted">
+                        {catServices.length} servicio{catServices.length === 1 ? '' : 's'}
+                      </span>
                       {cat.active ? (
                         <Button
                           type="button"
@@ -317,108 +385,55 @@ export function AdminServicesPage() {
                       ) : (
                         <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactiva</span>
                       )}
-                      <div className="flex gap-1">
-                        {cat.active ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-                            onClick={() => handleDeleteCategory(cat.id)}
-                          >
-                            Desactivar
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-xs !px-2 !py-0.5"
-                            onClick={() => handleReactivateCategory(cat.id)}
-                          >
-                            Reactivar
-                          </Button>
-                        )}
-                      </div>
+                      {cat.active ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+                          onClick={() => handleDeleteCategory(cat.id)}
+                        >
+                          Desactivar
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="text-xs !px-2 !py-0.5"
+                          onClick={() => handleReactivateCategory(cat.id)}
+                        >
+                          Reactivar
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   {expanded && (
                     <div className="border-t border-gold/5 bg-cream/30">
                       {catServices.length === 0 ? (
-                        <p className="px-8 py-3 text-xs text-charcoal-muted">
+                        <p className="px-4 py-3 text-xs text-charcoal-muted sm:px-8">
                           No hay servicios en esta categoría.
                         </p>
                       ) : (
                         catServices.map((svc) => (
-                          <div
+                          <ServiceListRow
                             key={svc.id}
-                            className="flex items-center gap-3 px-8 py-2 hover:bg-gold/5"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <span className={`text-sm ${svc.active ? '' : 'opacity-50 line-through'}`}>
-                                {svc.nameEs}
-                              </span>
-                              {svc.nameEn && (
-                                <span className="ml-2 text-xs text-charcoal-muted">{svc.nameEn}</span>
-                              )}
-                            </div>
-                            <span className="text-xs tabular-nums text-charcoal-muted">
-                              {svc.durationMinutes} min
-                            </span>
-                            {svc.bookableOnline && (
-                              <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
-                            )}
-                            {!svc.active && (
-                              <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
-                            )}
-                            <div className="flex items-center gap-1.5">
-                              {svc.active ? (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-xs !px-2 !py-0.5"
-                                  onClick={() =>
-                                    setServiceModal({
-                                      open: true,
-                                      mode: 'edit',
-                                      service: svc,
-                                      categoryId: svc.categoryId ?? '',
-                                    })
-                                  }
-                                >
-                                  Editar
-                                </Button>
-                              ) : null}
-                              <div className="flex gap-1">
-                                {svc.active ? (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
-                                    onClick={() => handleDeleteService(svc.id)}
-                                  >
-                                    Desactivar
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-xs !px-2 !py-0.5"
-                                    onClick={() => handleReactivateService(svc.id)}
-                                  >
-                                    Reactivar
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+                            svc={svc}
+                            onEdit={() =>
+                              setServiceModal({
+                                open: true,
+                                mode: 'edit',
+                                service: svc,
+                                categoryId: svc.categoryId ?? '',
+                              })
+                            }
+                            onDeactivate={() => handleDeleteService(svc.id)}
+                            onReactivate={() => handleReactivateService(svc.id)}
+                          />
                         ))
                       )}
-                      <div className="px-8 py-2">
+                      <div className="px-4 py-2 sm:px-8">
                         <Button
                           type="button"
                           variant="ghost"
@@ -453,35 +468,15 @@ export function AdminServicesPage() {
                   </span>
                 </div>
                 {uncategorizedServices.map((svc) => (
-                  <div key={svc.id} className="flex items-center gap-3 px-8 py-2 hover:bg-gold/5">
-                    <div className="min-w-0 flex-1">
-                      <span className={`text-sm ${svc.active ? '' : 'opacity-50 line-through'}`}>
-                        {svc.nameEs}
-                      </span>
-                    </div>
-                    <span className="text-xs tabular-nums text-charcoal-muted">{svc.durationMinutes} min</span>
-                    {!svc.active && <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>}
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs !px-2 !py-0.5"
-                        onClick={() => setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })}
-                      >
-                        Editar
-                      </Button>
-                      {svc.active ? (
-                        <Button type="button" variant="ghost" size="sm" className="text-xs !px-2 !py-0.5 text-red-600" onClick={() => handleDeleteService(svc.id)}>
-                          Desactivar
-                        </Button>
-                      ) : (
-                        <Button type="button" variant="ghost" size="sm" className="text-xs !px-2 !py-0.5" onClick={() => handleReactivateService(svc.id)}>
-                          Reactivar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
+                  <ServiceListRow
+                    key={svc.id}
+                    svc={svc}
+                    onEdit={() =>
+                      setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })
+                    }
+                    onDeactivate={() => handleDeleteService(svc.id)}
+                    onReactivate={() => handleReactivateService(svc.id)}
+                  />
                 ))}
               </div>
             )}

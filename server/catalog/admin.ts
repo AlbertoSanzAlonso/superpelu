@@ -1,5 +1,43 @@
 import { sql, type ServiceRow, type ServiceCategoryRow } from '@server/db.js'
 
+function slugifyServiceName(nameEs: string): string {
+  const base = nameEs
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+  return base || 'servicio'
+}
+
+async function generateUniqueServiceId(nameEs: string): Promise<string> {
+  const slug = slugifyServiceName(nameEs)
+  let candidate = `svc-${slug}`
+  let suffix = 2
+  while (true) {
+    const rows = await sql<{ id: string }[]>`
+      SELECT id FROM services WHERE id = ${candidate} LIMIT 1
+    `
+    if (rows.length === 0) return candidate
+    candidate = `svc-${slug}-${suffix}`
+    suffix += 1
+  }
+}
+
+async function linkServiceToActiveStaff(serviceId: string): Promise<void> {
+  const staffRows = await sql<{ id: string }[]>`
+    SELECT id FROM staff WHERE active = TRUE
+  `
+  for (const { id: staffId } of staffRows) {
+    await sql`
+      INSERT INTO staff_services (staff_id, service_id)
+      VALUES (${staffId}, ${serviceId})
+      ON CONFLICT DO NOTHING
+    `
+  }
+}
+
 export type AdminService = {
   id: string
   nameEs: string
@@ -44,7 +82,7 @@ export async function listAdminServices(): Promise<AdminService[]> {
 }
 
 export async function createService(data: {
-  id: string
+  id?: string
   nameEs: string
   nameEn: string
   durationMinutes: number
@@ -52,12 +90,14 @@ export async function createService(data: {
   bookableOnline: boolean
   sortOrder: number
 }): Promise<AdminService> {
+  const id = data.id?.trim() || (await generateUniqueServiceId(data.nameEs))
   const now = new Date().toISOString()
   const row = await sql<AdminService[]>`
     INSERT INTO services (id, name, name_en, duration_minutes, category_id, bookable_online, active, sort_order, created_at, updated_at)
-    VALUES (${data.id}, ${data.nameEs}, ${data.nameEn}, ${data.durationMinutes}, ${data.categoryId}, ${data.bookableOnline}, TRUE, ${data.sortOrder}, ${now}, ${now})
+    VALUES (${id}, ${data.nameEs}, ${data.nameEn}, ${data.durationMinutes}, ${data.categoryId}, ${data.bookableOnline}, TRUE, ${data.sortOrder}, ${now}, ${now})
     RETURNING id, name AS "nameEs", name_en AS "nameEn", duration_minutes AS "durationMinutes", category_id AS "categoryId", bookable_online AS "bookableOnline", active, sort_order AS "sortOrder"
   `
+  await linkServiceToActiveStaff(id)
   return { ...row[0], categoryNameEs: null }
 }
 

@@ -49,6 +49,8 @@ type Props = {
   serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   /** Lista de profesionales disponibles para el selector por tratamiento. */
   staffList?: { id: string; name: string }[]
+  /** Profesional activo en agenda al abrir el formulario. */
+  defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -71,6 +73,7 @@ export function StaffAppointmentFormFields({
   serviceSlots,
   serviceAlternativeStaff,
   staffList,
+  defaultStaffId,
   onDraftChange,
   onSubmit,
   onClose,
@@ -116,6 +119,11 @@ export function StaffAppointmentFormFields({
     [draft.serviceIds, draft.staffAssignments, onDraftChange, normalizeStaffAssignments],
   )
 
+  const staffIdForIndex = useCallback(
+    (index: number) => draft.staffAssignments[index] || defaultStaffId || '',
+    [draft.staffAssignments, defaultStaffId],
+  )
+
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
       const next = [...serviceIds]
@@ -141,9 +149,12 @@ export function StaffAppointmentFormFields({
       }
       const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
       const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments)
+      if (id && !newAssignments[index] && defaultStaffId) {
+        newAssignments[index] = defaultStaffId
+      }
       onDraftChange({ serviceIds: next, serviceDurations: newDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, services, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, defaultStaffId, services, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
   )
 
   const setServiceStartTime = useCallback(
@@ -294,11 +305,10 @@ export function StaffAppointmentFormFields({
                       Especialista
                     </label>
                     <select
-                      value={draft.staffAssignments[index] ?? ''}
+                      value={staffIdForIndex(index)}
                       onChange={(e) => setStaffAtIndex(index, e.target.value)}
                       className={selectCn}
                     >
-                      <option value="">— Predeterminado —</option>
                       {staffList.map((s) => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}

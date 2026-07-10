@@ -16,6 +16,8 @@ type Props = {
   serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   /** Lista de profesionales para el selector por tratamiento. */
   staffList?: { id: string; name: string }[]
+  /** Profesional por defecto al crear cita (p. ej. columna o selector de agenda). */
+  defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onSubmit: (e: React.FormEvent) => void
   onClose: () => void
@@ -38,6 +40,7 @@ export function StaffAppointmentFormModal({
   serviceSlots,
   serviceAlternativeStaff,
   staffList,
+  defaultStaffId,
   onDraftChange,
   onSubmit,
   onClose,
@@ -100,6 +103,7 @@ export function StaffAppointmentFormModal({
             serviceSlots={serviceSlots}
             serviceAlternativeStaff={serviceAlternativeStaff}
             staffList={staffList}
+            defaultStaffId={defaultStaffId}
             onDraftChange={onDraftChange}
             onSubmit={onSubmit}
             onClose={onClose}

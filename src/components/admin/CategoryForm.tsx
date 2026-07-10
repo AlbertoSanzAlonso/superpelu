@@ -22,12 +22,17 @@ export function CategoryForm({
   const [id, setId] = useState(initial?.id ?? '')
   const [nameEs, setNameEs] = useState(initial?.nameEs ?? '')
   const [nameEn, setNameEn] = useState(initial?.nameEn ?? '')
-  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0)
+  const [sortOrderText, setSortOrderText] = useState(String(initial?.sortOrder ?? 0))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!nameEs.trim() || (mode === 'create' && !id.trim())) return
-    onSave({ id: id.trim(), nameEs: nameEs.trim(), nameEn: nameEn.trim(), sortOrder })
+    onSave({
+      id: id.trim(),
+      nameEs: nameEs.trim(),
+      nameEn: nameEn.trim(),
+      sortOrder: Number(sortOrderText) || 0,
+    })
   }
 
   return (
@@ -68,10 +73,13 @@ export function CategoryForm({
         <label className={labelClass} htmlFor="cat-order">Orden</label>
         <input
           id="cat-order"
-          type="number"
-          value={sortOrder}
-          onChange={(e) => setSortOrder(Number(e.target.value))}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={sortOrderText}
+          onChange={(e) => setSortOrderText(e.target.value.replace(/\D/g, ''))}
           className={fieldClass}
+          autoComplete="off"
         />
       </div>
       <div className="flex justify-end gap-2">

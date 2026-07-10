@@ -105,6 +105,8 @@ export function AdminAgendaWorkspace({
                 onEditAppointment={agenda.openAppointmentDetail}
                 onOpenBlock={agenda.openBlockDetail}
                 onProposeAppointmentMove={agenda.proposeAppointmentMove}
+                activeStaffId={agenda.activeStaffId}
+                onSelectStaff={agenda.selectStaff}
               />
             </div>
           </>
@@ -210,6 +212,7 @@ export function AdminAgendaWorkspace({
           serviceSlots={agenda.serviceSlotsPerIndex}
           serviceAlternativeStaff={agenda.serviceAlternativeStaff}
           staffList={agenda.schedules.map((s) => ({ id: s.staffId, name: s.staffName }))}
+          defaultStaffId={agenda.activeStaffId ?? undefined}
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}

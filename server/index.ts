@@ -304,7 +304,7 @@ app.delete('/api/admin/schedule/salon/special', async (c) => {
 // ── Servicios CRUD (admin) ─────────────────────────────────────────────
 
 type CreateServiceBody = {
-  id: string
+  id?: string
   nameEs: string
   nameEn: string
   durationMinutes: number
@@ -353,8 +353,8 @@ app.post('/api/admin/services', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const raw = await c.req.json().catch(() => ({}))
   const body = raw as CreateServiceBody
-  if (!body.id || !body.nameEs || !body.durationMinutes) {
-    return c.json({ error: 'Faltan campos obligatorios (id, nameEs, durationMinutes)' }, 400)
+  if (!body.nameEs || !body.durationMinutes) {
+    return c.json({ error: 'Faltan campos obligatorios (nameEs, durationMinutes)' }, 400)
   }
   const service = await createService(body)
   return c.json({ service }, 201)

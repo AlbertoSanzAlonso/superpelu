@@ -6,6 +6,15 @@ const labelClass = 'block text-xs uppercase tracking-wide text-gold mb-1'
 const fieldClass =
   'w-full border border-gold/30 bg-cream px-3 py-2 font-sans text-sm text-charcoal outline-none transition-colors focus:border-gold'
 
+export type ServiceFormData = {
+  nameEs: string
+  nameEn: string
+  durationMinutes: number
+  categoryId: string | null
+  bookableOnline: boolean
+  sortOrder: number
+}
+
 export function ServiceForm({
   mode,
   initial,
@@ -19,31 +28,23 @@ export function ServiceForm({
   initial: AdminService | null
   categoryId: string
   categories: AdminServiceCategory[]
-  onSave: (data: {
-    id: string
-    nameEs: string
-    nameEn: string
-    durationMinutes: number
-    categoryId: string | null
-    bookableOnline: boolean
-    sortOrder: number
-  }) => void
+  onSave: (data: ServiceFormData) => void
   onCancel: () => void
   busy: boolean
 }) {
-  const [id, setId] = useState(initial?.id ?? '')
   const [nameEs, setNameEs] = useState(initial?.nameEs ?? '')
   const [nameEn, setNameEn] = useState(initial?.nameEn ?? '')
-  const [durationMinutes, setDurationMinutes] = useState(initial?.durationMinutes ?? 30)
+  const [durationText, setDurationText] = useState(String(initial?.durationMinutes ?? 30))
   const [formCategoryId, setFormCategoryId] = useState(initial?.categoryId ?? categoryId)
   const [bookableOnline, setBookableOnline] = useState(initial?.bookableOnline ?? true)
-  const [sortOrder, setSortOrder] = useState(initial?.sortOrder ?? 0)
+  const [sortOrderText, setSortOrderText] = useState(String(initial?.sortOrder ?? 0))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nameEs.trim() || (mode === 'create' && !id.trim()) || !durationMinutes) return
+    const durationMinutes = Number(durationText)
+    const sortOrder = Number(sortOrderText) || 0
+    if (!nameEs.trim() || !Number.isFinite(durationMinutes) || durationMinutes < 1) return
     onSave({
-      id: id.trim(),
       nameEs: nameEs.trim(),
       nameEn: nameEn.trim(),
       durationMinutes,
@@ -55,18 +56,10 @@ export function ServiceForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {mode === 'create' && (
-        <div>
-          <label className={labelClass} htmlFor="svc-id">ID único</label>
-          <input
-            id="svc-id"
-            required
-            value={id}
-            onChange={(e) => setId(e.target.value)}
-            className={fieldClass}
-            placeholder="ej: svc-nuevo-tratamiento"
-          />
-        </div>
+      {mode === 'edit' && initial && (
+        <p className="text-xs text-charcoal-muted">
+          ID interno: <span className="font-mono text-charcoal">{initial.id}</span>
+        </p>
       )}
       <div>
         <label className={labelClass} htmlFor="svc-es">Nombre (ES)</label>
@@ -92,22 +85,27 @@ export function ServiceForm({
           <label className={labelClass} htmlFor="svc-duration">Duración (min)</label>
           <input
             id="svc-duration"
-            type="number"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             required
-            min={1}
-            value={durationMinutes}
-            onChange={(e) => setDurationMinutes(Number(e.target.value))}
+            value={durationText}
+            onChange={(e) => setDurationText(e.target.value.replace(/\D/g, ''))}
             className={fieldClass}
+            autoComplete="off"
           />
         </div>
         <div className="flex-1">
           <label className={labelClass} htmlFor="svc-order">Orden</label>
           <input
             id="svc-order"
-            type="number"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(Number(e.target.value))}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={sortOrderText}
+            onChange={(e) => setSortOrderText(e.target.value.replace(/\D/g, ''))}
             className={fieldClass}
+            autoComplete="off"
           />
         </div>
       </div>
