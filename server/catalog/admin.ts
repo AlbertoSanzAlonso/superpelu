@@ -163,7 +163,20 @@ export async function deleteService(id: string): Promise<void> {
   await sql`UPDATE services SET active = FALSE, updated_at = ${new Date().toISOString()} WHERE id = ${id}`
 }
 
+export async function countServiceAppointments(serviceId: string): Promise<number> {
+  const rows = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM appointments WHERE service_id = ${serviceId}
+  `
+  return rows[0]?.count ?? 0
+}
+
 export async function hardDeleteService(id: string): Promise<void> {
+  const count = await countServiceAppointments(id)
+  if (count > 0) {
+    throw new Error(
+      `No se puede eliminar: tiene ${count} cita${count === 1 ? '' : 's'} asociada${count === 1 ? '' : 's'}. Desactívalo en su lugar.`,
+    )
+  }
   await sql`DELETE FROM services WHERE id = ${id}`
 }
 

@@ -391,8 +391,13 @@ app.delete('/api/admin/services/:id/hard', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
-  await hardDeleteService(id)
-  return c.json({ ok: true })
+  try {
+    await hardDeleteService(id)
+    return c.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'No se pudo eliminar el servicio'
+    return c.json({ error: message }, 400)
+  }
 })
 
 app.get('/api/admin/service-categories', async (c) => {

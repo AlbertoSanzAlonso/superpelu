@@ -11,6 +11,7 @@ import {
   createAdminService,
   updateAdminService,
   deleteAdminService,
+  hardDeleteAdminService,
   createAdminServiceCategory,
   updateAdminServiceCategory,
   deleteAdminServiceCategory,
@@ -21,6 +22,7 @@ import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { CategoryForm, type CategoryFormData } from '@/components/admin/CategoryForm'
 import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
+import { ServiceRemoveModal, type ServiceRemoveAction } from '@/components/admin/ServiceRemoveModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 
 type ModalMode = 'create' | 'edit'
@@ -532,6 +534,11 @@ export function AdminServicesPage() {
     onConfirm: () => void | Promise<void>
   } | null>(null)
 
+  const [serviceRemoveModal, setServiceRemoveModal] = useState<{
+    id: string
+    name: string
+  } | null>(null)
+
   const loadData = useCallback(async () => {
     if (!adminToken) return
     setLoading(true)
@@ -696,24 +703,27 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleDeleteService = (id: string) => {
-    if (!adminToken) return
-    setConfirmAction({
-      title: 'Desactivar servicio',
-      message: '¿Estás seguro de desactivar este servicio?',
-      onConfirm: async () => {
-        setConfirmAction(null)
-        setBusy(true)
-        try {
-          await deleteAdminService(adminToken, id)
-          await loadData()
-        } catch (err) {
-          setError(err instanceof ApiError ? err.message : 'Error al desactivar')
-        } finally {
-          setBusy(false)
-        }
-      },
-    })
+  const handleRemoveService = (service: AdminService) => {
+    setServiceRemoveModal({ id: service.id, name: firstLine(service.nameEs) })
+  }
+
+  const handleConfirmRemoveService = async (action: ServiceRemoveAction) => {
+    if (!adminToken || !serviceRemoveModal) return
+    setBusy(true)
+    setError('')
+    try {
+      if (action === 'deactivate') {
+        await deleteAdminService(adminToken, serviceRemoveModal.id)
+      } else {
+        await hardDeleteAdminService(adminToken, serviceRemoveModal.id)
+      }
+      setServiceRemoveModal(null)
+      await loadData()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Error al eliminar')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleReactivateService = async (id: string) => {
@@ -853,7 +863,7 @@ export function AdminServicesPage() {
                                 categoryId: svc.categoryId ?? '',
                               })
                             }
-                            onDeactivate={() => handleDeleteService(svc.id)}
+                            onDeactivate={() => handleRemoveService(svc)}
                             onReactivate={() => handleReactivateService(svc.id)}
                           />
                         ))
@@ -902,7 +912,7 @@ export function AdminServicesPage() {
                     onEdit={() =>
                       setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })
                     }
-                    onDeactivate={() => handleDeleteService(svc.id)}
+                    onDeactivate={() => handleRemoveService(svc)}
                     onReactivate={() => handleReactivateService(svc.id)}
                   />
                 ))}
@@ -953,6 +963,14 @@ export function AdminServicesPage() {
           </div>
         </div>
       )}
+
+      <ServiceRemoveModal
+        open={serviceRemoveModal != null}
+        serviceName={serviceRemoveModal?.name ?? ''}
+        busy={busy}
+        onClose={() => setServiceRemoveModal(null)}
+        onConfirm={(action) => void handleConfirmRemoveService(action)}
+      />
 
       <ConfirmDialog
         open={confirmAction != null}
