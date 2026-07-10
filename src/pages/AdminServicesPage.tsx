@@ -107,18 +107,52 @@ function IconRefresh() {
   )
 }
 
+function IconChevronUp() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path fillRule="evenodd" d="M10 3a.75.75 0 01.53.22l4.5 4.5a.75.75 0 11-1.06 1.06L10 5.06 6.03 9.03a.75.75 0 11-1.06-1.06l4.5-4.5A.75.75 0 0110 3z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function IconChevronDown() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path fillRule="evenodd" d="M10 17a.75.75 0 01-.53-.22l-4.5-4.5a.75.75 0 111.06-1.06L10 14.94l3.97-3.97a.75.75 0 111.06 1.06l-4.5 4.5A.75.75 0 0110 17z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function sortServicesForDisplay(list: AdminService[]) {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.nameEs.localeCompare(b.nameEs, 'es'))
+}
+
+function nextSortOrderForCategory(services: AdminService[], categoryId: string | null) {
+  const inCategory = services.filter((service) => service.categoryId === categoryId)
+  if (inCategory.length === 0) return 0
+  return Math.max(...inCategory.map((service) => service.sortOrder)) + 10
+}
+
 function ServiceListRow({
   svc,
   compact,
   onEdit,
   onDeactivate,
   onReactivate,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: {
   svc: AdminService
   compact: boolean
   onEdit: () => void
   onDeactivate: () => void
   onReactivate: () => void
+  onMoveUp?: () => void
+  onMoveDown?: () => void
+  canMoveUp?: boolean
+  canMoveDown?: boolean
 }) {
   const nameEs = firstLine(svc.nameEs)
 
@@ -135,6 +169,30 @@ function ServiceListRow({
             {nameEs}
           </p>
           <div className="flex shrink-0 items-center gap-0.5">
+            {svc.active && (onMoveUp || onMoveDown) && (
+              <>
+                <AdminIconButton
+                  label="Subir"
+                  onClick={() => {
+                    if (canMoveUp) onMoveUp?.()
+                  }}
+                >
+                  <span className={canMoveUp ? '' : 'opacity-25'}>
+                    <IconChevronUp />
+                  </span>
+                </AdminIconButton>
+                <AdminIconButton
+                  label="Bajar"
+                  onClick={() => {
+                    if (canMoveDown) onMoveDown?.()
+                  }}
+                >
+                  <span className={canMoveDown ? '' : 'opacity-25'}>
+                    <IconChevronDown />
+                  </span>
+                </AdminIconButton>
+              </>
+            )}
             {svc.active ? (
               <>
                 <AdminIconButton label="Editar" onClick={onEdit}>
@@ -179,6 +237,30 @@ function ServiceListRow({
         )}
         {svc.active ? (
           <>
+            {(onMoveUp || onMoveDown) && (
+              <div className="flex items-center gap-0.5">
+                <AdminIconButton
+                  label="Subir"
+                  onClick={() => {
+                    if (canMoveUp) onMoveUp?.()
+                  }}
+                >
+                  <span className={canMoveUp ? '' : 'opacity-25'}>
+                    <IconChevronUp />
+                  </span>
+                </AdminIconButton>
+                <AdminIconButton
+                  label="Bajar"
+                  onClick={() => {
+                    if (canMoveDown) onMoveDown?.()
+                  }}
+                >
+                  <span className={canMoveDown ? '' : 'opacity-25'}>
+                    <IconChevronDown />
+                  </span>
+                </AdminIconButton>
+              </div>
+            )}
             <Button
               type="button"
               variant="ghost"
@@ -462,15 +544,54 @@ export function AdminServicesPage() {
     if (!adminToken) return
     setBusy(true)
     try {
+      const current = serviceModal.service
+      const categoryChanged =
+        serviceModal.mode === 'edit' && current != null && current.categoryId !== data.categoryId
+      const sortOrder =
+        serviceModal.mode === 'edit' && current != null && !categoryChanged
+          ? current.sortOrder
+          : nextSortOrderForCategory(services, data.categoryId)
+
       if (serviceModal.mode === 'create') {
-        await createAdminService(adminToken, data)
-      } else if (serviceModal.service) {
-        await updateAdminService(adminToken, serviceModal.service.id, data)
+        await createAdminService(adminToken, { ...data, sortOrder })
+      } else if (current) {
+        await updateAdminService(adminToken, current.id, { ...data, sortOrder })
       }
       setServiceModal({ open: false, mode: 'create', service: null, categoryId: '' })
       await loadData()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al guardar')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleMoveServiceInCategory = async (
+    categoryId: string,
+    serviceId: string,
+    direction: 'up' | 'down',
+  ) => {
+    if (!adminToken) return
+    const ordered = sortServicesForDisplay(servicesForCategory(categoryId))
+    const index = ordered.findIndex((service) => service.id === serviceId)
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || targetIndex < 0 || targetIndex >= ordered.length) return
+
+    const nextOrder = [...ordered]
+    const [moved] = nextOrder.splice(index, 1)
+    nextOrder.splice(targetIndex, 0, moved)
+
+    setBusy(true)
+    setError('')
+    try {
+      await Promise.all(
+        nextOrder.map((service, orderIndex) =>
+          updateAdminService(adminToken, service.id, { sortOrder: orderIndex * 10 }),
+        ),
+      )
+      await loadData()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo reordenar')
     } finally {
       setBusy(false)
     }
@@ -521,9 +642,9 @@ export function AdminServicesPage() {
   }
 
   const servicesForCategory = (categoryId: string) =>
-    services.filter((s) => s.categoryId === categoryId)
+    sortServicesForDisplay(services.filter((s) => s.categoryId === categoryId))
 
-  const uncategorizedServices = services.filter((s) => !s.categoryId)
+  const uncategorizedServices = sortServicesForDisplay(services.filter((s) => !s.categoryId))
 
   return (
     <AgendaWorkspaceShell>
@@ -610,11 +731,15 @@ export function AdminServicesPage() {
                           No hay servicios en esta categoría.
                         </p>
                       ) : (
-                        catServices.map((svc) => (
+                        catServices.map((svc, index) => (
                           <ServiceListRow
                             key={svc.id}
                             svc={svc}
                             compact={compact}
+                            canMoveUp={index > 0}
+                            canMoveDown={index < catServices.length - 1}
+                            onMoveUp={() => void handleMoveServiceInCategory(cat.id, svc.id, 'up')}
+                            onMoveDown={() => void handleMoveServiceInCategory(cat.id, svc.id, 'down')}
                             onEdit={() =>
                               setServiceModal({
                                 open: true,

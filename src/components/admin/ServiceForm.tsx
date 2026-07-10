@@ -12,7 +12,6 @@ export type ServiceFormData = {
   durationMinutes: number
   categoryId: string | null
   bookableOnline: boolean
-  sortOrder: number
 }
 
 export function ServiceForm({
@@ -37,20 +36,17 @@ export function ServiceForm({
   const [durationText, setDurationText] = useState(String(initial?.durationMinutes ?? 30))
   const [formCategoryId, setFormCategoryId] = useState(initial?.categoryId ?? categoryId)
   const [bookableOnline, setBookableOnline] = useState(initial?.bookableOnline ?? true)
-  const [sortOrderText, setSortOrderText] = useState(String(initial?.sortOrder ?? 0))
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const durationMinutes = Number(durationText)
-    const sortOrder = Number(sortOrderText) || 0
     if (!nameEs.trim() || !Number.isFinite(durationMinutes) || durationMinutes < 1) return
     onSave({
       nameEs: nameEs.trim(),
       nameEn: nameEn.trim(),
       durationMinutes,
-      categoryId: formCategoryId,
+      categoryId: formCategoryId || null,
       bookableOnline,
-      sortOrder,
     })
   }
 
@@ -96,33 +92,24 @@ export function ServiceForm({
           />
         </div>
         <div className="flex-1">
-          <label className={labelClass} htmlFor="svc-order">Orden</label>
-          <input
-            id="svc-order"
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={sortOrderText}
-            onChange={(e) => setSortOrderText(e.target.value.replace(/\D/g, ''))}
+          <label className={labelClass} htmlFor="svc-category">Categoría</label>
+          <select
+            id="svc-category"
+            value={formCategoryId}
+            onChange={(e) => setFormCategoryId(e.target.value)}
             className={fieldClass}
-            autoComplete="off"
-          />
+            required={categories.length > 0}
+          >
+            <option value="">{categories.length > 0 ? 'Elige categoría…' : 'Sin categoría'}</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.nameEs}</option>
+            ))}
+          </select>
         </div>
       </div>
-      <div>
-        <label className={labelClass} htmlFor="svc-category">Categoría</label>
-        <select
-          id="svc-category"
-          value={formCategoryId}
-          onChange={(e) => setFormCategoryId(e.target.value)}
-          className={fieldClass}
-        >
-          <option value="">Sin categoría</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.nameEs}</option>
-          ))}
-        </select>
-      </div>
+      <p className="text-xs text-charcoal-muted">
+        El orden dentro de cada categoría se ajusta en el listado con las flechas arriba/abajo.
+      </p>
       <label className="flex items-center gap-2">
         <input
           type="checkbox"
