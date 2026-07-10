@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+  buildBookingGroupMoveDrafts,
   isSameAppointmentMove,
-  validateAppointmentMove,
   validatePendingMovesForSave,
   type AppointmentMoveTarget,
 } from '@/lib/agenda/placement'
@@ -14,12 +14,14 @@ import {
 import { ApiError, updateAdminAppointment } from '@/lib/api'
 import type { Appointment, StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 type MovesDeps = {
   adminToken: string
   date: string
   schedules: StaffDaySchedule[]
   load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
+  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   clearSelection: () => void
   onMovesCommitted: () => void
   markAppointmentSnapshots?: (appointments: Iterable<Appointment>) => void
@@ -31,6 +33,7 @@ export function useAdminAgendaMoves({
   schedules,
   load,
   setError,
+  setConfirmDialog,
   clearSelection,
   onMovesCommitted,
   markAppointmentSnapshots,
@@ -81,22 +84,9 @@ export function useAdminAgendaMoves({
         return
       }
 
-      const validation = validateAppointmentMove(
+      const validation = buildBookingGroupMoveDrafts(
         schedules,
         date,
-        payload.appointment,
-        target,
-        pendingMoves,
-      )
-      if (!validation.ok) {
-        setError(validation.message)
-        return
-      }
-
-      setError('')
-      clearSelection()
-      setPendingMoves((prev) => [
-        ...prev,
         {
           appointment: payload.appointment,
           fromStaffId,
@@ -106,7 +96,20 @@ export function useAdminAgendaMoves({
           toStaffName,
           toStartTime: payload.toStartTime,
         },
-      ])
+        pendingMoves,
+        summary,
+      )
+      if (!validation.ok) {
+        setError(validation.message)
+        return
+      }
+      if (validation.moves.length === 0) {
+        return
+      }
+
+      setError('')
+      clearSelection()
+      setPendingMoves((prev) => [...prev, ...validation.moves])
     },
     [schedules, date, pendingMoves, setError, clearSelection, adminToken, load],
   )
@@ -122,7 +125,10 @@ export function useAdminAgendaMoves({
   }, [setError])
 
   const commitPendingMoves = useCallback(
-    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
+    async (
+      notifyCustomerWhatsApp?: boolean,
+      forceSchedule = false,
+    ): Promise<boolean> => {
       if (pendingMoves.length === 0 || !adminToken) return false
       const validation = validatePendingMovesForSave(schedules, date, pendingMoves)
       if (!validation.ok) {
@@ -133,12 +139,24 @@ export function useAdminAgendaMoves({
       setMoveBusy(true)
       try {
         const updatedAppointments: Appointment[] = []
-        for (const move of getFinalMovesForSave(pendingMoves)) {
+        const finalMoves = getFinalMovesForSave(pendingMoves)
+        const notifiedBookingGroups = new Set<string>()
+
+        for (const move of finalMoves) {
+          const bookingGroupId = move.appointment.bookingGroupId
+          const shouldNotify =
+            notifyCustomerWhatsApp === true &&
+            (!bookingGroupId || !notifiedBookingGroups.has(bookingGroupId))
+          if (shouldNotify && bookingGroupId) {
+            notifiedBookingGroups.add(bookingGroupId)
+          }
+
           const { appointment } = await updateAdminAppointment(move.appointment.id, adminToken, {
             staffId: move.toStaffId,
             date,
             startTime: move.toStartTime,
-            notifyCustomerWhatsApp,
+            notifyCustomerWhatsApp: shouldNotify,
+            forceSchedule,
           })
           updatedAppointments.push(appointment)
         }
@@ -148,13 +166,41 @@ export function useAdminAgendaMoves({
         await load()
         return true
       } catch (err) {
+        if (
+          !forceSchedule &&
+          err instanceof ApiError &&
+          /horario no disponible|no está disponible/i.test(err.message)
+        ) {
+          setConfirmDialog({
+            title: 'El horario no está disponible',
+            message:
+              'Ese horario está ocupado o fuera del horario laboral. ¿Quieres guardar los cambios de todas formas?',
+            confirmLabel: 'Guardar de todas formas',
+            destructive: false,
+            onConfirm: async () => {
+              setConfirmDialog(null)
+              await commitPendingMoves(notifyCustomerWhatsApp, true)
+            },
+          })
+          return false
+        }
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar los cambios')
         return false
       } finally {
         setMoveBusy(false)
       }
     },
-    [pendingMoves, adminToken, date, schedules, load, setError, onMovesCommitted, markAppointmentSnapshots],
+    [
+      pendingMoves,
+      adminToken,
+      date,
+      schedules,
+      load,
+      setError,
+      setConfirmDialog,
+      onMovesCommitted,
+      markAppointmentSnapshots,
+    ],
   )
 
   const requestSavePendingMoves = useCallback(() => {

@@ -17,6 +17,7 @@ export type AdminAppointmentNotificationItem = {
   staffId: string
   staffName: string
   customerName: string
+  customerPhone: string
   serviceName: string
   startTime: string
   timestamp: number
@@ -32,6 +33,7 @@ export type AppointmentSnapshot = {
   staffId: string
   staffName: string
   customerName: string
+  customerPhone: string
   serviceId: string
   serviceName: string
   status: string
@@ -67,6 +69,7 @@ export function buildAppointmentSnapshot(apt: Appointment): AppointmentSnapshot 
     staffId: apt.staffId!,
     staffName: apt.staffName ?? '',
     customerName: apt.customerName,
+    customerPhone: apt.customerPhone,
     serviceId: apt.serviceId,
     serviceName: apt.serviceName,
     status: apt.status,
@@ -86,6 +89,7 @@ function snapshotToNotificationItem(
     staffId: snapshot.staffId,
     staffName: snapshot.staffName,
     customerName: snapshot.customerName,
+    customerPhone: snapshot.customerPhone,
     serviceName: snapshot.serviceName,
     startTime: snapshot.startTime,
     timestamp: Date.now(),

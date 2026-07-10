@@ -10,11 +10,14 @@ import {
 import {
   appointmentAtStartTime,
   buildSchedulesWithPendingMoves,
+  getEffectivePlacement,
   getFinalMovesForSave,
+  summarizePendingMoves,
+  type AppointmentMoveDraft,
+  type PendingMoveSummary,
 } from '@/lib/agenda/pendingMoves'
 import { buildStaffDayGrid } from '@/lib/agenda/timeGrid'
 import { segmentFitsInWorkWindows } from '@/lib/core/scheduleHours'
-import type { AppointmentMoveDraft } from '@/lib/agenda/pendingMoves'
 import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 const LINKED_WASH_PHASE_BLOCKED_MESSAGE =
@@ -265,4 +268,97 @@ export function isSameAppointmentMove(
   target: AppointmentMoveTarget,
 ): boolean {
   return fromStaffId === target.staffId && fromStartTime === target.startTime
+}
+
+export function collectBookingGroupMembers(
+  schedules: StaffDaySchedule[],
+  bookingGroupId: string,
+): DayScheduleAppointment[] {
+  const members: DayScheduleAppointment[] = []
+  for (const schedule of schedules) {
+    for (const apt of schedule.appointments) {
+      if (
+        apt.bookingGroupId === bookingGroupId &&
+        apt.colorGroupRole !== 'wash' &&
+        apt.status === 'confirmed'
+      ) {
+        members.push(apt)
+      }
+    }
+  }
+  return members.sort((a, b) => a.startTime.localeCompare(b.startTime))
+}
+
+function staffNameForId(schedules: StaffDaySchedule[], staffId: string): string {
+  return schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
+}
+
+/** Expande un arrastre a todos los tratamientos de la misma visita (mismo desplazamiento). */
+export function buildBookingGroupMoveDrafts(
+  schedules: StaffDaySchedule[],
+  date: string,
+  anchor: {
+    appointment: DayScheduleAppointment
+    fromStaffId: string
+    fromStartTime: string
+    toStaffId: string
+    toStaffName: string
+    toStartTime: string
+  },
+  pendingMoves: AppointmentMoveDraft[],
+  pendingSummary: PendingMoveSummary,
+): { ok: true; moves: AppointmentMoveDraft[] } | AppointmentMoveValidation {
+  const members =
+    anchor.appointment.bookingGroupId != null
+      ? collectBookingGroupMembers(schedules, anchor.appointment.bookingGroupId)
+      : [anchor.appointment]
+
+  const timeDelta = timeToMinutes(anchor.toStartTime) - timeToMinutes(anchor.fromStartTime)
+  const staffChanged = anchor.toStaffId !== anchor.fromStaffId
+  const drafts: AppointmentMoveDraft[] = []
+
+  for (const member of members) {
+    const effective = getEffectivePlacement(pendingSummary, member.id, {
+      staffId: member.staffId,
+      startTime: member.startTime,
+    })
+    const memberFromStaffId = effective.staffId
+    const memberFromStartTime = effective.startTime
+    const memberToStartTime = minutesToTime(timeToMinutes(memberFromStartTime) + timeDelta)
+    const memberToStaffId =
+      staffChanged && memberFromStaffId === anchor.fromStaffId
+        ? anchor.toStaffId
+        : memberFromStaffId
+    const memberToStaffName = staffNameForId(schedules, memberToStaffId)
+    const target: AppointmentMoveTarget = {
+      staffId: memberToStaffId,
+      staffName: memberToStaffName,
+      startTime: memberToStartTime,
+    }
+
+    if (isSameAppointmentMove(memberFromStaffId, memberFromStartTime, target)) {
+      continue
+    }
+
+    const validation = validateAppointmentMove(
+      schedules,
+      date,
+      member,
+      target,
+      [...pendingMoves, ...drafts],
+    )
+    if (!validation.ok) return validation
+
+    drafts.push({
+      appointment: member,
+      fromStaffId: memberFromStaffId,
+      fromStaffName: staffNameForId(schedules, memberFromStaffId),
+      fromStartTime: memberFromStartTime,
+      toStaffId: memberToStaffId,
+      toStaffName: memberToStaffName,
+      toStartTime: memberToStartTime,
+    })
+  }
+
+  return { ok: true, moves: drafts }
 }

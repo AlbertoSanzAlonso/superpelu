@@ -99,6 +99,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
             staffId: info.lastAppointment.staffId,
             staffName: info.staffName,
             customerName: info.customerName,
+            customerPhone: '',
             serviceName: info.serviceName,
             startTime: info.lastAppointment.startTime,
             timestamp: Date.now(),

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
-import { CustomerAppointmentHistoryPanel } from '@/components/customers/CustomerAppointmentHistoryPanel'
+import {
+  CUSTOMER_HISTORY_APPOINTMENT_PARAM,
+  CustomerAppointmentHistoryPanel,
+} from '@/components/customers/CustomerAppointmentHistoryPanel'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { Button } from '@/components/ui/Button'
@@ -17,8 +20,22 @@ import { typography } from '@/styles/typography'
 
 export function CustomerHistoryPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { phone: phoneParam } = useParams<{ phone: string }>()
   const phone = phoneParam ? decodeURIComponent(phoneParam) : ''
+  const initialAppointmentId = searchParams.get(CUSTOMER_HISTORY_APPOINTMENT_PARAM) ?? undefined
+
+  const clearAppointmentDeepLink = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        if (!prev.has(CUSTOMER_HISTORY_APPOINTMENT_PARAM)) return prev
+        const next = new URLSearchParams(prev)
+        next.delete(CUSTOMER_HISTORY_APPOINTMENT_PARAM)
+        return next
+      },
+      { replace: true },
+    )
+  }, [setSearchParams])
 
   const { adminToken, authOk, handleLogout } = useAdminSession()
 
@@ -133,7 +150,12 @@ export function CustomerHistoryPage() {
           <p className={`${typography.caption} p-8 text-center`}>Cargando…</p>
         ) : (
           adminToken && (
-            <CustomerAppointmentHistoryPanel adminToken={adminToken} phone={phone} />
+            <CustomerAppointmentHistoryPanel
+              adminToken={adminToken}
+              phone={phone}
+              initialAppointmentId={initialAppointmentId}
+              onDeepLinkHandled={clearAppointmentDeepLink}
+            />
           )
         )}
       </main>

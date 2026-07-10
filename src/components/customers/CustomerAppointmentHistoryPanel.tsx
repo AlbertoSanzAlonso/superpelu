@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CustomerAppointmentDetailModal } from '@/components/customers/CustomerAppointmentDetailModal'
 import { CustomerAppointmentHistoryFiltersBar } from '@/components/customers/CustomerAppointmentHistoryFilters'
 import {
@@ -9,19 +9,34 @@ import { useCustomerAppointmentHistory } from '@/hooks/useCustomerAppointmentHis
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
+export const CUSTOMER_HISTORY_APPOINTMENT_PARAM = 'cita'
+
 type Props = {
   adminToken: string
   phone: string
+  initialAppointmentId?: string
+  onDeepLinkHandled?: () => void
   collapsibleFiltersOnMobile?: boolean
 }
 
 export function CustomerAppointmentHistoryPanel({
   adminToken,
   phone,
+  initialAppointmentId,
+  onDeepLinkHandled,
   collapsibleFiltersOnMobile = true,
 }: Props) {
   const history = useCustomerAppointmentHistory(adminToken, phone)
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null)
+
+  useEffect(() => {
+    if (!initialAppointmentId || history.loading) return
+    const apt = history.appointments.find((a) => a.id === initialAppointmentId)
+    if (apt) {
+      setSelectedAppointment(apt)
+      onDeepLinkHandled?.()
+    }
+  }, [initialAppointmentId, history.loading, history.appointments, onDeepLinkHandled])
 
   const listableTotal = countListableAppointments(history.appointments)
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { AdminAgendaLoginForm } from '@/components/agenda/admin/AdminAgendaLoginForm'
@@ -16,6 +17,7 @@ const STAFF_USER_KEY = 'superpelu-staff-user'
 type LoginMode = 'admin' | 'staff'
 
 export function AdminAgendaPage() {
+  const navigate = useNavigate()
   const [loginMode, setLoginMode] = useState<LoginMode>('admin')
   const [adminToken, setAdminToken] = useState(() => localStorage.getItem(ADMIN_TOKEN_KEY) ?? '')
   const [staffToken, setStaffToken] = useState(() => localStorage.getItem(STAFF_TOKEN_KEY) ?? '')
@@ -67,6 +69,12 @@ export function AdminAgendaPage() {
       for (const toast of toasts) {
         if (toast.item.key === item.key) dismissToast(toast.key)
       }
+      if (item.kind === 'cancelled' && item.customerPhone) {
+        navigate(
+          `/clientes/${encodeURIComponent(item.customerPhone)}?cita=${encodeURIComponent(item.id)}`,
+        )
+        return
+      }
       if (selectedDate === item.date && loadedDate === item.date) {
         if (tryOpenPendingAppointment(item, schedules)) {
           setPendingNotificationOpen(null)
@@ -84,6 +92,7 @@ export function AdminAgendaPage() {
       closeBell,
       dismissToast,
       toasts,
+      navigate,
       selectedDate,
       loadedDate,
       schedules,

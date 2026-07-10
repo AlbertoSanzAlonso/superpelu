@@ -48,6 +48,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     schedules: schedule.schedules,
     load: schedule.load,
     setError: schedule.setError,
+    setConfirmDialog: confirm.setConfirmDialog,
     clearSelection: selectionState.clearSelection,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
     markAppointmentSnapshots: notifications.markAppointmentSnapshots,
@@ -137,12 +138,16 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const confirmSaveWithWhatsAppNotify = useCallback(async () => {
     appointments.setWhatsAppNotifyBusy(true)
     try {
+      let ok = false
       if (appointments.whatsAppNotifyContext === 'move') {
-        await moves.commitPendingMoves(true)
+        ok = await moves.commitPendingMoves(true)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
-        await appointments.persistCancel(true)
+        ok = await appointments.persistCancel(true)
       } else if (appointments.whatsAppNotifyContext === 'edit') {
-        await appointments.persistAppointment(true)
+        ok = await appointments.persistAppointment(true)
+      }
+      if (!ok && appointments.whatsAppNotifyContext === 'move') {
+        appointments.setWhatsAppNotifyDialogOpen(false)
       }
     } finally {
       appointments.setWhatsAppNotifyBusy(false)
@@ -152,12 +157,16 @@ export function useAdminAgenda(adminToken: string, date: string) {
   const confirmSaveWithoutWhatsAppNotify = useCallback(async () => {
     appointments.setWhatsAppNotifyBusy(true)
     try {
+      let ok = false
       if (appointments.whatsAppNotifyContext === 'move') {
-        await moves.commitPendingMoves(false)
+        ok = await moves.commitPendingMoves(false)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
-        await appointments.persistCancel(false)
+        ok = await appointments.persistCancel(false)
       } else if (appointments.whatsAppNotifyContext === 'edit') {
-        await appointments.persistAppointment(false)
+        ok = await appointments.persistAppointment(false)
+      }
+      if (!ok && appointments.whatsAppNotifyContext === 'move') {
+        appointments.setWhatsAppNotifyDialogOpen(false)
       }
     } finally {
       appointments.setWhatsAppNotifyBusy(false)
