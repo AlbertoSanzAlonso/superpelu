@@ -340,7 +340,15 @@ export async function createChainedBookingAppointment(
           i,
           allStartMinutes[i],
         )
-        if (await isBookingUnavailable(tx, staffId, input.date, segments)) {
+        if (
+          await isBookingUnavailable(
+            tx,
+            staffId,
+            input.date,
+            segments,
+            input.excludeAppointmentId,
+          )
+        ) {
           throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
         }
       }

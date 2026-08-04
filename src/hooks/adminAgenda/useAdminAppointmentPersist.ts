@@ -58,14 +58,31 @@ export function useAdminAppointmentPersist({
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
 
-  function buildServiceStartTimes(): string[] | undefined {
-    const { serviceIds, serviceStartTimes, startTime } = aptDraft
-    const filtered = serviceIds.filter((s) => s !== '')
-    if (serviceStartTimes.length === filtered.length && serviceStartTimes.some((t) => t !== '')) {
-      // El índice 0 siempre usa startTime si está vacío (el servicio base no tiene picker propio)
-      return serviceStartTimes.map((t, i) => (i === 0 && !t ? startTime : t))
-    }
-    return undefined
+  function buildAlignedServiceFields(filteredServiceIds: string[]) {
+    const keptIndexes = aptDraft.serviceIds
+      .map((id, index) => (id !== '' ? index : -1))
+      .filter((index) => index >= 0)
+    const staffAssignments =
+      aptDraft.staffAssignments.length === aptDraft.serviceIds.length
+        ? keptIndexes.map((index) => aptDraft.staffAssignments[index] || activeStaffId!)
+        : filteredServiceIds.map(() => activeStaffId!)
+    const serviceDurations =
+      aptDraft.serviceDurations.length === aptDraft.serviceIds.length
+        ? keptIndexes.map((index) => aptDraft.serviceDurations[index] ?? null)
+        : aptDraft.serviceDurations.length === filteredServiceIds.length
+          ? aptDraft.serviceDurations
+          : undefined
+    const rawStartTimes =
+      aptDraft.serviceStartTimes.length === aptDraft.serviceIds.length
+        ? keptIndexes.map((index) => aptDraft.serviceStartTimes[index] ?? '')
+        : aptDraft.serviceStartTimes.length === filteredServiceIds.length
+          ? aptDraft.serviceStartTimes
+          : []
+    const serviceStartTimes =
+      rawStartTimes.length === filteredServiceIds.length && rawStartTimes.some((t) => t !== '')
+        ? rawStartTimes.map((t, i) => (i === 0 && !t ? aptDraft.startTime : t))
+        : undefined
+    return { staffAssignments, serviceDurations, serviceStartTimes }
   }
 
   const doPersistAppointment = useCallback(
@@ -75,18 +92,15 @@ export function useAdminAppointmentPersist({
       setError('')
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
-        const serviceStartTimes = buildServiceStartTimes()
+        const { staffAssignments, serviceDurations, serviceStartTimes } =
+          buildAlignedServiceFields(filteredServiceIds)
         if (editingId) {
-          const staffAssignments =
-            aptDraft.staffAssignments.length === filteredServiceIds.length
-              ? aptDraft.staffAssignments.map((id) => id || activeStaffId)
-              : undefined
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
             staffAssignments,
             serviceIds: filteredServiceIds,
             serviceStartTimes,
-            serviceDurations: aptDraft.serviceDurations,
+            serviceDurations,
             serviceId: filteredServiceIds[0] || '',
             date,
             startTime: aptDraft.startTime,
@@ -111,7 +125,7 @@ export function useAdminAppointmentPersist({
                 staffId: activeStaffId,
                 serviceIds: filteredServiceIds,
                 serviceStartTimes,
-                serviceDurations: aptDraft.serviceDurations,
+                serviceDurations,
                 date,
                 startTime: aptDraft.startTime,
                 customerFirstName: aptDraft.customerFirstName,
@@ -134,18 +148,13 @@ export function useAdminAppointmentPersist({
             }
           }
 
-          const staffAssignments =
-            aptDraft.staffAssignments.length === filteredServiceIds.length
-              ? aptDraft.staffAssignments.map((id) => id || activeStaffId)
-              : undefined
-
           const { appointment } = await createAdminAppointment(
             {
               staffId: activeStaffId,
               staffAssignments,
               serviceIds: filteredServiceIds,
               serviceStartTimes,
-              serviceDurations: aptDraft.serviceDurations,
+              serviceDurations,
               date,
               startTime: aptDraft.startTime,
               customerFirstName: aptDraft.customerFirstName,
