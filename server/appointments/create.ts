@@ -429,11 +429,13 @@ export async function createAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
-    (err) => {
-      console.error('Superpelu WhatsApp (cita nueva):', err)
-    },
-  )
+  if (!input.skipCustomerWhatsApp) {
+    void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
+      (err) => {
+        console.error('Superpelu WhatsApp (cita nueva):', err)
+      },
+    )
+  }
   void notifyAdminAppointmentCreated(row)
   return row
 }

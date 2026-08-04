@@ -99,19 +99,24 @@ export async function notifyAppointmentCreated(
   )
 }
 
-/** Confirmación tras reprogramar una cita (cliente o agenda). */
-export async function notifyAppointmentRescheduled(row: AppointmentRow): Promise<void> {
+/** Aviso al cliente tras modificar / reprogramar una cita (agenda o enlace público). */
+export async function notifyAppointmentUpdated(row: AppointmentRow): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return
   if (row.status === 'cancelled' || row.status === 'no_show') return
   // El lavado enlazado se gestiona en agenda; el cliente solo recibe aviso si cambia la coloración.
   if (isColorGroupWashRow(row.color_group_role)) return
 
-  const text = buildAppointmentRescheduledMessage(row)
+  const text = await buildAppointmentVisitUpdatedMessage(row)
   const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
-    `Superpelu WhatsApp: reprogramación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+    `Superpelu WhatsApp: modificación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
+}
+
+/** @deprecated Usar notifyAppointmentUpdated (mismo mensaje: cita modificada). */
+export async function notifyAppointmentRescheduled(row: AppointmentRow): Promise<void> {
+  return notifyAppointmentUpdated(row)
 }
 
 /** Envía el recordatorio de 24h. Devuelve true si se envió (para marcar la cita). */

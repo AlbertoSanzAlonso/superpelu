@@ -9,7 +9,7 @@ import {
   resolveCustomerFromInput,
   upsertCustomer,
 } from "@server/customers/index.js"
-import { notifyAppointmentRescheduled } from "@server/notifications/whatsapp.js"
+import { notifyAppointmentUpdated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentUpdated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import {
@@ -76,7 +76,10 @@ export async function updateAppointmentForStaff(
 
   // Multi-service, cambio de servicio, o visita multi reducida a uno → delete old + create new
   if (shouldReplaceVisit(existing, serviceIds)) {
-    return replaceAppointment(existing, targetStaffId, serviceIds, { ...input, forceSchedule })
+    return replaceAppointment(existing, targetStaffId, serviceIds, {
+      ...input,
+      forceSchedule,
+    })
   }
 
   const serviceId = input.serviceId ?? existing.service_id
@@ -255,8 +258,8 @@ export async function updateAppointmentForStaff(
     input.notifyCustomerWhatsApp === true
   if (scheduleChanged) {
     if (notifyCustomerReschedule) {
-      void notifyAppointmentRescheduled(updated).catch((err) => {
-        console.error('Superpelu WhatsApp (cita reprogramada):', err)
+      void notifyAppointmentUpdated(updated).catch((err) => {
+        console.error('Superpelu WhatsApp (cita modificada):', err)
       })
     }
     void notifyAdminAppointmentUpdated(existing, updated)
@@ -305,7 +308,7 @@ async function replaceAppointment(
     await sql`DELETE FROM appointments WHERE id = ${existing.id}`
   }
 
-  return createAppointment({
+  const created = await createAppointment({
     staffId: targetStaffId,
     staffAssignments,
     serviceIds,
@@ -328,7 +331,17 @@ async function replaceAppointment(
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
     forStaffPortal: true,
     forceSchedule: true,
+    // Es una modificación: no mandar "cita nueva" ni confundir con cancelación.
+    skipCustomerWhatsApp: true,
   })
+
+  if (input.notifyCustomerWhatsApp === true) {
+    void notifyAppointmentUpdated(created).catch((err) => {
+      console.error('Superpelu WhatsApp (cita modificada):', err)
+    })
+  }
+  void notifyAdminAppointmentUpdated(existing, created)
+  return created
 }
 
 export async function updateAppointmentForAdmin(

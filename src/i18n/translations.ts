@@ -359,8 +359,8 @@ const es = {
   whatsappAppointment: {
     greeting: (name: string) => `Hola ${name}, 👋`,
     confirmationHeading: 'Tu cita en *Superpelu* está confirmada:',
-    rescheduledHeading: 'Tu cita en *Superpelu* ha sido *reprogramada*:',
-    visitUpdatedHeading: 'Tu visita en *Superpelu* ha sido *actualizada*:',
+    rescheduledHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
+    visitUpdatedHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
     reminderHeading: 'Te recordamos tu cita de mañana en *Superpelu*:',
     cancelledHeading: 'Tu cita en *Superpelu* ha sido *cancelada*:',
     noShowHeading:
@@ -924,8 +924,8 @@ const en = {
   whatsappAppointment: {
     greeting: (name: string) => `Hello ${name}, 👋`,
     confirmationHeading: 'Your appointment at *Superpelu* is confirmed:',
-    rescheduledHeading: 'Your appointment at *Superpelu* has been *rescheduled*:',
-    visitUpdatedHeading: 'Your visit at *Superpelu* has been *updated*:',
+    rescheduledHeading: 'Your appointment at *Superpelu* has been *modified*:',
+    visitUpdatedHeading: 'Your appointment at *Superpelu* has been *modified*:',
     reminderHeading: 'Reminder: your appointment tomorrow at *Superpelu*:',
     cancelledHeading: 'Your appointment at *Superpelu* has been *cancelled*:',
     noShowHeading:
