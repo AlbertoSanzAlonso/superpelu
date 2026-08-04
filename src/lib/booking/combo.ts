@@ -101,6 +101,23 @@ export function buildFlexibleServiceStartTimes(
   )
 }
 
+/**
+ * Hora mínima editable de cada tratamiento: encadena desde la visita y los
+ * aplazamientos de los demás, pero ignora el override del propio índice.
+ * Así, un peinado fijado a las 15:00 sigue pudiendo atrasarse a las 12:00
+ * si el anterior termina antes.
+ */
+export function buildEarliestEditableServiceStartTimes(
+  services: readonly BookingServiceWithCategory[],
+  visitStartTime: string,
+  overrides: ReadonlyArray<string | undefined> = [],
+): string[] {
+  return services.map((_, index) => {
+    const cleared = overrides.map((override, j) => (j === index ? undefined : override))
+    return buildFlexibleServiceStartTimes(services, visitStartTime, cleared)[index]!
+  })
+}
+
 export function formatChainedAppointmentTimeRange(
   services: readonly BookingServiceWithCategory[],
   startTime: string,

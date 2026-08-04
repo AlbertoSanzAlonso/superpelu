@@ -9,7 +9,7 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
-import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 
 const fieldCompact = '!px-3 !py-2'
@@ -262,7 +262,12 @@ export function StaffAppointmentFormFields({
       }
     }).filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
     if (selectedServices.length === 0) return []
-    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, draft.serviceStartTimes)
+    // Mínimo editable: ignora el override del propio índice para poder atrasarlo.
+    return buildEarliestEditableServiceStartTimes(
+      selectedServices,
+      draft.startTime,
+      draft.serviceStartTimes,
+    )
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(

@@ -13,7 +13,7 @@ import {
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
-import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -169,7 +169,13 @@ export function AgendaAppointmentModal({
       })
       .filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
     if (selectedServices.length === 0) return []
-    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, draft.serviceStartTimes)
+    // Mínimo editable por tratamiento: sin el override propio (permite atrasar
+    // un tratamiento fijado a huecos anteriores libres).
+    return buildEarliestEditableServiceStartTimes(
+      selectedServices,
+      draft.startTime,
+      draft.serviceStartTimes,
+    )
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
