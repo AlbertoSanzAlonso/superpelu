@@ -35,6 +35,8 @@ type Props = {
   staffName: string
   staffOptions: AgendaStaffOption[]
   onStaffChange: (staffId: string) => void
+  /** Actualiza el profesional activo sin tocar el resto de staffAssignments (multi-tratamiento). */
+  onActiveStaffSync?: (staffId: string) => void
   appointment: DayScheduleAppointment
   customerRegistered: boolean
   draft: AppointmentDraft
@@ -69,6 +71,7 @@ export function AgendaAppointmentModal({
   staffName,
   staffOptions,
   onStaffChange,
+  onActiveStaffSync,
   appointment,
   customerRegistered,
   draft,
@@ -163,11 +166,28 @@ export function AgendaAppointmentModal({
 
   const setStaffAtIndex = useCallback(
     (index: number, id: string) => {
-      const assignments = normalizeArr(draft.serviceIds, draft.staffAssignments, '')
+      const assignments = normalizeArr(draft.serviceIds, draft.staffAssignments, staffId).map(
+        (assigned) => assigned || staffId,
+      )
       assignments[index] = id
       onDraftChange({ staffAssignments: assignments })
+      // Solo sincroniza la columna activa; no reasigna el resto de tratamientos.
+      if (index === 0 && id && onActiveStaffSync) {
+        onActiveStaffSync(id)
+      } else if (index === 0 && id && serviceIds.filter(Boolean).length <= 1) {
+        onStaffChange(id)
+      }
     },
-    [draft.serviceIds, draft.staffAssignments, onDraftChange, normalizeArr],
+    [
+      draft.serviceIds,
+      draft.staffAssignments,
+      staffId,
+      serviceIds,
+      onDraftChange,
+      onStaffChange,
+      onActiveStaffSync,
+      normalizeArr,
+    ],
   )
 
   const setServiceAtIndex = useCallback(
@@ -192,7 +212,10 @@ export function AgendaAppointmentModal({
       if (selectedService) {
         newDurations[index] = selectedService.durationMinutes
       }
-      const newAssignments = normalizeArr(next, draft.staffAssignments, '')
+      const newAssignments = normalizeArr(next, draft.staffAssignments, staffId)
+      if (id && !newAssignments[index]) {
+        newAssignments[index] = staffId
+      }
       onDraftChange({
         serviceIds: next,
         serviceStartTimes: draft.serviceStartTimes.length === next.length ? draft.serviceStartTimes : [],
@@ -206,6 +229,7 @@ export function AgendaAppointmentModal({
       draft.serviceDurations,
       draft.staffAssignments,
       services,
+      staffId,
       onDraftChange,
       normalizeArr,
     ],
@@ -243,9 +267,11 @@ export function AgendaAppointmentModal({
 
   const addService = useCallback(() => {
     const next = [...serviceIds.filter((s) => s !== ''), '']
-    const newAssignments = normalizeArr(next, draft.staffAssignments, '')
+    const newAssignments = normalizeArr(next, draft.staffAssignments, staffId).map(
+      (id) => id || staffId,
+    )
     onDraftChange({ serviceIds: next, staffAssignments: newAssignments })
-  }, [serviceIds, draft.staffAssignments, onDraftChange, normalizeArr])
+  }, [serviceIds, draft.staffAssignments, staffId, onDraftChange, normalizeArr])
 
   const removeService = useCallback(
     (index: number) => {
@@ -455,7 +481,7 @@ export function AgendaAppointmentModal({
                             Especialista
                           </label>
                           <select
-                            value={draft.staffAssignments[index] ?? staffId}
+                            value={draft.staffAssignments[index] || staffId}
                             onChange={(e) => setStaffAtIndex(index, e.target.value)}
                             className={selectCn}
                           >

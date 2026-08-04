@@ -192,7 +192,7 @@ export async function createAppointment(
   if (serviceIds.length > 1) {
     const staffAssignments =
       input.staffAssignments?.length === serviceIds.length
-        ? input.staffAssignments
+        ? input.staffAssignments.map((id) => id || input.staffId)
         : serviceIds.map(() => input.staffId)
 
     for (let i = 0; i < serviceIds.length; i++) {

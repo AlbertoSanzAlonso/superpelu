@@ -214,22 +214,31 @@ export function useAdminAgendaAppointments({
       return
     }
     Promise.all(
-      filteredIds.map((id, i) =>
-        i === 0
-          ? Promise.resolve([] as string[])
-          : fetchAdminMultiSlots(
-              date,
-              [id],
-              activeStaffId,
-              adminToken,
-              editingId ?? undefined,
-              aptDraft.serviceDurations,
-            )
-              .then((r) => [...r.slots, ...r.slotsOverHours])
-              .catch(() => [] as string[]),
-      ),
+      filteredIds.map((id, i) => {
+        if (i === 0) return Promise.resolve([] as string[])
+        const staffForService = aptDraft.staffAssignments[i] || activeStaffId
+        const durationForService = [aptDraft.serviceDurations[i] ?? null]
+        return fetchAdminMultiSlots(
+          date,
+          [id],
+          staffForService,
+          adminToken,
+          editingId ?? undefined,
+          durationForService,
+        )
+          .then((r) => [...r.slots, ...r.slotsOverHours])
+          .catch(() => [] as string[])
+      }),
     ).then((results) => setServiceSlotsPerIndex(results))
-  }, [activeStaffId, aptDraft.serviceIds.join(','), date, adminToken, editingId])
+  }, [
+    activeStaffId,
+    aptDraft.serviceIds.join(','),
+    aptDraft.staffAssignments.join(','),
+    aptDraft.serviceDurations.join(','),
+    date,
+    adminToken,
+    editingId,
+  ])
 
   // Profesionales alternativos cuando un tratamiento adicional tiene hora ocupada
   useEffect(() => {
@@ -245,8 +254,9 @@ export function useAdminAgendaAppointments({
         if (!selectedTime) return null
         const freeForThis = serviceSlotsPerIndex[i] ?? []
         if (freeForThis.includes(selectedTime)) return null
+        const assignedStaffId = aptDraft.staffAssignments[i] || activeStaffId
         return fetchStaffAtSlotAdmin(date, id, selectedTime, adminToken)
-          .then((r) => r.staff.filter((s) => s.id !== activeStaffId)[0] ?? null)
+          .then((r) => r.staff.filter((s) => s.id !== assignedStaffId)[0] ?? null)
           .catch(() => null)
       }),
     ).then((results) => setServiceAlternativeStaff(results))
@@ -254,6 +264,7 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     aptDraft.serviceIds.join(','),
     aptDraft.serviceStartTimes.join(','),
+    aptDraft.staffAssignments.join(','),
     date,
     adminToken,
     serviceSlotsPerIndex,
@@ -360,13 +371,37 @@ export function useAdminAgendaAppointments({
     setDetailEditMode(true)
   }, [])
 
-  const changeDetailStaff = useCallback(
-    (staffId: string) => {
-      const staffName = schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
-      setActiveStaffId(staffId)
-      setViewingAppointment((prev) => (prev ? { ...prev, staffId, staffName } : null))
+  const syncDetailActiveStaff = useCallback(
+    (nextStaffId: string) => {
+      const staffName = schedules.find((s) => s.staffId === nextStaffId)?.staffName ?? ''
+      setActiveStaffId(nextStaffId)
+      setViewingAppointment((prev) => (prev ? { ...prev, staffId: nextStaffId, staffName } : null))
     },
     [schedules],
+  )
+
+  const changeDetailStaff = useCallback(
+    (nextStaffId: string) => {
+      const previousStaffId = activeStaffId
+      syncDetailActiveStaff(nextStaffId)
+      setAptDraft((d) => {
+        const ids = d.serviceIds.filter((s) => s !== '')
+        if (ids.length === 0) return d
+        if (d.staffAssignments.length === d.serviceIds.length) {
+          return {
+            ...d,
+            staffAssignments: d.staffAssignments.map((id) =>
+              !id || id === previousStaffId ? nextStaffId : id,
+            ),
+          }
+        }
+        return {
+          ...d,
+          staffAssignments: d.serviceIds.map((serviceId) => (serviceId ? nextStaffId : '')),
+        }
+      })
+    },
+    [activeStaffId, syncDetailActiveStaff],
   )
 
   const createAppointmentFromSelection = useCallback(() => {
@@ -626,6 +661,7 @@ export function useAdminAgendaAppointments({
     closeAppointmentDetail,
     startDetailEdit,
     changeDetailStaff,
+    syncDetailActiveStaff,
     createAppointmentFromSelection,
     persistAppointment: persist.persistAppointment,
     saveAppointment: persist.saveAppointment,

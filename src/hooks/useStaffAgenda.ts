@@ -276,9 +276,10 @@ export function useStaffAgenda(token: string) {
             : aptDraft.serviceStartTimes
 
         if (editingId) {
+          const defaultStaffId = schedule?.staffId ?? ''
           const staffAssignments =
             aptDraft.staffAssignments.length === filteredIds.length
-              ? aptDraft.staffAssignments
+              ? aptDraft.staffAssignments.map((id) => id || defaultStaffId)
               : undefined
           await updateMyAppointment(token, editingId, {
             serviceIds: filteredIds,
@@ -370,7 +371,7 @@ export function useStaffAgenda(token: string) {
         return false
       }
     },
-    [aptDraft, date, editingId, load, resetAppointmentForm, token, confirmUi],
+    [aptDraft, date, editingId, load, resetAppointmentForm, token, confirmUi, schedule?.staffId],
   )
 
   const saveAppointment = useCallback(

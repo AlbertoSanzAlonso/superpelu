@@ -177,6 +177,7 @@ export function AdminAgendaWorkspace({
             name: s.staffName,
           }))}
           onStaffChange={agenda.changeDetailStaff}
+          onActiveStaffSync={agenda.syncDetailActiveStaff}
           appointment={agenda.viewingAppointment.apt}
           customerRegistered={agenda.detailCustomerRegistered}
           draft={agenda.aptDraft}

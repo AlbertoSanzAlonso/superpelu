@@ -79,7 +79,7 @@ export function useAdminAppointmentPersist({
         if (editingId) {
           const staffAssignments =
             aptDraft.staffAssignments.length === filteredServiceIds.length
-              ? aptDraft.staffAssignments
+              ? aptDraft.staffAssignments.map((id) => id || activeStaffId)
               : undefined
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
@@ -136,7 +136,7 @@ export function useAdminAppointmentPersist({
 
           const staffAssignments =
             aptDraft.staffAssignments.length === filteredServiceIds.length
-              ? aptDraft.staffAssignments.map((id, i) => id || activeStaffId)
+              ? aptDraft.staffAssignments.map((id) => id || activeStaffId)
               : undefined
 
           const { appointment } = await createAdminAppointment(

@@ -226,6 +226,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     startDetailEdit: appointments.startDetailEdit,
     setDetailEditMode: appointments.setDetailEditMode,
     changeDetailStaff: appointments.changeDetailStaff,
+    syncDetailActiveStaff: appointments.syncDetailActiveStaff,
     saveAppointment: appointments.saveAppointment,
     whatsAppNotifyDialogOpen: appointments.whatsAppNotifyDialogOpen,
     whatsAppNotifyContext: appointments.whatsAppNotifyContext,

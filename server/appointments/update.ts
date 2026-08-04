@@ -287,12 +287,13 @@ async function replaceAppointment(
   const staff = await getStaff(targetStaffId)
   if (!staff?.active) throw new Error('STAFF_INVALIDO')
 
-  for (const serviceId of serviceIds) {
-    if (!(await staffCanPerformService(targetStaffId, serviceId))) {
-      throw new Error('STAFF_NO_REALIZA_SERVICIO')
-    }
-  }
+  const staffAssignments =
+    input.staffAssignments?.length === serviceIds.length
+      ? input.staffAssignments.map((id) => id || targetStaffId)
+      : undefined
 
+  // createAppointment valida cada especialista ↔ servicio; no exigir que el staff
+  // principal realice todos los tratamientos del grupo.
   const split = resolveCustomerFromInput({
     firstName: input.customerFirstName,
     lastName: input.customerLastName,
@@ -302,9 +303,7 @@ async function replaceAppointment(
 
   const created = await createAppointment({
     staffId: targetStaffId,
-    staffAssignments: input.staffAssignments?.length === serviceIds.length
-      ? input.staffAssignments
-      : undefined,
+    staffAssignments,
     serviceIds,
     serviceStartTimes: input.serviceStartTimes?.length === serviceIds.length
       ? input.serviceStartTimes
