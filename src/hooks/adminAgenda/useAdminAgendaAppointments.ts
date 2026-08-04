@@ -355,6 +355,7 @@ export function useAdminAgendaAppointments({
             notes: prev.notes,
             serviceIds: prev.serviceIds,
             serviceStartTimes: prev.serviceStartTimes,
+            serviceDurations: prev.serviceDurations,
             staffAssignments: prev.staffAssignments,
             startTime: prev.startTime,
           }))

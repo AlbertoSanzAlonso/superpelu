@@ -35,6 +35,18 @@ function servicesDiffer(
   return serviceIds[0] !== existing.service_id
 }
 
+/** Hay que recrear la visita (borrar + crear) si cambia el set de tratamientos. */
+function shouldReplaceVisit(
+  existing: AppointmentRow,
+  serviceIds: string[],
+): boolean {
+  if (serviceIds.length === 0) return false
+  if (serviceIds.length > 1) return true
+  // Un solo tratamiento: recrear si cambió el servicio o si pertenecía a un
+  // grupo multi (hay que eliminar los hermanos que el usuario quitó).
+  return servicesDiffer(existing, serviceIds) || Boolean(existing.booking_group_id)
+}
+
 export async function updateAppointmentForStaff(
   appointmentId: string,
   staffId: string,
@@ -62,8 +74,8 @@ export async function updateAppointmentForStaff(
     throw new Error('FECHA_INVALIDA')
   }
 
-  // Multi-service or service change → delete old + create new
-  if (serviceIds.length > 1 || (serviceIds.length === 1 && servicesDiffer(existing, serviceIds))) {
+  // Multi-service, cambio de servicio, o visita multi reducida a uno → delete old + create new
+  if (shouldReplaceVisit(existing, serviceIds)) {
     return replaceAppointment(existing, targetStaffId, serviceIds, { ...input, forceSchedule })
   }
 
@@ -259,7 +271,11 @@ async function replaceAppointment(
   input: UpdateAppointmentInput,
 ): Promise<AppointmentRow> {
   const date = input.date ?? existing.appointment_date
-  const startTime = input.startTime ?? existing.start_time
+  // Si hay hora por tratamiento, la del primero manda (p. ej. al quitar el primero de la visita).
+  const startTime =
+    input.serviceStartTimes?.length === serviceIds.length && input.serviceStartTimes[0]
+      ? input.serviceStartTimes[0]
+      : (input.startTime ?? existing.start_time)
   const staff = await getStaff(targetStaffId)
   if (!staff?.active) throw new Error('STAFF_INVALIDO')
 

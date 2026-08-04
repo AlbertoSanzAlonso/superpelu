@@ -210,7 +210,7 @@ export function StaffAppointmentFormFields({
         serviceDurations: durations,
         serviceStartTimes: times,
         staffAssignments: assignments,
-        startTime: cleaned.length === 0 ? '' : draft.startTime,
+        startTime: cleaned.length === 0 ? '' : times[0] || draft.startTime,
       })
     },
     [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, draft.startTime, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],

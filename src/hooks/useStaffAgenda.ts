@@ -269,25 +269,47 @@ export function useStaffAgenda(token: string) {
     async (forceSchedule = false, conflictResolutions?: SeriesConflictResolution[]): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       try {
+        const keptIndexes = aptDraft.serviceIds
+          .map((id, index) => (id ? index : -1))
+          .filter((index) => index >= 0)
+        const alignedDurations =
+          aptDraft.serviceDurations.length === aptDraft.serviceIds.length
+            ? keptIndexes.map((index) => aptDraft.serviceDurations[index] ?? null)
+            : aptDraft.serviceDurations.length === filteredIds.length
+              ? aptDraft.serviceDurations
+              : undefined
+        const alignedStartTimes =
+          aptDraft.serviceStartTimes.length === aptDraft.serviceIds.length
+            ? keptIndexes.map((index) => aptDraft.serviceStartTimes[index] ?? '')
+            : aptDraft.serviceStartTimes.length === filteredIds.length
+              ? aptDraft.serviceStartTimes
+              : []
         const normalizedStartTimes =
-          aptDraft.serviceStartTimes.length === filteredIds.length &&
-          aptDraft.serviceStartTimes.some((t) => t !== '')
-            ? aptDraft.serviceStartTimes.map((t, i) => (i === 0 && !t ? aptDraft.startTime : t))
-            : aptDraft.serviceStartTimes
+          alignedStartTimes.length === filteredIds.length &&
+          alignedStartTimes.some((t) => t !== '')
+            ? alignedStartTimes.map((t, i) => (i === 0 && !t ? aptDraft.startTime : t))
+            : alignedStartTimes
+        const visitStartTime =
+          normalizedStartTimes.length > 0 && normalizedStartTimes[0]
+            ? normalizedStartTimes[0]
+            : aptDraft.startTime
 
         if (editingId) {
           const defaultStaffId = schedule?.staffId ?? ''
           const staffAssignments =
-            aptDraft.staffAssignments.length === filteredIds.length
-              ? aptDraft.staffAssignments.map((id) => id || defaultStaffId)
-              : undefined
+            aptDraft.staffAssignments.length === aptDraft.serviceIds.length
+              ? keptIndexes.map((index) => aptDraft.staffAssignments[index] || defaultStaffId)
+              : aptDraft.staffAssignments.length === filteredIds.length
+                ? aptDraft.staffAssignments.map((id) => id || defaultStaffId)
+                : undefined
           await updateMyAppointment(token, editingId, {
             serviceIds: filteredIds,
-            serviceStartTimes: normalizedStartTimes,
-            serviceDurations: aptDraft.serviceDurations,
+            serviceStartTimes:
+              normalizedStartTimes.length === filteredIds.length ? normalizedStartTimes : undefined,
+            serviceDurations: alignedDurations,
             staffAssignments,
             date,
-            startTime: aptDraft.startTime,
+            startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
             customerPhone: aptDraft.customerPhone,
@@ -304,9 +326,9 @@ export function useStaffAgenda(token: string) {
             const preview = await previewMySeriesConflicts(token, {
               serviceIds: filteredIds,
               serviceStartTimes: normalizedStartTimes.length > 0 ? normalizedStartTimes : undefined,
-              serviceDurations: aptDraft.serviceDurations,
+              serviceDurations: alignedDurations,
               date,
-              startTime: aptDraft.startTime,
+              startTime: visitStartTime,
               customerFirstName: aptDraft.customerFirstName,
               customerLastName: aptDraft.customerLastName,
               customerPhone: aptDraft.customerPhone,
@@ -325,10 +347,11 @@ export function useStaffAgenda(token: string) {
 
           await createMyAppointment(token, {
             serviceIds: filteredIds,
-            serviceStartTimes: normalizedStartTimes,
-            serviceDurations: aptDraft.serviceDurations,
+            serviceStartTimes:
+              normalizedStartTimes.length === filteredIds.length ? normalizedStartTimes : undefined,
+            serviceDurations: alignedDurations,
             date,
-            startTime: aptDraft.startTime,
+            startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
             customerPhone: aptDraft.customerPhone,

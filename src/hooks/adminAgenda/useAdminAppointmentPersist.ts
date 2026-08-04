@@ -82,7 +82,9 @@ export function useAdminAppointmentPersist({
       rawStartTimes.length === filteredServiceIds.length && rawStartTimes.some((t) => t !== '')
         ? rawStartTimes.map((t, i) => (i === 0 && !t ? aptDraft.startTime : t))
         : undefined
-    return { staffAssignments, serviceDurations, serviceStartTimes }
+    const visitStartTime =
+      serviceStartTimes?.[0] || aptDraft.startTime
+    return { staffAssignments, serviceDurations, serviceStartTimes, visitStartTime }
   }
 
   const doPersistAppointment = useCallback(
@@ -92,7 +94,7 @@ export function useAdminAppointmentPersist({
       setError('')
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
-        const { staffAssignments, serviceDurations, serviceStartTimes } =
+        const { staffAssignments, serviceDurations, serviceStartTimes, visitStartTime } =
           buildAlignedServiceFields(filteredServiceIds)
         if (editingId) {
           const { appointment } = await updateAdminAppointment(editingId, adminToken, {
@@ -103,7 +105,7 @@ export function useAdminAppointmentPersist({
             serviceDurations,
             serviceId: filteredServiceIds[0] || '',
             date,
-            startTime: aptDraft.startTime,
+            startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
             customerPhone: aptDraft.customerPhone,
@@ -127,7 +129,7 @@ export function useAdminAppointmentPersist({
                 serviceStartTimes,
                 serviceDurations,
                 date,
-                startTime: aptDraft.startTime,
+                startTime: visitStartTime,
                 customerFirstName: aptDraft.customerFirstName,
                 customerLastName: aptDraft.customerLastName,
                 customerPhone: aptDraft.customerPhone,
@@ -156,7 +158,7 @@ export function useAdminAppointmentPersist({
               serviceStartTimes,
               serviceDurations,
               date,
-              startTime: aptDraft.startTime,
+              startTime: visitStartTime,
               customerFirstName: aptDraft.customerFirstName,
               customerLastName: aptDraft.customerLastName,
               customerPhone: aptDraft.customerPhone,

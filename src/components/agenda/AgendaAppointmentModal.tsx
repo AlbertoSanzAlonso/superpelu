@@ -313,7 +313,7 @@ export function AgendaAppointmentModal({
         serviceStartTimes: times,
         serviceDurations: durations,
         staffAssignments: assignments,
-        startTime: cleaned.length === 0 ? '' : draft.startTime,
+        startTime: cleaned.length === 0 ? '' : times[0] || draft.startTime,
       })
     },
     [serviceIds, draft, onDraftChange],
