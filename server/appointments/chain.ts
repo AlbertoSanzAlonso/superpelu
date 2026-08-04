@@ -253,9 +253,16 @@ export async function resolveChainContinuation(
     }
   }
 
+  // Si nadie puede a la hora ideal (p. ej. peinado 60 min en hueco de lavado 13:30–14:00
+  // justo antes del descanso), ofrecer aplazamiento más tarde el mismo día.
+  const postponeSlots =
+    viable.length === 0
+      ? await getPostponeSlotsForService(date, nextService.id, nextStart, options)
+      : []
+
   return {
     complete: false,
-    needsTimeChange: false,
+    needsTimeChange: viable.length === 0 && postponeSlots.length === 0,
     segments,
     next: {
       serviceIndex: nextIndex,
@@ -263,6 +270,15 @@ export async function resolveChainContinuation(
       staff: staffList,
       availableStaffIds: viable.map((member) => member.id),
     },
+    ...(postponeSlots.length > 0
+      ? {
+          postpone: {
+            serviceIndex: nextIndex,
+            idealStartTime: nextStart,
+            slots: postponeSlots,
+          },
+        }
+      : {}),
   }
 }
 
