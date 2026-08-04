@@ -38,7 +38,7 @@ import {
 import { createChainedBookingAppointment, resolveChainContinuation } from "@server/appointments/chain.js"
 import { collectDatesForSeriesScope } from "@server/appointments/seriesDates.js"
 import { createRecurringChainedAppointment } from "@server/appointments/recurringChain.js"
-import { timeToMinutes } from "@server/appointments/time.js"
+import { isValidDateString, timeToMinutes } from "@server/appointments/time.js"
 import type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { AppointmentSeriesMode } from "@server/appointments/series.js"
@@ -199,13 +199,16 @@ export async function createAppointment(
       const staffId = staffAssignments[i]
       const staff = await getStaff(staffId)
       if (!staff?.active) throw new Error('STAFF_INVALIDO')
-      if (!(await staffCanPerformService(staffId, serviceIds[i]))) {
+      if (!input.forceSchedule && !(await staffCanPerformService(staffId, serviceIds[i]))) {
         throw new Error('STAFF_NO_REALIZA_SERVICIO')
       }
     }
 
-    const dateOk = await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })
-    if (!dateOk) throw new Error('FECHA_INVALIDA')
+    if (!isValidDateString(input.date)) throw new Error('FECHA_INVALIDA')
+    if (!input.forceSchedule) {
+      const dateOk = await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })
+      if (!dateOk) throw new Error('FECHA_INVALIDA')
+    }
 
     const scope = input.scope ?? 'single'
     if (input.forStaffPortal && scope === 'weekly') {
@@ -216,9 +219,11 @@ export async function createAppointment(
       )
     }
 
-    for (const staffId of new Set(staffAssignments)) {
-      if (!(await isStaffWorkingOnDate(staffId, input.date))) {
-        throw new Error('FECHA_INVALIDA')
+    if (!input.forceSchedule) {
+      for (const staffId of new Set(staffAssignments)) {
+        if (!(await isStaffWorkingOnDate(staffId, input.date))) {
+          throw new Error('FECHA_INVALIDA')
+        }
       }
     }
 
@@ -277,16 +282,19 @@ export async function createAppointment(
   if (!staff || !staff.active) throw new Error('STAFF_INVALIDO')
 
   for (const serviceId of serviceIds) {
-    if (!(await staffCanPerformService(input.staffId, serviceId))) {
+    if (!input.forceSchedule && !(await staffCanPerformService(input.staffId, serviceId))) {
       throw new Error('STAFF_NO_REALIZA_SERVICIO')
     }
   }
 
-  const dateOk =
-    (await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })) &&
-    (await isStaffWorkingOnDate(input.staffId, input.date))
-
-  if (!dateOk) throw new Error('FECHA_INVALIDA')
+  if (!isValidDateString(input.date)) throw new Error('FECHA_INVALIDA')
+  if (!input.forceSchedule) {
+    const dateOk = await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })
+    if (!dateOk) throw new Error('FECHA_INVALIDA')
+    if (!(await isStaffWorkingOnDate(input.staffId, input.date))) {
+      throw new Error('FECHA_INVALIDA')
+    }
+  }
 
   if (!input.forceSchedule) {
     const slots = await getAvailableSlotsForServices(

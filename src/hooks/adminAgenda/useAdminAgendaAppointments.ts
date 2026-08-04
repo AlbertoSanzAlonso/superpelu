@@ -182,7 +182,7 @@ export function useAdminAgendaAppointments({
       draft: aptDraft,
       services: servicesForPicker,
       editingId,
-      forceSchedule,
+      forceSchedule: forceSchedule || Boolean(editingId),
     })
       .then((conflict) => {
         if (requestId !== availabilityRequestId.current) return

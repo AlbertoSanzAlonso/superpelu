@@ -2,8 +2,7 @@ import { sql, type AppointmentRow } from "@server/db.js"
 import { getService } from "@server/catalog/services.js"
 import { serviceDisplayName } from "@/i18n/localeHelpers"
 import { normalizeLocale } from "@/i18n/types"
-import { isStaffWorkingOnDate } from "@server/staff/availability.js"
-import { getStaff, staffCanPerformService } from "@server/staff/index.js"
+import { getStaff } from "@server/staff/index.js"
 import {
   customerNameSnapshot,
   getCustomer,
@@ -13,20 +12,16 @@ import {
 import { notifyAppointmentRescheduled } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentUpdated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
-import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   COLOR_GROUP_ROLE,
   COLOR_SPLIT_SEGMENT_MINUTES,
   getBookingSpanMinutes,
-  getOccupiedSegmentsForBooking,
   getWashPhaseStartMinutes,
   isColorGroupColorRow,
   isColorGroupWashRow,
-  type OccupiedSegment,
 } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking, type DbClient } from "@server/appointments/lock.js"
 import { getAppointmentById, getAppointmentsByBookingGroup } from "@server/appointments/queries.js"
-import { assertBookingAvailable } from "@server/appointments/booking.js"
 import { isValidDateString, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
 import type { UpdateAppointmentInput } from "@server/appointments/types.js"
 import { createAppointment } from "@server/appointments/create.js"
@@ -60,44 +55,28 @@ export async function updateAppointmentForStaff(
   const startTime = input.startTime ?? existing.start_time
   const serviceIds = input.serviceIds?.filter(Boolean) ?? []
 
-  if (
-    !isValidDateString(date) ||
-    !(await isBookingDateAllowed(date, { forStaffPortal: true })) ||
-    !(await isStaffWorkingOnDate(targetStaffId, date))
-  ) {
+  // Edición desde agenda (admin/profesional): sin restricciones de hueco ni día laboral.
+  const forceSchedule = true
+
+  if (!isValidDateString(date)) {
     throw new Error('FECHA_INVALIDA')
   }
 
   // Multi-service or service change → delete old + create new
   if (serviceIds.length > 1 || (serviceIds.length === 1 && servicesDiffer(existing, serviceIds))) {
-    return replaceAppointment(existing, targetStaffId, serviceIds, input)
+    return replaceAppointment(existing, targetStaffId, serviceIds, { ...input, forceSchedule })
   }
 
   const serviceId = input.serviceId ?? existing.service_id
   const service = await getService(serviceId, { onlineOnly: false })
   if (!service) throw new Error('SERVICIO_INVALIDO')
 
-  if (!(await staffCanPerformService(targetStaffId, serviceId))) {
-    throw new Error('STAFF_NO_REALIZA_SERVICIO')
-  }
+  const staffMember = await getStaff(targetStaffId)
+  if (!staffMember?.active) throw new Error('STAFF_INVALIDO')
 
-  const startMinutes = timeToMinutes(startTime)
-  let segments: OccupiedSegment[]
-  
-  // Usar duración personalizada si se proporciona
   const customDuration = input.serviceDurations?.[0] ?? null
   const useCustomDuration = customDuration != null && customDuration > 0
-  
-  if (isColorGroupWashRow(existing.color_group_role)) {
-    segments = [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
-  } else if (isColorGroupColorRow(existing.color_group_role)) {
-    segments = [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
-  } else {
-    const durationForSegments = useCustomDuration ? customDuration : service.durationMinutes
-    segments = getOccupiedSegmentsForBooking(service.id, startMinutes, durationForSegments, {
-      bookingPattern: useCustomDuration ? null : service.bookingPattern,
-    })
-  }
+
   const scheduleChanging =
     date !== existing.appointment_date ||
     startTime !== existing.start_time ||
@@ -161,8 +140,7 @@ export async function updateAppointmentForStaff(
         : null
       : existing.reminder_sent_at
 
-  const staff = (await getStaff(targetStaffId))!
-  if (!staff?.active) throw new Error('STAFF_INVALIDO')
+  const staff = staffMember
 
   const locale =
     input.customerLocale !== undefined
@@ -249,9 +227,7 @@ export async function updateAppointmentForStaff(
     }
     await sql.begin(async (tx) => {
       await lockStaffDaysForBooking(tx, lockKeys)
-      if (!input.forceSchedule) {
-        await assertBookingAvailable(tx, targetStaffId, date, segments, appointmentId)
-      }
+      // Edición agenda: no comprobar solapes (forceSchedule siempre activo).
       await persistUpdates(tx)
     })
   } else {
@@ -292,8 +268,6 @@ async function replaceAppointment(
       ? input.staffAssignments.map((id) => id || targetStaffId)
       : undefined
 
-  // createAppointment valida cada especialista ↔ servicio; no exigir que el staff
-  // principal realice todos los tratamientos del grupo.
   const split = resolveCustomerFromInput({
     firstName: input.customerFirstName,
     lastName: input.customerLastName,
@@ -301,7 +275,20 @@ async function replaceAppointment(
     phone: input.customerPhone ?? existing.customer_phone,
   })
 
-  const created = await createAppointment({
+  // Borrar el grupo antiguo primero para que no bloquee la recreación.
+  if (existing.booking_group_id) {
+    const group = await getAppointmentsByBookingGroup(existing.booking_group_id)
+    const ids = group.map((r) => r.id)
+    if (ids.length > 0) {
+      await sql`DELETE FROM appointments WHERE id = ANY(${ids}::uuid[])`
+    }
+  } else if (existing.color_group_id) {
+    await sql`DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}`
+  } else {
+    await sql`DELETE FROM appointments WHERE id = ${existing.id}`
+  }
+
+  return createAppointment({
     staffId: targetStaffId,
     staffAssignments,
     serviceIds,
@@ -323,24 +310,8 @@ async function replaceAppointment(
     notes: input.notes !== undefined ? (input.notes ?? undefined) : undefined,
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
     forStaffPortal: true,
-    forceSchedule: input.forceSchedule,
-    excludeAppointmentId: existing.id,
+    forceSchedule: true,
   })
-
-  // Delete old appointment(s) silently
-  if (existing.booking_group_id) {
-    const group = await getAppointmentsByBookingGroup(existing.booking_group_id)
-    const ids = group.map((r) => r.id)
-    if (ids.length > 0) {
-      await sql`DELETE FROM appointments WHERE id = ANY(${ids}::uuid[])`
-    }
-  } else if (existing.color_group_id) {
-    await sql`DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}`
-  } else {
-    await sql`DELETE FROM appointments WHERE id = ${existing.id}`
-  }
-
-  return created
 }
 
 export async function updateAppointmentForAdmin(

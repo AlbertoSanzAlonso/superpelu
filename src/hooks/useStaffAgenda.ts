@@ -295,7 +295,7 @@ export function useStaffAgenda(token: string) {
             customerNotes: aptDraft.customerNotes || null,
             notes: aptDraft.notes || null,
             customerLocale: aptDraft.customerLocale,
-            forceSchedule,
+            forceSchedule: true,
           })
         } else {
           const isMultiTreatmentSeries = filteredIds.length > 1 && aptDraft.recurrenceScope === 'weekly'

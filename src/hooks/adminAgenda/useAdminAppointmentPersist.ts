@@ -112,7 +112,7 @@ export function useAdminAppointmentPersist({
             notes: aptDraft.notes || undefined,
             customerLocale: aptDraft.customerLocale,
             notifyCustomerWhatsApp,
-            forceSchedule: allowForcedSchedule,
+            forceSchedule: true,
           })
           markAppointmentSnapshots?.([appointment])
         } else {
