@@ -1319,7 +1319,17 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     return c.json({ appointment: rowToPublic(row) })
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
-    return c.json({ error: adminScheduleErrors[code] ?? 'No se pudo actualizar' }, 409)
+    console.error('Superpelu update appointment:', code, err)
+    return c.json(
+      {
+        error:
+          adminScheduleErrors[code] ??
+          (err instanceof Error && err.message && !/^[A-Z0-9_]+$/.test(err.message)
+            ? err.message
+            : 'No se pudo actualizar'),
+      },
+      409,
+    )
   }
 })
 

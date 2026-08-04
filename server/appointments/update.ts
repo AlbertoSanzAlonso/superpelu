@@ -21,7 +21,7 @@ import {
   isColorGroupWashRow,
 } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking, type DbClient } from "@server/appointments/lock.js"
-import { getAppointmentById, getAppointmentsByBookingGroup } from "@server/appointments/queries.js"
+import { getAppointmentById } from "@server/appointments/queries.js"
 import { isValidDateString, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
 import type { UpdateAppointmentInput } from "@server/appointments/types.js"
 import { createAppointment } from "@server/appointments/create.js"
@@ -292,11 +292,12 @@ async function replaceAppointment(
   })
 
   // Borrar el grupo antiguo primero para que no bloquee la recreación.
+  // Preferir DELETE por columna de grupo (evita ANY(...::uuid[]) con postgres.js).
   if (existing.booking_group_id) {
-    const group = await getAppointmentsByBookingGroup(existing.booking_group_id)
-    const ids = group.map((r) => r.id)
-    if (ids.length > 0) {
-      await sql`DELETE FROM appointments WHERE id = ANY(${ids}::uuid[])`
+    await sql`DELETE FROM appointments WHERE booking_group_id = ${existing.booking_group_id}`
+    // Lavados de color huérfanos (mismo color_group, sin booking_group).
+    if (existing.color_group_id) {
+      await sql`DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}`
     }
   } else if (existing.color_group_id) {
     await sql`DELETE FROM appointments WHERE color_group_id = ${existing.color_group_id}`
