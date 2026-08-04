@@ -182,6 +182,9 @@ export function AdminAgendaWorkspace({
           draft={agenda.aptDraft}
           services={agenda.services}
           slots={agenda.slots}
+          slotsOverHours={agenda.slotsOverHours}
+          serviceSlots={agenda.serviceSlotsPerIndex}
+          serviceAlternativeStaff={agenda.serviceAlternativeStaff}
           onModeChange={(m) =>
             m === 'edit' ? agenda.startDetailEdit() : agenda.setDetailEditMode(false)
           }
@@ -235,7 +238,11 @@ export function AdminAgendaWorkspace({
         onClose={agenda.dismissSlotsConflict}
         onConfirm={agenda.confirmSlotsConflict}
         onChangeStaff={(staffId) => {
-          agenda.selectStaff(staffId)
+          if (agenda.viewingAppointment) {
+            agenda.changeDetailStaff(staffId)
+          } else {
+            agenda.selectStaff(staffId)
+          }
           agenda.setAptDraft((d) => ({ ...d, staffAssignments: [] }))
         }}
       />

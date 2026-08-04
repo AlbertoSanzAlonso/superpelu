@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
@@ -108,6 +108,28 @@ export function useAdminAgendaAppointments({
       .catch(() => setServices([]))
   }, [activeStaffId, adminToken])
 
+  /** Conserva en el picker los tratamientos del draft aunque el staff activo no los liste. */
+  const servicesForPicker = useMemo(() => {
+    const byId = new Map(services.map((s) => [s.id, s]))
+    const allApts = schedules.flatMap((s) => s.appointments)
+    for (const id of aptDraft.serviceIds) {
+      if (!id || byId.has(id)) continue
+      const fromSchedule = allApts.find((a) => a.serviceId === id)
+      const fromView =
+        viewingAppointment?.apt.serviceId === id ? viewingAppointment.apt : undefined
+      const apt = fromSchedule ?? fromView
+      if (!apt) continue
+      byId.set(id, {
+        id: apt.serviceId,
+        nameEs: apt.serviceName,
+        nameEn: apt.serviceName,
+        durationMinutes: apt.durationMinutes,
+        categoryId: apt.categoryId,
+      })
+    }
+    return Array.from(byId.values())
+  }, [services, aptDraft.serviceIds, schedules, viewingAppointment])
+
   useEffect(() => {
     setForceSchedule(false)
   }, [
@@ -158,7 +180,7 @@ export function useAdminAgendaAppointments({
       adminToken,
       activeStaffId,
       draft: aptDraft,
-      services,
+      services: servicesForPicker,
       editingId,
       forceSchedule,
     })
@@ -181,7 +203,7 @@ export function useAdminAgendaAppointments({
     adminToken,
     editingId,
     forceSchedule,
-    services,
+    servicesForPicker,
   ])
 
   // Slots disponibles por servicio individual (para tratamientos adicionales)
@@ -346,14 +368,6 @@ export function useAdminAgendaAppointments({
     },
     [schedules],
   )
-
-  useEffect(() => {
-    if (!detailEditMode || !viewingAppointment || services.length === 0) return
-    const currentServiceId = aptDraft.serviceIds[0]
-    if (currentServiceId && !services.some((s) => s.id === currentServiceId)) {
-      setAptDraft((d) => ({ ...d, serviceIds: [], startTime: '' }))
-    }
-  }, [services, aptDraft.serviceIds.join(','), detailEditMode, viewingAppointment])
 
   const createAppointmentFromSelection = useCallback(() => {
     if (!selection) return
@@ -583,7 +597,7 @@ export function useAdminAgendaAppointments({
   return {
     activeStaffId,
     scheduleForActiveStaff,
-    services,
+    services: servicesForPicker,
     slots,
     slotsOverHours,
     slotsConflict,

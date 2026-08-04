@@ -13,8 +13,17 @@ import {
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
+
+/** Todos los slots de 30 min entre 8:00 y 21:00. */
+const ALL_DAY_SLOTS = Array.from({ length: 27 }, (_, i) => {
+  const totalMin = 8 * 60 + i * 30
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+})
 
 export type AgendaStaffOption = { id: string; name: string }
 
@@ -31,6 +40,11 @@ type Props = {
   draft: AppointmentDraft
   services: BookableService[]
   slots: string[]
+  slotsOverHours?: string[]
+  /** Slots libres por tratamiento (índice = posición en serviceIds). */
+  serviceSlots?: string[][]
+  /** Profesional alternativo libre a la hora ocupada de un tratamiento adicional. */
+  serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   saving?: boolean
   onModeChange: (mode: 'view' | 'edit') => void
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
@@ -60,6 +74,9 @@ export function AgendaAppointmentModal({
   draft,
   services,
   slots,
+  slotsOverHours = [],
+  serviceSlots,
+  serviceAlternativeStaff,
   saving = false,
   onModeChange,
   onDraftChange,
@@ -90,34 +107,48 @@ export function AgendaAppointmentModal({
     })
   }, [appointment.createdAt])
 
-  if (!open) return null
-
-  const appointmentForReview: Appointment | null = {
-    id: appointment.id,
-    staffId,
-    staffName,
-    serviceId: appointment.serviceId,
-    serviceName: appointment.serviceName,
-    durationMinutes: appointment.durationMinutes,
-    colorGroupRole: appointment.colorGroupRole,
-    date,
-    startTime: appointment.startTime,
-    customerName: formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName),
-    customerPhone: draft.customerPhone,
-    customerEmail: draft.customerEmail || null,
-    notes: draft.notes || null,
-    status: appointment.status,
-    locale: draft.customerLocale,
-    createdAt: appointment.createdAt,
-  }
-
-  const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
-  const selectCn =
-    'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
-  const showReviewRequest = showCustomerHistory
+  const freeSet = useMemo(() => new Set(slots), [slots])
+  const overHoursSet = useMemo(() => new Set(slotsOverHours), [slotsOverHours])
+  const mainOccupiedOptions = useMemo(
+    () => ALL_DAY_SLOTS.filter((t) => !freeSet.has(t) && !overHoursSet.has(t)),
+    [freeSet, overHoursSet],
+  )
+  const mainExtraCurrent = useMemo(
+    () =>
+      draft.startTime &&
+      !freeSet.has(draft.startTime) &&
+      !overHoursSet.has(draft.startTime) &&
+      !mainOccupiedOptions.includes(draft.startTime)
+        ? [draft.startTime]
+        : [],
+    [draft.startTime, freeSet, overHoursSet, mainOccupiedOptions],
+  )
+  const isOverHoursSelected = draft.startTime ? overHoursSet.has(draft.startTime) : false
+  const isMainOccupiedSelected =
+    Boolean(draft.startTime) && !freeSet.has(draft.startTime) && !overHoursSet.has(draft.startTime)
 
   const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
   const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
+
+  const chainedStartTimes = useMemo(() => {
+    if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
+    const selectedServices = draft.serviceIds
+      .map((id, i) => {
+        if (!id) return null
+        const svc = services.find((s) => s.id === id)
+        if (!svc) return null
+        const customDuration = draft.serviceDurations[i]
+        return {
+          id: svc.id,
+          categoryId: svc.categoryId ?? '',
+          durationMinutes:
+            customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
+        }
+      })
+      .filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
+    if (selectedServices.length === 0) return []
+    return buildFlexibleServiceStartTimes(selectedServices, draft.startTime, draft.serviceStartTimes)
+  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
     () => checkServiceOverlaps(draft, services),
@@ -141,16 +172,22 @@ export function AgendaAppointmentModal({
 
   const setServiceAtIndex = useCallback(
     (index: number, id: string) => {
-      const next = [...serviceIds]
+      const next = [...(draft.serviceIds.length > 0 ? draft.serviceIds : [''])]
       if (index === 0 && id === '') {
-        const hadService = serviceIds[0] !== ''
+        const hadService = next[0] !== ''
         if (hadService) {
-          onDraftChange({ serviceIds: [], serviceStartTimes: [], serviceDurations: [], staffAssignments: [], startTime: '' })
+          onDraftChange({
+            serviceIds: [],
+            serviceStartTimes: [],
+            serviceDurations: [],
+            staffAssignments: [],
+            startTime: '',
+          })
         }
         return
       }
       next[index] = id
-      const selectedService = services.find(s => s.id === id)
+      const selectedService = services.find((s) => s.id === id)
       const newDurations = [...normalizeArr(next, draft.serviceDurations, null as number | null)]
       if (selectedService) {
         newDurations[index] = selectedService.durationMinutes
@@ -163,14 +200,26 @@ export function AgendaAppointmentModal({
         staffAssignments: newAssignments,
       })
     },
-    [serviceIds, draft.serviceStartTimes, draft.serviceDurations, draft.staffAssignments, services, onDraftChange, normalizeArr],
+    [
+      draft.serviceIds,
+      draft.serviceStartTimes,
+      draft.serviceDurations,
+      draft.staffAssignments,
+      services,
+      onDraftChange,
+      normalizeArr,
+    ],
   )
 
   const setServiceStartTime = useCallback(
     (index: number, time: string) => {
-      const times = [...(draft.serviceStartTimes.length === draft.serviceIds.length ? draft.serviceStartTimes : [])]
+      const times = [
+        ...(draft.serviceStartTimes.length === draft.serviceIds.length
+          ? draft.serviceStartTimes
+          : []),
+      ]
       times[index] = time
-      const patch: Partial<typeof draft> = { serviceStartTimes: times }
+      const patch: Partial<AppointmentDraft> = { serviceStartTimes: times }
       if (index === 0 && time) {
         patch.startTime = time
       }
@@ -181,7 +230,11 @@ export function AgendaAppointmentModal({
 
   const setServiceDuration = useCallback(
     (index: number, duration: number | null) => {
-      const durations = [...(draft.serviceDurations.length === draft.serviceIds.length ? draft.serviceDurations : [])]
+      const durations = [
+        ...(draft.serviceDurations.length === draft.serviceIds.length
+          ? draft.serviceDurations
+          : []),
+      ]
       durations[index] = duration
       onDraftChange({ serviceDurations: durations })
     },
@@ -198,15 +251,18 @@ export function AgendaAppointmentModal({
     (index: number) => {
       const next = serviceIds.filter((_, i) => i !== index)
       const cleaned = next.filter((s) => s !== '')
-      const times = draft.serviceStartTimes.length === serviceIds.length
-        ? draft.serviceStartTimes.filter((_, i) => i !== index)
-        : []
-      const durations = draft.serviceDurations.length === serviceIds.length
-        ? draft.serviceDurations.filter((_, i) => i !== index)
-        : []
-      const assignments = draft.staffAssignments.length === serviceIds.length
-        ? draft.staffAssignments.filter((_, i) => i !== index)
-        : []
+      const times =
+        draft.serviceStartTimes.length === serviceIds.length
+          ? draft.serviceStartTimes.filter((_, i) => i !== index)
+          : []
+      const durations =
+        draft.serviceDurations.length === serviceIds.length
+          ? draft.serviceDurations.filter((_, i) => i !== index)
+          : []
+      const assignments =
+        draft.staffAssignments.length === serviceIds.length
+          ? draft.staffAssignments.filter((_, i) => i !== index)
+          : []
       onDraftChange({
         serviceIds: cleaned,
         serviceStartTimes: times,
@@ -217,6 +273,31 @@ export function AgendaAppointmentModal({
     },
     [serviceIds, draft, onDraftChange],
   )
+
+  if (!open) return null
+
+  const appointmentForReview: Appointment | null = {
+    id: appointment.id,
+    staffId,
+    staffName,
+    serviceId: appointment.serviceId,
+    serviceName: appointment.serviceName,
+    durationMinutes: appointment.durationMinutes,
+    colorGroupRole: appointment.colorGroupRole,
+    date,
+    startTime: appointment.startTime,
+    customerName: formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName),
+    customerPhone: draft.customerPhone,
+    customerEmail: draft.customerEmail || null,
+    notes: draft.notes || null,
+    status: appointment.status,
+    locale: draft.customerLocale,
+    createdAt: appointment.createdAt,
+  }
+
+  const selectCn =
+    'w-full cursor-pointer border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
+  const showReviewRequest = showCustomerHistory
 
   return (
     <div
@@ -384,27 +465,97 @@ export function AgendaAppointmentModal({
                           </select>
                         </div>
                       )}
-                      {serviceId && (
-                        <div>
-                          <label className={`${typography.label} mb-0.5 block text-xs`}>
-                            Hora de inicio
-                          </label>
-                          <select
-                            value={draft.serviceStartTimes[index] ?? ''}
-                            onChange={(e) => setServiceStartTime(index, e.target.value)}
-                            className={selectCn}
-                          >
-                            <option value="">
-                              {draft.startTime ? 'Automática (encadenada)' : 'Elige hora primero'}
-                            </option>
-                            {timeOptions.map((slot) => (
-                              <option key={slot} value={slot}>
-                                {slot}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+                      {serviceId && index > 0 && (() => {
+                        const currentVal = draft.serviceStartTimes[index] ?? ''
+                        const perSvcFree = serviceSlots?.[index] ?? []
+                        const hasSvcSlots = perSvcFree.length > 0
+                        const chainedMin = chainedStartTimes[index] ?? ''
+                        const freeOptions = (hasSvcSlots ? perSvcFree : [...slots]).filter(
+                          (t) => !chainedMin || t >= chainedMin,
+                        )
+                        const freeOptionsSet = new Set(freeOptions)
+                        const lastFree = freeOptions.length > 0 ? freeOptions[freeOptions.length - 1] : null
+                        const occupiedOptions = hasSvcSlots
+                          ? ALL_DAY_SLOTS.filter((t) => {
+                              if (chainedMin && t < chainedMin) return false
+                              if (lastFree && t > lastFree) return false
+                              return !freeOptionsSet.has(t)
+                            })
+                          : []
+                        const isOccupied = currentVal !== '' && !freeOptionsSet.has(currentVal)
+                        const extraCurrent =
+                          currentVal !== '' &&
+                          !freeOptionsSet.has(currentVal) &&
+                          !occupiedOptions.includes(currentVal)
+                            ? [currentVal]
+                            : []
+                        const chainedLabel =
+                          draft.startTime && chainedStartTimes[index]
+                            ? chainedStartTimes[index]
+                            : 'Automática (encadenada)'
+
+                        return (
+                          <div>
+                            <label className={`${typography.label} mb-0.5 block text-xs`}>
+                              Hora de inicio
+                            </label>
+                            <select
+                              value={currentVal}
+                              onChange={(e) => setServiceStartTime(index, e.target.value)}
+                              className={selectCn}
+                            >
+                              <option value="">{chainedLabel}</option>
+                              {freeOptions.map((slot) => (
+                                <option key={slot} value={slot}>
+                                  {slot}
+                                </option>
+                              ))}
+                              {occupiedOptions.length > 0 && (
+                                <optgroup label="⚠ Hora ocupada">
+                                  {[...extraCurrent, ...occupiedOptions].map((slot) => (
+                                    <option key={slot} value={slot}>
+                                      ⚠ {slot}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                              )}
+                            </select>
+                            {isOccupied && (
+                              <div className="mt-1 space-y-0.5 text-xs text-amber-700">
+                                {freeOptions.length > 0 && (
+                                  <p>
+                                    Otras horas disponibles:{' '}
+                                    {freeOptions.slice(0, 5).map((t, i2) => (
+                                      <button
+                                        key={t}
+                                        type="button"
+                                        onClick={() => setServiceStartTime(index, t)}
+                                        className="cursor-pointer font-medium underline"
+                                      >
+                                        {t}
+                                        {i2 < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
+                                      </button>
+                                    ))}
+                                  </p>
+                                )}
+                                {serviceAlternativeStaff?.[index] != null && (
+                                  <p>
+                                    A esta hora está libre:{' '}
+                                    <span className="font-medium">
+                                      {serviceAlternativeStaff[index]!.name}
+                                    </span>
+                                  </p>
+                                )}
+                                {isOccupied &&
+                                  freeOptions.length === 0 &&
+                                  !serviceAlternativeStaff?.[index] && (
+                                    <p>Sin disponibilidad para este tratamiento.</p>
+                                  )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })()}
                       {serviceId && (
                         <div>
                           <label className={`${typography.label} mb-0.5 block text-xs`}>
@@ -431,7 +582,7 @@ export function AgendaAppointmentModal({
                   <button
                     type="button"
                     onClick={addService}
-                    className="flex w-full items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
+                    className="flex w-full cursor-pointer items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
                   >
                     <span className="text-sm leading-none">+</span> Añadir tratamiento
                   </button>
@@ -466,12 +617,40 @@ export function AgendaAppointmentModal({
                       <option value="">
                         {hasServices ? 'Elige hora' : 'Tratamiento primero'}
                       </option>
-                      {timeOptions.map((slot) => (
+                      {slots.map((slot) => (
                         <option key={slot} value={slot}>
                           {slot}
                         </option>
                       ))}
+                      {slotsOverHours.length > 0 && (
+                        <optgroup label="⚠ Fuera del horario del salón">
+                          {slotsOverHours.map((slot) => (
+                            <option key={slot} value={slot}>
+                              ⚠ {slot}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {(mainOccupiedOptions.length > 0 || mainExtraCurrent.length > 0) && (
+                        <optgroup label="⚠ Hora ocupada">
+                          {[...mainExtraCurrent, ...mainOccupiedOptions].map((slot) => (
+                            <option key={slot} value={slot}>
+                              ⚠ {slot}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
+                    {isOverHoursSelected && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
+                      </p>
+                    )}
+                    {isMainOccupiedSelected && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Esta hora está ocupada. Se pedirá confirmación al guardar.
+                      </p>
+                    )}
                   </div>
                 </section>
                 <section>
