@@ -28,7 +28,6 @@ type BookingStaffPickerProps = {
     staff: string
     loadingStaff: string
     noStaffAtSlot: string
-    chainStaffBusyAtTime: string
     chainAssignedHeading: string
     chainNeedsTimeChange: string
     chainConflictIntro: string
@@ -56,6 +55,17 @@ export function BookingStaffPicker({
   onSelectStaff,
   onPickPostponeSlot,
 }: BookingStaffPickerProps) {
+  // En tratamientos siguientes solo listamos profesionales libres a esa hora.
+  const visibleStaff =
+    chainNextIndex != null && chainAvailableStaffIds.length > 0
+      ? staffOptions.filter((member) => chainAvailableStaffIds.includes(member.id))
+      : chainNextIndex != null
+        ? []
+        : staffOptions
+
+  const showTimePicker = Boolean(chainPostpone && chainPostpone.slots.length > 0)
+  const selectedTime = chainPostpone?.idealStartTime
+
   return (
     <>
       {chainSegments.length > 0 && (
@@ -84,7 +94,7 @@ export function BookingStaffPicker({
         </p>
       )}
 
-      {(chainConflict || chainPostpone) && (
+      {chainConflict && !showTimePicker && (
         <p
           className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
           role="status"
@@ -93,54 +103,7 @@ export function BookingStaffPicker({
         </p>
       )}
 
-      <fieldset className="space-y-3">
-        <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
-          {labels.staff}
-        </legend>
-        {loading ? (
-          <p className={`${typography.caption} text-center`}>{labels.loadingStaff}</p>
-        ) : staffOptions.length === 0 && !chainNeedsTimeChange && !chainPostpone ? (
-          <p
-            className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
-            role="status"
-          >
-            {error || labels.noStaffAtSlot}
-          </p>
-        ) : staffOptions.length > 0 ? (
-          <>
-            <p className={`${typography.caption} text-center`}>{legend}</p>
-            <div className="grid gap-3">
-              {staffOptions.map((member) => (
-                <label
-                  key={member.id}
-                  className="flex cursor-pointer items-start gap-3 border border-gold/20 p-4 transition-colors hover:border-gold/40"
-                >
-                  <input
-                    type="radio"
-                    name={`staff-${chainNextIndex ?? 0}`}
-                    value={member.id}
-                    onChange={() => onSelectStaff(member.id)}
-                    className="mt-1 accent-gold"
-                  />
-                  <span className="text-left">
-                    <span className={`${typography.h3} block text-gold`}>{member.name}</span>
-                    {member.role && (
-                      <span className={`${typography.caption} block`}>{member.role}</span>
-                    )}
-                    {chainNextIndex != null && !chainAvailableStaffIds.includes(member.id) && (
-                      <span className={`${typography.caption} block text-charcoal-muted`}>
-                        {labels.chainStaffBusyAtTime}
-                      </span>
-                    )}
-                  </span>
-                </label>
-              ))}
-            </div>
-          </>
-        ) : null}
-      </fieldset>
-
-      {chainPostpone && chainPostpone.slots.length > 0 && (
+      {showTimePicker && chainPostpone && (
         <fieldset className="space-y-3">
           <legend className={`${typography.label} mb-2 block w-full text-center`}>
             {labels.chainPostponeHeading(
@@ -150,17 +113,74 @@ export function BookingStaffPicker({
           </legend>
           <p className={`${typography.caption} text-center`}>{labels.chainPostponeHint}</p>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {chainPostpone.slots.map((slot) => (
-              <button
-                key={slot}
-                type="button"
-                onClick={() => onPickPostponeSlot(chainPostpone.serviceIndex, slot)}
-                className="cursor-pointer border border-gold/20 py-2 text-center text-sm transition-colors hover:border-gold/50"
-              >
-                {slot}
-              </button>
-            ))}
+            {chainPostpone.slots.map((slot) => {
+              const isSelected = slot === selectedTime
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={() => onPickPostponeSlot(chainPostpone.serviceIndex, slot)}
+                  className={`cursor-pointer border py-2 text-center text-sm transition-colors ${
+                    isSelected
+                      ? 'border-gold bg-gold/10 text-charcoal'
+                      : 'border-gold/20 hover:border-gold/50'
+                  }`}
+                >
+                  {slot}
+                </button>
+              )
+            })}
           </div>
+        </fieldset>
+      )}
+
+      {(visibleStaff.length > 0 || loading || (!showTimePicker && !chainNeedsTimeChange)) && (
+        <fieldset className="space-y-3">
+          <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
+            {labels.staff}
+          </legend>
+          {loading ? (
+            <p className={`${typography.caption} text-center`}>{labels.loadingStaff}</p>
+          ) : visibleStaff.length === 0 ? (
+            !showTimePicker ? (
+              <p
+                className="rounded border border-amber-300/60 bg-amber-50 px-4 py-3 text-center text-sm text-amber-950"
+                role="status"
+              >
+                {error || labels.noStaffAtSlot}
+              </p>
+            ) : (
+              <p className={`${typography.caption} text-center`}>
+                {error || labels.noStaffAtSlot}
+              </p>
+            )
+          ) : (
+            <>
+              <p className={`${typography.caption} text-center`}>{legend}</p>
+              <div className="grid gap-3">
+                {visibleStaff.map((member) => (
+                  <label
+                    key={member.id}
+                    className="flex cursor-pointer items-start gap-3 border border-gold/20 p-4 transition-colors hover:border-gold/40"
+                  >
+                    <input
+                      type="radio"
+                      name={`staff-${chainNextIndex ?? 0}`}
+                      value={member.id}
+                      onChange={() => onSelectStaff(member.id)}
+                      className="mt-1 accent-gold"
+                    />
+                    <span className="text-left">
+                      <span className={`${typography.h3} block text-gold`}>{member.name}</span>
+                      {member.role && (
+                        <span className={`${typography.caption} block`}>{member.role}</span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
         </fieldset>
       )}
     </>

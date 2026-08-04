@@ -11,7 +11,7 @@ import {
   staffCanPerformService,
   type PublicStaff,
 } from "@server/staff/index.js"
-import { getChainedBookingSegments, buildFlexibleServiceStartTimes, type BookingServiceLine } from "@/lib/booking/combo"
+import { getChainedBookingSegments, type BookingServiceLine } from "@/lib/booking/combo"
 import { getFirstServiceBookingSpan, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { schedule } from "@server/config.js"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
@@ -503,63 +503,21 @@ export async function getServiceDaySlotsForServices(
 
   const slots: string[] = []
   for (const start of [...candidateStarts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))) {
-    let startFeasible = false
+    let firstServiceFits = false
     for (const member of staffForFirst) {
-      if (
-        !(await isStaffFreeForServiceAt(date, member.id, services[0], start, {
-          ...options,
-          chainServices: services,
-          chainServiceIndex: 0,
-        }))
-      ) {
-        continue
-      }
-      if (await isMultiVisitStartFeasible(date, services, start, options)) {
-        startFeasible = true
+      if (await isStaffFreeForServiceAt(date, member.id, services[0], start, {
+        ...options,
+        chainServices: services,
+        chainServiceIndex: 0,
+      })) {
+        firstServiceFits = true
         break
       }
     }
-    if (startFeasible) slots.push(start)
+    if (firstServiceFits) slots.push(start)
   }
 
   return filterPastSlotsForToday(date, slots)
-}
-
-/**
- * Comprueba que, a la hora ideal de cada tratamiento siguiente, haya al menos
- * una profesional libre (la visita se puede completar sin romper el encadenado).
- */
-async function isMultiVisitStartFeasible(
-  date: string,
-  services: ResolvedBookingService[],
-  visitStartTime: string,
-  options: SlotOptions,
-): Promise<boolean> {
-  if (services.length < 2) return true
-
-  const startTimes = buildFlexibleServiceStartTimes(services, visitStartTime, [])
-
-  for (let i = 1; i < services.length; i++) {
-    const service = services[i]
-    const idealStart = startTimes[i]
-    const staffList = await listStaffForService(service.id)
-    let someoneFree = false
-    for (const member of staffList) {
-      if (
-        await isStaffFreeForServiceAt(date, member.id, service, idealStart, {
-          ...options,
-          chainServices: services,
-          chainServiceIndex: i,
-        })
-      ) {
-        someoneFree = true
-        break
-      }
-    }
-    if (!someoneFree) return false
-  }
-
-  return true
 }
 
 export async function getStaffAvailableAtSlot(

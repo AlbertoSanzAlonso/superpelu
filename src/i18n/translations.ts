@@ -279,11 +279,11 @@ const es = {
     chainNeedsTimeChange:
       'No hay hueco para enlazar el resto de tratamientos a esa hora. Elige otra hora o prueba otro día.',
     chainConflictIntro:
-      'El siguiente tratamiento no cabe a esa hora en la jornada (por ejemplo, cruza el descanso). Elige otra profesional o aplázalo más tarde ese día.',
-    chainStaffBusyAtTime: 'No cabe a esa hora en su horario',
-    chainPostponeHeading: (service: string, idealTime: string) =>
-      `Aplazar ${service} (no cabe a las ${idealTime})`,
-    chainPostponeHint: 'Otras horas disponibles ese día para este tratamiento:',
+      'Elige otra profesional libre o otra hora para el siguiente tratamiento.',
+    chainStaffBusyAtTime: 'No disponible a esa hora',
+    chainPostponeHeading: (service: string, _idealTime: string) =>
+      `Elige hora para ${service}`,
+    chainPostponeHint: 'Puedes mantener la sugerida o elegir otra:',
     chainAssignedHeading: 'Profesionales asignados',
     loadingStaff: 'Cargando equipo…',
     noStaffAtSlot: 'No hay profesionales libres a esa hora.',
@@ -844,11 +844,11 @@ const en = {
     chainNeedsTimeChange:
       'There is no slot to link the remaining treatments at that time. Choose another time or day.',
     chainConflictIntro:
-      'The next treatment does not fit at that time in the working day (for example, it crosses the break). Choose another stylist or postpone it later that day.',
-    chainStaffBusyAtTime: 'Does not fit in their schedule at that time',
-    chainPostponeHeading: (service: string, idealTime: string) =>
-      `Postpone ${service} (not available at ${idealTime})`,
-    chainPostponeHint: 'Other times that day for this treatment:',
+      'Choose another available stylist or another time for the next treatment.',
+    chainStaffBusyAtTime: 'Not available at that time',
+    chainPostponeHeading: (service: string, _idealTime: string) =>
+      `Choose a time for ${service}`,
+    chainPostponeHint: 'Keep the suggested time or pick another:',
     chainAssignedHeading: 'Assigned stylists',
     loadingStaff: 'Loading team…',
     noStaffAtSlot: 'No stylists available at that time.',

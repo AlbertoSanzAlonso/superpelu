@@ -26,7 +26,6 @@ type BookingScheduleStepProps = {
     staff: string
     loadingStaff: string
     noStaffAtSlot: string
-    chainStaffBusyAtTime: string
     chainAssignedHeading: string
     chainNeedsTimeChange: string
     chainConflictIntro: string
@@ -150,7 +149,6 @@ export function BookingScheduleStep({
           staff: labels.staff,
           loadingStaff: labels.loadingStaff,
           noStaffAtSlot: labels.noStaffAtSlot,
-          chainStaffBusyAtTime: labels.chainStaffBusyAtTime,
           chainAssignedHeading: labels.chainAssignedHeading,
           chainNeedsTimeChange: labels.chainNeedsTimeChange,
           chainConflictIntro: labels.chainConflictIntro,

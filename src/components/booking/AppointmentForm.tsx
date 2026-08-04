@@ -153,7 +153,6 @@ export function AppointmentForm({
                 staff: b.staff,
                 loadingStaff: b.loadingStaff,
                 noStaffAtSlot: b.noStaffAtSlot,
-                chainStaffBusyAtTime: b.chainStaffBusyAtTime,
                 chainAssignedHeading: b.chainAssignedHeading,
                 chainNeedsTimeChange: b.chainNeedsTimeChange,
                 chainConflictIntro: b.chainConflictIntro,

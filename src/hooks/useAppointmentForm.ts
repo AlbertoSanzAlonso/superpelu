@@ -261,9 +261,14 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           nextAssignments,
           serviceStartOverrides,
         )
-        if (!res.complete && res.conflict) {
-          applyChainResponse(res)
-          return false
+        // Si la profesional elegida no encaja, el API vuelve a pedir el mismo
+        // índice (o solo horas posteriores): no guardar esa asignación.
+        if (!res.complete) {
+          const retryIndex = res.next?.serviceIndex ?? res.postpone?.serviceIndex
+          if (retryIndex === staffAssignments.length) {
+            applyChainResponse(res)
+            return false
+          }
         }
         setStaffAssignments(nextAssignments)
         if (staffAssignments.length === 0) {

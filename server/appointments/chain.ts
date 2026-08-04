@@ -174,24 +174,39 @@ export async function resolveChainContinuation(
           viable.push(member)
         }
       }
-      const postponeSlots =
-        overrides[i] === undefined
-          ? await getPostponeSlotsForService(date, service.id, svcStart, options)
-          : []
+      const earliestStart = resolveVisitServiceStartTimes(
+        services,
+        visitStartTime,
+        Array.from({ length: services.length }, () => undefined),
+      )[i]
+      const postponeSlots = await getPostponeSlotsForService(
+        date,
+        service.id,
+        earliestStart,
+        options,
+      )
 
       if (i === staffAssignments.length - 1 && staffList.length > 0) {
+        if (viable.length === 0 && postponeSlots.length > 0) {
+          return {
+            complete: false,
+            needsTimeChange: false,
+            segments,
+            postpone: {
+              serviceIndex: i,
+              idealStartTime: svcStart,
+              slots: postponeSlots,
+            },
+          }
+        }
         return {
           complete: false,
           needsTimeChange: viable.length === 0 && postponeSlots.length === 0,
           segments,
-          conflict: {
-            serviceIndex: i,
-            staffId: staff.id,
-          },
           next: {
             serviceIndex: i,
             startTime: svcStart,
-            staff: staffList,
+            staff: viable,
             availableStaffIds: viable.map((member) => member.id),
           },
           ...(postponeSlots.length > 0
@@ -253,12 +268,32 @@ export async function resolveChainContinuation(
     }
   }
 
-  // Si nadie puede a la hora ideal (p. ej. peinado 60 min en hueco de lavado 13:30–14:00
-  // justo antes del descanso), ofrecer aplazamiento más tarde el mismo día.
-  const postponeSlots =
-    viable.length === 0
-      ? await getPostponeSlotsForService(date, nextService.id, nextStart, options)
-      : []
+  // Siempre ofrecer horas para este tratamiento (también si hay profesionales
+  // a la sugerida). Si nadie puede a esa hora, no listamos ocupadas: solo horas.
+  const earliestStart = resolveVisitServiceStartTimes(
+    services,
+    visitStartTime,
+    Array.from({ length: services.length }, () => undefined),
+  )[nextIndex]
+  const postponeSlots = await getPostponeSlotsForService(
+    date,
+    nextService.id,
+    earliestStart,
+    options,
+  )
+
+  if (viable.length === 0 && postponeSlots.length > 0) {
+    return {
+      complete: false,
+      needsTimeChange: false,
+      segments,
+      postpone: {
+        serviceIndex: nextIndex,
+        idealStartTime: nextStart,
+        slots: postponeSlots,
+      },
+    }
+  }
 
   return {
     complete: false,
@@ -267,7 +302,8 @@ export async function resolveChainContinuation(
     next: {
       serviceIndex: nextIndex,
       startTime: nextStart,
-      staff: staffList,
+      // Solo profesionales libres a esa hora (no marcar al resto como ocupadas).
+      staff: viable,
       availableStaffIds: viable.map((member) => member.id),
     },
     ...(postponeSlots.length > 0
