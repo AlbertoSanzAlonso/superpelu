@@ -24,6 +24,8 @@ export type AdminAppointmentNotificationItem = {
   seriesId?: string
   seriesCount?: number
   seriesEndDate?: string
+  bookingGroupId?: string
+  treatmentCount?: number
 }
 
 export type AppointmentSnapshot = {
@@ -38,6 +40,7 @@ export type AppointmentSnapshot = {
   serviceName: string
   status: string
   seriesId: string | null
+  bookingGroupId: string | null
 }
 
 export const ADMIN_APPOINTMENT_NOTIFY_RANGE_DAYS = 90
@@ -74,6 +77,7 @@ export function buildAppointmentSnapshot(apt: Appointment): AppointmentSnapshot 
     serviceName: apt.serviceName,
     status: apt.status,
     seriesId: apt.seriesId ?? null,
+    bookingGroupId: apt.bookingGroupId ?? null,
   }
 }
 
@@ -94,6 +98,7 @@ function snapshotToNotificationItem(
     startTime: snapshot.startTime,
     timestamp: Date.now(),
     seriesId: snapshot.seriesId ?? undefined,
+    bookingGroupId: snapshot.bookingGroupId ?? undefined,
   }
 }
 
@@ -154,6 +159,116 @@ function collapseSeriesItems(
   return standalone
 }
 
+function normalizeNotifyPhone(phone: string): string {
+  return phone.replace(/\D/g, '')
+}
+
+function collapseToVisitNotification(
+  group: AdminAppointmentNotificationItem[],
+): AdminAppointmentNotificationItem {
+  const sorted = [...group].sort(
+    (a, b) => a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id),
+  )
+  const kinds = new Set(group.map((item) => item.kind))
+  const hasCancel = kinds.has('cancelled')
+  const hasCreate = kinds.has('created')
+  const hasModified = kinds.has('modified')
+
+  let kind: AdminAppointmentNotificationKind
+  if (hasCancel && (hasCreate || hasModified)) {
+    kind = 'modified'
+  } else if (hasCreate && hasModified) {
+    kind = 'modified'
+  } else if (hasCreate) {
+    kind = 'created'
+  } else if (hasCancel) {
+    kind = 'cancelled'
+  } else {
+    kind = 'modified'
+  }
+
+  const preferred =
+    sorted.find((item) => item.kind === 'created' || item.kind === 'modified') ?? sorted[0]!
+
+  const treatmentCount = group.length
+  return {
+    ...preferred,
+    key: `visit-${kind}-${normalizeNotifyPhone(preferred.customerPhone)}-${preferred.date}-${Date.now()}`,
+    kind,
+    startTime: sorted[0]!.startTime,
+    treatmentCount,
+    serviceName:
+      treatmentCount > 1 ? `${treatmentCount} tratamientos` : preferred.serviceName,
+  }
+}
+
+/**
+ * Agrupa cambios de una misma visita multi-tratamiento en un solo aviso
+ * (nueva / actualizada / anulada), en lugar de un toast por fila.
+ */
+function collapseVisitItems(
+  items: AdminAppointmentNotificationItem[],
+): AdminAppointmentNotificationItem[] {
+  const seriesItems = items.filter(
+    (item) => item.kind === 'series_created' || item.kind === 'series_ended',
+  )
+  const rest = items.filter(
+    (item) => item.kind !== 'series_created' && item.kind !== 'series_ended',
+  )
+
+  // 1) Agrupar por booking_group_id cuando existe.
+  const byGroupId = new Map<string, AdminAppointmentNotificationItem[]>()
+  const withoutGroup: AdminAppointmentNotificationItem[] = []
+  for (const item of rest) {
+    if (item.bookingGroupId) {
+      const group = byGroupId.get(item.bookingGroupId) ?? []
+      group.push(item)
+      byGroupId.set(item.bookingGroupId, group)
+    } else {
+      withoutGroup.push(item)
+    }
+  }
+
+  const afterGroupCollapse: AdminAppointmentNotificationItem[] = []
+  for (const [, group] of byGroupId) {
+    afterGroupCollapse.push(
+      group.length === 1 ? group[0]! : collapseToVisitNotification(group),
+    )
+  }
+  afterGroupCollapse.push(...withoutGroup)
+
+  // 2) Emparejar cancelaciones + altas del mismo cliente/día (recreate sin mismo group id).
+  const byCustomerDate = new Map<string, AdminAppointmentNotificationItem[]>()
+  for (const item of afterGroupCollapse) {
+    const key = `${normalizeNotifyPhone(item.customerPhone)}|${item.date}`
+    const group = byCustomerDate.get(key) ?? []
+    group.push(item)
+    byCustomerDate.set(key, group)
+  }
+
+  const result: AdminAppointmentNotificationItem[] = [...seriesItems]
+  for (const [, group] of byCustomerDate) {
+    if (group.length === 1) {
+      result.push(group[0]!)
+      continue
+    }
+    const kinds = new Set(group.map((item) => item.kind))
+    const churn =
+      (kinds.has('cancelled') && (kinds.has('created') || kinds.has('modified'))) ||
+      (kinds.has('created') && kinds.has('modified')) ||
+      // Varias altas/bajas sueltas del mismo cliente-día (visita multi sin group en snapshot antiguo)
+      (kinds.size === 1 && (kinds.has('created') || kinds.has('cancelled')) && group.length > 1)
+
+    if (churn) {
+      result.push(collapseToVisitNotification(group))
+    } else {
+      result.push(...group)
+    }
+  }
+
+  return result
+}
+
 export function diffAppointmentSnapshots(
   previousById: ReadonlyMap<string, AppointmentSnapshot>,
   appointments: Appointment[],
@@ -178,7 +293,7 @@ export function diffAppointmentSnapshots(
     items.push(snapshotToNotificationItem(previous, 'cancelled'))
   }
 
-  return collapseSeriesItems(items)
+  return collapseVisitItems(collapseSeriesItems(items))
 }
 
 export function snapshotsFromAppointments(appointments: Iterable<Appointment>): Map<string, AppointmentSnapshot> {
@@ -199,9 +314,9 @@ export function adminAppointmentNotificationKindLabel(kind: AdminAppointmentNoti
     case 'created':
       return 'Nueva cita'
     case 'cancelled':
-      return 'Cita cancelada'
+      return 'Cita anulada'
     case 'modified':
-      return 'Cita modificada'
+      return 'Cita actualizada'
     case 'series_created':
       return 'Serie semanal creada'
     case 'series_ended':

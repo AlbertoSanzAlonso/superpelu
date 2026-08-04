@@ -24,7 +24,11 @@ export function showAdminBrowserNotifications(items: AdminAppointmentNotificatio
     const title = adminAppointmentNotificationKindLabel(item.kind)
     const time = formatAdminAppointmentNotificationTime(item.startTime)
     const date = formatDisplayDate(item.date)
-    const body = `${item.customerName} · ${item.serviceName} · ${item.staffName} — ${date} ${time}`
+    const detail =
+      item.treatmentCount && item.treatmentCount > 1
+        ? `${item.treatmentCount} tratamientos · ${item.staffName}`
+        : `${item.serviceName} · ${item.staffName}`
+    const body = `${item.customerName} · ${detail} — ${date} ${time}`
     new Notification(title, {
       body,
       icon: '/favicon.svg',

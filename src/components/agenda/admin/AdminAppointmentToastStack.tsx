@@ -64,7 +64,9 @@ function AdminAppointmentToast({
       </p>
       <p className="mt-1 text-sm font-medium text-charcoal">{item.customerName}</p>
       <p className="text-xs text-charcoal-muted">
-        {item.serviceName} · {item.staffName}
+        {item.treatmentCount && item.treatmentCount > 1
+          ? `${item.treatmentCount} tratamientos · ${item.staffName}`
+          : `${item.serviceName} · ${item.staffName}`}
       </p>
       <p className="mt-1 text-xs tabular-nums text-charcoal-muted">
         {formatDisplayDate(item.date)} · {formatAdminAppointmentNotificationTime(item.startTime)}

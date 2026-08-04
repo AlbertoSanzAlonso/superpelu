@@ -127,7 +127,9 @@ export function AdminAppointmentNotificationsBell({
                       </p>
                       <p className="text-sm font-medium text-charcoal">{item.customerName}</p>
                       <p className="text-xs text-charcoal-muted">
-                        {item.serviceName} · {item.staffName}
+                        {item.treatmentCount && item.treatmentCount > 1
+                          ? `${item.treatmentCount} tratamientos · ${item.staffName}`
+                          : `${item.serviceName} · ${item.staffName}`}
                       </p>
                       {item.kind === 'series_created' && item.seriesCount ? (
                         <p className="mt-0.5 text-xs tabular-nums text-charcoal-muted">
