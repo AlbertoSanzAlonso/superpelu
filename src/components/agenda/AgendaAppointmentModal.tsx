@@ -110,8 +110,27 @@ export function AgendaAppointmentModal({
     })
   }, [appointment.createdAt])
 
-  const freeSet = useMemo(() => new Set(slots), [slots])
+  const ownTimes = useMemo(() => {
+    const times = new Set<string>()
+    if (draft.startTime) times.add(draft.startTime)
+    for (const time of draft.serviceStartTimes) {
+      if (time) times.add(time)
+    }
+    return times
+  }, [draft.startTime, draft.serviceStartTimes])
+
+  // En edición, las horas de esta misma cita no cuentan como ocupadas.
+  const freeSet = useMemo(() => {
+    const set = new Set(slots)
+    for (const time of ownTimes) set.add(time)
+    return set
+  }, [slots, ownTimes])
   const overHoursSet = useMemo(() => new Set(slotsOverHours), [slotsOverHours])
+  const displayFreeSlots = useMemo(
+    () =>
+      [...new Set([...slots, ...[...ownTimes].filter((t) => !overHoursSet.has(t))])].sort(),
+    [slots, ownTimes, overHoursSet],
+  )
   const mainOccupiedOptions = useMemo(
     () => ALL_DAY_SLOTS.filter((t) => !freeSet.has(t) && !overHoursSet.has(t)),
     [freeSet, overHoursSet],
@@ -500,7 +519,14 @@ export function AgendaAppointmentModal({
                           (t) => !chainedMin || t >= chainedMin,
                         )
                         const freeOptionsSet = new Set(freeOptions)
-                        const lastFree = freeOptions.length > 0 ? freeOptions[freeOptions.length - 1] : null
+                        for (const time of ownTimes) {
+                          if (!chainedMin || time >= chainedMin) freeOptionsSet.add(time)
+                        }
+                        const freeOptionsDisplay = [...freeOptionsSet].sort()
+                        const lastFree =
+                          freeOptionsDisplay.length > 0
+                            ? freeOptionsDisplay[freeOptionsDisplay.length - 1]
+                            : null
                         const occupiedOptions = hasSvcSlots
                           ? ALL_DAY_SLOTS.filter((t) => {
                               if (chainedMin && t < chainedMin) return false
@@ -531,7 +557,7 @@ export function AgendaAppointmentModal({
                               className={selectCn}
                             >
                               <option value="">{chainedLabel}</option>
-                              {freeOptions.map((slot) => (
+                              {freeOptionsDisplay.map((slot) => (
                                 <option key={slot} value={slot}>
                                   {slot}
                                 </option>
@@ -548,10 +574,10 @@ export function AgendaAppointmentModal({
                             </select>
                             {isOccupied && (
                               <div className="mt-1 space-y-0.5 text-xs text-amber-700">
-                                {freeOptions.length > 0 && (
+                                {freeOptionsDisplay.length > 0 && (
                                   <p>
                                     Otras horas disponibles:{' '}
-                                    {freeOptions.slice(0, 5).map((t, i2) => (
+                                    {freeOptionsDisplay.slice(0, 5).map((t, i2) => (
                                       <button
                                         key={t}
                                         type="button"
@@ -559,7 +585,7 @@ export function AgendaAppointmentModal({
                                         className="cursor-pointer font-medium underline"
                                       >
                                         {t}
-                                        {i2 < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
+                                        {i2 < Math.min(freeOptionsDisplay.length, 5) - 1 ? ', ' : ''}
                                       </button>
                                     ))}
                                   </p>
@@ -573,7 +599,7 @@ export function AgendaAppointmentModal({
                                   </p>
                                 )}
                                 {isOccupied &&
-                                  freeOptions.length === 0 &&
+                                  freeOptionsDisplay.length === 0 &&
                                   !serviceAlternativeStaff?.[index] && (
                                     <p>Sin disponibilidad para este tratamiento.</p>
                                   )}
@@ -643,7 +669,7 @@ export function AgendaAppointmentModal({
                       <option value="">
                         {hasServices ? 'Elige hora' : 'Tratamiento primero'}
                       </option>
-                      {slots.map((slot) => (
+                      {displayFreeSlots.map((slot) => (
                         <option key={slot} value={slot}>
                           {slot}
                         </option>

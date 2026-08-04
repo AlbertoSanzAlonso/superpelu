@@ -24,26 +24,72 @@ import {
 import type { DbClient } from "@server/appointments/lock.js"
 import { filterPastSlotsForToday, minutesToTime, timeToMinutes } from "@server/appointments/time.js"
 
-async function getExcludedColorGroupId(
+async function resolveVisitExclusionSets(
   query: DbClient,
   appointmentId?: string,
-): Promise<string | null> {
-  if (!appointmentId) return null
-  const rows = await query<AppointmentRow[]>`
-    SELECT color_group_id FROM appointments WHERE id = ${appointmentId}
-  `
-  return rows[0]?.color_group_id ?? null
-}
+): Promise<{
+  appointmentIds: Set<string>
+  colorGroupIds: Set<string>
+  bookingGroupIds: Set<string>
+}> {
+  const appointmentIds = new Set<string>()
+  const colorGroupIds = new Set<string>()
+  const bookingGroupIds = new Set<string>()
+  if (!appointmentId) return { appointmentIds, colorGroupIds, bookingGroupIds }
 
-async function getExcludedBookingGroupId(
-  query: DbClient,
-  appointmentId?: string,
-): Promise<string | null> {
-  if (!appointmentId) return null
-  const rows = await query<AppointmentRow[]>`
-    SELECT booking_group_id FROM appointments WHERE id = ${appointmentId}
+  appointmentIds.add(appointmentId)
+  const seed = await query<Pick<AppointmentRow, 'color_group_id' | 'booking_group_id'>[]>`
+    SELECT color_group_id, booking_group_id FROM appointments WHERE id = ${appointmentId}
   `
-  return rows[0]?.booking_group_id ?? null
+  if (seed[0]?.color_group_id) colorGroupIds.add(seed[0].color_group_id)
+  if (seed[0]?.booking_group_id) bookingGroupIds.add(seed[0].booking_group_id)
+
+  for (let hop = 0; hop < 4; hop++) {
+    const related: Pick<AppointmentRow, 'id' | 'color_group_id' | 'booking_group_id'>[] = []
+    const idList = [...appointmentIds]
+    const colorList = [...colorGroupIds]
+    const bookingList = [...bookingGroupIds]
+
+    const byId = await query<Pick<AppointmentRow, 'id' | 'color_group_id' | 'booking_group_id'>[]>`
+      SELECT id, color_group_id, booking_group_id FROM appointments
+      WHERE id = ANY(${idList}) AND status NOT IN ('cancelled', 'no_show')
+    `
+    related.push(...byId)
+
+    if (colorList.length > 0) {
+      const byColor = await query<Pick<AppointmentRow, 'id' | 'color_group_id' | 'booking_group_id'>[]>`
+        SELECT id, color_group_id, booking_group_id FROM appointments
+        WHERE color_group_id = ANY(${colorList}) AND status NOT IN ('cancelled', 'no_show')
+      `
+      related.push(...byColor)
+    }
+    if (bookingList.length > 0) {
+      const byBooking = await query<Pick<AppointmentRow, 'id' | 'color_group_id' | 'booking_group_id'>[]>`
+        SELECT id, color_group_id, booking_group_id FROM appointments
+        WHERE booking_group_id = ANY(${bookingList}) AND status NOT IN ('cancelled', 'no_show')
+      `
+      related.push(...byBooking)
+    }
+
+    let grew = false
+    for (const row of related) {
+      if (!appointmentIds.has(row.id)) {
+        appointmentIds.add(row.id)
+        grew = true
+      }
+      if (row.color_group_id && !colorGroupIds.has(row.color_group_id)) {
+        colorGroupIds.add(row.color_group_id)
+        grew = true
+      }
+      if (row.booking_group_id && !bookingGroupIds.has(row.booking_group_id)) {
+        bookingGroupIds.add(row.booking_group_id)
+        grew = true
+      }
+    }
+    if (!grew) break
+  }
+
+  return { appointmentIds, colorGroupIds, bookingGroupIds }
 }
 
 type OccupiedAppointmentRow = AppointmentRow & {
@@ -65,12 +111,12 @@ async function getOccupiedAppointmentsForStaffOnDate(
     ORDER BY a.start_time ASC
   `
 
-  const excludeColorGroupId = await getExcludedColorGroupId(query, excludeAppointmentId)
-  const excludeBookingGroupId = await getExcludedBookingGroupId(query, excludeAppointmentId)
+  // Excluye la cita editada y toda su visita (booking_group + color_group enlazados).
+  const exclusion = await resolveVisitExclusionSets(query, excludeAppointmentId)
   return rows.filter((row) => {
-    if (excludeAppointmentId && row.id === excludeAppointmentId) return false
-    if (excludeColorGroupId && row.color_group_id === excludeColorGroupId) return false
-    if (excludeBookingGroupId && row.booking_group_id === excludeBookingGroupId) return false
+    if (exclusion.appointmentIds.has(row.id)) return false
+    if (row.color_group_id && exclusion.colorGroupIds.has(row.color_group_id)) return false
+    if (row.booking_group_id && exclusion.bookingGroupIds.has(row.booking_group_id)) return false
     return true
   })
 }
