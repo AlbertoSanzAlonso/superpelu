@@ -6,6 +6,9 @@ export type CustomerRow = {
   notes: string | null
   locale: string
   review_request_sent_at: string | null
+  /** YYYY-MM-DD o null. */
+  birthdate: string | null
+  birthday_wish_sent_year: number | null
   created_at: string
   updated_at: string
 }

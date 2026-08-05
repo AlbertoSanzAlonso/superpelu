@@ -5,12 +5,7 @@ import { normalizeLocale } from '@/i18n/types'
 import { getStaff, listStaffForService, staffCanPerformService } from '@server/staff/index.js'
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from '@/lib/booking/colorCombo'
-import {
-  customerNameSnapshot,
-  getCustomer,
-  resolveCustomerFromInput,
-  upsertCustomer,
-} from '@server/customers/index.js'
+import { upsertCustomerForBooking } from '@server/customers/index.js'
 import { notifyAppointmentCreated } from '@server/notifications/whatsapp.js'
 import { notifyAdminAppointmentCreated } from '@server/notifications/email.js'
 import { hoursUntilAppointment } from '@/lib/core/dates'
@@ -214,30 +209,20 @@ export async function createRecurringChainedAppointment(
     rawStartTimeOverrides,
   )
 
-  const customer = resolveCustomerFromInput({
-    firstName: input.customerFirstName,
-    lastName: input.customerLastName,
+  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+    customerFirstName: input.customerFirstName,
+    customerLastName: input.customerLastName,
     customerName: input.customerName,
-    phone: input.customerPhone,
+    customerPhone: input.customerPhone,
+    customerEmail: input.customerEmail,
+    customerNotes: input.customerNotes,
+    locale: input.customerLocale,
+    birthdate: input.birthdate,
+    returningCustomer: input.returningCustomer,
+    forStaffPortal: true,
   })
-  const customerLocaleForUpsert =
-    input.customerLocale !== undefined ? normalizeLocale(input.customerLocale) : undefined
-
-  await upsertCustomer({
-    firstName: customer.firstName,
-    lastName: customer.lastName,
-    phone: customer.phone,
-    email: input.customerEmail,
-    ...(input.customerNotes !== undefined
-      ? { notes: input.customerNotes.trim() || null }
-      : {}),
-    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
-  })
-  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
-
-  const profile = await getCustomer(customer.phone)
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
+  const locale = normalizeLocale(profile.locale ?? input.customerLocale)
   const seriesId = randomUUID()
 
   const datesToCreate: {
@@ -345,7 +330,7 @@ export async function createRecurringChainedAppointment(
               colorStartTime: serviceStartTime,
               durationMinutes: service.durationMinutes,
               customerName: nameSnapshot,
-              customerPhone: customer.phone,
+              customerPhone: customerPhone,
               customerEmail: input.customerEmail?.trim() || null,
               notes: input.notes?.trim() || null,
               createdAt,
@@ -377,7 +362,7 @@ export async function createRecurringChainedAppointment(
           ) VALUES (
             ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
             ${dayPlan.date}, ${serviceStartTime},
-            ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
+            ${nameSnapshot}, ${customerPhone}, ${input.customerEmail?.trim() || null},
             ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
             ${bookingGroupId}, ${seriesId}, ${scope}
           )

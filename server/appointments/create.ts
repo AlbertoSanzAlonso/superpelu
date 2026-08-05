@@ -6,12 +6,7 @@ import { normalizeLocale } from "@/i18n/types"
 import { isStaffWorkingOnDate } from "@server/staff/availability.js"
 import { getStaff, staffCanPerformService } from "@server/staff/index.js"
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
-import {
-  customerNameSnapshot,
-  getCustomer,
-  resolveCustomerFromInput,
-  upsertCustomer,
-} from "@server/customers/index.js"
+import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
@@ -65,30 +60,20 @@ async function createRecurringStaffAppointment(
   )
   if (dates.length === 0) throw new Error('FECHA_INVALIDA')
 
-  const customer = resolveCustomerFromInput({
-    firstName: input.customerFirstName,
-    lastName: input.customerLastName,
+  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+    customerFirstName: input.customerFirstName,
+    customerLastName: input.customerLastName,
     customerName: input.customerName,
-    phone: input.customerPhone,
+    customerPhone: input.customerPhone,
+    customerEmail: input.customerEmail,
+    customerNotes: input.customerNotes,
+    locale: input.customerLocale,
+    birthdate: input.birthdate,
+    returningCustomer: input.returningCustomer,
+    forStaffPortal: true,
   })
-  const customerLocaleForUpsert =
-    input.customerLocale !== undefined ? normalizeLocale(input.customerLocale) : undefined
-
-  await upsertCustomer({
-    firstName: customer.firstName,
-    lastName: customer.lastName,
-    phone: customer.phone,
-    email: input.customerEmail,
-    ...(input.customerNotes !== undefined
-      ? { notes: input.customerNotes.trim() || null }
-      : {}),
-    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
-  })
-  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
-
-  const profile = await getCustomer(customer.phone)
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
+  const locale = normalizeLocale(profile.locale ?? input.customerLocale)
   const serviceName = serviceDisplayName(service, locale)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
@@ -132,7 +117,7 @@ async function createRecurringStaffAppointment(
             colorStartTime: input.startTime,
             durationMinutes: service.durationMinutes,
             customerName: nameSnapshot,
-            customerPhone: customer.phone,
+            customerPhone: customerPhone,
             customerEmail: input.customerEmail?.trim() || null,
             notes: input.notes?.trim() || null,
             createdAt,
@@ -163,7 +148,7 @@ async function createRecurringStaffAppointment(
         ) VALUES (
           ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
           ${day}, ${input.startTime},
-          ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
+          ${nameSnapshot}, ${customerPhone}, ${input.customerEmail?.trim() || null},
           ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
           ${seriesId}, ${scope}, ${origin}
         )
@@ -257,6 +242,7 @@ export async function createAppointment(
         forStaffPortal: input.forStaffPortal,
         excludeAppointmentId: input.excludeAppointmentId,
         serviceDurations,
+        allowAppointmentOverlap: input.allowAppointmentOverlap,
       })
       if (!daySlots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
 
@@ -265,7 +251,12 @@ export async function createAppointment(
         serviceIds,
         input.startTime,
         staffAssignments,
-        { forStaffPortal: input.forStaffPortal, excludeAppointmentId: input.excludeAppointmentId, serviceDurations },
+        {
+          forStaffPortal: input.forStaffPortal,
+          excludeAppointmentId: input.excludeAppointmentId,
+          serviceDurations,
+          allowAppointmentOverlap: input.allowAppointmentOverlap,
+        },
         serviceStartOverrides,
       )
       if (!chain.complete) throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
@@ -305,6 +296,7 @@ export async function createAppointment(
         forStaffPortal: input.forStaffPortal,
         excludeAppointmentId: input.excludeAppointmentId,
         serviceDurations: input.serviceDurations,
+        allowAppointmentOverlap: input.allowAppointmentOverlap,
       },
     )
     if (!slots.includes(input.startTime)) throw new Error('HORARIO_NO_DISPONIBLE')
@@ -318,34 +310,21 @@ export async function createAppointment(
     return createRecurringStaffAppointment(input, service, staff)
   }
 
-  const customer = resolveCustomerFromInput({
-    firstName: input.customerFirstName,
-    lastName: input.customerLastName,
+  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+    customerFirstName: input.customerFirstName,
+    customerLastName: input.customerLastName,
     customerName: input.customerName,
-    phone: input.customerPhone,
+    customerPhone: input.customerPhone,
+    customerEmail: input.customerEmail,
+    customerNotes: input.customerNotes,
+    locale: input.forStaffPortal ? input.customerLocale : normalizeLocale(input.locale),
+    birthdate: input.birthdate,
+    returningCustomer: input.returningCustomer,
+    forStaffPortal: input.forStaffPortal,
   })
-  const customerLocaleForUpsert = input.forStaffPortal
-    ? input.customerLocale !== undefined
-      ? normalizeLocale(input.customerLocale)
-      : undefined
-    : normalizeLocale(input.locale)
-
-  await upsertCustomer({
-    firstName: customer.firstName,
-    lastName: customer.lastName,
-    phone: customer.phone,
-    email: input.customerEmail,
-    ...(input.customerNotes !== undefined
-      ? { notes: input.customerNotes.trim() || null }
-      : {}),
-    ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
-  })
-  const nameSnapshot = customerNameSnapshot(customer.firstName, customer.lastName)
-
-  const profile = await getCustomer(customer.phone)
   const createdAt = new Date().toISOString()
   const locale = input.forStaffPortal
-    ? normalizeLocale(profile?.locale ?? input.customerLocale)
+    ? normalizeLocale(profile.locale ?? input.customerLocale)
     : normalizeLocale(input.locale)
   const serviceName = serviceDisplayName(service, locale)
 
@@ -375,6 +354,8 @@ export async function createAppointment(
         input.date,
         bookingSegments,
         input.excludeAppointmentId,
+        false,
+        input.allowAppointmentOverlap,
       )
     }
 
@@ -394,7 +375,7 @@ export async function createAppointment(
           colorStartTime: input.startTime,
           durationMinutes: service.durationMinutes,
           customerName: nameSnapshot,
-          customerPhone: customer.phone,
+          customerPhone: customerPhone,
           customerEmail: input.customerEmail?.trim() || null,
           notes: input.notes?.trim() || null,
           createdAt,
@@ -420,7 +401,7 @@ export async function createAppointment(
       ) VALUES (
         ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
         ${input.date}, ${input.startTime},
-        ${nameSnapshot}, ${customer.phone}, ${input.customerEmail?.trim() || null},
+        ${nameSnapshot}, ${customerPhone}, ${input.customerEmail?.trim() || null},
         ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
         ${null}, ${null}, ${origin}
       )

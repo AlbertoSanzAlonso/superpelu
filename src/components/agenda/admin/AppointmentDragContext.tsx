@@ -25,6 +25,11 @@ import {
   resolveStaffIdAtPointer,
   STAFF_COLUMN_HEADER_PX,
 } from '@/components/agenda/admin/staffColumnHitTest'
+import {
+  assignOverlapLanes,
+  FULL_WIDTH_LANE,
+  type OverlapLaneLayout,
+} from '@/lib/agenda/overlapLanes'
 import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 
 const DRAG_THRESHOLD_PX = 5
@@ -43,6 +48,7 @@ export type ActiveAppointmentDrag = {
   snappedStartTime: string
   snappedTopPx: number
   height: number
+  laneLayout: OverlapLaneLayout
   /** Si es un resize, qué borde se está arrastrando */
   resizeEdge?: ResizeEdge
   /** Duración original antes del resize */
@@ -59,6 +65,7 @@ type DragStartInput = {
   clientY: number
   grabOffsetY: number
   height: number
+  laneLayout?: OverlapLaneLayout
   resizeEdge?: ResizeEdge
 }
 
@@ -111,6 +118,7 @@ export function AppointmentDragProvider({
     appointment: DayScheduleAppointment
     grabOffsetY: number
     height: number
+    laneLayout: OverlapLaneLayout
     resizeEdge?: ResizeEdge
   } | null>(null)
   const rafRef = useRef<number | null>(null)
@@ -186,6 +194,29 @@ export function AppointmentDragProvider({
         }
       }
 
+      const targetSchedule = schedules.find((s) => s.staffId === targetStaffId)
+      const provisionalApts = (targetSchedule?.appointments ?? [])
+        .filter((a) => a.id !== session.appointment.id)
+        .map((a) => ({
+          id: a.id,
+          serviceId: a.serviceId,
+          startTime: a.startTime,
+          durationMinutes: a.durationMinutes,
+          colorGroupRole: a.colorGroupRole,
+          bookingPattern: a.bookingPattern,
+        }))
+      provisionalApts.push({
+        id: session.appointment.id,
+        serviceId: session.appointment.serviceId,
+        startTime: snappedStartTime,
+        durationMinutes: newDuration,
+        colorGroupRole: session.appointment.colorGroupRole,
+        bookingPattern: session.appointment.bookingPattern,
+      })
+      const provisionalLanes = assignOverlapLanes(provisionalApts)
+      const laneLayout =
+        provisionalLanes.get(session.appointment.id) ?? session.laneLayout ?? FULL_WIDTH_LANE
+
       return {
         appointment: session.appointment,
         fromStaffId: session.fromStaffId,
@@ -198,12 +229,13 @@ export function AppointmentDragProvider({
         snappedStartTime,
         snappedTopPx,
         height,
+        laneLayout,
         resizeEdge: session.resizeEdge,
         originalDuration: session.appointment.durationMinutes,
         newDuration,
       }
     },
-    [columnRefs, range, staffName],
+    [columnRefs, range, staffName, schedules],
   )
 
   const endDragSession = useCallback(() => {
@@ -256,6 +288,7 @@ export function AppointmentDragProvider({
         appointment: input.appointment,
         grabOffsetY: input.grabOffsetY,
         height: input.height,
+        laneLayout: input.laneLayout ?? FULL_WIDTH_LANE,
       }
       setIsDragSessionActive(true)
 
@@ -338,8 +371,9 @@ export function AppointmentDragProvider({
         appointment: input.appointment,
         grabOffsetY: input.grabOffsetY,
         height: input.height,
+        laneLayout: input.laneLayout ?? FULL_WIDTH_LANE,
+        resizeEdge: input.resizeEdge,
       }
-      dragSessionRef.current.resizeEdge = input.resizeEdge
       setIsDragSessionActive(true)
 
       const onPointerMove = (e: PointerEvent) => {
@@ -459,8 +493,9 @@ function AppointmentDragOverlay({
       columnRefs.current ?? new Map(),
       gridHeightPx,
     ) ?? 0
-  const left = columnRect.left + 4
-  const width = Math.max(columnRect.width - 8, 48)
+  const lane = activeDrag.laneLayout ?? FULL_WIDTH_LANE
+  const left = columnRect.left + (columnRect.width * lane.leftPercent) / 100
+  const width = Math.max((columnRect.width * lane.widthPercent) / 100, 36)
   const crossStaff = activeDrag.targetStaffId !== activeDrag.fromStaffId
 
   // Resize overlay: different positioning than drag
@@ -483,7 +518,7 @@ function AppointmentDragOverlay({
 
   return (
     <div
-      className={`agenda-drag-ghost pointer-events-none fixed z-[60] overflow-hidden border-2 border-gold px-2 py-1 text-left text-xs leading-tight shadow-lg ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole)}`}
+      className={`agenda-drag-ghost pointer-events-none fixed z-[60] overflow-hidden border-2 border-gold px-1.5 py-1 text-left text-xs leading-tight shadow-lg ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole)}`}
       style={{ top, left, width, height }}
     >
       <span className="flex items-center gap-1 font-medium">
@@ -527,12 +562,15 @@ export function AppointmentDragSnapSlot({
 }) {
   if (!activeDrag || activeDrag.targetStaffId !== staffId) return null
 
+  const lane = activeDrag.laneLayout ?? FULL_WIDTH_LANE
   return (
     <div
-      className="agenda-drag-snap-indicator pointer-events-none absolute inset-x-1 z-[12] border-2 border-dashed border-gold/45 bg-gold/10"
+      className="agenda-drag-snap-indicator pointer-events-none absolute z-[12] border-2 border-dashed border-gold/45 bg-gold/10"
       style={{
         top: activeDrag.snappedTopPx,
         height: Math.max(activeDrag.height - 2, 22),
+        left: `${lane.leftPercent}%`,
+        width: `${lane.widthPercent}%`,
       }}
       aria-hidden
     />

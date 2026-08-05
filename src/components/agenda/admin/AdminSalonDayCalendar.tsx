@@ -25,6 +25,11 @@ import {
   getPendingVisualForAppointment,
   type PendingMoveSummary,
 } from '@/lib/agenda/pendingMoves'
+import {
+  assignOverlapLanes,
+  FULL_WIDTH_LANE,
+  type OverlapLaneAppointment,
+} from '@/lib/agenda/overlapLanes'
 import { dayOfWeekFromDateString } from '@/lib/core/dates'
 import { salonWindowsForDayOfWeek } from '@/data/schedule'
 import {
@@ -304,6 +309,52 @@ function StaffColumn({
   const isDropTarget = activeDrag?.targetStaffId === schedule.staffId
   const slotsLocked = gridInteractionsLocked || isDragSessionActive
 
+  const laneLayouts = useMemo(() => {
+    const inputs: OverlapLaneAppointment[] = []
+    const seen = new Set<string>()
+
+    for (const apt of schedule.appointments) {
+      const visual = getPendingVisualForAppointment(pendingMoveSummary, apt.id)
+      if (visual && visual.targetStaffId !== schedule.staffId) {
+        inputs.push({
+          id: apt.id,
+          serviceId: apt.serviceId,
+          startTime: visual.originStartTime,
+          durationMinutes: apt.durationMinutes,
+          colorGroupRole: apt.colorGroupRole,
+          bookingPattern: apt.bookingPattern,
+        })
+        seen.add(apt.id)
+        continue
+      }
+      inputs.push({
+        id: apt.id,
+        serviceId: apt.serviceId,
+        startTime: visual ? visual.targetStartTime : apt.startTime,
+        durationMinutes: apt.durationMinutes,
+        colorGroupRole: apt.colorGroupRole,
+        bookingPattern: apt.bookingPattern,
+      })
+      seen.add(apt.id)
+    }
+
+    for (const { latest } of pendingMoveSummary.byAppointmentId.values()) {
+      const visual = getPendingVisualForAppointment(pendingMoveSummary, latest.appointment.id)
+      if (!visual || visual.targetStaffId !== schedule.staffId) continue
+      if (seen.has(latest.appointment.id)) continue
+      inputs.push({
+        id: latest.appointment.id,
+        serviceId: latest.appointment.serviceId,
+        startTime: visual.targetStartTime,
+        durationMinutes: latest.appointment.durationMinutes,
+        colorGroupRole: latest.appointment.colorGroupRole,
+        bookingPattern: latest.appointment.bookingPattern,
+      })
+    }
+
+    return assignOverlapLanes(inputs)
+  }, [schedule, pendingMoveSummary])
+
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past') return
     if (slotsLocked && cell.status !== 'appointment') return
@@ -365,6 +416,7 @@ function StaffColumn({
             range={range}
             pendingVisual={getPendingVisualForAppointment(pendingMoveSummary, apt.id)}
             dragEnabled={dragEnabled}
+            laneLayout={laneLayouts.get(apt.id) ?? FULL_WIDTH_LANE}
             columnTopFromClientY={columnTopFromClientY}
           />
         ))}
@@ -387,6 +439,7 @@ function StaffColumn({
               range={range}
               pendingVisual={visual}
               dragEnabled={dragEnabled}
+              laneLayout={laneLayouts.get(latest.appointment.id) ?? FULL_WIDTH_LANE}
               columnTopFromClientY={columnTopFromClientY}
             />
           )

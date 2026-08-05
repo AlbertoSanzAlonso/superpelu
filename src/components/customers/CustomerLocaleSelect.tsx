@@ -25,7 +25,8 @@ export function CustomerLocaleSelect({
         Idioma del cliente
       </span>
       <p className={`${typography.caption} mb-1.5 text-charcoal-muted`}>
-        WhatsApp y mensajes al cliente. Se actualiza al reservar online; por defecto español.
+        Idioma de WhatsApp (citas y felicitación de cumpleaños). Cámbialo aquí si hace falta; por
+        defecto español.
       </p>
       <select
         id={id}

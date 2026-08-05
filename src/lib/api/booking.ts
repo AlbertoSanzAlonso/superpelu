@@ -76,6 +76,11 @@ export function fetchBookingChainContinuation(
   return request<BookingChainContinuation>(`/booking/chain?${params}`)
 }
 
+export function lookupBookingCustomer(phone: string) {
+  const params = new URLSearchParams({ phone })
+  return request<{ found: boolean; firstName?: string }>(`/booking/customer-lookup?${params}`)
+}
+
 export function createAppointment(payload: CreateAppointmentPayload) {
   return request<{ appointment: Appointment; appointments?: Appointment[] }>('/appointments', {
     method: 'POST',

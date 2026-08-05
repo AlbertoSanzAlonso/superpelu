@@ -21,6 +21,10 @@ export type CreateAppointmentInput = {
   customerEmail?: string
   customerNotes?: string
   notes?: string
+  /** YYYY-MM-DD — obligatorio en reserva pública de cliente nuevo. */
+  birthdate?: string | null
+  /** Reserva pública: cliente habitual (solo móvil); usa ficha existente. */
+  returningCustomer?: boolean
   forStaffPortal?: boolean
   locale?: Locale
   /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
@@ -32,6 +36,8 @@ export type CreateAppointmentInput = {
   conflictResolutions?: SeriesConflictResolution[]
   /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */
   forceSchedule?: boolean
+  /** Agenda admin: permite solapar con otras citas del mismo profesional. */
+  allowAppointmentOverlap?: boolean
   /** Al editar, excluye esta cita de la comprobación de disponibilidad. */
   excludeAppointmentId?: string
   /**

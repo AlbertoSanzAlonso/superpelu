@@ -154,9 +154,11 @@ export type CreateAppointmentPayload = {
   serviceStartTimes?: string[]
   date: string
   startTime: string
-  customerName: string
+  customerName?: string
   customerPhone: string
   customerEmail?: string
   notes?: string
   locale?: 'es' | 'en'
+  birthdate?: string
+  returningCustomer?: boolean
 }

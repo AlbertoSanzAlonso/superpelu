@@ -156,6 +156,8 @@ export async function isBookingUnavailable(
   segments: OccupiedSegment[],
   excludeAppointmentId?: string,
   allowOverHours = false,
+  /** Agenda admin: permite solapar citas del mismo profesional (bloqueos/horario siguen). */
+  allowAppointmentOverlap = false,
 ): Promise<boolean> {
   if (!allowOverHours && !(await segmentsFitInStaffWorkWindows(staffId, date, segments))) {
     return true
@@ -165,6 +167,10 @@ export async function isBookingUnavailable(
     if (await isSegmentBlocked(staffId, date, segment)) {
       return true
     }
+  }
+
+  if (allowAppointmentOverlap) {
+    return false
   }
 
   const occupied = await getOccupiedAppointmentsForStaffOnDate(
@@ -197,8 +203,19 @@ export async function assertBookingAvailable(
   segments: OccupiedSegment[],
   excludeAppointmentId?: string,
   allowOverHours = false,
+  allowAppointmentOverlap = false,
 ): Promise<void> {
-  if (await isBookingUnavailable(query, staffId, date, segments, excludeAppointmentId, allowOverHours)) {
+  if (
+    await isBookingUnavailable(
+      query,
+      staffId,
+      date,
+      segments,
+      excludeAppointmentId,
+      allowOverHours,
+      allowAppointmentOverlap,
+    )
+  ) {
     throw new Error('HORARIO_NO_DISPONIBLE')
   }
 }
@@ -232,6 +249,7 @@ export async function isStaffFreeForServiceAt(
     segments,
     options.excludeAppointmentId,
     options.allowOverHours,
+    options.allowAppointmentOverlap,
   ))
 }
 
@@ -243,6 +261,8 @@ export type SlotOptions = {
   serviceDurations?: (number | null)[]
   /** Salta la comprobación de franja horaria (staff/admin confirman fuera de horario). */
   allowOverHours?: boolean
+  /** Agenda admin: no excluir horas por solape con otras citas. */
+  allowAppointmentOverlap?: boolean
 }
 
 export type ResolvedBookingService = BookingServiceLine & {
@@ -321,7 +341,15 @@ export async function getAvailableSlotsForServices(
     ) {
       const segments = getChainedBookingSegments(services, start)
       if (
-        !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+        !(await isBookingUnavailable(
+          sql,
+          staffId,
+          date,
+          segments,
+          options.excludeAppointmentId,
+          false,
+          options.allowAppointmentOverlap,
+        ))
       ) {
         slots.add(minutesToTime(start))
       }
@@ -382,7 +410,13 @@ export async function getOverHoursSlotsForServices(
       if (!fitsWindow) {
         // Solo falla por horario: comprobar si hay conflictos reales
         const hasConflict = await isBookingUnavailable(
-          sql, staffId, date, segments, options.excludeAppointmentId, true,
+          sql,
+          staffId,
+          date,
+          segments,
+          options.excludeAppointmentId,
+          true,
+          options.allowAppointmentOverlap,
         )
         if (!hasConflict) slots.add(minutesToTime(start))
       }
@@ -430,7 +464,15 @@ export async function getAvailableSlots(
         bookingPattern: service.bookingPattern,
       })
       if (
-        !(await isBookingUnavailable(sql, staffId, date, segments, options.excludeAppointmentId))
+        !(await isBookingUnavailable(
+          sql,
+          staffId,
+          date,
+          segments,
+          options.excludeAppointmentId,
+          false,
+          options.allowAppointmentOverlap,
+        ))
       ) {
         slots.add(minutesToTime(start))
       }

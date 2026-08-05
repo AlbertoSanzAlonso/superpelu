@@ -13,3 +13,18 @@ export function formatCustomerDisplayName(firstName: string, lastName: string): 
 export function appointmentCustomerLabel(nameSnapshot: string): string {
   return nameSnapshot.trim()
 }
+
+/** Title Case por palabra (felicitaciones WhatsApp / preview). */
+export function capitalizePersonName(name: string): string {
+  return name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => {
+      const lower = word.toLocaleLowerCase('es')
+      if (!lower) return word
+      return lower.charAt(0).toLocaleUpperCase('es') + lower.slice(1)
+    })
+    .join(' ')
+}

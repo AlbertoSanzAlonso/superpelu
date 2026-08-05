@@ -13,6 +13,7 @@ import { fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
+import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Customer } from '@/types/customers'
@@ -118,6 +119,11 @@ export function CustomerHistoryPage() {
                 <span className="mx-2 text-gold/40">·</span>
                 {customer.appointmentCount} cita{customer.appointmentCount === 1 ? '' : 's'}
               </p>
+              {customer.birthdate && (
+                <p className="mt-1 text-sm text-charcoal-muted">
+                  Cumpleaños: {formatDisplayDate(customer.birthdate, 'es')}
+                </p>
+              )}
               {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
               {customer.notes?.trim() && (
                 <div className="mt-2">
@@ -175,6 +181,7 @@ export function CustomerHistoryPage() {
                   email: updated.email,
                   notes: updated.notes,
                   locale: updated.locale,
+                  birthdate: updated.birthdate,
                 }
               : prev,
           )

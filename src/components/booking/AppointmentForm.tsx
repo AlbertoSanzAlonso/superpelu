@@ -176,8 +176,18 @@ export function AppointmentForm({
               fullName: b.fullName,
               phone: b.phone,
               emailOptional: b.emailOptional,
+              birthdate: b.birthdate,
               notesOptional: b.notesOptional,
               notesPlaceholder: b.notesPlaceholder,
+              returningCustomerQuestion: b.returningCustomerQuestion,
+              returningCustomerYes: b.returningCustomerYes,
+              returningCustomerNo: b.returningCustomerNo,
+              returningLookupHint: b.returningLookupHint,
+              returningGreeting: b.returningGreeting,
+              returningNotFound: b.returningNotFound,
+              lookupCustomer: b.lookupCustomer,
+              lookingUpCustomer: b.lookingUpCustomer,
+              changeCustomerType: b.changeCustomerType,
             }}
           />
         )}
@@ -195,7 +205,7 @@ export function AppointmentForm({
           variant="solid"
           size="lg"
           className="mt-10 w-full"
-          disabled={form.submitting}
+          disabled={form.submitting || !form.canSubmit}
         >
           {form.submitting ? b.saving : confirmLabel}
         </Button>

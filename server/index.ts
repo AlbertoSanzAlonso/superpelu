@@ -103,8 +103,13 @@ import {
   getCustomer,
   listCustomerAppointments,
   listCustomers,
+  lookupCustomerForBooking,
   updateCustomer,
 } from '@server/customers/index.js'
+import {
+  getBirthdayMessageTemplates,
+  setBirthdayMessageTemplates,
+} from '@server/customers/birthdayMessage.js'
 import { sendCustomerReviewRequest } from '@server/notifications/review.js'
 import { initDatabase, sql } from '@server/db.js'
 import {
@@ -142,6 +147,10 @@ import {
   startOpenWaKeepAlive,
 } from '@server/notifications/openwa.js'
 import { processDueReminders, startReminderScheduler } from '@server/notifications/reminders.js'
+import {
+  processDueBirthdayWishes,
+  startBirthdayWishScheduler,
+} from '@server/notifications/birthdays.js'
 import { logEmailStartup } from '@server/notifications/email.js'
 import { getStats } from '@server/stats/index.js'
 
@@ -763,6 +772,18 @@ app.get('/api/booking/chain', async (c) => {
   }
 })
 
+app.get('/api/booking/customer-lookup', async (c) => {
+  const phone = c.req.query('phone') ?? ''
+  if (!phone.trim()) {
+    return c.json({ found: false as const })
+  }
+  try {
+    return c.json(await lookupCustomerForBooking(phone))
+  } catch {
+    return c.json({ found: false as const })
+  }
+})
+
 app.post('/api/appointments', async (c) => {
   const body = await c.req.json<{
     serviceId?: string
@@ -772,11 +793,13 @@ app.post('/api/appointments', async (c) => {
     serviceStartTimes?: string[]
     date: string
     startTime: string
-    customerName: string
+    customerName?: string
     customerPhone: string
     customerEmail?: string
     notes?: string
     locale?: 'es' | 'en'
+    birthdate?: string | null
+    returningCustomer?: boolean
   }>()
 
   const serviceIds =
@@ -805,8 +828,8 @@ app.post('/api/appointments', async (c) => {
     !body.staffId ||
     !body.date ||
     !body.startTime ||
-    !body.customerName?.trim() ||
-    !body.customerPhone?.trim()
+    !body.customerPhone?.trim() ||
+    (!body.returningCustomer && !body.customerName?.trim())
   ) {
     return c.json(
       {
@@ -830,6 +853,8 @@ app.post('/api/appointments', async (c) => {
       customerEmail: body.customerEmail,
       notes: body.notes,
       locale: body.locale,
+      birthdate: body.birthdate,
+      returningCustomer: body.returningCustomer,
     })
     const grouped =
       row.booking_group_id != null
@@ -874,6 +899,7 @@ app.post('/api/customers', async (c) => {
     email?: string | null
     notes?: string | null
     locale?: 'es' | 'en'
+    birthdate?: string | null
   }>()
 
   try {
@@ -884,6 +910,7 @@ app.post('/api/customers', async (c) => {
       email: body.email,
       notes: body.notes,
       locale: body.locale,
+      birthdate: body.birthdate,
     })
     return c.json({ customer: customerToJson(row) }, 201)
   } catch (err) {
@@ -892,6 +919,7 @@ app.post('/api/customers', async (c) => {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       CLIENTE_YA_EXISTE: 'Ya existe un cliente con ese teléfono',
+      FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
   }
@@ -904,10 +932,17 @@ function customerToJson(customer: {
   email: string | null
   notes: string | null
   locale?: string | null
+  birthdate?: string | Date | null
   review_request_sent_at?: string | null
   created_at: string
   updated_at: string
 }) {
+  const birthdate =
+    customer.birthdate == null
+      ? null
+      : typeof customer.birthdate === 'string'
+        ? customer.birthdate.slice(0, 10)
+        : customer.birthdate.toISOString().slice(0, 10)
   return {
     phone: customer.phone,
     firstName: customer.first_name,
@@ -915,6 +950,7 @@ function customerToJson(customer: {
     email: customer.email,
     notes: customer.notes,
     locale: customer.locale === 'en' ? 'en' : 'es',
+    birthdate,
     reviewRequestSentAt: customer.review_request_sent_at ?? null,
     createdAt: customer.created_at,
     updatedAt: customer.updated_at,
@@ -948,6 +984,7 @@ app.get('/api/customers/:phone', async (c) => {
       email: latest.customer_email,
       notes: null,
       locale: latest.locale === 'en' ? 'en' : 'es',
+      birthdate: null,
       reviewRequestSentAt: null,
       createdAt: now,
       updatedAt: now,
@@ -967,6 +1004,7 @@ app.patch('/api/customers/:phone', async (c) => {
     email?: string | null
     notes?: string | null
     locale?: 'es' | 'en'
+    birthdate?: string | null
   }>()
 
   try {
@@ -976,6 +1014,7 @@ app.patch('/api/customers/:phone', async (c) => {
       email: body.email,
       notes: body.notes,
       locale: body.locale,
+      birthdate: body.birthdate,
     })
     return c.json({ customer: customerToJson(row) })
   } catch (err) {
@@ -984,10 +1023,43 @@ app.patch('/api/customers/:phone', async (c) => {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       CLIENTE_NO_ENCONTRADO: 'Cliente no encontrado',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
+      FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
     }
     const status = code === 'CLIENTE_NO_ENCONTRADO' ? 404 : 400
     return c.json({ error: messages[code] ?? 'No se pudo actualizar el cliente' }, status)
   }
+})
+
+app.get('/api/admin/birthday-message', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  return c.json({ templates: await getBirthdayMessageTemplates() })
+})
+
+app.put('/api/admin/birthday-message', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const body = await c.req.json<{ es?: string; en?: string }>()
+  try {
+    const templates = await setBirthdayMessageTemplates(body)
+    return c.json({ templates })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    if (code === 'PLANTILLA_SIN_NOMBRE') {
+      return c.json(
+        { error: 'La plantilla debe incluir el marcador {nombre}' },
+        400,
+      )
+    }
+    return c.json({ error: 'No se pudo guardar la plantilla' }, 400)
+  }
+})
+
+app.post('/api/admin/birthday-wishes/run', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const sent = await processDueBirthdayWishes()
+  return c.json({ sent })
 })
 
 app.delete('/api/customers/:phone', async (c) => {
@@ -1111,6 +1183,7 @@ app.get('/api/schedule/slots', async (c) => {
     forStaffPortal: true as const,
     excludeAppointmentId: exclude,
     serviceDurations,
+    allowAppointmentOverlap: true as const,
   }
   const slots = ids.length > 1
     ? await getAvailableSlotsForServices(date, ids, staffId, slotOptions)
@@ -1137,6 +1210,7 @@ app.get('/api/schedule/day-slots', async (c) => {
     forStaffPortal: true,
     excludeAppointmentId: exclude,
     serviceDurations,
+    allowAppointmentOverlap: true,
   })
   return c.json({ slots })
 })
@@ -1176,6 +1250,7 @@ app.get('/api/schedule/chain', async (c) => {
           forStaffPortal: true,
           excludeAppointmentId: exclude,
           serviceDurations,
+          allowAppointmentOverlap: true,
         },
         serviceStartOverrides,
       ),
@@ -1195,7 +1270,10 @@ app.get('/api/schedule/staff-at-slot', async (c) => {
   if (!date || !serviceId || !startTime) {
     return c.json({ error: 'Faltan date, serviceId o startTime' }, 400)
   }
-  const staff = await getStaffAvailableAtSlot(date, serviceId, startTime, { forStaffPortal: true })
+  const staff = await getStaffAvailableAtSlot(date, serviceId, startTime, {
+    forStaffPortal: true,
+    allowAppointmentOverlap: true,
+  })
   return c.json({ staff })
 })
 
@@ -1320,6 +1398,7 @@ app.post('/api/schedule/appointments', async (c) => {
       endDate: body.endDate,
       forStaffPortal: true,
       forceSchedule: body.forceSchedule,
+      allowAppointmentOverlap: true,
       conflictResolutions: body.conflictResolutions,
     })
     const grouped =
@@ -2203,6 +2282,7 @@ async function main() {
   serve({ fetch: app.fetch, port, hostname: '0.0.0.0' })
   startOpenWaKeepAlive()
   startReminderScheduler()
+  startBirthdayWishScheduler()
 }
 
 main().catch((err) => {

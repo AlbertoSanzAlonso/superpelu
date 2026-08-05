@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
+import { BirthdayMessageModal } from '@/components/customers/BirthdayMessageModal'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import {
   CustomersWorkspaceHeader,
@@ -87,6 +88,7 @@ export function CustomersPage() {
   const [error, setError] = useState('')
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
+  const [birthdayMessageOpen, setBirthdayMessageOpen] = useState(false)
   const [page, setPage] = useState(1)
 
   const loadCustomers = useCallback(async () => {
@@ -150,6 +152,15 @@ export function CustomersPage() {
           onClick={() => setCreateOpen(true)}
         >
           Cliente nuevo
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
+          onClick={() => setBirthdayMessageOpen(true)}
+        >
+          Felicitación cumpleaños
         </Button>
         <form
           className="flex w-full min-w-0 flex-col gap-2 sm:max-w-md sm:flex-1 sm:flex-row sm:items-center"
@@ -336,6 +347,8 @@ export function CustomersPage() {
                     lastName: updated.lastName,
                     email: updated.email,
                     notes: updated.notes,
+                    birthdate: updated.birthdate,
+                    locale: updated.locale,
                   }
                 : row,
             ),
@@ -345,6 +358,14 @@ export function CustomersPage() {
           setCustomers((rows) => rows.filter((row) => row.phone !== deletedPhone))
         }}
       />
+
+      {adminToken && (
+        <BirthdayMessageModal
+          open={birthdayMessageOpen}
+          adminToken={adminToken}
+          onClose={() => setBirthdayMessageOpen(false)}
+        />
+      )}
     </AgendaWorkspaceShell>
   )
 }

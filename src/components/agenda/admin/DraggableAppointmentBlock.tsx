@@ -14,6 +14,10 @@ import {
 } from '@/lib/booking/occupancy'
 import { useAppointmentDrag } from '@/components/agenda/admin/AppointmentDragContext'
 import type { PendingMoveVisual } from '@/lib/agenda/pendingMoves'
+import {
+  FULL_WIDTH_LANE,
+  type OverlapLaneLayout,
+} from '@/lib/agenda/overlapLanes'
 import type { DayScheduleAppointment } from '@/types/booking'
 
 export type AppointmentDragEndPayload = {
@@ -31,6 +35,7 @@ type Props = {
   pendingVisual: PendingMoveVisual | null
   dragEnabled: boolean
   previewOnly?: boolean
+  laneLayout?: OverlapLaneLayout
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
 }
 
@@ -81,10 +86,16 @@ export function DraggableAppointmentBlock({
   pendingVisual,
   dragEnabled,
   previewOnly = false,
+  laneLayout = FULL_WIDTH_LANE,
   columnTopFromClientY,
 }: Props) {
   const { activeDrag, startDrag, startResize } = useAppointmentDrag()
   const isDraggingThis = activeDrag?.appointment.id === apt.id
+  const laneStyle = {
+    left: `${laneLayout.leftPercent}%`,
+    width: `${laneLayout.widthPercent}%`,
+    right: 'auto' as const,
+  }
 
   const isPendingSource =
     pendingVisual != null && pendingVisual.originStaffId === staffId
@@ -125,9 +136,10 @@ export function DraggableAppointmentBlock({
         clientY: e.clientY,
         grabOffsetY: yInColumn - blockTop,
         height: bounds.height,
+        laneLayout,
       })
     },
-    [dragEnabled, activeDrag, columnTopFromClientY, staffId, startDrag, apt, bounds.height],
+    [dragEnabled, activeDrag, columnTopFromClientY, staffId, startDrag, apt, bounds.height, laneLayout],
   )
 
   const handleResizePointerDown = useCallback(
@@ -144,9 +156,10 @@ export function DraggableAppointmentBlock({
         grabOffsetY: e.clientY - blockTop,
         height: bounds.height,
         resizeEdge: edge,
+        laneLayout,
       })
     },
-    [dragEnabled, activeDrag, startResize, apt, bounds.height, staffId],
+    [dragEnabled, activeDrag, startResize, apt, bounds.height, staffId, laneLayout],
   )
 
   const renderBlock = (
@@ -160,8 +173,8 @@ export function DraggableAppointmentBlock({
   ) => (
     <div
       key={key}
-      className={`agenda-appointment-block absolute inset-x-1 z-30 overflow-hidden border px-2 py-1 text-left text-xs leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)} ${className}`}
-      style={{ top, height: Math.max(height - 2, 22) }}
+      className={`agenda-appointment-block absolute z-30 overflow-hidden border px-1.5 py-1 text-left text-xs leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)} ${className}`}
+      style={{ top, height: Math.max(height - 2, 22), ...laneStyle }}
       title={
         apt.notes?.trim()
           ? `${apt.customerName} — ${apt.serviceName}\n${apt.notes.trim()}`

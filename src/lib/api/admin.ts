@@ -357,6 +357,7 @@ export function updateCustomer(
     email?: string | null
     notes?: string | null
     locale?: 'es' | 'en'
+    birthdate?: string | null
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>(
@@ -378,12 +379,30 @@ export function createCustomer(
     email?: string | null
     notes?: string | null
     locale?: 'es' | 'en'
+    birthdate?: string | null
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>('/customers', {
     method: 'POST',
     headers: adminHeaders(adminToken),
     body: JSON.stringify(payload),
+  })
+}
+
+export function fetchBirthdayMessageTemplates(adminToken: string) {
+  return request<{ templates: { es: string; en: string } }>('/admin/birthday-message', {
+    headers: adminHeaders(adminToken),
+  })
+}
+
+export function updateBirthdayMessageTemplates(
+  adminToken: string,
+  templates: { es?: string; en?: string },
+) {
+  return request<{ templates: { es: string; en: string } }>('/admin/birthday-message', {
+    method: 'PUT',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify(templates),
   })
 }
 

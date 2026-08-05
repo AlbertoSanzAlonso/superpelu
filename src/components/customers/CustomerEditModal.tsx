@@ -11,7 +11,7 @@ import { typography } from '@/styles/typography'
 
 type CustomerFields = Pick<
   Customer,
-  'phone' | 'firstName' | 'lastName' | 'email' | 'notes' | 'locale'
+  'phone' | 'firstName' | 'lastName' | 'email' | 'notes' | 'locale' | 'birthdate'
 >
 
 type Props = {
@@ -45,6 +45,7 @@ export function CustomerEditModal({
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [notes, setNotes] = useState('')
+  const [birthdate, setBirthdate] = useState('')
   const [locale, setLocale] = useState<Locale>('es')
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -59,6 +60,7 @@ export function CustomerEditModal({
       setLastName('')
       setEmail('')
       setNotes('')
+      setBirthdate('')
       setLocale('es')
     } else if (customer) {
       setPhoneInput(customer.phone)
@@ -66,6 +68,7 @@ export function CustomerEditModal({
       setLastName(customer.lastName)
       setEmail(customer.email ?? '')
       setNotes(customer.notes ?? '')
+      setBirthdate(customer.birthdate ?? '')
       setLocale(normalizeLocale(customer.locale))
     }
     setError('')
@@ -104,6 +107,7 @@ export function CustomerEditModal({
           lastName: lastName.trim(),
           email: email.trim() || null,
           notes: notes.trim() || null,
+          birthdate: birthdate.trim() || null,
           locale,
         })
         onSaved(created)
@@ -113,6 +117,7 @@ export function CustomerEditModal({
           lastName: lastName.trim(),
           email: email.trim() || null,
           notes: notes.trim() || null,
+          birthdate: birthdate.trim() || null,
           locale,
         })
         onSaved(updated)
@@ -219,6 +224,14 @@ export function CustomerEditModal({
               placeholder="opcional@ejemplo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={busy}
+            />
+
+            <Input
+              label="Fecha de nacimiento"
+              type="date"
+              value={birthdate}
+              onChange={(e) => setBirthdate(e.target.value)}
               disabled={busy}
             />
 

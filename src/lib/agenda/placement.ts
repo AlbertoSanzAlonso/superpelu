@@ -12,7 +12,6 @@ import {
   buildSchedulesWithPendingMoves,
   getEffectivePlacement,
   getFinalMovesForSave,
-  summarizePendingMoves,
   type AppointmentMoveDraft,
   type PendingMoveSummary,
 } from '@/lib/agenda/pendingMoves'
@@ -23,12 +22,6 @@ import type { DayScheduleAppointment, StaffDaySchedule } from '@/types/booking'
 const LINKED_WASH_PHASE_BLOCKED_MESSAGE =
   'El tramo de aclarado/lavado quedaría en un horario ocupado. Elige otra hora para la aplicación del color.'
 
-function sharesBookingGroup(
-  a: DayScheduleAppointment,
-  b: DayScheduleAppointment,
-): boolean {
-  return Boolean(a.bookingGroupId && a.bookingGroupId === b.bookingGroupId)
-}
 
 export type AppointmentMoveTarget = {
   staffId: string
@@ -238,19 +231,8 @@ function validateAppointmentMoveOnSchedule(
     }
   }
 
-  for (const other of schedule.appointments) {
-    if (other.id === appointment.id) continue
-    if (sharesBookingGroup(appointment, other)) continue
-    const otherSegments = getOccupiedSegmentsForAppointment(
-      other.serviceId,
-      timeToMinutes(other.startTime),
-      other.durationMinutes,
-      { colorGroupRole: other.colorGroupRole, bookingPattern: other.bookingPattern },
-    )
-    if (occupiedSegmentsOverlap(segments, otherSegments)) {
-      return { ok: false, message: 'Ese horario ya tiene otra cita.' }
-    }
-  }
+  // Admin puede solapar citas del mismo profesional (layout en lanes).
+  // Los bloqueos y el horario laboral sí restringen el movimiento.
 
   for (const block of schedule.blocks) {
     const blockSegs = blockSegments(block.startTime, block.endTime)
@@ -295,8 +277,8 @@ function staffNameForId(schedules: StaffDaySchedule[], staffId: string): string 
 
 /**
  * Prepara el movimiento del tratamiento arrastrado.
- * Cada cita del grupo se mueve sola; los hermanos no se desplazan en bloque
- * (sí se ignoran entre sí al comprobar solapes vía `sharesBookingGroup`).
+ * Cada cita del grupo se mueve sola; los hermanos no se desplazan en bloque.
+ * El admin puede solapar citas; bloqueos y horario laboral sí restringen.
  */
 export function buildBookingGroupMoveDrafts(
   schedules: StaffDaySchedule[],

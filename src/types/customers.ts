@@ -9,6 +9,8 @@ export type Customer = {
   email: string | null
   notes: string | null
   locale: Locale
+  /** YYYY-MM-DD */
+  birthdate: string | null
   reviewRequestSentAt: string | null
   appointmentCount: number
   lastAppointmentDate: string | null

@@ -7,9 +7,12 @@ import {
   fetchServiceDaySlots,
   fetchServices,
   fetchStaffAtSlot,
+  lookupBookingCustomer,
   ApiError,
 } from '@/lib/api'
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { isValidDateString } from '@/lib/core/dates'
+import { capitalizePersonName } from '@/lib/customer/name'
 import { isValidSpanishPhone } from '@/lib/customer/phone'
 import type {
   Appointment,
@@ -65,6 +68,22 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
   const [customerName, setCustomerNameState] = useState('')
   const [customerPhone, setCustomerPhoneState] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
+  const [notes, setNotes] = useState('')
+  const [customerType, setCustomerTypeState] = useState<'returning' | 'new' | null>(null)
+  const [birthdate, setBirthdateState] = useState('')
+  const [returningVerified, setReturningVerified] = useState(false)
+  const [returningFirstName, setReturningFirstName] = useState('')
+  const [lookingUpCustomer, setLookingUpCustomer] = useState(false)
+  const [returningLookupError, setReturningLookupError] = useState('')
+
+  const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string
+    phone?: string
+    birthdate?: string
+  }>({})
+  const [submitting, setSubmitting] = useState(false)
 
   const setCustomerName = useCallback((value: string) => {
     setCustomerNameState(value)
@@ -74,13 +93,36 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const setCustomerPhone = useCallback((value: string) => {
     setCustomerPhoneState(value)
     setFieldErrors((prev) => (prev.phone ? { ...prev, phone: undefined } : prev))
+    setReturningLookupError('')
   }, [])
-  const [customerEmail, setCustomerEmail] = useState('')
-  const [notes, setNotes] = useState('')
 
-  const [error, setError] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string }>({})
-  const [submitting, setSubmitting] = useState(false)
+  const setBirthdate = useCallback((value: string) => {
+    setBirthdateState(value)
+    setFieldErrors((prev) => (prev.birthdate ? { ...prev, birthdate: undefined } : prev))
+  }, [])
+
+  const setCustomerType = useCallback((value: 'returning' | 'new') => {
+    setCustomerTypeState(value)
+    setReturningVerified(false)
+    setReturningFirstName('')
+    setReturningLookupError('')
+    setCustomerNameState('')
+    setBirthdateState('')
+    setFieldErrors({})
+  }, [])
+
+  const resetCustomerType = useCallback(() => {
+    setCustomerTypeState(null)
+    setReturningVerified(false)
+    setReturningFirstName('')
+    setReturningLookupError('')
+    setCustomerNameState('')
+    setCustomerPhoneState('')
+    setCustomerEmail('')
+    setBirthdateState('')
+    setNotes('')
+    setFieldErrors({})
+  }, [])
 
   const hasMultipleServices = serviceIds.length > 1
 
@@ -99,8 +141,10 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     serviceIds.length > 0 &&
       date &&
       startTime &&
-      customerName.trim() &&
       customerPhone.trim() &&
+      (customerType === 'returning'
+        ? returningVerified
+        : customerType === 'new' && customerName.trim() && birthdate.trim()) &&
       (hasMultipleServices
         ? staffAssignments.length === serviceIds.length
         : Boolean(staffId)),
@@ -424,25 +468,94 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     resetChainSelection()
     setError('')
     setFieldErrors({})
-    setCustomerName('')
-    setCustomerPhone('')
+    setCustomerNameState('')
+    setCustomerPhoneState('')
     setCustomerEmail('')
     setNotes('')
+    setBirthdateState('')
+    setCustomerTypeState(null)
+    setReturningVerified(false)
+    setReturningFirstName('')
+    setReturningLookupError('')
   }, [resetChainSelection])
 
-  const validateCustomerFields = useCallback(() => {
-    const next: { name?: string; phone?: string } = {}
-    if (!customerName.trim()) {
-      next.name = errors.nameRequired
+  const lookupReturningCustomer = useCallback(async () => {
+    setReturningLookupError('')
+    if (!customerPhone.trim()) {
+      setFieldErrors({ phone: errors.phoneRequired })
+      return
     }
+    if (!isValidSpanishPhone(customerPhone)) {
+      setFieldErrors({ phone: errors.phoneInvalid })
+      return
+    }
+    setLookingUpCustomer(true)
+    try {
+      const result = await lookupBookingCustomer(customerPhone)
+      if (!result.found || !result.firstName) {
+        setReturningLookupError('not_found')
+        setReturningVerified(false)
+        return
+      }
+      setReturningFirstName(capitalizePersonName(result.firstName))
+      setCustomerNameState(capitalizePersonName(result.firstName))
+      setReturningVerified(true)
+    } catch {
+      setReturningLookupError(errors.serverConnection)
+      setReturningVerified(false)
+    } finally {
+      setLookingUpCustomer(false)
+    }
+  }, [
+    customerPhone,
+    errors.phoneRequired,
+    errors.phoneInvalid,
+    errors.serverConnection,
+  ])
+
+  const validateCustomerFields = useCallback(() => {
+    if (customerType === null) {
+      setError(errors.customerTypeRequired)
+      return false
+    }
+    const next: { name?: string; phone?: string; birthdate?: string } = {}
     if (!customerPhone.trim()) {
       next.phone = errors.phoneRequired
     } else if (!isValidSpanishPhone(customerPhone)) {
       next.phone = errors.phoneInvalid
     }
+
+    if (customerType === 'returning') {
+      if (!returningVerified) {
+        setFieldErrors(next)
+        return false
+      }
+    } else {
+      if (!customerName.trim()) {
+        next.name = errors.nameRequired
+      }
+      if (!birthdate.trim()) {
+        next.birthdate = errors.birthdateRequired
+      } else if (!isValidDateString(birthdate)) {
+        next.birthdate = errors.birthdateInvalid
+      }
+    }
+
     setFieldErrors(next)
     return Object.keys(next).length === 0
-  }, [customerName, customerPhone, errors.nameRequired, errors.phoneInvalid, errors.phoneRequired])
+  }, [
+    customerType,
+    customerName,
+    customerPhone,
+    birthdate,
+    returningVerified,
+    errors.nameRequired,
+    errors.phoneInvalid,
+    errors.phoneRequired,
+    errors.birthdateRequired,
+    errors.birthdateInvalid,
+    errors.customerTypeRequired,
+  ])
 
   const submit = useCallback(async () => {
     setError('')
@@ -464,6 +577,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
             serviceStartOverrides,
           )
         : undefined
+      const isReturning = customerType === 'returning'
       const { appointment, appointments } = await createAppointment({
         serviceIds,
         staffId: primaryStaffId,
@@ -471,11 +585,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         serviceStartTimes,
         date,
         startTime,
-        customerName,
+        customerName: isReturning ? undefined : customerName,
         customerPhone,
-        customerEmail: customerEmail || undefined,
+        customerEmail: isReturning ? undefined : customerEmail || undefined,
         notes: notes || undefined,
         locale,
+        returningCustomer: isReturning || undefined,
+        birthdate: isReturning ? undefined : birthdate,
       })
       onSuccess?.(appointment, appointments)
       return appointment
@@ -504,6 +620,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     customerPhone,
     customerEmail,
     notes,
+    birthdate,
+    customerType,
     onSuccess,
     errors.createFailed,
     locale,
@@ -539,6 +657,16 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerEmail,
     notes,
     setNotes,
+    birthdate,
+    setBirthdate,
+    customerType,
+    setCustomerType,
+    resetCustomerType,
+    returningVerified,
+    returningFirstName,
+    lookingUpCustomer,
+    returningLookupError,
+    lookupReturningCustomer,
     error,
     fieldErrors,
     submitting,
