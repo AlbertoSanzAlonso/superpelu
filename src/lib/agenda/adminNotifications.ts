@@ -163,16 +163,26 @@ function normalizeNotifyPhone(phone: string): string {
   return phone.replace(/\D/g, '')
 }
 
+function treatmentWeight(item: AdminAppointmentNotificationItem): number {
+  return item.treatmentCount != null && item.treatmentCount > 0 ? item.treatmentCount : 1
+}
+
 /** Nº de tratamientos reales (ids únicos; recreate no cuenta borrado+alta dos veces). */
 function countVisitTreatments(group: AdminAppointmentNotificationItem[]): number {
   const created = group.filter((item) => item.kind === 'created')
   const cancelled = group.filter((item) => item.kind === 'cancelled')
   const modified = group.filter((item) => item.kind === 'modified')
+  const sum = (items: AdminAppointmentNotificationItem[]) =>
+    items.reduce((total, item) => total + treatmentWeight(item), 0)
 
+  // Recreate (visita borrada + nueva): el tamaño relevante es el de la visita resultante.
   if (created.length > 0 && cancelled.length > 0) {
-    return Math.max(created.length, cancelled.length, modified.length)
+    return sum(created) || sum(modified) || sum(cancelled)
   }
-  return new Set(group.map((item) => item.id)).size
+  if (modified.length > 0 && (created.length > 0 || cancelled.length > 0)) {
+    return Math.max(sum(modified), sum(created), sum(cancelled))
+  }
+  return sum(group) || new Set(group.map((item) => item.id)).size
 }
 
 function collapseToVisitNotification(
@@ -218,9 +228,17 @@ function collapseToVisitNotification(
   }
 }
 
+function isRecreateKindMix(kinds: Set<AdminAppointmentNotificationKind>): boolean {
+  return (
+    (kinds.has('cancelled') && (kinds.has('created') || kinds.has('modified'))) ||
+    (kinds.has('created') && kinds.has('modified'))
+  )
+}
+
 /**
  * Agrupa cambios de una misma visita multi-tratamiento en un solo aviso.
- * No mezcla visitas distintas del mismo cliente en el mismo día.
+ * Un edit que borra+recrea cambia el booking_group_id: hay que unir
+ * «anulada» (grupo viejo) + «nueva» (grupo nuevo) → «actualizada».
  */
 function collapseVisitItems(
   items: AdminAppointmentNotificationItem[],
@@ -244,15 +262,15 @@ function collapseVisitItems(
     }
   }
 
-  const result: AdminAppointmentNotificationItem[] = [...seriesItems]
+  const afterGroupCollapse: AdminAppointmentNotificationItem[] = []
 
   for (const [, group] of byGroupId) {
-    result.push(group.length === 1 ? group[0]! : collapseToVisitNotification(group))
+    afterGroupCollapse.push(
+      group.length === 1 ? group[0]! : collapseToVisitNotification(group),
+    )
   }
 
-  // Sin group id (legado / API antigua): agrupar por cliente+día.
-  // Ahí sí puede haber recreate (cancel+create) de una sola visita multi.
-  // Las visitas con bookingGroupId ya salieron en el paso anterior y no se mezclan.
+  // Sin group id (legado): agrupar altas/bajas del mismo cliente-día.
   const legacyByCustomerDate = new Map<string, AdminAppointmentNotificationItem[]>()
   for (const item of withoutGroup) {
     const key = `${normalizeNotifyPhone(item.customerPhone)}|${item.date}`
@@ -263,15 +281,38 @@ function collapseVisitItems(
 
   for (const [, group] of legacyByCustomerDate) {
     if (group.length === 1) {
-      result.push(group[0]!)
+      afterGroupCollapse.push(group[0]!)
       continue
     }
     const kinds = new Set(group.map((item) => item.kind))
     const recreate =
-      (kinds.has('cancelled') && (kinds.has('created') || kinds.has('modified'))) ||
-      (kinds.has('created') && kinds.has('modified')) ||
+      isRecreateKindMix(kinds) ||
       (kinds.size === 1 && (kinds.has('created') || kinds.has('cancelled')))
     if (recreate) {
+      afterGroupCollapse.push(collapseToVisitNotification(group))
+    } else {
+      afterGroupCollapse.push(...group)
+    }
+  }
+
+  // Recreate con nuevo booking_group_id: «3 anulados» + «2 nuevos» del mismo
+  // cliente/día → un solo «cita actualizada».
+  const byCustomerDate = new Map<string, AdminAppointmentNotificationItem[]>()
+  for (const item of afterGroupCollapse) {
+    const key = `${normalizeNotifyPhone(item.customerPhone)}|${item.date}`
+    const group = byCustomerDate.get(key) ?? []
+    group.push(item)
+    byCustomerDate.set(key, group)
+  }
+
+  const result: AdminAppointmentNotificationItem[] = [...seriesItems]
+  for (const [, group] of byCustomerDate) {
+    if (group.length === 1) {
+      result.push(group[0]!)
+      continue
+    }
+    const kinds = new Set(group.map((item) => item.kind))
+    if (isRecreateKindMix(kinds)) {
       result.push(collapseToVisitNotification(group))
     } else {
       result.push(...group)
