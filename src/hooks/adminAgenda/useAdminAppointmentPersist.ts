@@ -31,8 +31,7 @@ type PersistDeps = {
   setWhatsAppNotifyDialogOpen: (open: boolean) => void
   setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
-  markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
-  resyncAppointmentSnapshots?: () => Promise<void>
+  resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
 }
 
@@ -52,7 +51,6 @@ export function useAdminAppointmentPersist({
   setWhatsAppNotifyDialogOpen,
   setWhatsAppNotifyContext,
   setAppointmentFormOpen,
-  markAppointmentSnapshots,
   resyncAppointmentSnapshots,
   setConfirmDialog,
 }: PersistDeps) {
@@ -99,7 +97,7 @@ export function useAdminAppointmentPersist({
         const { staffAssignments, serviceDurations, serviceStartTimes, visitStartTime } =
           buildAlignedServiceFields(filteredServiceIds)
         if (editingId) {
-          const { appointment } = await updateAdminAppointment(editingId, adminToken, {
+          await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
             staffAssignments,
             serviceIds: filteredServiceIds,
@@ -118,8 +116,7 @@ export function useAdminAppointmentPersist({
             notifyCustomerWhatsApp,
             forceSchedule: true,
           })
-          markAppointmentSnapshots?.([appointment])
-          await resyncAppointmentSnapshots?.()
+          await resyncAppointmentSnapshots?.({ notify: true })
         } else {
           const isMultiTreatmentSeries =
             filteredServiceIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
@@ -153,7 +150,7 @@ export function useAdminAppointmentPersist({
             }
           }
 
-          const { appointment } = await createAdminAppointment(
+          await createAdminAppointment(
             {
               staffId: activeStaffId,
               staffAssignments,
@@ -178,8 +175,7 @@ export function useAdminAppointmentPersist({
             },
             adminToken,
           )
-          markAppointmentSnapshots?.([appointment])
-          await resyncAppointmentSnapshots?.()
+          await resyncAppointmentSnapshots?.({ notify: true })
         }
         setWhatsAppNotifyDialogOpen(false)
         setAppointmentFormOpen(false)
@@ -223,7 +219,6 @@ export function useAdminAppointmentPersist({
       clearSelection,
       load,
       setError,
-      markAppointmentSnapshots,
       resyncAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
@@ -285,28 +280,28 @@ export function useAdminAppointmentPersist({
       setSeriesConflictBusy(true)
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
-          const { appointment } = await createAdminAppointment(
-            {
-              staffId: activeStaffId,
-              serviceIds: filteredServiceIds,
-              serviceStartTimes: aptDraft.serviceStartTimes,
-              serviceDurations: aptDraft.serviceDurations,
-              date,
-              startTime: aptDraft.startTime,
-              customerFirstName: aptDraft.customerFirstName,
-              customerLastName: aptDraft.customerLastName,
-              customerPhone: aptDraft.customerPhone,
-              customerEmail: aptDraft.customerEmail || undefined,
-              customerNotes: aptDraft.customerNotes || undefined,
-              notes: aptDraft.notes || undefined,
-              customerLocale: aptDraft.customerLocale,
-              scope: 'weekly',
-              endDate: aptDraft.recurrenceEndDate || undefined,
-              conflictResolutions: resolutions,
-            },
-            adminToken,
-          )
-        markAppointmentSnapshots?.([appointment])
+        await createAdminAppointment(
+          {
+            staffId: activeStaffId,
+            serviceIds: filteredServiceIds,
+            serviceStartTimes: aptDraft.serviceStartTimes,
+            serviceDurations: aptDraft.serviceDurations,
+            date,
+            startTime: aptDraft.startTime,
+            customerFirstName: aptDraft.customerFirstName,
+            customerLastName: aptDraft.customerLastName,
+            customerPhone: aptDraft.customerPhone,
+            customerEmail: aptDraft.customerEmail || undefined,
+            customerNotes: aptDraft.customerNotes || undefined,
+            notes: aptDraft.notes || undefined,
+            customerLocale: aptDraft.customerLocale,
+            scope: 'weekly',
+            endDate: aptDraft.recurrenceEndDate || undefined,
+            conflictResolutions: resolutions,
+          },
+          adminToken,
+        )
+        await resyncAppointmentSnapshots?.({ notify: true })
         setSeriesConflictOpen(false)
         setSeriesConflictPreview(null)
         setWhatsAppNotifyDialogOpen(false)
@@ -333,7 +328,7 @@ export function useAdminAppointmentPersist({
       clearSelection,
       load,
       setError,
-      markAppointmentSnapshots,
+      resyncAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
     ],

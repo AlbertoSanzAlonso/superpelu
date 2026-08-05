@@ -180,14 +180,25 @@ export function formatAppointmentTimeRange(
   const separator = options?.rangeSeparator ?? 'dash'
   const role = options?.colorGroupRole
   const pattern = options?.bookingPattern
+  const start = timeToMinutes(startTime)
+
+  // Filas reales del grupo (aplicación / lavado): solo el tramo de esa cita.
+  // El lavado puede moverse o anularse; no inventar el segundo horario en el primero.
+  if (isColorGroupColorRow(role) || isColorGroupWashRow(role)) {
+    return rangeBetween(
+      startTime,
+      minutesToTime(start + durationMinutes),
+      locale,
+      separator,
+    )
+  }
+
   const showPatternRange = pattern && isSegmentedPattern(pattern)
 
-  const showSplitRange =
-    usesColorSplitBooking(serviceId) &&
-    (isColorGroupColorRow(role) || isLegacyColorSplitAppointment(serviceId, durationMinutes, role))
+  // Cita antigua monolítica (90 min sin color_group_role): mostrar ambos tramos teóricos.
+  const showSplitRange = isLegacyColorSplitAppointment(serviceId, durationMinutes, role)
 
   if (showPatternRange) {
-    const start = timeToMinutes(startTime)
     const connector = locale === 'en' ? 'and' : 'y'
     const parts: string[] = []
     let cursor = start
@@ -204,12 +215,10 @@ export function formatAppointmentTimeRange(
   }
 
   if (!showSplitRange) {
-    const start = timeToMinutes(startTime)
     const displayDuration = getCustomerFacingDurationMinutes(serviceId, durationMinutes, role)
     return rangeBetween(startTime, minutesToTime(start + displayDuration), locale, separator)
   }
 
-  const start = timeToMinutes(startTime)
   const seg1End = start + COLOR_SPLIT_SEGMENT_MINUTES
   const seg2Start = getWashPhaseStartMinutes(start)
   const seg2End = start + COLOR_SPLIT_TOTAL_SPAN_MINUTES

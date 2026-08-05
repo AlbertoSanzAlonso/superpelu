@@ -27,7 +27,6 @@ export function useAdminAgenda(adminToken: string, date: string) {
     load: schedule.load,
     setError: schedule.setError,
     setConfirmDialog: confirm.setConfirmDialog,
-    markAppointmentSnapshots: notifications.markAppointmentSnapshots,
     resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
   })
 
@@ -52,7 +51,6 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setConfirmDialog: confirm.setConfirmDialog,
     clearSelection: selectionState.clearSelection,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
-    markAppointmentSnapshots: notifications.markAppointmentSnapshots,
     resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
   })
 

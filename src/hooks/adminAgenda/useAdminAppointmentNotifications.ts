@@ -36,25 +36,6 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   const [toasts, setToasts] = useState<ToastEntry[]>([])
   const [lastSeenAt, setLastSeenAt] = useState(Date.now())
 
-  const markAppointmentSnapshots = useCallback((appointments: Iterable<Appointment>) => {
-    for (const [id, snapshot] of snapshotsFromAppointments(appointments)) {
-      snapshotsRef.current.set(id, snapshot)
-    }
-  }, [])
-
-  /** Tras crear/editar en esta sesión: alinear snapshots sin generar toasts. */
-  const resyncAppointmentSnapshots = useCallback(async () => {
-    if (!adminToken) return
-    const { from, to } = adminAppointmentNotifyDateRange()
-    try {
-      const { appointments } = await fetchAppointments(from, to, adminToken)
-      snapshotsRef.current = snapshotsFromAppointments(appointments)
-      initializedRef.current = true
-    } catch {
-      // Silencioso: el siguiente poll reintentará.
-    }
-  }, [adminToken])
-
   const trackSeries = useCallback((
     seriesId: string,
     endDate: string,
@@ -80,6 +61,30 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
     showAdminBrowserNotifications(items)
   }, [])
+
+  /**
+   * Alinea snapshots con el servidor tras una mutación local.
+   * Con `notify: true` genera avisos (recreate → «actualizada» vía collapse).
+   * Sin notify: solo alinea (p. ej. si el cambio ya se notificó de otro modo).
+   */
+  const resyncAppointmentSnapshots = useCallback(
+    async (options?: { notify?: boolean }) => {
+      if (!adminToken) return
+      const { from, to } = adminAppointmentNotifyDateRange()
+      try {
+        const { appointments } = await fetchAppointments(from, to, adminToken)
+        if (options?.notify && initializedRef.current) {
+          const fresh = diffAppointmentSnapshots(snapshotsRef.current, appointments)
+          ingestNewItems(fresh)
+        }
+        snapshotsRef.current = snapshotsFromAppointments(appointments)
+        initializedRef.current = true
+      } catch {
+        // Silencioso: el siguiente poll reintentará.
+      }
+    },
+    [adminToken, ingestNewItems],
+  )
 
   const pollAppointmentChanges = useCallback(async () => {
     if (!adminToken) return
@@ -174,7 +179,6 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     closeBell,
     toasts,
     dismissToast,
-    markAppointmentSnapshots,
     resyncAppointmentSnapshots,
     pollAppointmentChanges,
     lastSeenAt,

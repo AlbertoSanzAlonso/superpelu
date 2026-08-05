@@ -12,7 +12,7 @@ import {
   type AppointmentMoveDraft,
 } from '@/lib/agenda/pendingMoves'
 import { ApiError, updateAdminAppointment } from '@/lib/api'
-import type { Appointment, StaffDaySchedule } from '@/types/booking'
+import type { StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 type MovesDeps = {
@@ -24,8 +24,7 @@ type MovesDeps = {
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   clearSelection: () => void
   onMovesCommitted: () => void
-  markAppointmentSnapshots?: (appointments: Iterable<Appointment>) => void
-  resyncAppointmentSnapshots?: () => Promise<void>
+  resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
 }
 
 export function useAdminAgendaMoves({
@@ -37,7 +36,6 @@ export function useAdminAgendaMoves({
   setConfirmDialog,
   clearSelection,
   onMovesCommitted,
-  markAppointmentSnapshots,
   resyncAppointmentSnapshots,
 }: MovesDeps) {
   const [pendingMoves, setPendingMoves] = useState<AppointmentMoveDraft[]>([])
@@ -50,13 +48,20 @@ export function useAdminAgendaMoves({
 
   const proposeAppointmentMove = useCallback(
     (payload: AppointmentDragEndPayload) => {
-      // Resize — apply immediately
+      // Resize — persistir al momento (hora si se estiró desde arriba + duración).
       if (payload.newDuration) {
+        const startTimeChanged =
+          payload.toStartTime !== payload.appointment.startTime
         setMoveBusy(true)
         updateAdminAppointment(payload.appointment.id, adminToken, {
           serviceDurations: [payload.newDuration],
+          ...(startTimeChanged ? { startTime: payload.toStartTime } : {}),
+          forceSchedule: true,
         })
-          .then(() => load({ silent: true }))
+          .then(async () => {
+            await load({ silent: true })
+            await resyncAppointmentSnapshots?.({ notify: true })
+          })
           .catch((err) =>
             setError(err instanceof ApiError ? err.message : 'Error al cambiar duración'),
           )
@@ -114,7 +119,7 @@ export function useAdminAgendaMoves({
       clearSelection()
       setPendingMoves((prev) => [...prev, ...validation.moves])
     },
-    [schedules, date, pendingMoves, setError, clearSelection, adminToken, load],
+    [schedules, date, pendingMoves, setError, clearSelection, adminToken, load, resyncAppointmentSnapshots],
   )
 
   const undoLastPendingMove = useCallback(() => {
@@ -141,7 +146,6 @@ export function useAdminAgendaMoves({
       setError('')
       setMoveBusy(true)
       try {
-        const updatedAppointments: Appointment[] = []
         const finalMoves = getFinalMovesForSave(pendingMoves)
         const notifiedBookingGroups = new Set<string>()
 
@@ -154,17 +158,17 @@ export function useAdminAgendaMoves({
             notifiedBookingGroups.add(bookingGroupId)
           }
 
-          const { appointment } = await updateAdminAppointment(move.appointment.id, adminToken, {
+          await updateAdminAppointment(move.appointment.id, adminToken, {
             staffId: move.toStaffId,
             date,
             startTime: move.toStartTime,
+            // Conservar duración personalizada (p. ej. tras alargar con el borde).
+            serviceDurations: [move.appointment.durationMinutes],
             notifyCustomerWhatsApp: shouldNotify,
             forceSchedule,
           })
-          updatedAppointments.push(appointment)
         }
-        markAppointmentSnapshots?.(updatedAppointments)
-        await resyncAppointmentSnapshots?.()
+        await resyncAppointmentSnapshots?.({ notify: true })
         setPendingMoves([])
         onMovesCommitted()
         await load()
@@ -203,7 +207,6 @@ export function useAdminAgendaMoves({
       setError,
       setConfirmDialog,
       onMovesCommitted,
-      markAppointmentSnapshots,
       resyncAppointmentSnapshots,
     ],
   )

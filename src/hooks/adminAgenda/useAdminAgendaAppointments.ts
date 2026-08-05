@@ -39,8 +39,7 @@ type AppointmentsDeps = {
   load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
-  markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
-  resyncAppointmentSnapshots?: () => Promise<void>
+  resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
 }
 
 export function useAdminAgendaAppointments({
@@ -53,7 +52,6 @@ export function useAdminAgendaAppointments({
   load,
   setError,
   setConfirmDialog,
-  markAppointmentSnapshots,
   resyncAppointmentSnapshots,
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
@@ -436,7 +434,6 @@ export function useAdminAgendaAppointments({
     setWhatsAppNotifyDialogOpen,
     setWhatsAppNotifyContext,
     setAppointmentFormOpen,
-    markAppointmentSnapshots,
     resyncAppointmentSnapshots,
     setConfirmDialog,
   })
@@ -446,11 +443,11 @@ export function useAdminAgendaAppointments({
       if (!pendingCancelId || !adminToken) return false
       setError('')
       try {
-        const { appointment } = await cancelAppointment(pendingCancelId, adminToken, {
+        await cancelAppointment(pendingCancelId, adminToken, {
           notifyCustomerWhatsApp,
           mode: pendingCancelMode,
         })
-        markAppointmentSnapshots?.([appointment])
+        await resyncAppointmentSnapshots?.({ notify: true })
         setWhatsAppNotifyDialogOpen(false)
         setPendingCancelId(null)
         setAppointmentFormOpen(false)
@@ -471,7 +468,7 @@ export function useAdminAgendaAppointments({
       resetAppointmentForm,
       load,
       setError,
-      markAppointmentSnapshots,
+      resyncAppointmentSnapshots,
     ],
   )
 

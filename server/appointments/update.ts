@@ -14,7 +14,6 @@ import { notifyAdminAppointmentUpdated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import {
   COLOR_GROUP_ROLE,
-  COLOR_SPLIT_SEGMENT_MINUTES,
   getBookingSpanMinutes,
   getWashPhaseStartMinutes,
   isColorGroupColorRow,
@@ -91,20 +90,21 @@ export async function updateAppointmentForStaff(
 
   const customDuration = input.serviceDurations?.[0] ?? null
   const useCustomDuration = customDuration != null && customDuration > 0
+  const serviceChanged = serviceId !== existing.service_id
 
   const scheduleChanging =
     date !== existing.appointment_date ||
     startTime !== existing.start_time ||
     targetStaffId !== existing.staff_id ||
-    serviceId !== existing.service_id
+    serviceChanged
 
-  const storedDuration = isColorGroupWashRow(existing.color_group_role)
-    ? COLOR_SPLIT_SEGMENT_MINUTES
-    : isColorGroupColorRow(existing.color_group_role)
-      ? COLOR_SPLIT_SEGMENT_MINUTES
-      : useCustomDuration
-        ? customDuration
-        : getBookingSpanMinutes(service.id, service.durationMinutes, service.bookingPattern)
+  // Si no envían duración, conservar la de la cita (p. ej. alargada en agenda).
+  // Solo al cambiar de servicio se vuelve a la del catálogo.
+  const storedDuration = useCustomDuration
+    ? customDuration
+    : serviceChanged
+      ? getBookingSpanMinutes(service.id, service.durationMinutes, service.bookingPattern)
+      : existing.duration_minutes
 
   const hasCustomerPatch =
     input.customerName !== undefined ||
