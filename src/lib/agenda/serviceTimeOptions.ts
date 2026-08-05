@@ -15,13 +15,11 @@ export type EditableServiceTimeOptions = {
 
 /**
  * Opciones del selector de hora de un tratamiento adicional.
- * El mínimo es `chainedMin` (fin del anterior), no la hora ya fijada.
- * Si aún no hay slots por especialista, igual se listan huecos desde ese mínimo
- * (libres conocidos + ocupados) para poder atrasar un aplazamiento.
+ * Ofrece toda la franja libre del especialista seleccionado ese día
+ * (el orden de la visita puede invertirse).
  */
 export function buildEditableServiceTimeOptions(input: {
   currentVal: string
-  chainedMin: string
   /** Slots libres del especialista de este tratamiento. */
   perServiceFree: readonly string[]
   /** Fallback si aún no hay slots por servicio (p. ej. slots del profesional activo). */
@@ -29,29 +27,33 @@ export function buildEditableServiceTimeOptions(input: {
   /** Horas de esta misma visita que no deben marcarse ocupadas. */
   ownTimes?: ReadonlySet<string> | readonly string[]
 }): EditableServiceTimeOptions {
-  const { currentVal, chainedMin, perServiceFree, fallbackFree } = input
+  const { currentVal, perServiceFree, fallbackFree } = input
   const ownTimes = input.ownTimes
     ? input.ownTimes instanceof Set
       ? input.ownTimes
       : new Set(input.ownTimes)
     : new Set<string>()
 
-  const sourceFree = perServiceFree.length > 0 ? perServiceFree : fallbackFree
-  const freeSet = new Set(
-    sourceFree.filter((t) => !chainedMin || t >= chainedMin),
-  )
+  const hasPerServiceSlots = perServiceFree.length > 0
+  const sourceFree = hasPerServiceSlots ? perServiceFree : fallbackFree
+  const freeSet = new Set(sourceFree)
   for (const time of ownTimes) {
-    if (time && (!chainedMin || time >= chainedMin)) freeSet.add(time)
+    if (time) freeSet.add(time)
   }
   const freeOptions = [...freeSet].sort()
 
   const lastFree = freeOptions.length > 0 ? freeOptions[freeOptions.length - 1]! : null
+  const firstFree = freeOptions.length > 0 ? freeOptions[0]! : null
+
+  // Con slots del especialista: ocupados solo en su franja conocida.
+  // Sin slots aún: todo el día seleccionable como ocupado (permite elegir cualquier hora).
   const occupiedOptions = ALL_DAY_SLOTS.filter((t) => {
-    if (chainedMin && t < chainedMin) return false
-    // Si hay libres, no listar ocupados después del último libre del día.
-    // Si no hay ninguno, ofrecer todo el día desde chainedMin (p. ej. slots aún cargando).
-    if (lastFree && t > lastFree) return false
-    return !freeSet.has(t)
+    if (freeSet.has(t)) return false
+    if (hasPerServiceSlots || fallbackFree.length > 0) {
+      if (firstFree && t < firstFree) return false
+      if (lastFree && t > lastFree) return false
+    }
+    return true
   })
 
   const isOccupied = currentVal !== '' && !freeSet.has(currentVal)

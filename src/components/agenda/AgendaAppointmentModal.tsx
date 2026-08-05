@@ -13,6 +13,7 @@ import {
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
 import {
   ALL_DAY_SLOTS,
   buildEditableServiceTimeOptions,
@@ -188,8 +189,8 @@ export function AgendaAppointmentModal({
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
-    () => checkServiceOverlaps(draft, services),
-    [draft, services],
+    () => checkServiceOverlaps(draft, services, staffId),
+    [draft, services, staffId],
   )
   const hasOverlaps = serviceOverlaps.length > 0
 
@@ -527,7 +528,6 @@ export function AgendaAppointmentModal({
                       )}
                       {serviceId && index > 0 && (() => {
                         const currentVal = draft.serviceStartTimes[index] ?? ''
-                        const chainedMin = chainedStartTimes[index] ?? ''
                         const {
                           freeOptions: freeOptionsDisplay,
                           occupiedOptions,
@@ -535,10 +535,10 @@ export function AgendaAppointmentModal({
                           isOccupied,
                         } = buildEditableServiceTimeOptions({
                           currentVal,
-                          chainedMin,
                           perServiceFree: serviceSlots?.[index] ?? [],
-                          fallbackFree: slots,
-                          ownTimes,
+                          fallbackFree: [],
+                          // Solo la hora de este tratamiento: no mezclar huecos de otros especialistas.
+                          ownTimes: currentVal ? [currentVal] : [],
                         })
                         const chainedLabel =
                           draft.startTime && chainedStartTimes[index]
@@ -550,27 +550,14 @@ export function AgendaAppointmentModal({
                             <label className={`${typography.label} mb-0.5 block text-xs`}>
                               Hora de inicio
                             </label>
-                            <select
+                            <ScrollableTimeSelect
                               value={currentVal}
-                              onChange={(e) => setServiceStartTime(index, e.target.value)}
+                              onChange={(time) => setServiceStartTime(index, time)}
+                              emptyLabel={chainedLabel}
+                              freeOptions={freeOptionsDisplay}
+                              occupiedOptions={[...extraCurrent, ...occupiedOptions]}
                               className={selectCn}
-                            >
-                              <option value="">{chainedLabel}</option>
-                              {freeOptionsDisplay.map((slot) => (
-                                <option key={slot} value={slot}>
-                                  {slot}
-                                </option>
-                              ))}
-                              {occupiedOptions.length > 0 && (
-                                <optgroup label="⚠ Hora ocupada">
-                                  {[...extraCurrent, ...occupiedOptions].map((slot) => (
-                                    <option key={slot} value={slot}>
-                                      ⚠ {slot}
-                                    </option>
-                                  ))}
-                                </optgroup>
-                              )}
-                            </select>
+                            />
                             {isOccupied && (
                               <div className="mt-1 space-y-0.5 text-xs text-amber-700">
                                 {freeOptionsDisplay.length > 0 && (
@@ -653,45 +640,22 @@ export function AgendaAppointmentModal({
                     <label className={`${typography.label} mb-0.5 block text-xs`}>
                       Hora de la cita
                     </label>
-                    <select
-                      required
+                    <ScrollableTimeSelect
                       value={draft.startTime}
-                      onChange={(e) => {
+                      onChange={(time) =>
                         onDraftChange({
-                          startTime: e.target.value,
+                          startTime: time,
                           serviceStartTimes: [],
                         })
-                      }}
+                      }
+                      emptyLabel={hasServices ? 'Elige hora' : 'Tratamiento primero'}
+                      freeOptions={displayFreeSlots}
+                      overHoursOptions={slotsOverHours}
+                      occupiedOptions={[...mainExtraCurrent, ...mainOccupiedOptions]}
                       className={selectCn}
                       disabled={!hasServices}
-                    >
-                      <option value="">
-                        {hasServices ? 'Elige hora' : 'Tratamiento primero'}
-                      </option>
-                      {displayFreeSlots.map((slot) => (
-                        <option key={slot} value={slot}>
-                          {slot}
-                        </option>
-                      ))}
-                      {slotsOverHours.length > 0 && (
-                        <optgroup label="⚠ Fuera del horario del salón">
-                          {slotsOverHours.map((slot) => (
-                            <option key={slot} value={slot}>
-                              ⚠ {slot}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {(mainOccupiedOptions.length > 0 || mainExtraCurrent.length > 0) && (
-                        <optgroup label="⚠ Hora ocupada">
-                          {[...mainExtraCurrent, ...mainOccupiedOptions].map((slot) => (
-                            <option key={slot} value={slot}>
-                              ⚠ {slot}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
+                      required
+                    />
                     {isOverHoursSelected && (
                       <p className="mt-1 text-xs text-amber-700">
                         Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.

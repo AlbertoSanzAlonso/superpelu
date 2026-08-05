@@ -100,6 +100,7 @@ export function useAdminAgendaMoves({
         summary,
       )
       if (!validation.ok) {
+        // No acumular el arrastre fallido: solo aviso, sin pending oculto.
         setError(validation.message)
         return
       }

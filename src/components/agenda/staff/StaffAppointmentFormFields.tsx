@@ -9,6 +9,7 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
+import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 import { buildEditableServiceTimeOptions } from '@/lib/agenda/serviceTimeOptions'
@@ -280,8 +281,8 @@ export function StaffAppointmentFormFields({
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
-    () => checkServiceOverlaps(draft, services),
-    [draft, services],
+    () => checkServiceOverlaps(draft, services, defaultStaffId),
+    [draft, services, defaultStaffId],
   )
   const hasOverlaps = serviceOverlaps.length > 0
 
@@ -353,13 +354,12 @@ export function StaffAppointmentFormFields({
                 )}
                 {serviceId && index > 0 && (() => {
                   const currentVal = draft.serviceStartTimes[index] ?? ''
-                  const chainedMin = chainedStartTimes[index] ?? ''
                   const { freeOptions, occupiedOptions, extraCurrent, isOccupied } =
                     buildEditableServiceTimeOptions({
                       currentVal,
-                      chainedMin,
                       perServiceFree: serviceSlots?.[index] ?? [],
-                      fallbackFree: timeOptions,
+                      fallbackFree: [],
+                      ownTimes: currentVal ? [currentVal] : [],
                     })
                   const chainedLabel = draft.startTime && chainedStartTimes[index]
                     ? chainedStartTimes[index]
@@ -370,23 +370,14 @@ export function StaffAppointmentFormFields({
                       <label className={`${typography.label} mb-0.5 block text-xs`}>
                         Hora de inicio
                       </label>
-                      <select
+                      <ScrollableTimeSelect
                         value={currentVal}
-                        onChange={(e) => setServiceStartTime(index, e.target.value)}
+                        onChange={(time) => setServiceStartTime(index, time)}
+                        emptyLabel={chainedLabel}
+                        freeOptions={freeOptions}
+                        occupiedOptions={[...extraCurrent, ...occupiedOptions]}
                         className={selectCn}
-                      >
-                        <option value="">{chainedLabel}</option>
-                        {freeOptions.map((slot) => (
-                          <option key={slot} value={slot}>{slot}</option>
-                        ))}
-                        {occupiedOptions.length > 0 && (
-                          <optgroup label="⚠ Hora ocupada">
-                            {[...extraCurrent, ...occupiedOptions].map((slot) => (
-                              <option key={slot} value={slot}>⚠ {slot}</option>
-                            ))}
-                          </optgroup>
-                        )}
-                      </select>
+                      />
                       {isOccupied && (
                         <div className="mt-1 space-y-0.5 text-xs text-amber-700">
                           {freeOptions.length > 0 && (
@@ -469,31 +460,22 @@ export function StaffAppointmentFormFields({
     <div className={compact ? `space-y-3 ${formCompactClass}` : 'space-y-4'}>
       <div>
         <label className={timeLabelCn}>Hora</label>
-        <select
-          required
+        <ScrollableTimeSelect
           value={draft.startTime}
-          onChange={(e) => onDraftChange({ startTime: e.target.value, serviceStartTimes: [] })}
+          onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
+          emptyLabel={
+            hasServices
+              ? compact
+                ? 'Elige hora'
+                : 'Primero elige el tratamiento'
+              : 'Tratamiento primero'
+          }
+          freeOptions={timeOptions}
+          overHoursOptions={slotsOverHours}
           className={selectCn}
           disabled={!hasServices}
-        >
-          <option value="">
-            {hasServices ? (compact ? 'Elige hora' : 'Primero elige el tratamiento') : 'Tratamiento primero'}
-          </option>
-          {timeOptions.map((slot) => (
-            <option key={slot} value={slot}>
-              {slot}
-            </option>
-          ))}
-          {slotsOverHours.length > 0 && (
-            <optgroup label="⚠ Fuera del horario del salón">
-              {slotsOverHours.map((slot) => (
-                <option key={slot} value={slot}>
-                  ⚠ {slot}
-                </option>
-              ))}
-            </optgroup>
-          )}
-        </select>
+          required
+        />
         {isOverHoursSelected && (
           <p className="mt-1 text-xs text-amber-700">
             Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.

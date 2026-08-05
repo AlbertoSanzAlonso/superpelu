@@ -293,7 +293,11 @@ function staffNameForId(schedules: StaffDaySchedule[], staffId: string): string 
   return schedules.find((s) => s.staffId === staffId)?.staffName ?? ''
 }
 
-/** Expande un arrastre a todos los tratamientos de la misma visita (mismo desplazamiento). */
+/**
+ * Prepara el movimiento del tratamiento arrastrado.
+ * Cada cita del grupo se mueve sola; los hermanos no se desplazan en bloque
+ * (sí se ignoran entre sí al comprobar solapes vía `sharesBookingGroup`).
+ */
 export function buildBookingGroupMoveDrafts(
   schedules: StaffDaySchedule[],
   date: string,
@@ -308,57 +312,44 @@ export function buildBookingGroupMoveDrafts(
   pendingMoves: AppointmentMoveDraft[],
   pendingSummary: PendingMoveSummary,
 ): { ok: true; moves: AppointmentMoveDraft[] } | AppointmentMoveValidation {
-  const members =
-    anchor.appointment.bookingGroupId != null
-      ? collectBookingGroupMembers(schedules, anchor.appointment.bookingGroupId)
-      : [anchor.appointment]
-
-  const timeDelta = timeToMinutes(anchor.toStartTime) - timeToMinutes(anchor.fromStartTime)
-  const staffChanged = anchor.toStaffId !== anchor.fromStaffId
-  const drafts: AppointmentMoveDraft[] = []
-
-  for (const member of members) {
-    const effective = getEffectivePlacement(pendingSummary, member.id, {
-      staffId: member.staffId,
-      startTime: member.startTime,
-    })
-    const memberFromStaffId = effective.staffId
-    const memberFromStartTime = effective.startTime
-    const memberToStartTime = minutesToTime(timeToMinutes(memberFromStartTime) + timeDelta)
-    const memberToStaffId =
-      staffChanged && memberFromStaffId === anchor.fromStaffId
-        ? anchor.toStaffId
-        : memberFromStaffId
-    const memberToStaffName = staffNameForId(schedules, memberToStaffId)
-    const target: AppointmentMoveTarget = {
-      staffId: memberToStaffId,
-      staffName: memberToStaffName,
-      startTime: memberToStartTime,
-    }
-
-    if (isSameAppointmentMove(memberFromStaffId, memberFromStartTime, target)) {
-      continue
-    }
-
-    const validation = validateAppointmentMove(
-      schedules,
-      date,
-      member,
-      target,
-      [...pendingMoves, ...drafts],
-    )
-    if (!validation.ok) return validation
-
-    drafts.push({
-      appointment: member,
-      fromStaffId: memberFromStaffId,
-      fromStaffName: staffNameForId(schedules, memberFromStaffId),
-      fromStartTime: memberFromStartTime,
-      toStaffId: memberToStaffId,
-      toStaffName: memberToStaffName,
-      toStartTime: memberToStartTime,
-    })
+  const member = anchor.appointment
+  const effective = getEffectivePlacement(pendingSummary, member.id, {
+    staffId: member.staffId,
+    startTime: member.startTime,
+  })
+  const fromStaffId = effective.staffId
+  const fromStartTime = effective.startTime
+  const target: AppointmentMoveTarget = {
+    staffId: anchor.toStaffId,
+    staffName: anchor.toStaffName,
+    startTime: anchor.toStartTime,
   }
 
-  return { ok: true, moves: drafts }
+  if (isSameAppointmentMove(fromStaffId, fromStartTime, target)) {
+    return { ok: true, moves: [] }
+  }
+
+  const validation = validateAppointmentMove(
+    schedules,
+    date,
+    member,
+    target,
+    pendingMoves,
+  )
+  if (!validation.ok) return validation
+
+  return {
+    ok: true,
+    moves: [
+      {
+        appointment: member,
+        fromStaffId,
+        fromStaffName: staffNameForId(schedules, fromStaffId),
+        fromStartTime,
+        toStaffId: target.staffId,
+        toStaffName: target.staffName,
+        toStartTime: target.startTime,
+      },
+    ],
+  }
 }
