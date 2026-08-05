@@ -11,20 +11,13 @@ import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import { buildEditableServiceTimeOptions } from '@/lib/agenda/serviceTimeOptions'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
   '[&_label>span:first-child]:mb-1 [&_label>span:first-child]:text-xs [&_input]:py-2 [&_textarea]:min-h-0 [&_textarea]:py-2'
 
 const DURATION_OPTIONS = Array.from({ length: 48 }, (_, i) => (i + 1) * 5)
-
-/** Todos los slots de 30 min entre 8:00 y 21:00. */
-const ALL_DAY_SLOTS = Array.from({ length: 27 }, (_, i) => {
-  const totalMin = 8 * 60 + i * 30
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-})
 
 /** Asegura que serviceDurations tenga la misma longitud que ids,
  *  preservando los valores existentes y rellenando con null los nuevos índices. */
@@ -250,24 +243,40 @@ export function StaffAppointmentFormFields({
 
   const chainedStartTimes = useMemo(() => {
     if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
-    const selectedServices = draft.serviceIds.map((id, i) => {
-      if (!id) return null
-      const svc = services.find(s => s.id === id)
-      if (!svc) return null
+    const entries: {
+      formIndex: number
+      service: { id: string; categoryId: string; durationMinutes: number }
+      override: string | undefined
+    }[] = []
+    for (let i = 0; i < draft.serviceIds.length; i++) {
+      const id = draft.serviceIds[i]
+      if (!id) continue
+      const svc = services.find((s) => s.id === id)
+      if (!svc) continue
       const customDuration = draft.serviceDurations[i]
-      return {
-        id: svc.id,
-        categoryId: svc.categoryId ?? '',
-        durationMinutes: customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
-      }
-    }).filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
-    if (selectedServices.length === 0) return []
+      entries.push({
+        formIndex: i,
+        service: {
+          id: svc.id,
+          categoryId: svc.categoryId ?? '',
+          durationMinutes:
+            customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
+        },
+        override: draft.serviceStartTimes[i],
+      })
+    }
+    if (entries.length === 0) return []
     // Mínimo editable: ignora el override del propio índice para poder atrasarlo.
-    return buildEarliestEditableServiceStartTimes(
-      selectedServices,
+    const earliest = buildEarliestEditableServiceStartTimes(
+      entries.map((e) => e.service),
       draft.startTime,
-      draft.serviceStartTimes,
+      entries.map((e) => e.override),
     )
+    const byFormIndex = draft.serviceIds.map(() => '')
+    entries.forEach((entry, j) => {
+      byFormIndex[entry.formIndex] = earliest[j]!
+    })
+    return byFormIndex
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
@@ -344,30 +353,14 @@ export function StaffAppointmentFormFields({
                 )}
                 {serviceId && index > 0 && (() => {
                   const currentVal = draft.serviceStartTimes[index] ?? ''
-                  const perSvcFree = serviceSlots?.[index] ?? []
-                  const hasSvcSlots = perSvcFree.length > 0
-                  // Mínimo lógico: hora en que termina el tratamiento anterior
                   const chainedMin = chainedStartTimes[index] ?? ''
-                  // Slots libres filtrados a partir del mínimo lógico
-                  const freeOptions = (hasSvcSlots ? perSvcFree : timeOptions).filter(
-                    (t) => !chainedMin || t >= chainedMin,
-                  )
-                  const freeSet = new Set(freeOptions)
-                  // Slots ocupados: solo entre chainedMin y el último slot libre del día
-                  const lastFree = freeOptions.length > 0 ? freeOptions[freeOptions.length - 1] : null
-                  const occupiedOptions = hasSvcSlots
-                    ? ALL_DAY_SLOTS.filter((t) => {
-                        if (chainedMin && t < chainedMin) return false
-                        if (lastFree && t > lastFree) return false
-                        return !freeSet.has(t)
-                      })
-                    : []
-                  const isOccupied = currentVal !== '' && !freeSet.has(currentVal)
-                  // Incluir el valor actual si no está ya en ninguna lista
-                  const extraCurrent =
-                    currentVal !== '' && !freeSet.has(currentVal) && !occupiedOptions.includes(currentVal)
-                      ? [currentVal]
-                      : []
+                  const { freeOptions, occupiedOptions, extraCurrent, isOccupied } =
+                    buildEditableServiceTimeOptions({
+                      currentVal,
+                      chainedMin,
+                      perServiceFree: serviceSlots?.[index] ?? [],
+                      fallbackFree: timeOptions,
+                    })
                   const chainedLabel = draft.startTime && chainedStartTimes[index]
                     ? chainedStartTimes[index]
                     : 'Automática (encadenada)'

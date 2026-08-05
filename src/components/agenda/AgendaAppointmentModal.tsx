@@ -13,17 +13,13 @@ import {
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import {
+  ALL_DAY_SLOTS,
+  buildEditableServiceTimeOptions,
+} from '@/lib/agenda/serviceTimeOptions'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
-
-/** Todos los slots de 30 min entre 8:00 y 21:00. */
-const ALL_DAY_SLOTS = Array.from({ length: 27 }, (_, i) => {
-  const totalMin = 8 * 60 + i * 30
-  const h = Math.floor(totalMin / 60)
-  const m = totalMin % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-})
 
 export type AgendaStaffOption = { id: string; name: string }
 
@@ -154,28 +150,41 @@ export function AgendaAppointmentModal({
 
   const chainedStartTimes = useMemo(() => {
     if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
-    const selectedServices = draft.serviceIds
-      .map((id, i) => {
-        if (!id) return null
-        const svc = services.find((s) => s.id === id)
-        if (!svc) return null
-        const customDuration = draft.serviceDurations[i]
-        return {
+    const entries: {
+      formIndex: number
+      service: { id: string; categoryId: string; durationMinutes: number }
+      override: string | undefined
+    }[] = []
+    for (let i = 0; i < draft.serviceIds.length; i++) {
+      const id = draft.serviceIds[i]
+      if (!id) continue
+      const svc = services.find((s) => s.id === id)
+      if (!svc) continue
+      const customDuration = draft.serviceDurations[i]
+      entries.push({
+        formIndex: i,
+        service: {
           id: svc.id,
           categoryId: svc.categoryId ?? '',
           durationMinutes:
             customDuration != null && customDuration > 0 ? customDuration : svc.durationMinutes,
-        }
+        },
+        override: draft.serviceStartTimes[i],
       })
-      .filter(Boolean) as { id: string; categoryId: string; durationMinutes: number }[]
-    if (selectedServices.length === 0) return []
+    }
+    if (entries.length === 0) return []
     // Mínimo editable por tratamiento: sin el override propio (permite atrasar
     // un tratamiento fijado a huecos anteriores libres).
-    return buildEarliestEditableServiceStartTimes(
-      selectedServices,
+    const earliest = buildEarliestEditableServiceStartTimes(
+      entries.map((e) => e.service),
       draft.startTime,
-      draft.serviceStartTimes,
+      entries.map((e) => e.override),
     )
+    const byFormIndex = draft.serviceIds.map(() => '')
+    entries.forEach((entry, j) => {
+      byFormIndex[entry.formIndex] = earliest[j]!
+    })
+    return byFormIndex
   }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
 
   const serviceOverlaps = useMemo(
@@ -518,35 +527,19 @@ export function AgendaAppointmentModal({
                       )}
                       {serviceId && index > 0 && (() => {
                         const currentVal = draft.serviceStartTimes[index] ?? ''
-                        const perSvcFree = serviceSlots?.[index] ?? []
-                        const hasSvcSlots = perSvcFree.length > 0
                         const chainedMin = chainedStartTimes[index] ?? ''
-                        const freeOptions = (hasSvcSlots ? perSvcFree : [...slots]).filter(
-                          (t) => !chainedMin || t >= chainedMin,
-                        )
-                        const freeOptionsSet = new Set(freeOptions)
-                        for (const time of ownTimes) {
-                          if (!chainedMin || time >= chainedMin) freeOptionsSet.add(time)
-                        }
-                        const freeOptionsDisplay = [...freeOptionsSet].sort()
-                        const lastFree =
-                          freeOptionsDisplay.length > 0
-                            ? freeOptionsDisplay[freeOptionsDisplay.length - 1]
-                            : null
-                        const occupiedOptions = hasSvcSlots
-                          ? ALL_DAY_SLOTS.filter((t) => {
-                              if (chainedMin && t < chainedMin) return false
-                              if (lastFree && t > lastFree) return false
-                              return !freeOptionsSet.has(t)
-                            })
-                          : []
-                        const isOccupied = currentVal !== '' && !freeOptionsSet.has(currentVal)
-                        const extraCurrent =
-                          currentVal !== '' &&
-                          !freeOptionsSet.has(currentVal) &&
-                          !occupiedOptions.includes(currentVal)
-                            ? [currentVal]
-                            : []
+                        const {
+                          freeOptions: freeOptionsDisplay,
+                          occupiedOptions,
+                          extraCurrent,
+                          isOccupied,
+                        } = buildEditableServiceTimeOptions({
+                          currentVal,
+                          chainedMin,
+                          perServiceFree: serviceSlots?.[index] ?? [],
+                          fallbackFree: slots,
+                          ownTimes,
+                        })
                         const chainedLabel =
                           draft.startTime && chainedStartTimes[index]
                             ? chainedStartTimes[index]

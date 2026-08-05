@@ -1213,6 +1213,7 @@ app.post('/api/schedule/appointments', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const body = await c.req.json<{
     staffId: string
+    staffAssignments?: string[]
     serviceIds?: string[]
     serviceId?: string
     serviceStartTimes?: string[]
@@ -1254,6 +1255,7 @@ app.post('/api/schedule/appointments', async (c) => {
   try {
     const row = await createAppointment({
       staffId: body.staffId,
+      staffAssignments: body.staffAssignments,
       serviceIds: ids,
       serviceStartTimes: body.serviceStartTimes,
       serviceDurations: body.serviceDurations,

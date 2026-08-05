@@ -163,6 +163,18 @@ function normalizeNotifyPhone(phone: string): string {
   return phone.replace(/\D/g, '')
 }
 
+/** Nº de tratamientos reales (ids únicos; recreate no cuenta borrado+alta dos veces). */
+function countVisitTreatments(group: AdminAppointmentNotificationItem[]): number {
+  const created = group.filter((item) => item.kind === 'created')
+  const cancelled = group.filter((item) => item.kind === 'cancelled')
+  const modified = group.filter((item) => item.kind === 'modified')
+
+  if (created.length > 0 && cancelled.length > 0) {
+    return Math.max(created.length, cancelled.length, modified.length)
+  }
+  return new Set(group.map((item) => item.id)).size
+}
+
 function collapseToVisitNotification(
   group: AdminAppointmentNotificationItem[],
 ): AdminAppointmentNotificationItem {
@@ -190,12 +202,16 @@ function collapseToVisitNotification(
   const preferred =
     sorted.find((item) => item.kind === 'created' || item.kind === 'modified') ?? sorted[0]!
 
-  const treatmentCount = group.length
+  const treatmentCount = countVisitTreatments(group)
+  const bookingGroupId =
+    group.find((item) => item.bookingGroupId)?.bookingGroupId ?? preferred.bookingGroupId
+
   return {
     ...preferred,
-    key: `visit-${kind}-${normalizeNotifyPhone(preferred.customerPhone)}-${preferred.date}-${Date.now()}`,
+    key: `visit-${kind}-${bookingGroupId ?? normalizeNotifyPhone(preferred.customerPhone)}-${preferred.date}-${Date.now()}`,
     kind,
     startTime: sorted[0]!.startTime,
+    bookingGroupId,
     treatmentCount,
     serviceName:
       treatmentCount > 1 ? `${treatmentCount} tratamientos` : preferred.serviceName,
@@ -203,8 +219,8 @@ function collapseToVisitNotification(
 }
 
 /**
- * Agrupa cambios de una misma visita multi-tratamiento en un solo aviso
- * (nueva / actualizada / anulada), en lugar de un toast por fila.
+ * Agrupa cambios de una misma visita multi-tratamiento en un solo aviso.
+ * No mezcla visitas distintas del mismo cliente en el mismo día.
  */
 function collapseVisitItems(
   items: AdminAppointmentNotificationItem[],
@@ -216,7 +232,6 @@ function collapseVisitItems(
     (item) => item.kind !== 'series_created' && item.kind !== 'series_ended',
   )
 
-  // 1) Agrupar por booking_group_id cuando existe.
   const byGroupId = new Map<string, AdminAppointmentNotificationItem[]>()
   const withoutGroup: AdminAppointmentNotificationItem[] = []
   for (const item of rest) {
@@ -229,37 +244,34 @@ function collapseVisitItems(
     }
   }
 
-  const afterGroupCollapse: AdminAppointmentNotificationItem[] = []
-  for (const [, group] of byGroupId) {
-    afterGroupCollapse.push(
-      group.length === 1 ? group[0]! : collapseToVisitNotification(group),
-    )
-  }
-  afterGroupCollapse.push(...withoutGroup)
-
-  // 2) Emparejar cancelaciones + altas del mismo cliente/día (recreate sin mismo group id).
-  const byCustomerDate = new Map<string, AdminAppointmentNotificationItem[]>()
-  for (const item of afterGroupCollapse) {
-    const key = `${normalizeNotifyPhone(item.customerPhone)}|${item.date}`
-    const group = byCustomerDate.get(key) ?? []
-    group.push(item)
-    byCustomerDate.set(key, group)
-  }
-
   const result: AdminAppointmentNotificationItem[] = [...seriesItems]
-  for (const [, group] of byCustomerDate) {
+
+  for (const [, group] of byGroupId) {
+    result.push(group.length === 1 ? group[0]! : collapseToVisitNotification(group))
+  }
+
+  // Sin group id (legado / API antigua): agrupar por cliente+día.
+  // Ahí sí puede haber recreate (cancel+create) de una sola visita multi.
+  // Las visitas con bookingGroupId ya salieron en el paso anterior y no se mezclan.
+  const legacyByCustomerDate = new Map<string, AdminAppointmentNotificationItem[]>()
+  for (const item of withoutGroup) {
+    const key = `${normalizeNotifyPhone(item.customerPhone)}|${item.date}`
+    const group = legacyByCustomerDate.get(key) ?? []
+    group.push(item)
+    legacyByCustomerDate.set(key, group)
+  }
+
+  for (const [, group] of legacyByCustomerDate) {
     if (group.length === 1) {
       result.push(group[0]!)
       continue
     }
     const kinds = new Set(group.map((item) => item.kind))
-    const churn =
+    const recreate =
       (kinds.has('cancelled') && (kinds.has('created') || kinds.has('modified'))) ||
       (kinds.has('created') && kinds.has('modified')) ||
-      // Varias altas/bajas sueltas del mismo cliente-día (visita multi sin group en snapshot antiguo)
-      (kinds.size === 1 && (kinds.has('created') || kinds.has('cancelled')) && group.length > 1)
-
-    if (churn) {
+      (kinds.size === 1 && (kinds.has('created') || kinds.has('cancelled')))
+    if (recreate) {
       result.push(collapseToVisitNotification(group))
     } else {
       result.push(...group)

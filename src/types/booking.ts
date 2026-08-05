@@ -49,6 +49,8 @@ export type Appointment = {
   createdAt: string
   seriesId?: string | null
   scope?: string | null
+  /** Varias citas de la misma visita (reserva multi-tratamiento). */
+  bookingGroupId?: string | null
 }
 
 export type ColorGroupLinkedPhase = {
