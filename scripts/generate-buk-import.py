@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RAW = ROOT / "scripts/tmp/buk-august-raw.txt"
-OUT = ROOT / "scripts/tmp/buk-import-august.sql"
+DEFAULT_RAW = ROOT / "scripts/tmp/buk-august-raw.txt"
+DEFAULT_OUT = ROOT / "scripts/tmp/buk-import-august.sql"
 
 STAFF = {
     "mónica": ("monica", "Mónica"),
@@ -256,7 +256,15 @@ def link_color_groups(rows: list[dict]) -> None:
 
 
 def main() -> None:
-    text = RAW.read_text(encoding="utf-8")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Genera SQL import BUK → Superpelu")
+    parser.add_argument("--raw", type=Path, default=DEFAULT_RAW, help="Texto pegado desde BUK")
+    parser.add_argument("--out", type=Path, default=DEFAULT_OUT, help="SQL de salida")
+    parser.add_argument("--label", default="BUK", help="Etiqueta en comentarios SQL")
+    args = parser.parse_args()
+
+    text = args.raw.read_text(encoding="utf-8")
     rows = parse_rows(text)
     link_color_groups(rows)
 
@@ -272,10 +280,8 @@ def main() -> None:
                 "synthetic": row["synthetic_phone"],
             }
 
-    unmatched_services = []  # already raised
-
     lines: list[str] = []
-    lines.append("-- Import BUK agosto 2026 → Superpelu")
+    lines.append(f"-- Import {args.label} → Superpelu")
     lines.append("-- Generado por scripts/generate-buk-import.py")
     lines.append("BEGIN;")
     lines.append("")
@@ -318,7 +324,8 @@ def main() -> None:
     lines.append("SELECT COUNT(*) AS customers FROM customers;")
     lines.append("COMMIT;")
 
-    OUT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     synth = sum(1 for c in customers.values() if c["synthetic"])
     by_status: dict[str, int] = {}
@@ -326,7 +333,7 @@ def main() -> None:
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
     linked = sum(1 for r in rows if r.get("color_group_id"))
 
-    print(f"OK → {OUT}")
+    print(f"OK → {args.out}")
     print(f"  citas: {len(rows)}")
     print(f"  clientes únicos: {len(customers)} (sintéticos: {synth})")
     print(f"  status: {by_status}")
