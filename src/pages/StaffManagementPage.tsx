@@ -15,6 +15,7 @@ import {
   deleteAdminStaff,
   type AdminStaffMember,
 } from '@/lib/api/admin'
+import { fetchAdminServiceCategories } from '@/lib/api/admin-catalog'
 import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { StaffForm } from '@/components/admin/StaffForm'
@@ -120,6 +121,7 @@ function IconChevronDown() {
 function StaffListRow({
   member,
   compact,
+  categoryLabels,
   canMoveUp,
   canMoveDown,
   onEdit,
@@ -131,6 +133,7 @@ function StaffListRow({
 }: {
   member: AdminStaffMember
   compact: boolean
+  categoryLabels: string[]
   canMoveUp: boolean
   canMoveDown: boolean
   onEdit: () => void
@@ -140,18 +143,27 @@ function StaffListRow({
   onMoveUp: () => void
   onMoveDown: () => void
 }) {
+  const categoriesTitle = categoryLabels.length > 0 ? categoryLabels.join(', ') : 'Sin categorías'
+
   if (compact) {
     return (
       <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5">
         <div className="flex items-center gap-1.5">
-          <p
-            className={`min-w-0 flex-1 truncate text-[11px] leading-tight ${
-              member.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
-            }`}
-            title={member.name}
-          >
-            {member.name}
-          </p>
+          <div className="min-w-0 flex-1">
+            <p
+              className={`truncate text-[11px] leading-tight ${
+                member.active ? 'text-charcoal' : 'text-charcoal opacity-50 line-through'
+              }`}
+              title={`${member.name} — ${categoriesTitle}`}
+            >
+              {member.name}
+            </p>
+            <p className="truncate text-[10px] text-charcoal-muted" title={categoriesTitle}>
+              {categoryLabels.length === 0
+                ? 'Sin categorías'
+                : `${categoryLabels.length} categorí${categoryLabels.length === 1 ? 'a' : 'as'}`}
+            </p>
+          </div>
           <div className="flex shrink-0 items-center gap-0.5">
             {member.active && (
               <>
@@ -218,6 +230,13 @@ function StaffListRow({
           <p className="mt-0.5 truncate text-xs leading-snug text-charcoal-muted">
             {[member.phone, member.email].filter(Boolean).join(' · ')}
           </p>
+        )}
+        {categoryLabels.length > 0 ? (
+          <p className="mt-1 line-clamp-2 text-xs leading-snug text-charcoal-muted" title={categoriesTitle}>
+            {categoryLabels.join(' · ')}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-amber-800">Sin categorías asignadas</p>
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -317,6 +336,7 @@ export function StaffManagementPage() {
   const compact = useCompactServicesList()
 
   const [staff, setStaff] = useState<AdminStaffMember[]>([])
+  const [categories, setCategories] = useState<{ id: string; nameEs: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -328,13 +348,26 @@ export function StaffManagementPage() {
 
   const [confirmDelete, setConfirmDelete] = useState<AdminStaffMember | null>(null)
 
+  const categoryNameById = useCallback(
+    (id: string) => categories.find((c) => c.id === id)?.nameEs ?? id,
+    [categories],
+  )
+
   const loadData = useCallback(async () => {
     if (!adminToken) return
     setLoading(true)
     setError('')
     try {
-      const res = await fetchAdminStaff(adminToken)
-      setStaff(res.staff)
+      const [staffRes, catRes] = await Promise.all([
+        fetchAdminStaff(adminToken),
+        fetchAdminServiceCategories(adminToken),
+      ])
+      setStaff(staffRes.staff)
+      setCategories(
+        catRes.categories
+          .filter((c) => c.active)
+          .map((c) => ({ id: c.id, nameEs: c.nameEs })),
+      )
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar')
     } finally {
@@ -351,6 +384,7 @@ export function StaffManagementPage() {
     role: string | null
     phone: string | null
     email: string | null
+    categoryIds: string[]
   }) => {
     if (!adminToken) return
     setBusy(true)
@@ -361,13 +395,13 @@ export function StaffManagementPage() {
           sortOrder: nextSortOrderForStaff(staff),
         })
       } else if (modal.member) {
-        const patch: Record<string, unknown> = {
+        await updateAdminStaff(adminToken, modal.member.id, {
           name: data.name,
           role: data.role,
           phone: data.phone,
           email: data.email,
-        }
-        await updateAdminStaff(adminToken, modal.member.id, patch)
+          categoryIds: data.categoryIds,
+        })
       }
       setModal({ open: false, mode: 'create', member: null })
       await loadData()
@@ -515,6 +549,7 @@ export function StaffManagementPage() {
                 key={member.id}
                 member={member}
                 compact={compact}
+                categoryLabels={(member.categoryIds ?? []).map(categoryNameById)}
                 canMoveUp={index > 0}
                 canMoveDown={index < sortedStaff.length - 1}
                 onMoveUp={() => void handleMoveStaff(member.id, 'up')}
@@ -531,13 +566,15 @@ export function StaffManagementPage() {
 
       {modal.open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md border border-gold/30 bg-cream p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto border border-gold/30 bg-cream p-6 shadow-xl">
             <h2 className={`${typography.label} mb-4 text-gold`}>
               {modal.mode === 'create' ? 'Nuevo profesional' : 'Editar profesional'}
             </h2>
             <StaffForm
+              key={`${modal.mode}-${modal.member?.id ?? 'new'}`}
               mode={modal.mode}
               initial={modal.member}
+              categories={categories}
               onSave={handleSave}
               onCancel={() => setModal({ open: false, mode: 'create', member: null })}
               busy={busy}

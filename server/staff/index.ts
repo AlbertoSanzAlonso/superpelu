@@ -35,21 +35,34 @@ export async function listStaffForServices(serviceIds: string[]): Promise<Public
   )
 }
 
+/** Profesionales activos asociados a la categoría del servicio. */
 export async function listStaffForService(serviceId: string): Promise<PublicStaff[]> {
   const rows = await sql<StaffRow[]>`
     SELECT s.* FROM staff s
-    INNER JOIN staff_services ss ON ss.staff_id = s.id
-    WHERE ss.service_id = ${serviceId} AND s.active = TRUE
+    WHERE s.active = TRUE
+      AND EXISTS (
+        SELECT 1
+        FROM staff_categories sc
+        INNER JOIN services svc ON svc.category_id = sc.category_id
+        WHERE sc.staff_id = s.id
+          AND svc.id = ${serviceId}
+          AND svc.active = TRUE
+      )
     ORDER BY s.sort_order ASC, s.name ASC
   `
   return rows.map(rowToPublic)
 }
 
+/** Servicios activos cuyas categorías tiene asignadas el profesional. */
 export async function listServicesForStaff(staffId: string) {
   const rows = await sql<ServiceRow[]>`
     SELECT svc.* FROM services svc
-    INNER JOIN staff_services ss ON ss.service_id = svc.id
-    WHERE ss.staff_id = ${staffId} AND svc.active = TRUE
+    WHERE svc.active = TRUE
+      AND EXISTS (
+        SELECT 1 FROM staff_categories sc
+        WHERE sc.staff_id = ${staffId}
+          AND sc.category_id = svc.category_id
+      )
     ORDER BY svc.sort_order ASC, svc.name ASC
   `
 
@@ -67,11 +80,13 @@ export async function staffCanPerformService(
   serviceId: string,
 ): Promise<boolean> {
   const rows = await sql`
-    SELECT 1 FROM staff_services ss
-    INNER JOIN staff s ON s.id = ss.staff_id
-    INNER JOIN services svc ON svc.id = ss.service_id
-    WHERE ss.staff_id = ${staffId} AND ss.service_id = ${serviceId}
-      AND s.active = TRUE AND svc.active = TRUE
+    SELECT 1 FROM staff_categories sc
+    INNER JOIN staff s ON s.id = sc.staff_id
+    INNER JOIN services svc ON svc.category_id = sc.category_id
+    WHERE sc.staff_id = ${staffId}
+      AND svc.id = ${serviceId}
+      AND s.active = TRUE
+      AND svc.active = TRUE
   `
   return rows.length > 0
 }

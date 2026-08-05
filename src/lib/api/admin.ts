@@ -533,6 +533,7 @@ export type AdminStaffMember = {
   email: string | null
   active: boolean
   sortOrder: number
+  categoryIds: string[]
   createdAt: string
   updatedAt: string
 }
@@ -552,6 +553,7 @@ export function createAdminStaff(
     phone: string | null
     email: string | null
     sortOrder: number
+    categoryIds: string[]
   },
 ) {
   return request<{ staff: AdminStaffMember }>('/admin/staff', {
@@ -571,6 +573,7 @@ export function updateAdminStaff(
     email?: string | null
     active?: boolean
     sortOrder?: number
+    categoryIds?: string[]
   },
 ) {
   return request<{ ok: true }>(`/admin/staff/${id}`, {

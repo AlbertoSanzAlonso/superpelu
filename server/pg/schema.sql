@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS staff_services (
 CREATE INDEX IF NOT EXISTS idx_staff_services_service
   ON staff_services (service_id);
 
+-- Profesionales ↔ categorías de tratamiento (fuente de verdad para quién puede qué)
+CREATE TABLE IF NOT EXISTS staff_categories (
+  staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+  category_id TEXT NOT NULL REFERENCES service_categories(id) ON DELETE CASCADE,
+  PRIMARY KEY (staff_id, category_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_staff_categories_category
+  ON staff_categories (category_id);
+
 CREATE TABLE IF NOT EXISTS staff_availability (
   staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
   day_of_week INTEGER NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),

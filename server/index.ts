@@ -479,6 +479,7 @@ type CreateStaffBody = {
   phone: string | null
   email: string | null
   sortOrder: number
+  categoryIds?: string[]
 }
 
 type UpdateStaffBody = {
@@ -488,6 +489,7 @@ type UpdateStaffBody = {
   email?: string | null
   active?: boolean
   sortOrder?: number
+  categoryIds?: string[]
 }
 
 app.get('/api/admin/staff', async (c) => {
@@ -505,6 +507,9 @@ app.post('/api/admin/staff', async (c) => {
   if (!body.name) {
     return c.json({ error: 'Faltan campos obligatorios (name)' }, 400)
   }
+  if (body.categoryIds !== undefined && !Array.isArray(body.categoryIds)) {
+    return c.json({ error: 'categoryIds debe ser un array' }, 400)
+  }
   const member = await createStaff(body)
   return c.json({ staff: member }, 201)
 })
@@ -514,6 +519,9 @@ app.patch('/api/admin/staff/:id', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
   const body = await c.req.json().catch(() => ({})) as UpdateStaffBody
+  if (body.categoryIds !== undefined && !Array.isArray(body.categoryIds)) {
+    return c.json({ error: 'categoryIds debe ser un array' }, 400)
+  }
   await updateStaff(id, body)
   return c.json({ ok: true })
 })

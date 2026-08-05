@@ -114,28 +114,67 @@ export async function syncSalonStaff(): Promise<void> {
   }
 }
 
-export async function syncStaffAllServices(): Promise<void> {
+/**
+ * Si un profesional activo no tiene categorías, le asigna todas las activas
+ * (migración / primer arranque). No pisa asociaciones ya editadas en admin.
+ */
+export async function seedStaffCategoriesIfMissing(): Promise<void> {
   const staffIds = (
     await sql<{ id: string }[]>`SELECT id FROM staff WHERE active = TRUE`
   ).map((r) => r.id)
-  const serviceIds = (
-    await sql<{ id: string }[]>`SELECT id FROM services WHERE active = TRUE`
+  const categoryIds = (
+    await sql<{ id: string }[]>`
+      SELECT id FROM service_categories WHERE active = TRUE
+    `
   ).map((r) => r.id)
 
   for (const staffId of staffIds) {
-    for (const serviceId of serviceIds) {
+    const [{ count }] = await sql<{ count: string }[]>`
+      SELECT COUNT(*)::text AS count FROM staff_categories WHERE staff_id = ${staffId}
+    `
+    if (Number(count) > 0) continue
+    for (const categoryId of categoryIds) {
       await sql`
-        INSERT INTO staff_services (staff_id, service_id)
-        VALUES (${staffId}, ${serviceId})
+        INSERT INTO staff_categories (staff_id, category_id)
+        VALUES (${staffId}, ${categoryId})
         ON CONFLICT DO NOTHING
       `
     }
   }
 
   await sql`
+    DELETE FROM staff_categories
+    WHERE staff_id IN (SELECT id FROM staff WHERE active = FALSE)
+       OR category_id IN (SELECT id FROM service_categories WHERE active = FALSE)
+  `
+}
+
+/** Reconstruye `staff_services` a partir de `staff_categories` (cache derivada). */
+export async function syncStaffAllServices(): Promise<void> {
+  await sql`
     DELETE FROM staff_services
     WHERE staff_id IN (SELECT id FROM staff WHERE active = FALSE)
        OR service_id IN (SELECT id FROM services WHERE active = FALSE)
+  `
+
+  await sql`
+    INSERT INTO staff_services (staff_id, service_id)
+    SELECT sc.staff_id, svc.id
+    FROM staff_categories sc
+    INNER JOIN staff s ON s.id = sc.staff_id AND s.active = TRUE
+    INNER JOIN services svc
+      ON svc.category_id = sc.category_id AND svc.active = TRUE
+    ON CONFLICT DO NOTHING
+  `
+
+  await sql`
+    DELETE FROM staff_services ss
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM staff_categories sc
+      INNER JOIN services svc ON svc.id = ss.service_id AND svc.category_id = sc.category_id
+      WHERE sc.staff_id = ss.staff_id
+    )
   `
 }
 
@@ -190,6 +229,7 @@ export async function runSeed(): Promise<void> {
   await syncSalonServices()
   await purgeServicesWithoutCategory()
   await syncSalonStaff()
+  await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()
   await seedSalonScheduleIfMissing()
   await syncStaffAvailabilityFromCatalog()

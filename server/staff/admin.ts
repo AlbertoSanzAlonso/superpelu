@@ -25,17 +25,41 @@ async function generateUniqueStaffId(name: string): Promise<string> {
   }
 }
 
-async function linkStaffToActiveServices(staffId: string): Promise<void> {
-  const serviceRows = await sql<{ id: string }[]>`
-    SELECT id FROM services WHERE active = TRUE
+async function listActiveCategoryIds(): Promise<string[]> {
+  const rows = await sql<{ id: string }[]>`
+    SELECT id FROM service_categories WHERE active = TRUE ORDER BY sort_order ASC, name_es ASC
   `
-  for (const { id: serviceId } of serviceRows) {
+  return rows.map((r) => r.id)
+}
+
+/** Deriva `staff_services` desde las categorías del profesional. */
+export async function syncStaffServicesForStaff(staffId: string): Promise<void> {
+  await sql`DELETE FROM staff_services WHERE staff_id = ${staffId}`
+  await sql`
+    INSERT INTO staff_services (staff_id, service_id)
+    SELECT ${staffId}, svc.id
+    FROM services svc
+    INNER JOIN staff_categories sc
+      ON sc.category_id = svc.category_id AND sc.staff_id = ${staffId}
+    WHERE svc.active = TRUE
+    ON CONFLICT DO NOTHING
+  `
+}
+
+export async function setStaffCategories(
+  staffId: string,
+  categoryIds: string[],
+): Promise<void> {
+  const unique = [...new Set(categoryIds.map((id) => id.trim()).filter(Boolean))]
+  await sql`DELETE FROM staff_categories WHERE staff_id = ${staffId}`
+  for (const categoryId of unique) {
     await sql`
-      INSERT INTO staff_services (staff_id, service_id)
-      VALUES (${staffId}, ${serviceId})
+      INSERT INTO staff_categories (staff_id, category_id)
+      VALUES (${staffId}, ${categoryId})
       ON CONFLICT DO NOTHING
     `
   }
+  await syncStaffServicesForStaff(staffId)
 }
 
 export type AdminStaffMember = {
@@ -46,11 +70,12 @@ export type AdminStaffMember = {
   email: string | null
   active: boolean
   sortOrder: number
+  categoryIds: string[]
   createdAt: string
   updatedAt: string
 }
 
-function rowToAdmin(row: StaffRow): AdminStaffMember {
+function rowToAdmin(row: StaffRow, categoryIds: string[] = []): AdminStaffMember {
   return {
     id: row.id,
     name: row.name,
@@ -59,6 +84,7 @@ function rowToAdmin(row: StaffRow): AdminStaffMember {
     email: row.email,
     active: row.active,
     sortOrder: row.sort_order,
+    categoryIds,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -68,7 +94,16 @@ export async function listAdminStaff(): Promise<AdminStaffMember[]> {
   const rows = await sql<StaffRow[]>`
     SELECT * FROM staff ORDER BY sort_order ASC, name ASC
   `
-  return rows.map(rowToAdmin)
+  const links = await sql<{ staff_id: string; category_id: string }[]>`
+    SELECT staff_id, category_id FROM staff_categories
+  `
+  const byStaff = new Map<string, string[]>()
+  for (const link of links) {
+    const list = byStaff.get(link.staff_id) ?? []
+    list.push(link.category_id)
+    byStaff.set(link.staff_id, list)
+  }
+  return rows.map((row) => rowToAdmin(row, byStaff.get(row.id) ?? []))
 }
 
 export async function createStaff(data: {
@@ -78,6 +113,7 @@ export async function createStaff(data: {
   phone: string | null
   email: string | null
   sortOrder: number
+  categoryIds?: string[]
 }): Promise<AdminStaffMember> {
   const id = data.id?.trim() || (await generateUniqueStaffId(data.name))
   const now = new Date().toISOString()
@@ -86,8 +122,10 @@ export async function createStaff(data: {
     VALUES (${id}, ${data.name}, ${data.role}, ${data.phone}, ${data.email}, NULL, TRUE, ${data.sortOrder}, ${now}, ${now})
     RETURNING *
   `
-  await linkStaffToActiveServices(id)
-  return rowToAdmin(row[0])
+  const categoryIds =
+    data.categoryIds !== undefined ? data.categoryIds : await listActiveCategoryIds()
+  await setStaffCategories(id, categoryIds)
+  return rowToAdmin(row[0], categoryIds)
 }
 
 export async function updateStaff(
@@ -99,48 +137,32 @@ export async function updateStaff(
     email?: string | null
     active?: boolean
     sortOrder?: number
+    categoryIds?: string[]
   },
 ): Promise<void> {
-  const sets: string[] = []
-  const vals: unknown[] = []
-  let idx = 1
+  const patch: Record<string, unknown> = {}
+  if (data.name !== undefined) patch.name = data.name
+  if (data.role !== undefined) patch.role = data.role
+  if (data.phone !== undefined) patch.phone = data.phone
+  if (data.email !== undefined) patch.email = data.email
+  if (data.active !== undefined) patch.active = data.active
+  if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder
 
-  if (data.name !== undefined) {
-    sets.push(`name = $${idx++}`)
-    vals.push(data.name)
-  }
-  if (data.role !== undefined) {
-    sets.push(`role = $${idx++}`)
-    vals.push(data.role)
-  }
-  if (data.phone !== undefined) {
-    sets.push(`phone = $${idx++}`)
-    vals.push(data.phone)
-  }
-  if (data.email !== undefined) {
-    sets.push(`email = $${idx++}`)
-    vals.push(data.email)
-  }
-  if (data.active !== undefined) {
-    sets.push(`active = $${idx++}`)
-    vals.push(data.active)
-  }
-  if (data.sortOrder !== undefined) {
-    sets.push(`sort_order = $${idx++}`)
-    vals.push(data.sortOrder)
+  if (Object.keys(patch).length > 0 || data.categoryIds !== undefined) {
+    patch.updated_at = new Date().toISOString()
   }
 
-  if (sets.length === 0) return
+  if (Object.keys(patch).length > 0) {
+    await sql`
+      UPDATE staff
+      SET ${sql(patch)}
+      WHERE id = ${id}
+    `
+  }
 
-  sets.push(`updated_at = $${idx++}`)
-  vals.push(new Date().toISOString())
-
-  vals.push(id)
-  await sql`
-    UPDATE staff
-    SET ${sql.unsafe(sets.join(', '))}
-    WHERE id = ${id}
-  `
+  if (data.categoryIds !== undefined) {
+    await setStaffCategories(id, data.categoryIds)
+  }
 }
 
 /** Returns the number of future appointments for a staff member. */
@@ -168,7 +190,7 @@ export async function deleteStaff(staffId: string): Promise<void> {
   // Nullify staff_id on past appointments so the FK constraint doesn't block deletion
   await sql`UPDATE appointments SET staff_id = NULL WHERE staff_id = ${staffId}`
 
-  // The rest cascades via ON DELETE CASCADE (staff_services, staff_availability,
-  // staff_time_blocks, staff_special_availability, staff_sessions)
+  // Cascades: staff_services, staff_categories, staff_availability,
+  // staff_time_blocks, staff_special_availability, staff_sessions
   await sql`DELETE FROM staff WHERE id = ${staffId}`
 }

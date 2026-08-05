@@ -31,17 +31,17 @@ async function generateUniqueServiceId(nameEs: string): Promise<string> {
   }
 }
 
+/** Enlaza el servicio a profesionales que tienen su categoría. */
 async function linkServiceToActiveStaff(serviceId: string): Promise<void> {
-  const staffRows = await sql<{ id: string }[]>`
-    SELECT id FROM staff WHERE active = TRUE
+  await sql`
+    INSERT INTO staff_services (staff_id, service_id)
+    SELECT sc.staff_id, ${serviceId}
+    FROM staff_categories sc
+    INNER JOIN staff s ON s.id = sc.staff_id AND s.active = TRUE
+    INNER JOIN services svc
+      ON svc.id = ${serviceId} AND svc.category_id = sc.category_id
+    ON CONFLICT DO NOTHING
   `
-  for (const { id: staffId } of staffRows) {
-    await sql`
-      INSERT INTO staff_services (staff_id, service_id)
-      VALUES (${staffId}, ${serviceId})
-      ON CONFLICT DO NOTHING
-    `
-  }
 }
 
 export type AdminService = {
@@ -200,6 +200,11 @@ export async function updateService(
     SET ${sql.unsafe(sets.join(', '))}
     WHERE id = ${id}
   `
+
+  if (data.categoryId !== undefined) {
+    await sql`DELETE FROM staff_services WHERE service_id = ${id}`
+    await linkServiceToActiveStaff(id)
+  }
 }
 
 export async function deleteService(id: string): Promise<void> {

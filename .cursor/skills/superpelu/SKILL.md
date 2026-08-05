@@ -19,7 +19,7 @@ description: >-
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/core/dates.ts`, `TZ=Europe/Madrid` en Docker.
 - **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado). Editable desde `/horarios` (admin). Fallback: `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
 
-Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal, enlaces `staff_services` (todo el personal ↔ todos los servicios activos) y horario del salón (si no existe en BD).
+Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal; si un profesional no tiene filas en `staff_categories`, se le asignan todas las categorías activas; `staff_services` se regenera desde esas categorías. Las asociaciones editadas en `/personal` no se pisan.
 
 ## Estructura del código
 
@@ -72,7 +72,7 @@ Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 
 ## Base de datos (PostgreSQL en el servidor)
 
-Tablas: `service_categories`, `services`, `staff`, `staff_services`, `staff_availability`, `salon_schedule`, `salon_special_schedule`, `staff_special_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
+Tablas: `service_categories`, `services`, `staff`, `staff_categories` (M2M quién hace qué categoría; editable en `/personal`), `staff_services` (derivada de categorías), `staff_availability`, `salon_schedule`, `salon_special_schedule`, `staff_special_availability`, `customers`, `appointments`, `staff_time_blocks`, `staff_sessions`.
 
 **Conexión:** `DATABASE_URL` en Coolify o `.env` local (Postgres del mismo stack o servicio dedicado). Variables `SUPABASE_*` son legado opcional en `server/pg/client.ts`; en producción suele bastar la URI al Postgres del servidor.
 
