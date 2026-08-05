@@ -137,14 +137,19 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const chainComplete =
     !hasMultipleServices || staffAssignments.length === serviceIds.length
 
+  const customerDetailsReady =
+    customerType === 'returning'
+      ? returningVerified && Boolean(customerPhone.trim())
+      : customerType === 'new' &&
+        Boolean(customerName.trim()) &&
+        Boolean(customerPhone.trim()) &&
+        Boolean(birthdate.trim())
+
   const canSubmit = Boolean(
     serviceIds.length > 0 &&
       date &&
       startTime &&
-      customerPhone.trim() &&
-      (customerType === 'returning'
-        ? returningVerified
-        : customerType === 'new' && customerName.trim() && birthdate.trim()) &&
+      customerDetailsReady &&
       (hasMultipleServices
         ? staffAssignments.length === serviceIds.length
         : Boolean(staffId)),

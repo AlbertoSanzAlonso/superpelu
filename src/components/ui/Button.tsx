@@ -22,7 +22,7 @@ const sizes = {
 }
 
 function buttonClasses(variant: BaseProps['variant'], size: BaseProps['size'], className: string) {
-  return `ui-rounded inline-flex cursor-pointer items-center justify-center font-sans uppercase transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${variants[variant ?? 'outline']} ${sizes[size ?? 'md']} ${className}`
+  return `ui-rounded inline-flex cursor-pointer items-center justify-center font-sans uppercase transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:brightness-100 ${variants[variant ?? 'outline']} ${sizes[size ?? 'md']} ${className}`
 }
 
 type ButtonAsButton = BaseProps &

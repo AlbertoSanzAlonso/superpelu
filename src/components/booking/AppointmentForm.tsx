@@ -48,6 +48,7 @@ export function AppointmentForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.canSubmit || form.submitting) return
     await form.submit()
   }
 
@@ -199,7 +200,9 @@ export function AppointmentForm({
         </p>
       )}
 
-      {wizard.step === bookingSteps.length - 1 && (
+      {wizard.step === bookingSteps.length - 1 &&
+        form.customerType != null &&
+        !(form.customerType === 'returning' && !form.returningVerified) && (
         <Button
           type="submit"
           variant="solid"

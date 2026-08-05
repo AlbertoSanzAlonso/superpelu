@@ -96,8 +96,9 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
           <Button
             type="button"
             variant="solid"
+            size="lg"
             className="w-full"
-            disabled={form.lookingUpCustomer}
+            disabled={form.lookingUpCustomer || !form.customerPhone.trim()}
             onClick={() => void form.lookupReturningCustomer()}
           >
             {form.lookingUpCustomer ? labels.lookingUpCustomer : labels.lookupCustomer}
