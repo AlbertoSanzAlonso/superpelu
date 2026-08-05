@@ -490,6 +490,38 @@ export function AgendaAppointmentModal({
                     </div>
                   )}
 
+                  <div>
+                    <label className={`${typography.label} mb-0.5 block text-xs`}>
+                      Hora de la cita
+                    </label>
+                    <ScrollableTimeSelect
+                      value={draft.startTime}
+                      onChange={(time) =>
+                        onDraftChange({
+                          startTime: time,
+                          serviceStartTimes: [],
+                        })
+                      }
+                      emptyLabel={hasServices ? 'Elige hora' : 'Tratamiento primero'}
+                      freeOptions={displayFreeSlots}
+                      overHoursOptions={slotsOverHours}
+                      occupiedOptions={[...mainExtraCurrent, ...mainOccupiedOptions]}
+                      className={selectCn}
+                      disabled={!hasServices}
+                      required
+                    />
+                    {isOverHoursSelected && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
+                      </p>
+                    )}
+                    {isMainOccupiedSelected && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Esta hora está ocupada. Se pedirá confirmación al guardar.
+                      </p>
+                    )}
+                  </div>
+
                   {serviceIds.map((serviceId, index) => (
                     <div key={index} className="relative space-y-2 rounded border border-gold/15 p-3">
                       {index > 0 && (
@@ -635,38 +667,6 @@ export function AgendaAppointmentModal({
                       ))}
                     </div>
                   )}
-
-                  <div>
-                    <label className={`${typography.label} mb-0.5 block text-xs`}>
-                      Hora de la cita
-                    </label>
-                    <ScrollableTimeSelect
-                      value={draft.startTime}
-                      onChange={(time) =>
-                        onDraftChange({
-                          startTime: time,
-                          serviceStartTimes: [],
-                        })
-                      }
-                      emptyLabel={hasServices ? 'Elige hora' : 'Tratamiento primero'}
-                      freeOptions={displayFreeSlots}
-                      overHoursOptions={slotsOverHours}
-                      occupiedOptions={[...mainExtraCurrent, ...mainOccupiedOptions]}
-                      className={selectCn}
-                      disabled={!hasServices}
-                      required
-                    />
-                    {isOverHoursSelected && (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
-                      </p>
-                    )}
-                    {isMainOccupiedSelected && (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Esta hora está ocupada. Se pedirá confirmación al guardar.
-                      </p>
-                    )}
-                  </div>
                 </section>
                 <section>
                   <AppointmentClientPanelEdit

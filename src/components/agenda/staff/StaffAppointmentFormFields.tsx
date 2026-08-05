@@ -456,33 +456,35 @@ export function StaffAppointmentFormFields({
     </div>
   )
 
+  const timeSection = (
+    <div>
+      <label className={timeLabelCn}>Hora de la cita</label>
+      <ScrollableTimeSelect
+        value={draft.startTime}
+        onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
+        emptyLabel={
+          hasServices
+            ? compact
+              ? 'Elige hora'
+              : 'Primero elige el tratamiento'
+            : 'Tratamiento primero'
+        }
+        freeOptions={timeOptions}
+        overHoursOptions={slotsOverHours}
+        className={selectCn}
+        disabled={!hasServices}
+        required
+      />
+      {isOverHoursSelected && (
+        <p className="mt-1 text-xs text-amber-700">
+          Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
+        </p>
+      )}
+    </div>
+  )
+
   const infoSection = (
     <div className={compact ? `space-y-3 ${formCompactClass}` : 'space-y-4'}>
-      <div>
-        <label className={timeLabelCn}>Hora</label>
-        <ScrollableTimeSelect
-          value={draft.startTime}
-          onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
-          emptyLabel={
-            hasServices
-              ? compact
-                ? 'Elige hora'
-                : 'Primero elige el tratamiento'
-              : 'Tratamiento primero'
-          }
-          freeOptions={timeOptions}
-          overHoursOptions={slotsOverHours}
-          className={selectCn}
-          disabled={!hasServices}
-          required
-        />
-        {isOverHoursSelected && (
-          <p className="mt-1 text-xs text-amber-700">
-            Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
-          </p>
-        )}
-      </div>
-
       {adminToken && !editingId ? (
         <AppointmentCustomerEntry
           adminToken={adminToken}
@@ -553,12 +555,16 @@ export function StaffAppointmentFormFields({
     <form onSubmit={onSubmit}>
       {compact ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_1fr]">
-          {servicesSection}
+          <div className="space-y-3">
+            {timeSection}
+            {servicesSection}
+          </div>
           {infoSection}
         </div>
       ) : (
         <div className="space-y-4">
           {hint && <p className={typography.caption}>{hint}</p>}
+          {timeSection}
           {servicesSection}
           <hr className="border-gold/15" />
           {infoSection}
