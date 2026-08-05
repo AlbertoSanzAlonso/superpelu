@@ -25,6 +25,7 @@ type MovesDeps = {
   clearSelection: () => void
   onMovesCommitted: () => void
   markAppointmentSnapshots?: (appointments: Iterable<Appointment>) => void
+  resyncAppointmentSnapshots?: () => Promise<void>
 }
 
 export function useAdminAgendaMoves({
@@ -37,6 +38,7 @@ export function useAdminAgendaMoves({
   clearSelection,
   onMovesCommitted,
   markAppointmentSnapshots,
+  resyncAppointmentSnapshots,
 }: MovesDeps) {
   const [pendingMoves, setPendingMoves] = useState<AppointmentMoveDraft[]>([])
   const [moveBusy, setMoveBusy] = useState(false)
@@ -162,6 +164,7 @@ export function useAdminAgendaMoves({
           updatedAppointments.push(appointment)
         }
         markAppointmentSnapshots?.(updatedAppointments)
+        await resyncAppointmentSnapshots?.()
         setPendingMoves([])
         onMovesCommitted()
         await load()
@@ -201,6 +204,7 @@ export function useAdminAgendaMoves({
       setConfirmDialog,
       onMovesCommitted,
       markAppointmentSnapshots,
+      resyncAppointmentSnapshots,
     ],
   )
 

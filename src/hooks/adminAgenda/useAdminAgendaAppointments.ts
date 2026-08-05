@@ -40,6 +40,7 @@ type AppointmentsDeps = {
   setError: (message: string) => void
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
+  resyncAppointmentSnapshots?: () => Promise<void>
 }
 
 export function useAdminAgendaAppointments({
@@ -53,6 +54,7 @@ export function useAdminAgendaAppointments({
   setError,
   setConfirmDialog,
   markAppointmentSnapshots,
+  resyncAppointmentSnapshots,
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
   const [services, setServices] = useState<BookableService[]>([])
@@ -435,6 +437,7 @@ export function useAdminAgendaAppointments({
     setWhatsAppNotifyContext,
     setAppointmentFormOpen,
     markAppointmentSnapshots,
+    resyncAppointmentSnapshots,
     setConfirmDialog,
   })
 

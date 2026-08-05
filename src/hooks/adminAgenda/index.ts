@@ -28,6 +28,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     setError: schedule.setError,
     setConfirmDialog: confirm.setConfirmDialog,
     markAppointmentSnapshots: notifications.markAppointmentSnapshots,
+    resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
   })
 
   const blocks = useAdminAgendaGridBlocks({
@@ -52,6 +53,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     clearSelection: selectionState.clearSelection,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
     markAppointmentSnapshots: notifications.markAppointmentSnapshots,
+    resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
   })
 
   useEffect(() => {

@@ -429,13 +429,14 @@ export async function createAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
+  // Al recrear una visita editada no avisar como alta (WhatsApp ni email admin).
   if (!input.skipCustomerWhatsApp) {
     void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
       (err) => {
         console.error('Superpelu WhatsApp (cita nueva):', err)
       },
     )
+    void notifyAdminAppointmentCreated(row)
   }
-  void notifyAdminAppointmentCreated(row)
   return row
 }

@@ -42,6 +42,19 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     }
   }, [])
 
+  /** Tras crear/editar en esta sesión: alinear snapshots sin generar toasts. */
+  const resyncAppointmentSnapshots = useCallback(async () => {
+    if (!adminToken) return
+    const { from, to } = adminAppointmentNotifyDateRange()
+    try {
+      const { appointments } = await fetchAppointments(from, to, adminToken)
+      snapshotsRef.current = snapshotsFromAppointments(appointments)
+      initializedRef.current = true
+    } catch {
+      // Silencioso: el siguiente poll reintentará.
+    }
+  }, [adminToken])
+
   const trackSeries = useCallback((
     seriesId: string,
     endDate: string,
@@ -162,6 +175,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     toasts,
     dismissToast,
     markAppointmentSnapshots,
+    resyncAppointmentSnapshots,
     pollAppointmentChanges,
     lastSeenAt,
     trackSeries,

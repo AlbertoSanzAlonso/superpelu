@@ -482,11 +482,14 @@ export async function createChainedBookingAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
-    (err) => {
-      console.error('Superpelu WhatsApp (cita nueva):', err)
-    },
-  )
-  void notifyAdminAppointmentCreated(row)
+  // Al recrear una visita editada (skipCustomerWhatsApp) no debe avisarse como «cita nueva».
+  if (!input.skipCustomerWhatsApp) {
+    void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
+      (err) => {
+        console.error('Superpelu WhatsApp (cita nueva):', err)
+      },
+    )
+    void notifyAdminAppointmentCreated(row)
+  }
   return row
 }

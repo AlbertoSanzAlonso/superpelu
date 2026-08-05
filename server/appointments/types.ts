@@ -34,7 +34,11 @@ export type CreateAppointmentInput = {
   forceSchedule?: boolean
   /** Al editar, excluye esta cita de la comprobación de disponibilidad. */
   excludeAppointmentId?: string
-  /** No enviar WhatsApp de cita nueva (p. ej. al recrear tras editar una visita). */
+  /**
+   * No enviar avisos de «cita nueva» (WhatsApp cliente ni email admin).
+   * Usado al recrear una visita tras editarla en agenda; el update ya manda
+   * «modificada» si corresponde.
+   */
   skipCustomerWhatsApp?: boolean
 }
 

@@ -32,6 +32,7 @@ type PersistDeps = {
   setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
   markAppointmentSnapshots?: (appointments: Iterable<import('@/types/booking').Appointment>) => void
+  resyncAppointmentSnapshots?: () => Promise<void>
   setConfirmDialog: (dialog: ConfirmDialogState | null) => void
 }
 
@@ -52,6 +53,7 @@ export function useAdminAppointmentPersist({
   setWhatsAppNotifyContext,
   setAppointmentFormOpen,
   markAppointmentSnapshots,
+  resyncAppointmentSnapshots,
   setConfirmDialog,
 }: PersistDeps) {
   const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
@@ -117,6 +119,7 @@ export function useAdminAppointmentPersist({
             forceSchedule: true,
           })
           markAppointmentSnapshots?.([appointment])
+          await resyncAppointmentSnapshots?.()
         } else {
           const isMultiTreatmentSeries =
             filteredServiceIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
@@ -176,6 +179,7 @@ export function useAdminAppointmentPersist({
             adminToken,
           )
           markAppointmentSnapshots?.([appointment])
+          await resyncAppointmentSnapshots?.()
         }
         setWhatsAppNotifyDialogOpen(false)
         setAppointmentFormOpen(false)
@@ -220,6 +224,7 @@ export function useAdminAppointmentPersist({
       load,
       setError,
       markAppointmentSnapshots,
+      resyncAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
       setConfirmDialog,
