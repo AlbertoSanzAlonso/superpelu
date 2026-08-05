@@ -586,3 +586,22 @@ export function deleteAdminStaff(adminToken: string, id: string) {
     headers: adminHeaders(adminToken),
   })
 }
+
+export type BookingFallbackResponse = {
+  enabled: boolean
+  url: string
+}
+
+export function fetchBookingFallback(adminToken: string) {
+  return request<BookingFallbackResponse>('/admin/booking-fallback', {
+    headers: adminHeaders(adminToken),
+  })
+}
+
+export function updateBookingFallback(adminToken: string, enabled: boolean) {
+  return request<BookingFallbackResponse>('/admin/booking-fallback', {
+    method: 'PUT',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify({ enabled }),
+  })
+}

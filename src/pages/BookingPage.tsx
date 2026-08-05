@@ -3,9 +3,11 @@ import { PageShell } from '@/components/layout/PageShell'
 import { Button } from '@/components/ui/Button'
 import { AppointmentForm } from '@/components/booking/AppointmentForm'
 import { AddToCalendarButton } from '@/components/booking/AddToCalendarButton'
+import { BukBookingFallback } from '@/components/booking/BukBookingFallback'
 import { formatChainedAppointmentTimeRange } from '@/lib/booking/combo'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import { formatDisplayDate } from '@/lib/core/dates'
+import { useBookingFallback } from '@/hooks/useBookingFallback'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -16,6 +18,7 @@ type BookingConfirmation = {
 
 export function BookingPage() {
   const { t, locale } = useTranslation()
+  const { enabled, url, loaded } = useBookingFallback()
   const [confirmed, setConfirmed] = useState<BookingConfirmation | null>(null)
 
   if (confirmed) {
@@ -93,6 +96,19 @@ export function BookingPage() {
     )
   }
 
+  if (loaded && enabled) {
+    return (
+      <PageShell
+        title={t.booking.bukFallback.pageTitle}
+        subtitle={t.booking.bukFallback.pageSubtitle}
+        titleClassName="font-serif text-2xl uppercase tracking-brand text-charcoal md:text-4xl"
+        brandWatermark
+      >
+        <BukBookingFallback url={url} />
+      </PageShell>
+    )
+  }
+
   return (
     <PageShell
       title={t.booking.pageTitle}
@@ -101,13 +117,17 @@ export function BookingPage() {
       subtitleClassName="hidden md:block"
       brandWatermark
     >
-      <AppointmentForm
-        onConfirmed={(appointment, appointments) => {
-          setConfirmed({
-            appointments: appointments?.length ? appointments : [appointment],
-          })
-        }}
-      />
+      {!loaded ? (
+        <p className={`${typography.caption} py-12 text-center`}>…</p>
+      ) : (
+        <AppointmentForm
+          onConfirmed={(appointment, appointments) => {
+            setConfirmed({
+              appointments: appointments?.length ? appointments : [appointment],
+            })
+          }}
+        />
+      )}
     </PageShell>
   )
 }

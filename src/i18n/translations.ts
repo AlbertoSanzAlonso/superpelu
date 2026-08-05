@@ -341,6 +341,13 @@ const es = {
       TELEFONO_INVALIDO: 'Teléfono no válido (móvil español).',
       NOMBRE_INVALIDO: 'Indica al menos el nombre.',
     },
+    bukFallback: {
+      pageTitle: 'Reserva en la agenda BUK',
+      pageSubtitle: 'La reserva online temporal está en la agenda antigua.',
+      body: 'Escanea el código QR o abre el enlace para reservar tu cita en la agenda BUK.',
+      openBuk: 'Abrir agenda BUK',
+      qrAlt: 'Código QR para reservar en buk.es/superpelu',
+    },
   },
   calendar: {
     add: 'Añadir al calendario',
@@ -905,6 +912,13 @@ const en = {
         'There is no longer enough time to link all treatments at that slot. Choose another time or stylist.',
       TELEFONO_INVALIDO: 'Invalid phone number (Spanish mobile).',
       NOMBRE_INVALIDO: 'Please enter at least a first name.',
+    },
+    bukFallback: {
+      pageTitle: 'Book on the BUK agenda',
+      pageSubtitle: 'Online booking is temporarily on the previous agenda.',
+      body: 'Scan the QR code or open the link to book your appointment on the BUK agenda.',
+      openBuk: 'Open BUK agenda',
+      qrAlt: 'QR code to book at buk.es/superpelu',
     },
   },
   calendar: {

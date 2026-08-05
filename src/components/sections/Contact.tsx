@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { brand } from '@/data/content'
 import { getBookingOptions, whatsappUrl } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
+import { useBookingFallback } from '@/hooks/useBookingFallback'
+import { bookingAnchorProps, isExternalBookingHref } from '@/lib/booking/fallback'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
@@ -9,7 +11,8 @@ import { PhoneIcon, WhatsAppIcon, CalendarIcon } from '@/components/ui/Icons'
 
 export function Contact() {
   const { t, locale } = useTranslation()
-  const bookingOptions = getBookingOptions(locale)
+  const { bookingHref, linkProps } = useBookingFallback()
+  const bookingOptions = getBookingOptions(locale, bookingHref)
 
   return (
     <Section
@@ -49,23 +52,31 @@ export function Contact() {
       className="bg-cream-dark"
     >
       <div className="mb-12 grid gap-6 md:grid-cols-3">
-        {bookingOptions.map((option) => (
-          <article
-            key={option.id}
-            className="flex flex-col border border-gold/20 bg-cream p-8 text-center"
-          >
-            <div className="mb-4 flex justify-center text-gold">
-              {option.id === 'online' && <CalendarIcon className="h-8 w-8" />}
-              {option.id === 'phone' && <PhoneIcon className="h-8 w-8" />}
-              {option.id === 'whatsapp' && <WhatsAppIcon className="h-8 w-8" />}
-            </div>
-            <h3 className={`${typography.h3} mb-2 text-gold`}>{option.title}</h3>
-            <p className={`${typography.body} mb-6 flex-1`}>{option.description}</p>
-            <Button href={option.href} variant="outline" size="md">
-              {option.label}
-            </Button>
-          </article>
-        ))}
+        {bookingOptions.map((option) => {
+          const optionLink =
+            option.id === 'online'
+              ? bookingAnchorProps(option.href)
+              : isExternalBookingHref(option.href)
+                ? { href: option.href, target: '_blank' as const, rel: 'noopener noreferrer' }
+                : { href: option.href }
+          return (
+            <article
+              key={option.id}
+              className="flex flex-col border border-gold/20 bg-cream p-8 text-center"
+            >
+              <div className="mb-4 flex justify-center text-gold">
+                {option.id === 'online' && <CalendarIcon className="h-8 w-8" />}
+                {option.id === 'phone' && <PhoneIcon className="h-8 w-8" />}
+                {option.id === 'whatsapp' && <WhatsAppIcon className="h-8 w-8" />}
+              </div>
+              <h3 className={`${typography.h3} mb-2 text-gold`}>{option.title}</h3>
+              <p className={`${typography.body} mb-6 flex-1`}>{option.description}</p>
+              <Button {...optionLink} variant="outline" size="md">
+                {option.label}
+              </Button>
+            </article>
+          )
+        })}
       </div>
 
       <div className="mx-auto max-w-xl border border-gold/25 bg-cream p-10 text-center md:p-14">
@@ -122,7 +133,7 @@ export function Contact() {
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Button href={brand.bookingOnline} variant="solid" size="lg">
+          <Button {...linkProps} variant="solid" size="lg">
             {t.nav.bookAppointmentOnline}
           </Button>
           <Button href={whatsappUrl(locale)} variant="outline" size="lg">

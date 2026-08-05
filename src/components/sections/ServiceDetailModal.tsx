@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import type { MarketingService } from '@/data/marketingServices'
-import { brand } from '@/data/content'
 import { whatsappUrl } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
+import { useBookingFallback } from '@/hooks/useBookingFallback'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
@@ -13,6 +13,7 @@ type Props = {
 
 export function ServiceDetailModal({ service, onClose }: Props) {
   const { t, locale } = useTranslation()
+  const { linkProps } = useBookingFallback()
 
   useEffect(() => {
     if (!service) return
@@ -82,7 +83,7 @@ export function ServiceDetailModal({ service, onClose }: Props) {
           </h2>
           <p className={`${typography.body} mb-6 text-sm leading-snug md:mb-5`}>{service.detail}</p>
           <div className="mt-auto flex flex-col gap-3 sm:flex-row sm:justify-center md:mt-0 md:justify-start">
-            <Button href={brand.bookingOnline} variant="solid" size="md">
+            <Button {...linkProps} variant="solid" size="md">
               {t.nav.bookAppointment}
             </Button>
             <Button href={whatsappUrl(locale)} variant="outline" size="md">

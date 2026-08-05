@@ -198,3 +198,9 @@ CREATE TABLE IF NOT EXISTS staff_sessions (
   staff_id TEXT NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
   expires_at TIMESTAMPTZ NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS salon_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

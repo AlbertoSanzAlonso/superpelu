@@ -8,6 +8,8 @@ export const brand = {
   email: 'info@superpelubenalmadena.com',
   address: 'Av. las Palmeras, 8, Local 18, 29630 Benalmádena, Málaga',
   bookingOnline: '/reservar',
+  /** Agenda antigua BUK — fallback de reserva pública */
+  bukBooking: 'https://buk.es/superpelu',
   maps: 'https://maps.app.goo.gl/G4HwQUpCtCCbq2xaA',
   /** iframe: requiere /maps/embed?pb=… (la URL con cid no se puede incrustar) */
   mapsEmbed:

@@ -1,12 +1,14 @@
 import { brand } from '@/data/content'
 import { useTranslation } from '@/i18n/useTranslation'
 import { whatsappUrl } from '@/i18n/helpers'
+import { useBookingFallback } from '@/hooks/useBookingFallback'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export function Studio() {
   const { t, locale } = useTranslation()
+  const { linkProps } = useBookingFallback()
 
   return (
     <>
@@ -44,7 +46,7 @@ export function Studio() {
             </ul>
 
             <div className="flex flex-col items-center gap-4 sm:flex-row lg:justify-start">
-              <Button href={brand.bookingOnline} variant="solid" size="md">
+              <Button {...linkProps} variant="solid" size="md">
                 {t.nav.bookAppointment}
               </Button>
               <Button href={whatsappUrl(locale)} variant="outline" size="md">

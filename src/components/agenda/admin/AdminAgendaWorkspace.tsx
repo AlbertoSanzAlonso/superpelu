@@ -18,6 +18,8 @@ import { AppointmentAvailabilityWarningModal } from '@/components/agenda/Appoint
 import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { typography } from '@/styles/typography'
 import type { UseAdminAgendaReturn } from '@/hooks/useAdminAgenda'
+import { fetchBookingFallback, updateBookingFallback } from '@/lib/api/admin'
+import { useEffect, useState } from 'react'
 
 export function AdminAgendaWorkspace({
   selectedDate,
@@ -42,6 +44,36 @@ export function AdminAgendaWorkspace({
 
   const appointmentModalOpen =
     agenda.appointmentFormOpen || agenda.viewingAppointment != null
+
+  const [bukFallbackEnabled, setBukFallbackEnabled] = useState(false)
+  const [bukFallbackBusy, setBukFallbackBusy] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchBookingFallback(adminToken)
+      .then((res) => {
+        if (!cancelled) setBukFallbackEnabled(res.enabled)
+      })
+      .catch(() => {
+        /* ignore: toggle stays off until retry */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [adminToken])
+
+  async function toggleBukFallback() {
+    if (bukFallbackBusy) return
+    setBukFallbackBusy(true)
+    try {
+      const next = await updateBookingFallback(adminToken, !bukFallbackEnabled)
+      setBukFallbackEnabled(next.enabled)
+    } catch {
+      /* keep previous state */
+    } finally {
+      setBukFallbackBusy(false)
+    }
+  }
 
   function closeAppointmentForm() {
     agenda.setAppointmentFormOpen(false)
@@ -76,6 +108,9 @@ export function AdminAgendaWorkspace({
           onNotificationBellOpen={notifications.openBell}
           onNotificationBellClose={notifications.closeBell}
           onNotificationSelect={openAppointmentFromNotification}
+          bukFallbackEnabled={bukFallbackEnabled}
+          bukFallbackBusy={bukFallbackBusy}
+          onToggleBukFallback={() => void toggleBukFallback()}
         />
 
         {agenda.error && !appointmentModalOpen && (

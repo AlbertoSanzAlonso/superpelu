@@ -49,12 +49,12 @@ export function getNavLinks(locale: Locale) {
   ] as const
 }
 
-export function getBookingOptions(locale: Locale) {
+export function getBookingOptions(locale: Locale, bookingHref: string = brand.bookingOnline) {
   const t = getTranslation(locale)
   return t.bookingOptions.map((option) => {
     const href =
       option.id === 'online'
-        ? brand.bookingOnline
+        ? bookingHref
         : option.id === 'phone'
           ? brand.phoneHref
           : whatsappUrl(locale)
