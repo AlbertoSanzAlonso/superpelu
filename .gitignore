@@ -19,3 +19,6 @@ openwa-qr.html
 
 # Guía corta para el IDE (solo local)
 AGENTS.md
+
+# Imports temporales con datos personales (BUK, etc.)
+scripts/tmp/

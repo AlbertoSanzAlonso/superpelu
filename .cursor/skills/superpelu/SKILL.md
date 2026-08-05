@@ -2,7 +2,7 @@
 name: superpelu
 description: >-
   Superpelu Hair Studio — React + Hono + PostgreSQL en servidor. Reservas (/reservar), agenda
-  admin y profesional (/agenda), gestión de horarios (/horarios), catálogo BUK, personal Susana/Mónica/Andrea/Olga/Sol.
+  admin y profesional (/agenda), gestión de horarios (/horarios), catálogo BUK, personal Susana/Mónica/Andrea/Olga/Inma.
   Usar en este repo, Coolify, ADMIN_SECRET, citas, slots, coloración en dos tramos,
   colores agenda, bloqueos con alcance, gestión de clientes (/clientes), i18n ES/EN web pública,
   WhatsApp/páginas cliente en idioma de reserva, aliases @/ y @server/, o API que devuelve HTML.
@@ -58,7 +58,7 @@ Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 |---------|-----------|
 | `src/data/serviceCategories.ts` | 12 categorías (ES + EN), precios «desde» |
 | `src/data/salonServices.ts` | ~70 servicios: `categoryId`, duración, `bookableOnline` |
-| `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga, Sol + contraseñas iniciales |
+| `src/data/salonStaff.ts` | Susana, Mónica, Andrea, Olga, Inma + contraseñas iniciales |
 | `src/data/schedule.ts` | Franjas por día, días abiertos y timezone del salón |
 | `src/data/content.ts` | Datos de marca no traducibles (teléfono, URLs, dirección) — **no** textos de UI |
 

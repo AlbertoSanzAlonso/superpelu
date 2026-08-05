@@ -10,7 +10,7 @@ export type SalonStaffMember = {
   weeklyHours?: Partial<Record<number, readonly SalonTimeRange[]>>
 }
 
-/** Personal del salón — orden de la web (Susana → … → Sol). */
+/** Personal del salón — orden de la web (Susana → … → Inma). */
 export const salonStaffMembers: SalonStaffMember[] = [
   {
     id: 'susana',
@@ -45,8 +45,8 @@ export const salonStaffMembers: SalonStaffMember[] = [
     sortOrder: 3,
   },
   {
-    id: 'sol',
-    name: 'Sol',
+    id: 'inma',
+    name: 'Inma',
     role: 'Profesional',
     phone: '',
     email: '',
@@ -54,8 +54,8 @@ export const salonStaffMembers: SalonStaffMember[] = [
   },
 ]
 
-/** IDs del personal de prueba anterior (se desactivan al sincronizar). */
-export const legacyMockStaffIds = ['maria-garcia', 'lucia-ruiz', 'paula-mendez'] as const
+/** IDs del personal anterior (se desactivan al sincronizar). */
+export const legacyMockStaffIds = ['maria-garcia', 'lucia-ruiz', 'paula-mendez', 'sol'] as const
 
 export function defaultWeeklyHoursForStaff(): Partial<Record<number, readonly SalonTimeRange[]>> {
   const hours: Partial<Record<number, readonly SalonTimeRange[]>> = {}
