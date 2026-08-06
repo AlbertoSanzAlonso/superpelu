@@ -205,10 +205,10 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 - **Persistencia:**
   - Salón semanal → `salon_schedule`.
   - Salón especial → `salon_special_schedule`.
-  - Personal semanal → `staff_availability` (editable en `/horarios`; **el arranque y guardar el salón no lo pisan**).
+  - Personal semanal → `staff_availability` (**fuente de verdad**; editable en `/horarios` por profesional; el arranque y guardar el salón **no** lo pisan).
   - Personal especial → `staff_special_availability`.
-- **Seed:** `weeklyHours` en `src/data/salonStaff.ts` solo se usa si el profesional no tiene filas, o en una restauración puntual (`salon_settings.staff_weekly_hours_restored_v1`). Inma u otros sin `weeklyHours` no se tocan en esa restauración.
-- **Fallback:** si un profesional no tiene horarios en BD, usa los del salón (incl. especiales); si el salón no tiene semanal en BD, usa `src/data/schedule.ts`.
+- **Seed:** si un profesional no tiene filas en `staff_availability`, se copia el horario del salón solo como arranque. Recuperación puntual del incidente de reset: `server/pg/staffHoursRestoreV1.ts` + flag `salon_settings.staff_weekly_hours_restored_v1` (una vez).
+- **Fallback en runtime:** si un profesional no tiene horarios en BD, usa los del salón (incl. especiales); si el salón no tiene semanal en BD, usa `src/data/schedule.ts`.
 - **Resolución en servidor:** `server/schedule/salonDay.ts` (`getSalonDayWindows`, `isSalonOpenOnDate`, `isBookingDateAllowed`); `server/staff/availability.ts` (`getStaffDayWindows`); slots y validación de citas usan estas funciones (no el `isSalonOpenDay` estático de `src/data/schedule.ts`).
 - **API semanal:** `server/schedule/index.ts` — `getFullSchedule()`, `setSalonSchedule()`, `setStaffSchedule()`.
 - **API especiales:** `server/schedule/special.ts` — CRUD salón y personal.

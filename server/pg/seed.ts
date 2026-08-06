@@ -6,9 +6,10 @@ import {
   salonStaffMembers,
 } from '@/data/salonStaff'
 import { sql } from '@server/pg/client.js'
+import { staffWeeklyHoursRestoreV1 } from '@server/pg/staffHoursRestoreV1.js'
 import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/index.js'
 
-/** Restauración puntual tras un sync erróneo que pisaba el personal con el horario del salón. */
+/** Flag: restauración v1 ya aplicada; no volver a escribir staff_availability desde código. */
 const STAFF_HOURS_RESTORE_KEY = 'staff_weekly_hours_restored_v1'
 
 function nowIso(): string {
@@ -204,17 +205,15 @@ export async function seedStaffAvailabilityIfMissing(): Promise<void> {
     `
     if (Number(count) > 0) continue
 
-    const member = salonStaffMembers.find((m) => m.id === staffId)
-    await syncStaffMemberAvailability(
-      staffId,
-      member?.weeklyHours ?? defaultWeeklyHoursForStaff(),
-    )
+    // Solo instalación / profesional nuevo sin filas. Después manda `/horarios` → BD.
+    await syncStaffMemberAvailability(staffId, defaultWeeklyHoursForStaff())
   }
 }
 
 /**
- * Aplica `weeklyHours` del catálogo a quienes lo tienen definido, una sola vez
- * (flag en salon_settings). No vuelve a pisar ediciones posteriores en `/horarios`.
+ * Recuperación puntual tras el sync erróneo al horario del salón.
+ * Una vez marcada en salon_settings, nunca vuelve a tocar staff_availability:
+ * los cambios en `/horarios` son la fuente de verdad.
  */
 export async function restoreCatalogStaffWeeklyHoursOnce(): Promise<void> {
   const existing = await sql<{ value: string }[]>`
@@ -222,9 +221,8 @@ export async function restoreCatalogStaffWeeklyHoursOnce(): Promise<void> {
   `
   if (existing.length > 0) return
 
-  for (const member of salonStaffMembers) {
-    if (!member.weeklyHours) continue
-    await syncStaffMemberAvailability(member.id, member.weeklyHours)
+  for (const [staffId, hours] of Object.entries(staffWeeklyHoursRestoreV1)) {
+    await syncStaffMemberAvailability(staffId, hours)
   }
 
   const now = nowIso()
