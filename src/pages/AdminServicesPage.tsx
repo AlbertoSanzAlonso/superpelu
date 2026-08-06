@@ -15,6 +15,7 @@ import {
   createAdminServiceCategory,
   updateAdminServiceCategory,
   deleteAdminServiceCategory,
+  hardDeleteAdminServiceCategory,
   type AdminService,
   type AdminServiceCategory,
 } from '@/lib/api/admin-catalog'
@@ -362,6 +363,7 @@ function CategoryListRow({
   onToggle,
   onEdit,
   onDeactivate,
+  onDelete,
   onReactivate,
   onMoveUp,
   onMoveDown,
@@ -375,6 +377,7 @@ function CategoryListRow({
   onToggle: () => void
   onEdit: () => void
   onDeactivate: () => void
+  onDelete: () => void
   onReactivate: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
@@ -439,14 +442,22 @@ function CategoryListRow({
                 <AdminIconButton label="Editar categoría" onClick={onEdit}>
                   <IconPencil />
                 </AdminIconButton>
-                <AdminIconButton label="Desactivar categoría" variant="danger" onClick={onDeactivate}>
+                <AdminIconButton label="Desactivar categoría" onClick={onDeactivate}>
+                  <IconBan />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar categoría" variant="danger" onClick={onDelete}>
                   <IconTrash />
                 </AdminIconButton>
               </>
             ) : (
-              <AdminIconButton label="Reactivar categoría" onClick={onReactivate}>
-                <IconRefresh />
-              </AdminIconButton>
+              <>
+                <AdminIconButton label="Reactivar categoría" onClick={onReactivate}>
+                  <IconRefresh />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar categoría" variant="danger" onClick={onDelete}>
+                  <IconTrash />
+                </AdminIconButton>
+              </>
             )}
           </div>
         </div>
@@ -527,10 +538,19 @@ function CategoryListRow({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              className="text-xs !px-2 !py-0.5"
               onClick={onDeactivate}
             >
               Desactivar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
             </Button>
           </>
         ) : (
@@ -544,6 +564,15 @@ function CategoryListRow({
               onClick={onReactivate}
             >
               Reactivar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
             </Button>
           </>
         )}
@@ -657,19 +686,48 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleDeleteCategory = (id: string) => {
+  const handleDeactivateCategory = (cat: AdminServiceCategory) => {
     if (!adminToken) return
     setConfirmAction({
       title: 'Desactivar categoría',
-      message: '¿Estás seguro de desactivar esta categoría? Los servicios se mantendrán.',
+      message: `¿Desactivar «${firstLine(cat.nameEs)}»? Los tratamientos se mantendrán y se puede reactivar después.`,
+      confirmLabel: 'Desactivar',
       onConfirm: async () => {
         setConfirmAction(null)
         setBusy(true)
         try {
-          await deleteAdminServiceCategory(adminToken, id)
+          await deleteAdminServiceCategory(adminToken, cat.id)
           await loadData()
         } catch (err) {
           setError(err instanceof ApiError ? err.message : 'Error al desactivar')
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
+  }
+
+  const handleHardDeleteCategory = (cat: AdminServiceCategory) => {
+    if (!adminToken) return
+    const childCount = services.filter((s) => s.categoryId === cat.id).length
+    const childLabel =
+      childCount === 0
+        ? 'No tiene tratamientos.'
+        : childCount === 1
+          ? 'También se eliminará por completo su 1 tratamiento.'
+          : `También se eliminarán por completo sus ${childCount} tratamientos.`
+    setConfirmAction({
+      title: 'Eliminar categoría',
+      message: `¿Eliminar permanentemente «${firstLine(cat.nameEs)}»? ${childLabel} No se puede deshacer. Fallará si hay citas asociadas.`,
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setBusy(true)
+        try {
+          await hardDeleteAdminServiceCategory(adminToken, cat.id)
+          await loadData()
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Error al eliminar')
         } finally {
           setBusy(false)
         }
@@ -930,7 +988,8 @@ export function AdminServicesPage() {
                     onMoveDown={() => void handleMoveCategory(cat.id, 'down')}
                     onToggle={() => setExpandedCategoryId(expanded ? null : cat.id)}
                     onEdit={() => setCategoryModal({ open: true, mode: 'edit', category: cat })}
-                    onDeactivate={() => handleDeleteCategory(cat.id)}
+                    onDeactivate={() => handleDeactivateCategory(cat)}
+                    onDelete={() => handleHardDeleteCategory(cat)}
                     onReactivate={() => handleReactivateCategory(cat.id)}
                   />
 

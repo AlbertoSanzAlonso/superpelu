@@ -284,5 +284,26 @@ export async function deleteServiceCategory(id: string): Promise<void> {
 }
 
 export async function hardDeleteServiceCategory(id: string): Promise<void> {
+  const childServices = await sql<{ id: string }[]>`
+    SELECT id FROM services WHERE category_id = ${id}
+  `
+  const childIds = childServices.map((row) => row.id)
+
+  if (childIds.length > 0) {
+    const [{ count }] = await sql<{ count: number }[]>`
+      SELECT COUNT(*)::int AS count
+      FROM appointments
+      WHERE service_id = ANY(${childIds})
+    `
+    if (count > 0) {
+      throw new Error(
+        `No se puede eliminar: hay ${count} cita${count === 1 ? '' : 's'} asociada${count === 1 ? '' : 's'} a tratamientos de esta categoría. Desactívala en su lugar.`,
+      )
+    }
+    await sql`DELETE FROM staff_services WHERE service_id = ANY(${childIds})`
+    await sql`DELETE FROM services WHERE id = ANY(${childIds})`
+  }
+
+  await sql`DELETE FROM staff_categories WHERE category_id = ${id}`
   await sql`DELETE FROM service_categories WHERE id = ${id}`
 }

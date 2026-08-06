@@ -487,8 +487,13 @@ app.delete('/api/admin/service-categories/:id/hard', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
-  await hardDeleteServiceCategory(id)
-  return c.json({ ok: true })
+  try {
+    await hardDeleteServiceCategory(id)
+    return c.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'No se pudo eliminar la categoría'
+    return c.json({ error: message }, 400)
+  }
 })
 
 // ── Staff CRUD (admin) ──────────────────────────────────────────────
