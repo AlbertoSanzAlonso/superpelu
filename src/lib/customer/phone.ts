@@ -49,6 +49,13 @@ export function isValidPhone(raw: string): boolean {
   return E164_RE.test(normalized)
 }
 
+/** E.164 válido cuyo país no es España (+34). */
+export function isInternationalPhone(raw: string): boolean {
+  const normalized = normalizePhone(raw)
+  if (!normalized || !isValidPhone(raw)) return false
+  return !normalized.startsWith('+34')
+}
+
 export function formatPhoneDisplay(phone: string): string {
   const n = normalizePhone(phone)
   const m = n.match(/^\+34(\d{3})(\d{2})(\d{2})(\d{2})$/)

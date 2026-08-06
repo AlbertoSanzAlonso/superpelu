@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
+import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
+import { useForeignPhoneLocalePrompt } from '@/hooks/useForeignPhoneLocalePrompt'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -51,6 +53,13 @@ export function CustomerEditModal({
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [error, setError] = useState('')
+
+  const switchToEnglish = useCallback(() => setLocale('en'), [])
+  const foreignPhonePrompt = useForeignPhoneLocalePrompt(
+    isCreate ? phoneInput : (customer?.phone ?? ''),
+    locale,
+    switchToEnglish,
+  )
 
   useEffect(() => {
     if (!open) return
@@ -187,6 +196,7 @@ export function CustomerEditModal({
                 autoComplete="tel"
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
+                onBlur={foreignPhonePrompt.maybePrompt}
                 disabled={busy}
                 placeholder="+34…"
               />
@@ -302,6 +312,12 @@ export function CustomerEditModal({
         busy={deleting}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
+      />
+
+      <ForeignPhoneLocaleConfirmDialog
+        open={foreignPhonePrompt.open}
+        onAccept={foreignPhonePrompt.accept}
+        onDecline={foreignPhonePrompt.decline}
       />
     </>
   )
