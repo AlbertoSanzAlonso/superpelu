@@ -163,6 +163,10 @@
     transition: background-color 180ms var(--ease-premium);
   }
 
+  .agenda-notify-row-enter {
+    animation: agendaNotifyRowEnter 360ms var(--ease-premium) both;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .agenda-day-enter-next,
     .agenda-day-enter-prev,
@@ -175,7 +179,8 @@
     .agenda-notify-panel-enter,
     .agenda-notify-panel-leave,
     .agenda-notify-backdrop-enter,
-    .agenda-notify-backdrop-leave {
+    .agenda-notify-backdrop-leave,
+    .agenda-notify-row-enter {
       animation: none;
     }
 
@@ -414,5 +419,16 @@
   }
   to {
     opacity: 0;
+  }
+}
+
+@keyframes agendaNotifyRowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

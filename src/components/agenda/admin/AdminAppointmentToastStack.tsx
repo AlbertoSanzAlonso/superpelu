@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { formatDisplayDate } from '@/lib/core/dates'
 import {
   ADMIN_APPOINTMENT_TOAST_MS,
@@ -7,6 +7,8 @@ import {
   type AdminAppointmentNotificationItem,
 } from '@/lib/agenda/adminNotifications'
 import { typography } from '@/styles/typography'
+
+const TOAST_LEAVE_MS = 320
 
 type ToastEntry = {
   key: string
@@ -48,16 +50,26 @@ function AdminAppointmentToast({
   onDismiss: () => void
   onSelect: () => void
 }) {
+  const [leaving, setLeaving] = useState(false)
+
   useEffect(() => {
-    const id = window.setTimeout(onDismiss, ADMIN_APPOINTMENT_TOAST_MS)
+    const showId = window.setTimeout(() => setLeaving(true), Math.max(0, ADMIN_APPOINTMENT_TOAST_MS - TOAST_LEAVE_MS))
+    return () => window.clearTimeout(showId)
+  }, [])
+
+  useEffect(() => {
+    if (!leaving) return
+    const id = window.setTimeout(onDismiss, TOAST_LEAVE_MS)
     return () => window.clearTimeout(id)
-  }, [onDismiss])
+  }, [leaving, onDismiss])
 
   return (
     <button
       type="button"
       onClick={onSelect}
-      className="pointer-events-auto w-full cursor-pointer border border-gold/40 bg-cream px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(30,30,30,0.35)] transition hover:border-gold hover:bg-gold/5"
+      className={`pointer-events-auto w-full cursor-pointer border border-gold/40 bg-cream px-4 py-3 text-left shadow-[0_12px_40px_-12px_rgba(30,30,30,0.35)] transition-[border-color,background-color] duration-200 hover:border-gold hover:bg-gold/5 ${
+        leaving ? 'agenda-toast-leave' : 'agenda-toast-enter'
+      }`}
     >
       <p className={`${typography.label} text-gold`}>
         {adminAppointmentNotificationKindLabel(item.kind)}

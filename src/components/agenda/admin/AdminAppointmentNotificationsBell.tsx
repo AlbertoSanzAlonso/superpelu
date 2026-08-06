@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatDisplayDate } from '@/lib/core/dates'
 import {
   ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS,
@@ -7,6 +7,8 @@ import {
   type AdminAppointmentNotificationItem,
 } from '@/lib/agenda/adminNotifications'
 import { typography } from '@/styles/typography'
+
+const PANEL_LEAVE_MS = 240
 
 type Props = {
   inbox: AdminAppointmentNotificationItem[]
@@ -54,6 +56,8 @@ export function AdminAppointmentNotificationsBell({
   onSelect,
 }: Props) {
   const rootRef = useRef<HTMLDivElement>(null)
+  const [panelVisible, setPanelVisible] = useState(open)
+  const [panelLeaving, setPanelLeaving] = useState(false)
 
   const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
   const recentInbox = useMemo(
@@ -66,11 +70,33 @@ export function AdminAppointmentNotificationsBell({
     [recentInbox, lastSeenAt],
   )
 
+  useEffect(() => {
+    if (open) {
+      setPanelVisible(true)
+      setPanelLeaving(false)
+      return
+    }
+    if (!panelVisible) return
+    setPanelLeaving(true)
+    const id = window.setTimeout(() => {
+      setPanelVisible(false)
+      setPanelLeaving(false)
+    }, PANEL_LEAVE_MS)
+    return () => window.clearTimeout(id)
+  }, [open, panelVisible])
+
+  const panelAnimClass = panelLeaving
+    ? 'agenda-notify-panel-leave'
+    : 'agenda-notify-panel-enter'
+  const backdropAnimClass = panelLeaving
+    ? 'agenda-notify-backdrop-leave'
+    : 'agenda-notify-backdrop-enter'
+
   return (
     <div ref={rootRef} className="relative">
-      {open && (
+      {panelVisible && (
         <div
-          className="fixed inset-0 z-40"
+          className={`fixed inset-0 z-40 bg-charcoal/0 ${backdropAnimClass}`}
           onClick={onClose}
           aria-hidden
         />
@@ -79,7 +105,9 @@ export function AdminAppointmentNotificationsBell({
         type="button"
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => (open ? onClose() : onOpen())}
-        className="relative flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10"
+        className={`agenda-notify-bell relative flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10 ${
+          unseenCount > 0 && !open ? 'agenda-notify-bell--unseen' : ''
+        }`}
         aria-label={
           unseenCount > 0
             ? `Novedades en la agenda, ${unseenCount} sin leer`
@@ -90,15 +118,18 @@ export function AdminAppointmentNotificationsBell({
       >
         <BellIcon />
         {unseenCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold tabular-nums text-cream">
+          <span
+            key={unseenCount}
+            className="agenda-notify-badge absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-gold px-1 text-[10px] font-semibold tabular-nums text-cream"
+          >
             {unseenCount > 9 ? '9+' : unseenCount}
           </span>
         )}
       </button>
 
-      {open && (
+      {panelVisible && (
         <div
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(20rem,calc(100vw-1.5rem))] border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none"
+          className={`absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(20rem,calc(100vw-1.5rem))] border border-gold/30 bg-cream shadow-[0_16px_48px_-16px_rgba(30,30,30,0.4)] backdrop-blur-none ${panelAnimClass}`}
           role="menu"
         >
           <div className="border-b border-gold/15 px-3 py-2">
@@ -110,14 +141,22 @@ export function AdminAppointmentNotificationsBell({
             </p>
           ) : (
             <ul className="max-h-[28rem] overflow-y-auto">
-              {recentInbox.map((item) => {
+              {recentInbox.map((item, index) => {
                 const isUnseen = item.timestamp > lastSeenAt
                 return (
-                  <li key={item.key}>
+                  <li
+                    key={item.key}
+                    style={
+                      panelLeaving
+                        ? undefined
+                        : { animationDelay: `${Math.min(index, 8) * 28}ms` }
+                    }
+                    className={panelLeaving ? undefined : 'agenda-notify-row-enter'}
+                  >
                     <button
                       type="button"
                       role="menuitem"
-                      className={`w-full cursor-pointer border-b border-gold/10 px-3 py-2.5 text-left hover:bg-gold/5 ${
+                      className={`agenda-notify-item w-full cursor-pointer border-b border-gold/10 px-3 py-2.5 text-left hover:bg-gold/5 ${
                         isUnseen ? 'bg-gold/[0.04]' : ''
                       }`}
                       onClick={() => onSelect(item)}

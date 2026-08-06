@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AdminAppointmentNotificationsBell } from '@/components/agenda/admin/AdminAppointmentNotificationsBell'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
@@ -76,7 +76,7 @@ function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
 
 function CalendarIcon() {
   return (
-    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+    <svg className="h-4 w-4 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
       <path
         fillRule="evenodd"
         d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z"
@@ -98,6 +98,49 @@ function stripDatesFrom(anchor: string): string[] {
 function windowContains(windowStart: string, date: string): boolean {
   const end = addDaysToDateString(windowStart, STRIP_LEN - 1)
   return date >= windowStart && date <= end
+}
+
+function DateJumpButton({
+  date,
+  onPick,
+}: {
+  date: string
+  onPick: (next: string) => void
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <div className="relative h-8 w-[6.75rem] shrink-0 border border-gold/30 transition-colors hover:border-gold hover:bg-gold/10 has-[:focus-visible]:border-gold">
+      <div
+        className="pointer-events-none flex h-full w-full items-center gap-1.5 px-2 text-gold"
+        aria-hidden
+      >
+        <CalendarIcon />
+        <span className={`${typography.label} truncate tabular-nums text-gold`}>
+          {formatShortDate(date)}
+        </span>
+      </div>
+      <input
+        ref={inputRef}
+        type="date"
+        value={date}
+        onChange={(e) => {
+          const next = e.target.value
+          if (next) onPick(next)
+        }}
+        onClick={(e) => {
+          const el = e.currentTarget
+          if (typeof el.showPicker !== 'function') return
+          e.preventDefault()
+          void el.showPicker().catch(() => {
+            el.focus()
+          })
+        }}
+        className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0"
+        aria-label={`Elegir fecha, actual ${formatShortDate(date)}`}
+      />
+    </div>
+  )
 }
 
 export function AdminAgendaControlBar({
@@ -181,78 +224,57 @@ export function AdminAgendaControlBar({
         ? 'agenda-strip-enter-prev'
         : ''
 
-  function renderDayStrip() {
+  function renderDayButtons() {
     return (
-      <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
-        <label className="relative flex h-8 cursor-pointer items-center gap-1.5 border border-gold/30 px-2 text-gold transition-colors hover:border-gold hover:bg-gold/10">
-          <CalendarIcon />
-          <span className={`${typography.label} tabular-nums text-gold`}>{formatShortDate(date)}</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => {
-              if (e.target.value) jumpToDate(e.target.value)
-            }}
-            className="absolute inset-0 cursor-pointer opacity-0"
-            aria-label="Elegir fecha"
-          />
-        </label>
+      <div
+        key={windowStart}
+        className={`flex min-w-0 flex-1 items-center justify-between gap-0.5 sm:flex-none sm:justify-start sm:gap-0.5 ${stripAnimClass}`}
+        role="group"
+        aria-label="Semana visible"
+      >
+        {stripDates.map((d) => {
+          const active = d === date
+          const abbr = DAY_ABBR[dayOfWeekFromDateString(d)]
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={active}
+              aria-label={formatShortDate(d)}
+              onClick={() => selectDate(d)}
+              className={`h-8 min-w-0 flex-1 cursor-pointer border-b-2 px-1 text-[11px] font-medium uppercase tracking-wide transition-[color,border-color] duration-300 ease-[var(--ease-premium)] sm:flex-none sm:px-2 sm:text-xs ${
+                active
+                  ? 'border-gold text-gold'
+                  : 'border-transparent text-charcoal-muted hover:text-charcoal'
+              }`}
+            >
+              {abbr}
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
+  function renderArrows() {
+    return (
+      <div className="flex shrink-0 items-center gap-1">
         <button
           type="button"
-          disabled={isToday}
-          onClick={() => jumpToDate(todaySalon())}
-          className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted transition-colors hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
+          className={dayNavButtonClass}
+          aria-label="Día anterior"
+          onClick={goPrev}
         >
-          Hoy
+          <NavChevron direction="prev" />
         </button>
-
-        <div
-          key={windowStart}
-          className={`flex items-center gap-0.5 overflow-x-auto px-0.5 ${stripAnimClass}`}
-          role="group"
-          aria-label="Semana visible"
+        <button
+          type="button"
+          className={dayNavButtonClass}
+          aria-label="Día siguiente"
+          onClick={goNext}
         >
-          {stripDates.map((d) => {
-            const active = d === date
-            const abbr = DAY_ABBR[dayOfWeekFromDateString(d)]
-            return (
-              <button
-                key={d}
-                type="button"
-                aria-pressed={active}
-                aria-label={formatShortDate(d)}
-                onClick={() => selectDate(d)}
-                className={`h-8 shrink-0 cursor-pointer border-b-2 px-2 text-xs font-medium uppercase tracking-wide transition-[color,border-color] duration-300 ease-[var(--ease-premium)] ${
-                  active
-                    ? 'border-gold text-gold'
-                    : 'border-transparent text-charcoal-muted hover:text-charcoal'
-                }`}
-              >
-                {abbr}
-              </button>
-            )
-          })}
-        </div>
-
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            className={dayNavButtonClass}
-            aria-label="Día anterior"
-            onClick={goPrev}
-          >
-            <NavChevron direction="prev" />
-          </button>
-          <button
-            type="button"
-            className={dayNavButtonClass}
-            aria-label="Día siguiente"
-            onClick={goNext}
-          >
-            <NavChevron direction="next" />
-          </button>
-        </div>
+          <NavChevron direction="next" />
+        </button>
       </div>
     )
   }
@@ -306,19 +328,69 @@ export function AdminAgendaControlBar({
         className="pointer-events-none absolute inset-0 bg-cream/55 backdrop-blur-[2px]"
         aria-hidden
       />
-      <div className="relative flex flex-col gap-2 px-3 py-2 md:gap-y-2">
-        <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 overflow-x-auto">{renderDayStrip()}</div>
-            {notificationBell}
+      <div className="relative flex flex-col gap-2 px-3 py-2">
+        {/* Móvil: dos filas para no desbordar */}
+        <div className="flex w-full min-w-0 flex-col gap-1.5 md:hidden">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <DateJumpButton date={date} onPick={jumpToDate} />
+            <button
+              type="button"
+              disabled={isToday}
+              onClick={() => jumpToDate(todaySalon())}
+              className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted transition-colors hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Hoy
+            </button>
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+              {renderArrows()}
+              {notificationBell}
+            </div>
+          </div>
+          <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
+            {renderDayButtons()}
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <span className={`${typography.caption} shrink-0 tabular-nums`}>
+              {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
+            </span>
+            {hasSelection && selectionSummary ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium tabular-nums text-charcoal">
+                  {selectionCount} franja{selectionCount === 1 ? '' : 's'}
+                </span>
+                <StaffGridSelectionActions
+                  toolbar
+                  summary={selectionSummary}
+                  onBlock={onBlockSelection!}
+                  onUnblock={onUnblockSelection!}
+                  onCreateAppointment={onCreateAppointmentFromSelection!}
+                  onClearSelection={onClearSelection!}
+                  busy={selectionBusy}
+                  interactionsLocked={gridInteractionsLocked}
+                />
+              </div>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="hidden min-w-0 md:block">{renderDayStrip()}</div>
+        {/* Desktop */}
+        <div className="hidden min-w-0 flex-wrap items-center gap-x-3 gap-y-2 md:flex">
+          <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
+            <DateJumpButton date={date} onPick={jumpToDate} />
+            <button
+              type="button"
+              disabled={isToday}
+              onClick={() => jumpToDate(todaySalon())}
+              className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted transition-colors hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Hoy
+            </button>
+            {renderDayButtons()}
+            {renderArrows()}
+          </div>
 
-          <span className="hidden h-4 w-px bg-gold/25 sm:block" aria-hidden />
+          <span className="h-4 w-px bg-gold/25" aria-hidden />
 
           <span className={`${typography.caption} shrink-0 tabular-nums`}>
             {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
@@ -326,7 +398,7 @@ export function AdminAgendaControlBar({
 
           {hasSelection && selectionSummary ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="hidden h-4 w-px bg-gold/25 md:block" aria-hidden />
+              <span className="h-4 w-px bg-gold/25" aria-hidden />
               <span className="text-xs font-medium tabular-nums text-charcoal">
                 {selectionCount} franja{selectionCount === 1 ? '' : 's'}
               </span>
@@ -343,7 +415,7 @@ export function AdminAgendaControlBar({
             </div>
           ) : null}
 
-          <div className="ml-auto hidden items-center gap-2 md:flex">
+          <div className="ml-auto flex items-center gap-2">
             {notificationBell}
             {navLinks}
           </div>
