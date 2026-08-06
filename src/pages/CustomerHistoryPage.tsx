@@ -8,8 +8,9 @@ import {
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
-import { fetchCustomerDetail, ApiError } from '@/lib/api'
+import { fetchCustomerDetail, deleteCustomer, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
@@ -44,6 +45,8 @@ export function CustomerHistoryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editOpen, setEditOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadDetail = useCallback(async () => {
     if (!adminToken || !phone) return
@@ -68,6 +71,21 @@ export function CustomerHistoryPage() {
   useEffect(() => {
     if (authOk) void loadDetail()
   }, [authOk, loadDetail])
+
+  async function handleDeleteCustomer() {
+    if (!adminToken || !customer) return
+    setDeleting(true)
+    setError('')
+    try {
+      await deleteCustomer(adminToken, customer.phone)
+      navigate('/clientes', { replace: true })
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'No se pudo eliminar el cliente')
+      setDeleteConfirmOpen(false)
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   if (!phone) {
     return <Navigate to="/clientes" replace />
@@ -145,9 +163,21 @@ export function CustomerHistoryPage() {
                   }
                 />
               )}
-              <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
-                Editar
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditOpen(true)}>
+                  Editar
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={deleting}
+                  onClick={() => setDeleteConfirmOpen(true)}
+                  className="border-red-300 text-red-800 hover:border-red-400 hover:bg-red-50 hover:text-red-900"
+                >
+                  Eliminar
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -187,6 +217,18 @@ export function CustomerHistoryPage() {
           )
         }}
         onDeleted={() => navigate('/clientes', { replace: true })}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="¿Eliminar este cliente?"
+        message="Se quitará la ficha del listado de clientes. Las citas ya registradas se conservan en la agenda."
+        confirmLabel="Eliminar cliente"
+        cancelLabel="Volver"
+        destructive
+        busy={deleting}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDeleteCustomer}
       />
     </AgendaWorkspaceShell>
   )
