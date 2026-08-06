@@ -14,6 +14,7 @@ import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isValidDateString } from '@/lib/core/dates'
 import { capitalizePersonName } from '@/lib/customer/name'
 import { isValidPhone } from '@/lib/customer/phone'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import type {
   Appointment,
   BookableService,
@@ -76,6 +77,14 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [returningFirstName, setReturningFirstName] = useState('')
   const [lookingUpCustomer, setLookingUpCustomer] = useState(false)
   const [returningLookupError, setReturningLookupError] = useState('')
+  /** Idioma de WhatsApp/avisos de la cita (puede diferir del idioma de la web). */
+  const [notificationLocale, setNotificationLocale] = useState<Locale>(() =>
+    normalizeLocale(locale),
+  )
+
+  useEffect(() => {
+    setNotificationLocale(normalizeLocale(locale))
+  }, [locale])
 
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<{
@@ -121,8 +130,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerEmail('')
     setBirthdateState('')
     setNotes('')
+    setNotificationLocale(normalizeLocale(locale))
     setFieldErrors({})
-  }, [])
+  }, [locale])
 
   const hasMultipleServices = serviceIds.length > 1
 
@@ -482,7 +492,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setReturningVerified(false)
     setReturningFirstName('')
     setReturningLookupError('')
-  }, [resetChainSelection])
+    setNotificationLocale(normalizeLocale(locale))
+  }, [resetChainSelection, locale])
 
   const lookupReturningCustomer = useCallback(async () => {
     setReturningLookupError('')
@@ -594,7 +605,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         customerPhone,
         customerEmail: isReturning ? undefined : customerEmail || undefined,
         notes: notes || undefined,
-        locale,
+        locale: notificationLocale,
         returningCustomer: isReturning || undefined,
         birthdate: isReturning ? undefined : birthdate,
       })
@@ -629,6 +640,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     customerType,
     onSuccess,
     errors.createFailed,
+    notificationLocale,
     locale,
   ])
 
@@ -664,6 +676,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setNotes,
     birthdate,
     setBirthdate,
+    notificationLocale,
+    setNotificationLocale,
     customerType,
     setCustomerType,
     resetCustomerType,

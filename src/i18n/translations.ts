@@ -312,6 +312,11 @@ const es = {
     lookupCustomer: 'Continuar',
     lookingUpCustomer: 'Buscando…',
     changeCustomerType: 'Cambiar respuesta',
+    foreignPhoneLocaleTitle: 'Número extranjero',
+    foreignPhoneLocaleMessage:
+      'Tu teléfono no es de España. ¿Quieres recibir las notificaciones de la cita (WhatsApp, recordatorios) en inglés?',
+    foreignPhoneLocaleAccept: 'Sí, en inglés',
+    foreignPhoneLocaleDecline: 'No, en español',
     summaryLabels: {
       service: 'Servicio',
       services: 'Tratamientos',
@@ -895,6 +900,11 @@ const en = {
     lookupCustomer: 'Continue',
     lookingUpCustomer: 'Looking up…',
     changeCustomerType: 'Change answer',
+    foreignPhoneLocaleTitle: 'International number',
+    foreignPhoneLocaleMessage:
+      'Your phone number is not Spanish. Would you like to receive appointment notifications (WhatsApp, reminders) in English?',
+    foreignPhoneLocaleAccept: 'Yes, in English',
+    foreignPhoneLocaleDecline: 'No, keep Spanish',
     summaryLabels: {
       service: 'Service',
       services: 'Treatments',

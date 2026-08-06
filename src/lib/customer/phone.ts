@@ -3,32 +3,38 @@ const E164_RE = /^\+[1-9]\d{6,14}$/
 /** Móvil español: +34 + 9 dígitos empezando por 6–9. */
 const ES_MOBILE_RE = /^\+34[6789]\d{8}$/
 
-/**
- * Normaliza a E.164.
- * Sin prefijo internacional (`+` / `00`), asume móvil español (+34).
- */
-export function normalizePhone(raw: string): string {
+function parsePhoneDigits(raw: string): {
+  digits: string
+  /** Prefijo explícito `+` o `00`. Sin él se asume España. */
+  hadIntlPrefix: boolean
+} {
   const trimmed = raw.trim()
-  if (!trimmed) return ''
+  if (!trimmed) return { digits: '', hadIntlPrefix: false }
 
   const hadPlus = trimmed.startsWith('+')
   let digits = trimmed.replace(/\D/g, '')
+  if (!digits) return { digits: '', hadIntlPrefix: false }
+
+  const had00 = digits.startsWith('00')
+  if (had00) digits = digits.slice(2)
+
+  return { digits, hadIntlPrefix: hadPlus || had00 }
+}
+
+/**
+ * Normaliza a E.164.
+ * Sin prefijo internacional (`+` / `00`), asume móvil español (+34).
+ * Con `+` / `00`, el número ya incluye el código de país.
+ * También acepta `34` + 9 dígitos nacionales sin `+`/`00` (español con código de país).
+ */
+export function normalizePhone(raw: string): string {
+  const { digits, hadIntlPrefix } = parsePhoneDigits(raw)
   if (!digits) return ''
 
-  if (digits.startsWith('00')) {
-    digits = digits.slice(2)
-  }
-
-  // Código de país presente: +…, 00…, o 34 + 9 dígitos nacionales
-  if (
-    hadPlus ||
-    (digits.startsWith('34') && digits.length >= 11) ||
-    digits.length > 9
-  ) {
+  if (hadIntlPrefix || (digits.startsWith('34') && digits.length >= 11)) {
     return `+${digits}`
   }
 
-  // 9 dígitos (u otros cortos) → España
   return `+34${digits}`
 }
 
@@ -39,18 +45,26 @@ export function isValidSpanishPhone(raw: string): boolean {
 
 /**
  * Teléfono válido para citas/clientes: móvil ES o cualquier E.164 internacional.
- * Los números españoles sin `+`/`00` siguen siendo solo móviles (6–9).
+ * Los números sin `+`/`00` se tratan como españoles (solo móviles 6–9).
+ * Internacional solo con prefijo explícito distinto de España.
  */
 export function isValidPhone(raw: string): boolean {
   const normalized = normalizePhone(raw)
   if (!normalized) return false
   if (ES_MOBILE_RE.test(normalized)) return true
   if (normalized.startsWith('+34')) return false
+  const { hadIntlPrefix } = parsePhoneDigits(raw)
+  if (!hadIntlPrefix) return false
   return E164_RE.test(normalized)
 }
 
-/** E.164 válido cuyo país no es España (+34). */
+/**
+ * Número extranjero: prefijo explícito (`+` o `00`) con código de país distinto de 34.
+ * Sin prefijo → se considera español (no pide cambio de idioma).
+ */
 export function isInternationalPhone(raw: string): boolean {
+  const { hadIntlPrefix } = parsePhoneDigits(raw)
+  if (!hadIntlPrefix) return false
   const normalized = normalizePhone(raw)
   if (!normalized || !isValidPhone(raw)) return false
   return !normalized.startsWith('+34')

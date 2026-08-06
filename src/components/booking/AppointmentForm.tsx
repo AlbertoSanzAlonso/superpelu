@@ -189,6 +189,10 @@ export function AppointmentForm({
               lookupCustomer: b.lookupCustomer,
               lookingUpCustomer: b.lookingUpCustomer,
               changeCustomerType: b.changeCustomerType,
+              foreignPhoneLocaleTitle: b.foreignPhoneLocaleTitle,
+              foreignPhoneLocaleMessage: b.foreignPhoneLocaleMessage,
+              foreignPhoneLocaleAccept: b.foreignPhoneLocaleAccept,
+              foreignPhoneLocaleDecline: b.foreignPhoneLocaleDecline,
             }}
           />
         )}

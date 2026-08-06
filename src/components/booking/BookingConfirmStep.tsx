@@ -1,6 +1,9 @@
+import { useCallback } from 'react'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
+import { useForeignPhoneLocalePrompt } from '@/hooks/useForeignPhoneLocalePrompt'
 import { serviceDisplayName } from '@/i18n/helpers'
 import type { Locale } from '@/i18n/types'
 import { capitalizePersonName } from '@/lib/customer/name'
@@ -29,11 +32,25 @@ type BookingConfirmStepProps = {
     lookupCustomer: string
     lookingUpCustomer: string
     changeCustomerType: string
+    foreignPhoneLocaleTitle: string
+    foreignPhoneLocaleMessage: string
+    foreignPhoneLocaleAccept: string
+    foreignPhoneLocaleDecline: string
   }
 }
 
 export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingConfirmStepProps) {
   const customerType = form.customerType
+
+  const switchToEnglish = useCallback(() => {
+    form.setNotificationLocale('en')
+  }, [form.setNotificationLocale])
+
+  const foreignPhonePrompt = useForeignPhoneLocalePrompt(
+    form.customerPhone,
+    form.notificationLocale,
+    switchToEnglish,
+  )
 
   return (
     <div className="space-y-4">
@@ -83,6 +100,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             value={form.customerPhone}
             error={form.fieldErrors.phone}
             onChange={(e) => form.setCustomerPhone(e.target.value)}
+            onBlur={foreignPhonePrompt.maybePrompt}
             autoComplete="tel"
             placeholder="600 000 000"
           />
@@ -144,6 +162,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             value={form.customerPhone}
             error={form.fieldErrors.phone}
             onChange={(e) => form.setCustomerPhone(e.target.value)}
+            onBlur={foreignPhonePrompt.maybePrompt}
             autoComplete="tel"
             placeholder="600 000 000"
           />
@@ -199,6 +218,16 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
           )}
         </div>
       )}
+
+      <ForeignPhoneLocaleConfirmDialog
+        open={foreignPhonePrompt.open}
+        onAccept={foreignPhonePrompt.accept}
+        onDecline={foreignPhonePrompt.decline}
+        title={labels.foreignPhoneLocaleTitle}
+        message={labels.foreignPhoneLocaleMessage}
+        confirmLabel={labels.foreignPhoneLocaleAccept}
+        cancelLabel={labels.foreignPhoneLocaleDecline}
+      />
     </div>
   )
 }

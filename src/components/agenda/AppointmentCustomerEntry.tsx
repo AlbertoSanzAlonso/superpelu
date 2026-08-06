@@ -16,6 +16,7 @@ const CLEAR_CUSTOMER_PATCH: Partial<AppointmentDraft> = {
   customerPhone: '',
   customerEmail: '',
   customerNotes: '',
+  customerLocale: 'es',
 }
 
 function customerToDraftPatch(customer: CustomerDetail['customer']): Partial<AppointmentDraft> {
