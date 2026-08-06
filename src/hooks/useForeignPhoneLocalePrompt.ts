@@ -2,9 +2,14 @@ import { useCallback, useRef, useState } from 'react'
 import type { Locale } from '@/i18n/types'
 import { isInternationalPhone, normalizePhone } from '@/lib/customer/phone'
 
+/** Número extranjero y contexto aún en español → conviene preguntar idioma de avisos. */
+export function shouldAskForeignPhoneLocale(phone: string, locale: Locale): boolean {
+  return isInternationalPhone(phone) && locale !== 'en'
+}
+
 /**
- * Al salir del campo teléfono: si es extranjero y el idioma sigue en español,
- * pregunta si pasar a inglés (una vez por número normalizado).
+ * Diálogo de idioma para ficha de cliente (p. ej. al editar).
+ * En reserva web / agenda la pregunta va tras confirmar, no al salir del teléfono.
  */
 export function useForeignPhoneLocalePrompt(
   phone: string,
@@ -16,8 +21,7 @@ export function useForeignPhoneLocalePrompt(
 
   const maybePrompt = useCallback(() => {
     const normalized = normalizePhone(phone)
-    if (!isInternationalPhone(phone)) return
-    if (locale === 'en') return
+    if (!shouldAskForeignPhoneLocale(phone, locale)) return
     if (handledForPhoneRef.current === normalized) return
     setOpen(true)
   }, [phone, locale])

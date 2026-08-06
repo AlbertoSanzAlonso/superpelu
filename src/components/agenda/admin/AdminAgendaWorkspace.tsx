@@ -4,6 +4,7 @@ import type { AgendaViewMode } from '@/lib/agenda/agendaView'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
+import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
@@ -404,6 +405,12 @@ export function AdminAgendaWorkspace({
         onClose={agenda.closeWhatsAppNotifyDialog}
         onNotify={agenda.confirmSaveWithWhatsAppNotify}
         onSaveWithoutNotify={agenda.confirmSaveWithoutWhatsAppNotify}
+      />
+
+      <ForeignPhoneLocaleConfirmDialog
+        open={agenda.foreignPhoneLocalePromptOpen}
+        onAccept={() => void agenda.acceptForeignPhoneLocale()}
+        onDecline={() => void agenda.declineForeignPhoneLocale()}
       />
 
       <NoShowContactDialog

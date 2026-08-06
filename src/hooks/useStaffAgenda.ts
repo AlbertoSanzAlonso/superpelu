@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
@@ -31,6 +31,8 @@ import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAgendaGridTimes } from '@/hooks/agenda/useAgendaGridTimes'
 import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBlockCreate'
 import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
+import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import type { Locale } from '@/i18n/types'
 import type {
   BookableService,
   DayScheduleAppointment,
@@ -66,6 +68,8 @@ export function useStaffAgenda(token: string) {
   const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
+  const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
+  const createLocaleRef = useRef<Locale>('es')
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [pendingRemoveSuccess, setPendingRemoveSuccess] = useState<(() => void) | undefined>()
 
@@ -266,8 +270,14 @@ export function useStaffAgenda(token: string) {
   }, [gridSummary])
 
   const doSave = useCallback(
-    async (forceSchedule = false, conflictResolutions?: SeriesConflictResolution[]): Promise<boolean> => {
+    async (
+      forceSchedule = false,
+      conflictResolutions?: SeriesConflictResolution[],
+      customerLocaleOverride?: Locale,
+    ): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
+      const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
+      createLocaleRef.current = customerLocale
       try {
         const keptIndexes = aptDraft.serviceIds
           .map((id, index) => (id ? index : -1))
@@ -316,7 +326,7 @@ export function useStaffAgenda(token: string) {
             customerEmail: aptDraft.customerEmail || null,
             customerNotes: aptDraft.customerNotes || null,
             notes: aptDraft.notes || null,
-            customerLocale: aptDraft.customerLocale,
+            customerLocale,
             forceSchedule: true,
           })
         } else {
@@ -335,7 +345,7 @@ export function useStaffAgenda(token: string) {
               customerEmail: aptDraft.customerEmail || undefined,
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
-              customerLocale: aptDraft.customerLocale,
+              customerLocale,
               endDate: aptDraft.recurrenceEndDate || undefined,
             })
             if (preview.conflicts.length > 0) {
@@ -358,7 +368,7 @@ export function useStaffAgenda(token: string) {
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
-            customerLocale: aptDraft.customerLocale,
+            customerLocale,
             scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
             endDate:
               aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
@@ -385,7 +395,7 @@ export function useStaffAgenda(token: string) {
             destructive: false,
             onConfirm: async () => {
               confirmUi.closeConfirmDialog()
-              await doSave(true)
+              await doSave(true, undefined, customerLocale)
             },
           })
           return false
@@ -401,10 +411,31 @@ export function useStaffAgenda(token: string) {
     async (e: React.FormEvent): Promise<boolean> => {
       e.preventDefault()
       setError('')
+      if (
+        !editingId &&
+        shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)
+      ) {
+        setForeignPhoneLocalePromptOpen(true)
+        return false
+      }
       return doSave()
     },
-    [doSave],
+    [doSave, editingId, aptDraft.customerPhone, aptDraft.customerLocale],
   )
+
+  const acceptForeignPhoneLocale = useCallback(async () => {
+    setForeignPhoneLocalePromptOpen(false)
+    await doSave(false, undefined, 'en')
+  }, [doSave])
+
+  const declineForeignPhoneLocale = useCallback(async () => {
+    setForeignPhoneLocalePromptOpen(false)
+    await doSave(false, undefined, 'es')
+  }, [doSave])
+
+  const closeForeignPhoneLocalePrompt = useCallback(() => {
+    setForeignPhoneLocalePromptOpen(false)
+  }, [])
 
   const closeNoShowDialog = useCallback(() => {
     if (noShowBusy) return
@@ -579,6 +610,10 @@ export function useStaffAgenda(token: string) {
     setAptDraft,
     editingId,
     saveAppointment,
+    foreignPhoneLocalePromptOpen,
+    acceptForeignPhoneLocale,
+    declineForeignPhoneLocale,
+    closeForeignPhoneLocalePrompt,
     startEditAppointment,
     selectFreeSlot,
     selectedGridTimes: gridSelection.times,
@@ -628,7 +663,7 @@ export function useStaffAgenda(token: string) {
     resolveSeriesConflicts: async (resolutions: SeriesConflictResolution[]) => {
       setSeriesConflictBusy(true)
       try {
-        await doSave(false, resolutions)
+        await doSave(false, resolutions, createLocaleRef.current)
         setSeriesConflictOpen(false)
         setSeriesConflictPreview(null)
       } catch (err) {

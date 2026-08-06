@@ -77,6 +77,7 @@ export function useAdminAgenda(
     appointments.noShowDialogOpen ||
     appointments.noShowBusy ||
     appointments.seriesConflictOpen ||
+    appointments.foreignPhoneLocalePromptOpen ||
     blocks.blockModalOpen ||
     blocks.unblockModal != null ||
     blocks.blockDetailBusy ||
@@ -247,6 +248,10 @@ export function useAdminAgenda(
     changeDetailStaff: appointments.changeDetailStaff,
     syncDetailActiveStaff: appointments.syncDetailActiveStaff,
     saveAppointment: appointments.saveAppointment,
+    foreignPhoneLocalePromptOpen: appointments.foreignPhoneLocalePromptOpen,
+    acceptForeignPhoneLocale: appointments.acceptForeignPhoneLocale,
+    declineForeignPhoneLocale: appointments.declineForeignPhoneLocale,
+    closeForeignPhoneLocalePrompt: appointments.closeForeignPhoneLocalePrompt,
     whatsAppNotifyDialogOpen: appointments.whatsAppNotifyDialogOpen,
     whatsAppNotifyContext: appointments.whatsAppNotifyContext,
     whatsAppNotifyBusy: appointments.whatsAppNotifyBusy,

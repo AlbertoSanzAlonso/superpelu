@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { BookingCategoryStep } from '@/components/booking/BookingCategoryStep'
 import { BookingConfirmStep } from '@/components/booking/BookingConfirmStep'
+import { BookingForeignLocaleStep } from '@/components/booking/BookingForeignLocaleStep'
 import { BookingFormProgress } from '@/components/booking/BookingFormProgress'
 import { BookingScheduleStep } from '@/components/booking/BookingScheduleStep'
 import { BookingServiceStep } from '@/components/booking/BookingServiceStep'
@@ -14,8 +15,10 @@ import {
   useAppointmentForm,
   type AppointmentFormOptions,
 } from '@/hooks/useAppointmentForm'
+import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import { serviceDisplayName } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
+import type { Locale } from '@/i18n/types'
 import { getBookableDates } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
@@ -35,6 +38,7 @@ export function AppointmentForm({
   const { locale, t } = useTranslation()
   const bookingSteps = t.booking.steps
   const b = t.booking
+  const [awaitingLocaleChoice, setAwaitingLocaleChoice] = useState(false)
 
   const form = useAppointmentForm({
     ...formOptions,
@@ -49,8 +53,32 @@ export function AppointmentForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.canSubmit || form.submitting) return
+    // Web en inglés → avisos ya van en inglés; no preguntar.
+    if (
+      locale !== 'en' &&
+      !awaitingLocaleChoice &&
+      shouldAskForeignPhoneLocale(form.customerPhone, form.notificationLocale)
+    ) {
+      setAwaitingLocaleChoice(true)
+      return
+    }
     await form.submit()
   }
+
+  const finishWithLocale = useCallback(
+    async (nextLocale: Locale) => {
+      await form.submit({ locale: nextLocale })
+    },
+    [form.submit],
+  )
+
+  const handleBack = useCallback(() => {
+    if (awaitingLocaleChoice) {
+      setAwaitingLocaleChoice(false)
+      return
+    }
+    wizard.goPrev()
+  }, [awaitingLocaleChoice, wizard.goPrev])
 
   const bookingServiceLines = useMemo(
     () =>
@@ -96,105 +124,121 @@ export function AppointmentForm({
   }
 
   const confirmLabel = submitLabel ?? b.confirm
+  const progressStep = awaitingLocaleChoice ? CONFIRM_STEP : wizard.step
+  const progressLabels = awaitingLocaleChoice
+    ? bookingSteps.map((label, index) =>
+        index === CONFIRM_STEP ? b.foreignPhoneLocaleTitle : label,
+      )
+    : bookingSteps
 
   return (
     <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
       <BookingFormProgress
-        step={wizard.step}
-        stepLabels={bookingSteps}
-        progressLabel={b.stepProgress(wizard.step + 1, bookingSteps.length)}
+        step={progressStep}
+        stepLabels={progressLabels}
+        progressLabel={b.stepProgress(progressStep + 1, bookingSteps.length)}
         backLabel={b.prevStep}
-        onBack={wizard.goPrev}
+        onBack={handleBack}
       />
 
-      <div key={wizard.step} className="booking-step-enter">
-        {wizard.step === 0 && (
-          <BookingCategoryStep
-            {...pickerBase}
-            onCategorySelected={wizard.handleCategorySelected}
+      <div key={awaitingLocaleChoice ? 'locale' : wizard.step} className="booking-step-enter">
+        {awaitingLocaleChoice ? (
+          <BookingForeignLocaleStep
+            title={b.foreignPhoneLocaleTitle}
+            message={b.foreignPhoneLocaleMessage}
+            acceptLabel={b.foreignPhoneLocaleAccept}
+            declineLabel={b.foreignPhoneLocaleDecline}
+            busy={form.submitting}
+            onAccept={() => void finishWithLocale('en')}
+            onDecline={() => void finishWithLocale('es')}
           />
-        )}
+        ) : (
+          <>
+            {wizard.step === 0 && (
+              <BookingCategoryStep
+                {...pickerBase}
+                onCategorySelected={wizard.handleCategorySelected}
+              />
+            )}
 
-        {wizard.step === 1 && (
-          <BookingServiceStep
-            locale={locale}
-            labels={{
-              selectedServices: b.selectedServices,
-              removeService: b.removeService,
-              addAnotherService: b.addAnotherService,
-              continueWithServices: b.continueWithServices,
-            }}
-            selectedServices={form.selectedServices}
-            onRemoveService={form.removeServiceId}
-            onBackToCategories={() => wizard.setStep(0)}
-            onContinue={wizard.handleContinueWithServices}
-            {...pickerBase}
-          />
-        )}
+            {wizard.step === 1 && (
+              <BookingServiceStep
+                locale={locale}
+                labels={{
+                  selectedServices: b.selectedServices,
+                  removeService: b.removeService,
+                  addAnotherService: b.addAnotherService,
+                  continueWithServices: b.continueWithServices,
+                }}
+                selectedServices={form.selectedServices}
+                onRemoveService={form.removeServiceId}
+                onBackToCategories={() => wizard.setStep(0)}
+                onContinue={wizard.handleContinueWithServices}
+                {...pickerBase}
+              />
+            )}
 
-        {wizard.step === SCHEDULE_STEP && (
-          <div className="space-y-8">
-            <BookingScheduleStep
-              form={form}
-              locale={locale}
-              bookableDates={bookableDates}
-              serviceLines={bookingServiceLines}
-              staffPickerLegend={staffPickerLegend}
-              labels={{
-                chooseServiceFirst: b.chooseServiceFirst,
-                day: b.day,
-                selectDay: b.selectDay,
-                prevMonth: b.prevMonth,
-                nextMonth: b.nextMonth,
-                hour: b.hour,
-                loadingSlots: b.loadingSlots,
-                noSlots: b.noSlots,
-                changeDay: b.changeDay,
-                changeTime: b.changeTime,
-                staff: b.staff,
-                loadingStaff: b.loadingStaff,
-                noStaffAtSlot: b.noStaffAtSlot,
-                chainAssignedHeading: b.chainAssignedHeading,
-                chainNeedsTimeChange: b.chainNeedsTimeChange,
-                chainConflictIntro: b.chainConflictIntro,
-                chainPostponeHeading: b.chainPostponeHeading,
-                chainPostponeHint: b.chainPostponeHint,
-              }}
-              onTimeSelected={wizard.handleTimeSelected}
-              onStaffSelected={(staffId) => void wizard.handleStaffSelected(staffId)}
-              onChangeDay={handleChangeDay}
-              onChangeTime={handleChangeTime}
-            />
-          </div>
-        )}
+            {wizard.step === SCHEDULE_STEP && (
+              <div className="space-y-8">
+                <BookingScheduleStep
+                  form={form}
+                  locale={locale}
+                  bookableDates={bookableDates}
+                  serviceLines={bookingServiceLines}
+                  staffPickerLegend={staffPickerLegend}
+                  labels={{
+                    chooseServiceFirst: b.chooseServiceFirst,
+                    day: b.day,
+                    selectDay: b.selectDay,
+                    prevMonth: b.prevMonth,
+                    nextMonth: b.nextMonth,
+                    hour: b.hour,
+                    loadingSlots: b.loadingSlots,
+                    noSlots: b.noSlots,
+                    changeDay: b.changeDay,
+                    changeTime: b.changeTime,
+                    staff: b.staff,
+                    loadingStaff: b.loadingStaff,
+                    noStaffAtSlot: b.noStaffAtSlot,
+                    chainAssignedHeading: b.chainAssignedHeading,
+                    chainNeedsTimeChange: b.chainNeedsTimeChange,
+                    chainConflictIntro: b.chainConflictIntro,
+                    chainPostponeHeading: b.chainPostponeHeading,
+                    chainPostponeHint: b.chainPostponeHint,
+                  }}
+                  onTimeSelected={wizard.handleTimeSelected}
+                  onStaffSelected={(staffId) => void wizard.handleStaffSelected(staffId)}
+                  onChangeDay={handleChangeDay}
+                  onChangeTime={handleChangeTime}
+                />
+              </div>
+            )}
 
-        {wizard.step === CONFIRM_STEP && (
-          <BookingConfirmStep
-            form={form}
-            locale={locale}
-            stepTitle={bookingSteps[CONFIRM_STEP]}
-            labels={{
-              fullName: b.fullName,
-              phone: b.phone,
-              emailOptional: b.emailOptional,
-              birthdate: b.birthdate,
-              notesOptional: b.notesOptional,
-              notesPlaceholder: b.notesPlaceholder,
-              returningCustomerQuestion: b.returningCustomerQuestion,
-              returningCustomerYes: b.returningCustomerYes,
-              returningCustomerNo: b.returningCustomerNo,
-              returningLookupHint: b.returningLookupHint,
-              returningGreeting: b.returningGreeting,
-              returningNotFound: b.returningNotFound,
-              lookupCustomer: b.lookupCustomer,
-              lookingUpCustomer: b.lookingUpCustomer,
-              changeCustomerType: b.changeCustomerType,
-              foreignPhoneLocaleTitle: b.foreignPhoneLocaleTitle,
-              foreignPhoneLocaleMessage: b.foreignPhoneLocaleMessage,
-              foreignPhoneLocaleAccept: b.foreignPhoneLocaleAccept,
-              foreignPhoneLocaleDecline: b.foreignPhoneLocaleDecline,
-            }}
-          />
+            {wizard.step === CONFIRM_STEP && (
+              <BookingConfirmStep
+                form={form}
+                locale={locale}
+                stepTitle={bookingSteps[CONFIRM_STEP]}
+                labels={{
+                  fullName: b.fullName,
+                  phone: b.phone,
+                  emailOptional: b.emailOptional,
+                  birthdate: b.birthdate,
+                  notesOptional: b.notesOptional,
+                  notesPlaceholder: b.notesPlaceholder,
+                  returningCustomerQuestion: b.returningCustomerQuestion,
+                  returningCustomerYes: b.returningCustomerYes,
+                  returningCustomerNo: b.returningCustomerNo,
+                  returningLookupHint: b.returningLookupHint,
+                  returningGreeting: b.returningGreeting,
+                  returningNotFound: b.returningNotFound,
+                  lookupCustomer: b.lookupCustomer,
+                  lookingUpCustomer: b.lookingUpCustomer,
+                  changeCustomerType: b.changeCustomerType,
+                }}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -204,19 +248,20 @@ export function AppointmentForm({
         </p>
       )}
 
-      {wizard.step === bookingSteps.length - 1 &&
+      {!awaitingLocaleChoice &&
+        wizard.step === bookingSteps.length - 1 &&
         form.customerType != null &&
         !(form.customerType === 'returning' && !form.returningVerified) && (
-        <Button
-          type="submit"
-          variant="solid"
-          size="lg"
-          className="mt-10 w-full"
-          disabled={form.submitting || !form.canSubmit}
-        >
-          {form.submitting ? b.saving : confirmLabel}
-        </Button>
-      )}
+          <Button
+            type="submit"
+            variant="solid"
+            size="lg"
+            className="mt-10 w-full"
+            disabled={form.submitting || !form.canSubmit}
+          >
+            {form.submitting ? b.saving : confirmLabel}
+          </Button>
+        )}
     </form>
   )
 }

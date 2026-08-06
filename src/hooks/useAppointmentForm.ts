@@ -573,10 +573,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.customerTypeRequired,
   ])
 
-  const submit = useCallback(async () => {
+  const submit = useCallback(async (opts?: { locale?: Locale }) => {
     setError('')
     if (!validateCustomerFields()) return null
     if (!canSubmit) return null
+
+    const localeForNotifications = opts?.locale ?? notificationLocale
+    if (opts?.locale) setNotificationLocale(opts.locale)
 
     setSubmitting(true)
 
@@ -605,7 +608,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         customerPhone,
         customerEmail: isReturning ? undefined : customerEmail || undefined,
         notes: notes || undefined,
-        locale: notificationLocale,
+        locale: localeForNotifications,
         returningCustomer: isReturning || undefined,
         birthdate: isReturning ? undefined : birthdate,
       })

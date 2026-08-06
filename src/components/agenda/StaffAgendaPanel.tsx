@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
+import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { canMarkAppointmentNoShow, APPOINTMENT_STATUS_NO_SHOW } from '@/lib/agenda/noShow'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
@@ -222,6 +223,12 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         busy={agenda.confirmBusy}
         onClose={agenda.closeConfirmDialog}
         onConfirm={agenda.runConfirmDialog}
+      />
+
+      <ForeignPhoneLocaleConfirmDialog
+        open={agenda.foreignPhoneLocalePromptOpen}
+        onAccept={() => void agenda.acceptForeignPhoneLocale()}
+        onDecline={() => void agenda.declineForeignPhoneLocale()}
       />
 
       {agenda.seriesConflictOpen && agenda.seriesConflictPreview && (
