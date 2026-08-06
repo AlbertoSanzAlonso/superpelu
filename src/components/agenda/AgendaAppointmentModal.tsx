@@ -496,9 +496,9 @@ export function AgendaAppointmentModal({
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
                       {serviceId && (
-                        <div className="flex flex-wrap items-end gap-2">
+                        <div className="space-y-2">
                           {index > 0 && (
-                            <div className="shrink-0">
+                            <div>
                               <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                                 Hora
                               </label>
@@ -515,7 +515,7 @@ export function AgendaAppointmentModal({
                             </div>
                           )}
                           {staffOptions.length > 1 && (
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0">
                               <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                                 Especialista
                               </label>
@@ -532,7 +532,7 @@ export function AgendaAppointmentModal({
                               </select>
                             </div>
                           )}
-                          <div className="min-w-0 flex-1">
+                          <div className="min-w-0">
                             <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                               Duración
                             </label>

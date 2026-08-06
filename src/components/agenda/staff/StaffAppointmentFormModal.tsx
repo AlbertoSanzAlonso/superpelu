@@ -148,9 +148,6 @@ export function StaffAppointmentFormModal({
                       defaultTime={draft.startTime || '10:00'}
                       required
                     />
-                    <p className="mt-2 text-[10px] text-charcoal-muted">
-                      Usa las flechas o escribe la hora
-                    </p>
                   </div>
                 )}
               </div>

@@ -480,7 +480,7 @@ export function StaffAppointmentFormFields({
                     const showStaff = Boolean(staffList && staffList.length > 1)
 
                     const durationField = (
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0">
                         <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                           Duración
                         </label>
@@ -503,7 +503,7 @@ export function StaffAppointmentFormFields({
                     )
 
                     const staffField = showStaff ? (
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0">
                         <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                           Especialista
                         </label>
@@ -521,17 +521,23 @@ export function StaffAppointmentFormFields({
                       </div>
                     ) : null
 
+                    const staffDurationRow = (
+                      <div
+                        className={`grid gap-2 ${
+                          showStaff ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'
+                        }`}
+                      >
+                        {staffField}
+                        {durationField}
+                      </div>
+                    )
+
                     if (!showStartTime) {
-                      return (
-                        <div className="flex flex-wrap items-end gap-2">
-                          {staffField}
-                          {durationField}
-                        </div>
-                      )
+                      return staffDurationRow
                     }
 
                     const timeField = (
-                      <div className="shrink-0">
+                      <div>
                         <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                           Hora
                         </label>
@@ -548,10 +554,9 @@ export function StaffAppointmentFormFields({
 
                     if (isAdmin) {
                       return (
-                        <div className="flex flex-wrap items-end gap-2">
+                        <div className="space-y-2">
                           {timeField}
-                          {staffField}
-                          {durationField}
+                          {staffDurationRow}
                         </div>
                       )
                     }
@@ -564,22 +569,9 @@ export function StaffAppointmentFormFields({
                     })
 
                     return (
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-end gap-2">
-                          <div className="shrink-0">
-                            <label className={`${typography.label} mb-0.5 block text-[10px]`}>
-                              Hora
-                            </label>
-                            <ClockTimeInput
-                              value={currentVal}
-                              onChange={(time) => setServiceStartTime(index, time)}
-                              defaultTime={chainedTime ?? freeOptions[0]}
-                              allowEmpty
-                            />
-                          </div>
-                          {staffField}
-                          {durationField}
-                        </div>
+                      <div className="space-y-2">
+                        {timeField}
+                        {staffDurationRow}
                         {isOccupied && (
                           <div className="space-y-0.5 text-xs text-amber-700">
                             {freeOptions.length > 0 && (
