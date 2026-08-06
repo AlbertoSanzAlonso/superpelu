@@ -236,17 +236,17 @@ export function logEmailStartup(): void {
   }
 }
 
-/** Avisa al administrador de que se ha creado una cita. No lanza errores. */
+/** Avisa al administrador de que se ha creado una cita (solo reservas web del cliente). No lanza errores. */
 export function notifyAdminAppointmentCreated(row: AppointmentRow): Promise<void> {
   return sendAppointmentAdminEmail(row, 'created')
 }
 
-/** Avisa al administrador de que se ha cancelado/eliminado una cita. No lanza errores. */
+/** Avisa al administrador de que se ha cancelado/eliminado una cita (solo acción del cliente). No lanza errores. */
 export function notifyAdminAppointmentCancelled(row: AppointmentRow): Promise<void> {
   return sendAppointmentAdminEmail(row, 'cancelled')
 }
 
-/** Avisa al administrador de que un cliente ha modificado su cita. No lanza errores. */
+/** Avisa al administrador de que un cliente ha modificado su cita (enlace /m). No lanza errores. */
 export function notifyAdminAppointmentUpdated(
   previous: AppointmentRow,
   row: AppointmentRow,

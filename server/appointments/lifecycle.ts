@@ -65,7 +65,6 @@ export async function deleteAppointmentForStaff(
     const ids = toDelete.map((r) => r.id)
     await sql`DELETE FROM appointments WHERE id = ANY(${ids}::text[])`
     if (existing.status !== 'cancelled') {
-      void notifyAdminAppointmentCancelled(existing)
       void notifyAppointmentCancelled(existing).catch((err) => {
         console.error('Superpelu WhatsApp (visita eliminada):', err)
       })
@@ -79,7 +78,6 @@ export async function deleteAppointmentForStaff(
       WHERE series_id = ${existing.series_id} AND staff_id = ${staffId}
     `
     if (result.count > 0 && existing.status !== 'cancelled') {
-      void notifyAdminAppointmentCancelled(existing)
       void notifyAppointmentCancelled(existing).catch((err) => {
         console.error('Superpelu WhatsApp (cita cancelada):', err)
       })
@@ -90,7 +88,6 @@ export async function deleteAppointmentForStaff(
   if (existing.color_group_id) {
     const { deleted } = await deleteAppointmentsInColorGroup(existing)
     if (deleted && existing.status !== 'cancelled') {
-      void notifyAdminAppointmentCancelled(existing)
       void notifyAppointmentCancelled(existing).catch((err) => {
         console.error('Superpelu WhatsApp (cita cancelada):', err)
       })
@@ -102,7 +99,6 @@ export async function deleteAppointmentForStaff(
     DELETE FROM appointments WHERE id = ${appointmentId} AND staff_id = ${staffId}
   `
   if (result.count > 0 && existing.status !== 'cancelled') {
-    void notifyAdminAppointmentCancelled(existing)
     void notifyAppointmentCancelled(existing).catch((err) => {
       console.error('Superpelu WhatsApp (cita cancelada):', err)
     })
@@ -272,7 +268,7 @@ async function cancelSingleOccurrence(
   }
   const row = await getAppointmentById(existing.id)
   if (row && !wasCancelled) {
-    if (options?.notifyAdmin !== false) {
+    if (options?.notifyAdmin === true) {
       void notifyAdminAppointmentCancelled(row)
     }
     if (options?.notifyCustomer) {
@@ -312,7 +308,7 @@ async function cancelAppointmentSeries(
 
   const row = await getAppointmentById(existing.id)
   if (row && active.length > 0) {
-    if (options?.notifyAdmin !== false) {
+    if (options?.notifyAdmin === true) {
       void notifyAdminAppointmentCancelled(existing)
     }
     if (options?.notifyCustomer) {
@@ -345,7 +341,7 @@ export async function cancelAppointment(
       await cancelSingleOccurrence(row, { notifyCustomer: false, notifyAdmin: false })
     }
     if (rootsToCancel.length > 0) {
-      if (options?.notifyAdmin !== false) void notifyAdminAppointmentCancelled(existing)
+      if (options?.notifyAdmin === true) void notifyAdminAppointmentCancelled(existing)
       if (options?.notifyCustomer) {
         void notifyAppointmentCancelled(existing).catch((err) => {
           console.error('Superpelu WhatsApp (visita cancelada):', err)
@@ -370,7 +366,10 @@ export async function cancelBookingGroupByCustomer(
   if (!anchor) return 0
 
   if (!anchor.booking_group_id) {
-    const row = await cancelAppointment(anchorId, options)
+    const row = await cancelAppointment(anchorId, {
+      ...options,
+      notifyAdmin: true,
+    })
     return row ? 1 : 0
   }
 

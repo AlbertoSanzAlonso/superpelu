@@ -473,7 +473,10 @@ export async function createChainedBookingAppointment(
         console.error('Superpelu WhatsApp (cita nueva):', err)
       },
     )
-    void notifyAdminAppointmentCreated(row)
+    // Email al admin solo en reserva pública (/reservar), no desde agenda.
+    if (!input.forStaffPortal) {
+      void notifyAdminAppointmentCreated(row)
+    }
   }
   return row
 }

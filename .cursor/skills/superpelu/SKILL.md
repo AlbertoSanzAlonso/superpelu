@@ -401,13 +401,21 @@ Dev: `npm run openwa:up` → API `http://127.0.0.1:2785/api`, dashboard `:2886`.
 
 ## Email (aviso al administrador)
 
-En **cada cita nueva o cancelada** se envía un email al administrador del negocio (`server/notifications/email.ts`, SMTP vía `nodemailer`). Cubre todas las vías porque se engancha en las funciones de datos, no en las rutas:
+Solo acciones del **cliente** (no staff en `/agenda`):
+
+- **Cita nueva:** reserva en `/reservar`.
+- **Cita modificada:** enlace WhatsApp `/m/:code`.
+- **Cita cancelada:** enlace WhatsApp `/c/:code` (o cancelación de visita multi).
+
+Los envíos se enganchan en las funciones de datos (`server/notifications/email.ts`, SMTP vía `nodemailer`), no en las rutas:
 
 | Función (`server/appointments/`) | Evento |
 |-------------------------------------|--------|
-| `createAppointment` | `created` (reserva pública, agenda admin y profesional) |
-| `cancelAppointment` | `cancelled` (cancelación admin + enlace público `/c/:code`) |
-| `deleteAppointmentForStaff` | `cancelled` (profesional elimina su cita) |
+| `createAppointment` / `createChainedAppointment` | `created` **solo si** `!forStaffPortal` |
+| `rescheduleAppointmentByCustomer` | `updated` (enlace `/m`) |
+| `cancelAppointment` con `notifyAdmin: true` / `cancelBookingGroupByCustomer` | `cancelled` (enlace `/c`) |
+
+Agenda admin/profesional (alta, edición, cancelación, borrado) **no** envía email al propietario.
 
 Los envíos son *fire-and-forget* (`void`, error capturado y logueado): nunca bloquean ni rompen la respuesta de la API.
 

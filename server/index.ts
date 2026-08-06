@@ -1838,7 +1838,7 @@ app.post('/c/:code', async (c) => {
   }
 
   const multiVisit = isMultiTreatmentVisit(groupRows)
-  await cancelAppointment(cancelId, { notifyCustomer: !multiVisit })
+  await cancelAppointment(cancelId, { notifyCustomer: !multiVisit, notifyAdmin: true })
   const t = cp(locale).cancel
   const remaining = activeRows.filter((row) => row.id !== cancelId)
 

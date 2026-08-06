@@ -10,7 +10,6 @@ import {
   upsertCustomer,
 } from "@server/customers/index.js"
 import { notifyAppointmentUpdated } from "@server/notifications/whatsapp.js"
-import { notifyAdminAppointmentUpdated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import {
   COLOR_GROUP_ROLE,
@@ -256,13 +255,10 @@ export async function updateAppointmentForStaff(
     scheduleChanged &&
     !isColorGroupWashRow(existing.color_group_role) &&
     input.notifyCustomerWhatsApp === true
-  if (scheduleChanged) {
-    if (notifyCustomerReschedule) {
-      void notifyAppointmentUpdated(updated).catch((err) => {
-        console.error('Superpelu WhatsApp (cita modificada):', err)
-      })
-    }
-    void notifyAdminAppointmentUpdated(existing, updated)
+  if (scheduleChanged && notifyCustomerReschedule) {
+    void notifyAppointmentUpdated(updated).catch((err) => {
+      console.error('Superpelu WhatsApp (cita modificada):', err)
+    })
   }
   return updated
 }
@@ -340,7 +336,6 @@ async function replaceAppointment(
       console.error('Superpelu WhatsApp (cita modificada):', err)
     })
   }
-  void notifyAdminAppointmentUpdated(existing, created)
   return created
 }
 
