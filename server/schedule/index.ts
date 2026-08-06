@@ -90,22 +90,7 @@ export async function setSalonSchedule(
     }
   }
 
-  const salon = await getSalonSchedule()
-  await syncAllStaffAvailabilityFromSalon(salon.weeklyWindows)
-  return salon
-}
-
-/** Copia el horario semanal del salón a todas las profesionales activas. */
-export async function syncAllStaffAvailabilityFromSalon(
-  weeklyWindows?: Record<number, ScheduleTimeRange[]>,
-): Promise<void> {
-  const windows = weeklyWindows ?? (await getSalonSchedule()).weeklyWindows
-  const staffRows = await sql<{ id: string }[]>`
-    SELECT id FROM staff WHERE active = TRUE
-  `
-  for (const row of staffRows) {
-    await setStaffSchedule(row.id, windows)
-  }
+  return getSalonSchedule()
 }
 
 export async function getStaffSchedule(staffId: string): Promise<Record<number, ScheduleTimeRange[]>> {

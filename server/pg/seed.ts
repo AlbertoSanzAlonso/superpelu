@@ -6,10 +6,10 @@ import {
   salonStaffMembers,
 } from '@/data/salonStaff'
 import { sql } from '@server/pg/client.js'
-import {
-  seedSalonScheduleIfMissing,
-  syncAllStaffAvailabilityFromSalon,
-} from '@server/schedule/index.js'
+import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/index.js'
+
+/** Restauración puntual tras un sync erróneo que pisaba el personal con el horario del salón. */
+const STAFF_HOURS_RESTORE_KEY = 'staff_weekly_hours_restored_v1'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -185,18 +185,12 @@ async function syncStaffMemberAvailability(
   staffId: string,
   hours: Partial<Record<number, readonly { start: string; end: string }[]>>,
 ): Promise<void> {
-  await sql`DELETE FROM staff_availability WHERE staff_id = ${staffId}`
+  const weeklyWindows: Record<number, { start: string; end: string }[]> = {}
   for (const [dayStr, ranges] of Object.entries(hours)) {
     if (!ranges?.length) continue
-    for (const range of ranges) {
-      await sql`
-        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time)
-        VALUES (${staffId}, ${Number(dayStr)}, ${range.start}, ${range.end})
-        ON CONFLICT (staff_id, day_of_week, start_time) DO UPDATE SET
-          end_time = EXCLUDED.end_time
-      `
-    }
+    weeklyWindows[Number(dayStr)] = ranges.map((r) => ({ start: r.start, end: r.end }))
   }
+  await setStaffSchedule(staffId, weeklyWindows)
 }
 
 export async function seedStaffAvailabilityIfMissing(): Promise<void> {
@@ -218,6 +212,29 @@ export async function seedStaffAvailabilityIfMissing(): Promise<void> {
   }
 }
 
+/**
+ * Aplica `weeklyHours` del catálogo a quienes lo tienen definido, una sola vez
+ * (flag en salon_settings). No vuelve a pisar ediciones posteriores en `/horarios`.
+ */
+export async function restoreCatalogStaffWeeklyHoursOnce(): Promise<void> {
+  const existing = await sql<{ value: string }[]>`
+    SELECT value FROM salon_settings WHERE key = ${STAFF_HOURS_RESTORE_KEY} LIMIT 1
+  `
+  if (existing.length > 0) return
+
+  for (const member of salonStaffMembers) {
+    if (!member.weeklyHours) continue
+    await syncStaffMemberAvailability(member.id, member.weeklyHours)
+  }
+
+  const now = nowIso()
+  await sql`
+    INSERT INTO salon_settings (key, value, updated_at)
+    VALUES (${STAFF_HOURS_RESTORE_KEY}, ${now}, ${now})
+    ON CONFLICT (key) DO NOTHING
+  `
+}
+
 export async function runSeed(): Promise<void> {
   await seedServiceCategories()
   await syncSalonServices()
@@ -227,6 +244,7 @@ export async function runSeed(): Promise<void> {
   await syncStaffAllServices()
   await seedSalonScheduleIfMissing()
   await seedStaffAvailabilityIfMissing()
-  // Alinea personal al horario del salón (antes se pisaba con defaults del catálogo).
-  await syncAllStaffAvailabilityFromSalon()
+  // Una sola vez: recupera horarios reales del catálogo tras el sync erróneo al salón.
+  // Los arranques siguientes no tocan staff_availability ya poblada.
+  await restoreCatalogStaffWeeklyHoursOnce()
 }
