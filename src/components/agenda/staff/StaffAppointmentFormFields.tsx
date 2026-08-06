@@ -12,7 +12,7 @@ import { usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
-import { buildEditableServiceTimeOptions } from '@/lib/agenda/serviceTimeOptions'
+import { buildEditableServiceTimeOptions, ALL_DAY_SLOTS } from '@/lib/agenda/serviceTimeOptions'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
@@ -79,9 +79,24 @@ export function StaffAppointmentFormFields({
   adminToken,
   compact = false,
 }: Props) {
-  const timeOptions = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])].sort()
-  const overHoursSet = new Set(slotsOverHours)
+  const freeSet = useMemo(() => new Set(slots), [slots])
+  const overHoursSet = useMemo(() => new Set(slotsOverHours), [slotsOverHours])
+  const timeOptions = useMemo(() => {
+    const base = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])]
+    return base.sort()
+  }, [slots, draft.startTime])
+  const occupiedOptions = useMemo(() => {
+    if (!adminToken) return []
+    return ALL_DAY_SLOTS.filter(
+      (t) => !freeSet.has(t) && !overHoursSet.has(t) && t !== draft.startTime,
+    )
+  }, [adminToken, freeSet, overHoursSet, draft.startTime])
   const isOverHoursSelected = draft.startTime ? overHoursSet.has(draft.startTime) : false
+  const isOccupiedSelected =
+    Boolean(adminToken) &&
+    Boolean(draft.startTime) &&
+    !freeSet.has(draft.startTime) &&
+    !overHoursSet.has(draft.startTime)
   const selectCn = compact
     ? 'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
     : 'w-full border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:opacity-50'
@@ -471,6 +486,7 @@ export function StaffAppointmentFormFields({
         }
         freeOptions={timeOptions}
         overHoursOptions={slotsOverHours}
+        occupiedOptions={occupiedOptions}
         className={selectCn}
         disabled={!hasServices}
         required
@@ -478,6 +494,11 @@ export function StaffAppointmentFormFields({
       {isOverHoursSelected && (
         <p className="mt-1 text-xs text-amber-700">
           Esta hora va más allá del horario del salón.
+        </p>
+      )}
+      {isOccupiedSelected && (
+        <p className="mt-1 text-xs text-amber-700">
+          Esta hora está ocupada o fuera de franja; se guardará igualmente.
         </p>
       )}
     </div>
