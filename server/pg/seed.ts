@@ -14,13 +14,6 @@ import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/i
  */
 const STAFF_HOURS_RESTORE_KEY = 'staff_weekly_hours_restored_v1'
 
-/**
- * Una sola vez: clientes con teléfono E.164 y prefijo de país extranjero
- * (p. ej. +44, +33…; no basta con “no +34”) → locale `en`.
- * También citas no canceladas de esos teléfonos.
- */
-const CUSTOMERS_INTL_LOCALE_EN_KEY = 'customers_intl_locale_en_v2'
-
 function nowIso(): string {
   return new Date().toISOString()
 }
@@ -186,53 +179,6 @@ export async function applyStartingStaffWeeklyHoursOnce(): Promise<void> {
   `
 }
 
-/**
- * Una sola vez: E.164 con prefijo de país distinto de +34 → `customers.locale = en`
- * (+ citas no canceladas de esos clientes, para WhatsApp/recordatorios).
- * Sin `+…` o números mal formados no se tocan (no basta con “ausencia de +34”).
- */
-export async function applyIntlCustomersLocaleEnOnce(): Promise<void> {
-  const existing = await sql<{ value: string }[]>`
-    SELECT value FROM salon_settings WHERE key = ${CUSTOMERS_INTL_LOCALE_EN_KEY} LIMIT 1
-  `
-  if (existing.length > 0) return
-
-  // E.164: + y 7–15 dígitos; país ≠ 34 (España).
-  const intlE164 = String.raw`^\+[1-9]\d{6,14}$`
-  const notSpain = String.raw`^\+34`
-
-  const now = nowIso()
-  const updatedCustomers = await sql<{ phone: string }[]>`
-    UPDATE customers
-    SET locale = 'en', updated_at = ${now}
-    WHERE phone ~ ${intlE164}
-      AND phone !~ ${notSpain}
-      AND locale IS DISTINCT FROM 'en'
-    RETURNING phone
-  `
-
-  const updatedAppointments = await sql<{ id: string }[]>`
-    UPDATE appointments
-    SET locale = 'en'
-    WHERE customer_phone ~ ${intlE164}
-      AND customer_phone !~ ${notSpain}
-      AND status != 'cancelled'
-      AND locale IS DISTINCT FROM 'en'
-    RETURNING id
-  `
-
-  await sql`
-    INSERT INTO salon_settings (key, value, updated_at)
-    VALUES (${CUSTOMERS_INTL_LOCALE_EN_KEY}, ${now}, ${now})
-    ON CONFLICT (key) DO NOTHING
-  `
-
-  console.log(
-    `Superpelu: locale en para teléfonos con prefijo extranjero ` +
-      `(clientes=${updatedCustomers.length}, citas=${updatedAppointments.length})`,
-  )
-}
-
 export async function runSeed(): Promise<void> {
   // Solo inserts de filas ausentes + caches derivadas. No reescribe catálogo/personal/horarios.
   await seedServiceCategories()
@@ -243,6 +189,4 @@ export async function runSeed(): Promise<void> {
   await seedSalonScheduleIfMissing()
   // Una sola vez: horarios de partida en BD. Luego solo editables en `/horarios`.
   await applyStartingStaffWeeklyHoursOnce()
-  // Una sola vez: clientes internacionales → inglés.
-  await applyIntlCustomersLocaleEnOnce()
 }
