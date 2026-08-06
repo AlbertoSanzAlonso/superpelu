@@ -1,5 +1,5 @@
 import { priceEurToCents, serviceCategories } from '@/data/serviceCategories'
-import { salonServices, salonServiceIds } from '@/data/salonServices'
+import { salonServices } from '@/data/salonServices'
 import {
   legacyMockStaffIds,
   salonStaffMembers,
@@ -18,6 +18,10 @@ function nowIso(): string {
   return new Date().toISOString()
 }
 
+/**
+ * Catálogo / personal: solo inserta filas que faltan.
+ * Un redeploy no pisa ediciones del panel admin (nombres, duraciones, altas, bajas…).
+ */
 export async function seedServiceCategories(): Promise<void> {
   const now = nowIso()
   for (const category of serviceCategories) {
@@ -33,13 +37,7 @@ export async function seedServiceCategories(): Promise<void> {
         ${category.id}, ${category.nameEs}, ${category.nameEn}, TRUE,
         ${category.sortOrder}, ${priceFromCents}, ${priceNote}, ${now}, ${now}
       )
-      ON CONFLICT (id) DO UPDATE SET
-        name_es = EXCLUDED.name_es,
-        name_en = EXCLUDED.name_en,
-        sort_order = EXCLUDED.sort_order,
-        price_from_cents = EXCLUDED.price_from_cents,
-        price_note = EXCLUDED.price_note,
-        updated_at = EXCLUDED.updated_at
+      ON CONFLICT (id) DO NOTHING
     `
   }
 }
@@ -56,39 +54,8 @@ export async function syncSalonServices(): Promise<void> {
         ${service.id}, ${service.nameEs}, ${service.nameEn}, ${service.durationMinutes},
         ${service.categoryId}, TRUE, ${service.sortOrder}, ${bookableOnline}, ${now}, ${now}
       )
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        name_en = EXCLUDED.name_en,
-        duration_minutes = EXCLUDED.duration_minutes,
-        category_id = EXCLUDED.category_id,
-        active = TRUE,
-        sort_order = EXCLUDED.sort_order,
-        bookable_online = EXCLUDED.bookable_online,
-        updated_at = EXCLUDED.updated_at
+      ON CONFLICT (id) DO NOTHING
     `
-  }
-
-  const activeRows = await sql<{ id: string }[]>`
-    SELECT id FROM services WHERE active = TRUE
-  `
-  const orphanIds = activeRows.map((r) => r.id).filter((id) => !salonServiceIds.has(id))
-
-  for (const id of orphanIds) {
-    await sql`
-      UPDATE services SET active = FALSE, updated_at = ${now} WHERE id = ${id}
-    `
-  }
-}
-
-export async function purgeServicesWithoutCategory(): Promise<void> {
-  const legacyRows = await sql<{ id: string }[]>`
-    SELECT id FROM services
-    WHERE category_id IS NULL OR trim(category_id) = ''
-  `
-  for (const { id } of legacyRows) {
-    await sql`DELETE FROM staff_services WHERE service_id = ${id}`
-    await sql`DELETE FROM appointments WHERE service_id = ${id}`
-    await sql`DELETE FROM services WHERE id = ${id}`
   }
 }
 
@@ -102,20 +69,14 @@ export async function syncSalonStaff(): Promise<void> {
         ${member.id}, ${member.name}, ${member.role}, ${member.phone}, ${member.email},
         TRUE, ${member.sortOrder}, NULL, ${now}, ${now}
       )
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        role = EXCLUDED.role,
-        phone = EXCLUDED.phone,
-        email = EXCLUDED.email,
-        active = TRUE,
-        sort_order = EXCLUDED.sort_order,
-        updated_at = EXCLUDED.updated_at
+      ON CONFLICT (id) DO NOTHING
     `
   }
 
   for (const legacyId of legacyMockStaffIds) {
     await sql`
-      UPDATE staff SET active = FALSE, updated_at = ${now} WHERE id = ${legacyId}
+      UPDATE staff SET active = FALSE, updated_at = ${now}
+      WHERE id = ${legacyId} AND active = TRUE
     `
   }
 }
@@ -219,9 +180,9 @@ export async function applyStartingStaffWeeklyHoursOnce(): Promise<void> {
 }
 
 export async function runSeed(): Promise<void> {
+  // Solo inserts de filas ausentes + caches derivadas. No reescribe catálogo/personal/horarios.
   await seedServiceCategories()
   await syncSalonServices()
-  await purgeServicesWithoutCategory()
   await syncSalonStaff()
   await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()

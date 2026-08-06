@@ -14,12 +14,12 @@ description: >-
 
 - **Un proceso Node** (`npm start` → `tsx --tsconfig tsconfig.server.json server/index.ts`): API + `dist/` en el mismo puerto (`PORT`, default `3001`).
 - **No** desplegar solo `dist/` estático: la API debe ir en el mismo contenedor.
-- **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se sincroniza el catálogo.
+- **PostgreSQL en el servidor:** solo el proceso Node se conecta (`DATABASE_URL`, `server/pg/client.ts`, librería `postgres`). El frontend **no** accede a la BD; citas y agenda van por `/api`. Al arrancar se aplica `server/pg/schema.sql` y se hace seed **solo de filas ausentes** (sin pisar catálogo/personal editados en panel).
 - **No** usar Supabase Realtime, Auth ni `supabase-js` para citas/agenda (`src/lib/supabaseClient.ts` es opcional y no se usa en flujos de reserva).
 - **Zona horaria:** `Europe/Madrid` — `src/data/schedule.ts`, `src/lib/core/dates.ts`, `TZ=Europe/Madrid` en Docker.
 - **Horario salón:** lun–sáb con franjas mañana/tarde (domingo cerrado). Editable desde `/horarios` (admin). Fallback: `src/data/schedule.ts` → `weeklyWindows`; slots cada 30 min.
 
-Al arrancar, `server/db.ts` sincroniza (upsert) categorías, servicios, personal; si un profesional no tiene filas en `staff_categories`, se le asignan todas las categorías activas; `staff_services` se regenera desde esas categorías. Las asociaciones editadas en `/personal` no se pisan.
+Al arrancar, `server/pg/seed.ts` solo **inserta** categorías/servicios/personal que falten (`ON CONFLICT DO NOTHING`); no pisa ediciones del panel. Si un profesional no tiene filas en `staff_categories`, se le asignan todas las categorías activas; `staff_services` se regenera desde esas categorías.
 
 ## Estructura del código
 
@@ -52,7 +52,9 @@ Imports: `@server/appointments/index.js`, `@server/staff/blocks.js`, `@server/sc
 
 Imports: `@/lib/booking/occupancy`, `@/lib/core/dates`, `@/lib/api`, etc.
 
-## Datos maestros (fuente de verdad en código)
+## Datos maestros (bootstrap en código; en producción manda la BD)
+
+Los archivos de `src/data/` sirven para **primer arranque** e IDs nuevos. Tras el seed, el panel admin / BD es la fuente de verdad: el arranque no reescribe filas existentes.
 
 | Archivo | Contenido |
 |---------|-----------|
@@ -362,7 +364,7 @@ npm run dev            # Vite :5173 + API :3001 (tsx con tsconfig.server.json)
 npm run build && npm start
 ```
 
-Tras editar `salonServices.ts` o categorías: **reiniciar servidor** para `syncSalonServices`.
+Tras editar `salonServices.ts` o categorías: el arranque solo inserta IDs nuevos; para cambiar filas ya existentes hay que editarlas en el panel admin o en la BD.
 
 ## WhatsApp (OpenWA)
 

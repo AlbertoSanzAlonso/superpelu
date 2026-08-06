@@ -45,10 +45,7 @@ export {
   deleteSalonSpecialDate,
   updateStaffSchedule,
   fetchStats,
-  fetchBookingFallback,
-  updateBookingFallback,
 } from './admin'
-export type { BookingFallbackResponse } from './admin'
 export type { AdminService, AdminServiceCategory } from './admin-catalog'
 export {
   fetchAdminServices,

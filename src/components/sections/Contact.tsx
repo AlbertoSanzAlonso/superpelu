@@ -2,17 +2,18 @@ import type { ReactNode } from 'react'
 import { brand } from '@/data/content'
 import { getBookingOptions, whatsappUrl } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
-import { useBookingFallback } from '@/hooks/useBookingFallback'
-import { bookingAnchorProps, isExternalBookingHref } from '@/lib/booking/fallback'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 import { PhoneIcon, WhatsAppIcon, CalendarIcon } from '@/components/ui/Icons'
 
+function isExternalHref(href: string): boolean {
+  return href.startsWith('http://') || href.startsWith('https://')
+}
+
 export function Contact() {
   const { t, locale } = useTranslation()
-  const { bookingHref, linkProps } = useBookingFallback()
-  const bookingOptions = getBookingOptions(locale, bookingHref)
+  const bookingOptions = getBookingOptions(locale)
 
   return (
     <Section
@@ -53,12 +54,9 @@ export function Contact() {
     >
       <div className="mb-12 grid gap-6 md:grid-cols-3">
         {bookingOptions.map((option) => {
-          const optionLink =
-            option.id === 'online'
-              ? bookingAnchorProps(option.href)
-              : isExternalBookingHref(option.href)
-                ? { href: option.href, target: '_blank' as const, rel: 'noopener noreferrer' }
-                : { href: option.href }
+          const optionLink = isExternalHref(option.href)
+            ? { href: option.href, target: '_blank' as const, rel: 'noopener noreferrer' }
+            : { href: option.href }
           return (
             <article
               key={option.id}
@@ -133,7 +131,7 @@ export function Contact() {
         </div>
 
         <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-          <Button {...linkProps} variant="solid" size="lg">
+          <Button href={brand.bookingOnline} variant="solid" size="lg">
             {t.nav.bookAppointmentOnline}
           </Button>
           <Button href={whatsappUrl(locale)} variant="outline" size="lg">

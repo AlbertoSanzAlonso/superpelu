@@ -20,7 +20,6 @@ import { AppointmentAvailabilityWarningModal } from '@/components/agenda/Appoint
 import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { typography } from '@/styles/typography'
 import type { UseAdminAgendaReturn } from '@/hooks/useAdminAgenda'
-import { fetchBookingFallback, updateBookingFallback } from '@/lib/api/admin'
 import { useEffect, useMemo, useState } from 'react'
 import type { DayScheduleAppointment, DayScheduleBlock } from '@/types/booking'
 
@@ -83,23 +82,7 @@ export function AdminAgendaWorkspace({
   const appointmentModalOpen =
     agenda.appointmentFormOpen || agenda.viewingAppointment != null
 
-  const [bukFallbackEnabled, setBukFallbackEnabled] = useState(false)
-  const [bukFallbackBusy, setBukFallbackBusy] = useState(false)
   const [pendingColumnAction, setPendingColumnAction] = useState<PendingColumnAction | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    void fetchBookingFallback(adminToken)
-      .then((res) => {
-        if (!cancelled) setBukFallbackEnabled(res.enabled)
-      })
-      .catch(() => {
-        /* ignore */
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [adminToken])
 
   useEffect(() => {
     if (agendaView === 'day') return
@@ -125,19 +108,6 @@ export function AdminAgendaWorkspace({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when date/bundle ready
   }, [pendingColumnAction, selectedDate, agenda.loadedDate])
-
-  async function toggleBukFallback() {
-    if (bukFallbackBusy) return
-    setBukFallbackBusy(true)
-    try {
-      const next = await updateBookingFallback(adminToken, !bukFallbackEnabled)
-      setBukFallbackEnabled(next.enabled)
-    } catch {
-      /* keep previous state */
-    } finally {
-      setBukFallbackBusy(false)
-    }
-  }
 
   function closeAppointmentForm() {
     agenda.setAppointmentFormOpen(false)
@@ -193,9 +163,6 @@ export function AdminAgendaWorkspace({
           onNotificationBellOpen={notifications.openBell}
           onNotificationBellClose={notifications.closeBell}
           onNotificationSelect={openAppointmentFromNotification}
-          bukFallbackEnabled={bukFallbackEnabled}
-          bukFallbackBusy={bukFallbackBusy}
-          onToggleBukFallback={() => void toggleBukFallback()}
         />
 
         {agenda.error && !appointmentModalOpen && (

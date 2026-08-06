@@ -127,10 +127,6 @@ import {
   deleteSalonSpecialDate,
 } from '@server/schedule/special.js'
 import {
-  getBookingFallback,
-  setBookingFallback,
-} from '@server/schedule/bookingFallback.js'
-import {
   getOpenWaAdminConfig,
   isOpenWaConfigured,
   isOpenWaSessionConnected,
@@ -227,26 +223,6 @@ app.get('/api/auth/verify', (c) => {
     return c.json({ error: 'No autorizado' }, 401)
   }
   return c.json({ ok: true })
-})
-
-app.get('/api/booking/fallback', async (c) => {
-  return c.json(await getBookingFallback())
-})
-
-app.get('/api/admin/booking-fallback', async (c) => {
-  const auth = c.req.header('Authorization')
-  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  return c.json(await getBookingFallback())
-})
-
-app.put('/api/admin/booking-fallback', async (c) => {
-  const auth = c.req.header('Authorization')
-  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json<{ enabled?: boolean }>()
-  if (typeof body.enabled !== 'boolean') {
-    return c.json({ error: 'Falta enabled (boolean)' }, 400)
-  }
-  return c.json(await setBookingFallback(body.enabled))
 })
 
 app.get('/api/admin/schedule', async (c) => {
@@ -824,21 +800,6 @@ app.post('/api/appointments', async (c) => {
     (body.serviceId ? [body.serviceId] : [])
 
   const locale = normalizeLocale(body.locale)
-
-  const fallback = await getBookingFallback()
-  if (fallback.enabled) {
-    return c.json(
-      {
-        error:
-          locale === 'en'
-            ? 'Online booking is temporarily redirected. Please use the BUK agenda.'
-            : 'La reserva online está temporalmente redirigida. Usa la agenda BUK.',
-        code: 'BOOKING_FALLBACK_BUK',
-        url: fallback.url,
-      },
-      503,
-    )
-  }
 
   if (
     serviceIds.length === 0 ||

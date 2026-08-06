@@ -358,13 +358,6 @@ const es = {
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida.',
       CLIENTE_NO_ENCONTRADO: 'No encontramos un cliente con ese móvil.',
     },
-    bukFallback: {
-      pageTitle: 'Reserva en la agenda BUK',
-      pageSubtitle: 'La reserva online temporal está en la agenda antigua.',
-      body: 'Escanea el código QR o abre el enlace para reservar tu cita en la agenda BUK.',
-      openBuk: 'Abrir agenda BUK',
-      qrAlt: 'Código QR para reservar en buk.es/superpelu',
-    },
   },
   calendar: {
     add: 'Añadir al calendario',
@@ -946,13 +939,6 @@ const en = {
       FECHA_NACIMIENTO_OBLIGATORIA: 'Date of birth is required.',
       FECHA_NACIMIENTO_INVALIDA: 'Invalid date of birth.',
       CLIENTE_NO_ENCONTRADO: 'We could not find a client with that mobile number.',
-    },
-    bukFallback: {
-      pageTitle: 'Book on the BUK agenda',
-      pageSubtitle: 'Online booking is temporarily on the previous agenda.',
-      body: 'Scan the QR code or open the link to book your appointment on the BUK agenda.',
-      openBuk: 'Open BUK agenda',
-      qrAlt: 'QR code to book at buk.es/superpelu',
     },
   },
   calendar: {

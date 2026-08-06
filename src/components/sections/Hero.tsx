@@ -1,13 +1,11 @@
 import { brand } from '@/data/content'
 import { useTranslation } from '@/i18n/useTranslation'
-import { useBookingFallback } from '@/hooks/useBookingFallback'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export function Hero() {
   const { t } = useTranslation()
-  const { linkProps } = useBookingFallback()
 
   return (
     <section
@@ -45,7 +43,7 @@ export function Hero() {
         </p>
 
         <div className="animate-fade-up-delay flex flex-col items-center justify-center gap-4 sm:flex-row">
-          <Button {...linkProps} variant="solid" size="lg">
+          <Button href={brand.bookingOnline} variant="solid" size="lg">
             {t.nav.bookAppointment}
           </Button>
           <Button href="#servicios" variant="outline" size="lg">

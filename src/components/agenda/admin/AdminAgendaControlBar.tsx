@@ -58,9 +58,6 @@ type Props = {
   onNotificationBellOpen?: () => void
   onNotificationBellClose?: () => void
   onNotificationSelect?: (item: AdminAppointmentNotificationItem) => void
-  bukFallbackEnabled?: boolean
-  bukFallbackBusy?: boolean
-  onToggleBukFallback?: () => void
 }
 
 function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
@@ -124,9 +121,6 @@ export function AdminAgendaControlBar({
   onNotificationBellOpen,
   onNotificationBellClose,
   onNotificationSelect,
-  bukFallbackEnabled = false,
-  bukFallbackBusy = false,
-  onToggleBukFallback,
 }: Props) {
   const isToday = date === todaySalon()
   const navStep = agendaViewNavStep(agendaView)
@@ -216,26 +210,6 @@ export function AdminAgendaControlBar({
       <Link to="/stats" className={navLinkClass}>
         Stats
       </Link>
-      {onToggleBukFallback != null && (
-        <button
-          type="button"
-          className={
-            bukFallbackEnabled
-              ? 'flex h-8 shrink-0 cursor-pointer items-center border border-gold bg-gold/15 px-2 text-xs font-medium text-gold'
-              : navLinkClass
-          }
-          disabled={bukFallbackBusy}
-          aria-pressed={bukFallbackEnabled}
-          title={
-            bukFallbackEnabled
-              ? 'Fallback BUK activo: la reserva pública va a buk.es/superpelu'
-              : 'Activar fallback: reserva pública en agenda BUK'
-          }
-          onClick={onToggleBukFallback}
-        >
-          {bukFallbackBusy ? '…' : bukFallbackEnabled ? 'BUK ON' : 'Fallback BUK'}
-        </button>
-      )}
       <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 px-2 text-xs" onClick={onLogout}>
         Salir
       </Button>

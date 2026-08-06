@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { brand } from '@/data/content'
 import { getNavLinks } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
-import { useBookingFallback } from '@/hooks/useBookingFallback'
 import { Logo } from '@/components/ui/Logo'
 import { Button } from '@/components/ui/Button'
 import { LanguageSwitcher } from '@/components/layout/LanguageSwitcher'
@@ -11,7 +10,6 @@ const SCROLL_THRESHOLD = 12
 
 export function Header() {
   const { t, locale } = useTranslation()
-  const { linkProps } = useBookingFallback()
   const navLinks = getNavLinks(locale)
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -50,7 +48,7 @@ export function Header() {
         </nav>
 
         <div className="hidden items-center gap-4 md:flex">
-          <Button {...linkProps} variant="outline" size="sm">
+          <Button href={brand.bookingOnline} variant="outline" size="sm">
             {t.nav.book}
           </Button>
         </div>
@@ -91,7 +89,7 @@ export function Header() {
               </li>
             ))}
             <li>
-              <Button {...linkProps} variant="solid" size="md">
+              <Button href={brand.bookingOnline} variant="solid" size="md">
                 {t.nav.bookAppointment}
               </Button>
             </li>
