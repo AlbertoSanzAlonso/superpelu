@@ -1417,7 +1417,8 @@ app.post('/api/schedule/appointments', async (c) => {
       scope,
       endDate: body.endDate,
       forStaffPortal: true,
-      forceSchedule: body.forceSchedule,
+      // Agenda admin: libertad total (solapes, fuera de horario, sin antelación).
+      forceSchedule: true,
       allowAppointmentOverlap: true,
       conflictResolutions: body.conflictResolutions,
     })

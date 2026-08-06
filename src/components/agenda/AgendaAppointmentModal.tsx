@@ -512,12 +512,12 @@ export function AgendaAppointmentModal({
                     />
                     {isOverHoursSelected && (
                       <p className="mt-1 text-xs text-amber-700">
-                        Esta hora va más allá del horario del salón. Se pedirá confirmación al guardar.
+                        Esta hora va más allá del horario del salón.
                       </p>
                     )}
                     {isMainOccupiedSelected && (
                       <p className="mt-1 text-xs text-amber-700">
-                        Esta hora está ocupada. Se pedirá confirmación al guardar.
+                        Esta hora está ocupada; se guardará igualmente.
                       </p>
                     )}
                   </div>

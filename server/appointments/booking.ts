@@ -356,7 +356,11 @@ export async function getAvailableSlotsForServices(
     }
   }
 
-  return filterPastSlotsForToday(date, [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)))
+  return filterPastSlotsForToday(
+    date,
+    [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)),
+    { forStaffPortal: options.forStaffPortal },
+  )
 }
 
 /**
@@ -423,7 +427,11 @@ export async function getOverHoursSlotsForServices(
     }
   }
 
-  return filterPastSlotsForToday(date, [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)))
+  return filterPastSlotsForToday(
+    date,
+    [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)),
+    { forStaffPortal: true },
+  )
 }
 
 export async function getAvailableSlots(
@@ -479,7 +487,11 @@ export async function getAvailableSlots(
     }
   }
 
-  return filterPastSlotsForToday(date, [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)))
+  return filterPastSlotsForToday(
+    date,
+    [...slots].sort((a, b) => timeToMinutes(a) - timeToMinutes(b)),
+    { forStaffPortal: options.forStaffPortal },
+  )
 }
 
 /** Huecos del día con al menos un profesional libre (reserva pública). */
@@ -559,7 +571,7 @@ export async function getServiceDaySlotsForServices(
     if (firstServiceFits) slots.push(start)
   }
 
-  return filterPastSlotsForToday(date, slots)
+  return filterPastSlotsForToday(date, slots, { forStaffPortal: options.forStaffPortal })
 }
 
 export async function getStaffAvailableAtSlot(

@@ -14,14 +14,13 @@ import {
 import { ApiError, updateAdminAppointment } from '@/lib/api'
 import type { StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
-import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
+
 type MovesDeps = {
   adminToken: string
   date: string
   schedules: StaffDaySchedule[]
   load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
-  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   clearSelection: () => void
   onMovesCommitted: () => void
   resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
@@ -33,7 +32,6 @@ export function useAdminAgendaMoves({
   schedules,
   load,
   setError,
-  setConfirmDialog,
   clearSelection,
   onMovesCommitted,
   resyncAppointmentSnapshots,
@@ -77,8 +75,6 @@ export function useAdminAgendaMoves({
 
       const fromStaffId = effective.staffId
       const fromStartTime = effective.startTime
-      const fromStaffName =
-        schedules.find((s) => s.staffId === fromStaffId)?.staffName ?? ''
       const toStaffName =
         schedules.find((s) => s.staffId === payload.toStaffId)?.staffName ?? ''
       const target: AppointmentMoveTarget = {
@@ -97,7 +93,6 @@ export function useAdminAgendaMoves({
         {
           appointment: payload.appointment,
           fromStaffId,
-          fromStaffName,
           fromStartTime,
           toStaffId: payload.toStaffId,
           toStaffName,
@@ -133,10 +128,7 @@ export function useAdminAgendaMoves({
   }, [setError])
 
   const commitPendingMoves = useCallback(
-    async (
-      notifyCustomerWhatsApp?: boolean,
-      forceSchedule = false,
-    ): Promise<boolean> => {
+    async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
       if (pendingMoves.length === 0 || !adminToken) return false
       const validation = validatePendingMovesForSave(schedules, date, pendingMoves)
       if (!validation.ok) {
@@ -165,7 +157,7 @@ export function useAdminAgendaMoves({
             // Conservar duración personalizada (p. ej. tras alargar con el borde).
             serviceDurations: [move.appointment.durationMinutes],
             notifyCustomerWhatsApp: shouldNotify,
-            forceSchedule,
+            forceSchedule: true,
           })
         }
         await resyncAppointmentSnapshots?.({ notify: true })
@@ -174,24 +166,6 @@ export function useAdminAgendaMoves({
         await load()
         return true
       } catch (err) {
-        if (
-          !forceSchedule &&
-          err instanceof ApiError &&
-          /horario no disponible|no está disponible/i.test(err.message)
-        ) {
-          setConfirmDialog({
-            title: 'El horario no está disponible',
-            message:
-              'Ese horario está ocupado o fuera del horario laboral. ¿Quieres guardar los cambios de todas formas?',
-            confirmLabel: 'Guardar de todas formas',
-            destructive: false,
-            onConfirm: async () => {
-              setConfirmDialog(null)
-              await commitPendingMoves(notifyCustomerWhatsApp, true)
-            },
-          })
-          return false
-        }
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar los cambios')
         return false
       } finally {
@@ -205,7 +179,6 @@ export function useAdminAgendaMoves({
       schedules,
       load,
       setError,
-      setConfirmDialog,
       onMovesCommitted,
       resyncAppointmentSnapshots,
     ],

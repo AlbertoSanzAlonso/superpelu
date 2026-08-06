@@ -15,7 +15,6 @@ import type { Locale } from '@/i18n/types'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
-import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 
 type PersistDeps = {
   adminToken: string
@@ -24,7 +23,6 @@ type PersistDeps = {
   aptDraft: AppointmentDraft
   editingId: string | null
   editingScheduleBaseline: EditingScheduleBaseline | null
-  forceSchedule?: boolean
   closeAppointmentDetail: () => void
   resetAppointmentForm: () => void
   clearSelection: () => void
@@ -34,7 +32,6 @@ type PersistDeps = {
   setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
   resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
-  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
 }
 
 export function useAdminAppointmentPersist({
@@ -44,7 +41,6 @@ export function useAdminAppointmentPersist({
   aptDraft,
   editingId,
   editingScheduleBaseline,
-  forceSchedule = false,
   closeAppointmentDetail,
   resetAppointmentForm,
   clearSelection,
@@ -54,7 +50,6 @@ export function useAdminAppointmentPersist({
   setWhatsAppNotifyContext,
   setAppointmentFormOpen,
   resyncAppointmentSnapshots,
-  setConfirmDialog,
 }: PersistDeps) {
   const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
@@ -94,11 +89,9 @@ export function useAdminAppointmentPersist({
   const doPersistAppointment = useCallback(
     async (
       notifyCustomerWhatsApp?: boolean,
-      forceScheduleOverride = false,
       customerLocaleOverride?: Locale,
     ): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
-      const allowForcedSchedule = forceScheduleOverride || forceSchedule
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
       createLocaleRef.current = customerLocale
       setError('')
@@ -181,7 +174,7 @@ export function useAdminAppointmentPersist({
                 aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
                   ? aptDraft.recurrenceEndDate
                   : undefined,
-              forceSchedule: allowForcedSchedule,
+              forceSchedule: true,
             },
             adminToken,
           )
@@ -195,24 +188,6 @@ export function useAdminAppointmentPersist({
         await load()
         return true
       } catch (err) {
-        if (
-          !allowForcedSchedule &&
-          err instanceof ApiError &&
-          /horario no disponible|no está disponible/i.test(err.message)
-        ) {
-          setConfirmDialog({
-            title: 'El horario no está disponible',
-            message:
-              'Ese horario está ocupado o fuera del horario laboral. ¿Quieres agendarla de todas formas?',
-            confirmLabel: 'Agendar de todas formas',
-            destructive: false,
-            onConfirm: async () => {
-              setConfirmDialog(null)
-              await doPersistAppointment(notifyCustomerWhatsApp, true, customerLocale)
-            },
-          })
-          return false
-        }
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
         return false
       }
@@ -223,7 +198,6 @@ export function useAdminAppointmentPersist({
       editingId,
       aptDraft,
       date,
-      forceSchedule,
       resetAppointmentForm,
       closeAppointmentDetail,
       clearSelection,
@@ -232,7 +206,6 @@ export function useAdminAppointmentPersist({
       resyncAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
-      setConfirmDialog,
     ],
   )
 
@@ -285,12 +258,12 @@ export function useAdminAppointmentPersist({
 
   const acceptForeignPhoneLocale = useCallback(async () => {
     setForeignPhoneLocalePromptOpen(false)
-    await doPersistAppointment(undefined, false, 'en')
+    await doPersistAppointment(undefined, 'en')
   }, [doPersistAppointment])
 
   const declineForeignPhoneLocale = useCallback(async () => {
     setForeignPhoneLocalePromptOpen(false)
-    await doPersistAppointment(undefined, false, 'es')
+    await doPersistAppointment(undefined, 'es')
   }, [doPersistAppointment])
 
   const closeForeignPhoneLocalePrompt = useCallback(() => {
@@ -327,6 +300,7 @@ export function useAdminAppointmentPersist({
             customerLocale: createLocaleRef.current,
             scope: 'weekly',
             endDate: aptDraft.recurrenceEndDate || undefined,
+            forceSchedule: true,
             conflictResolutions: resolutions,
           },
           adminToken,

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
-import { readStoredAgendaView, storeAgendaView, type AgendaViewMode } from '@/lib/agenda/agendaView'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { AdminAgendaLoginForm } from '@/components/agenda/admin/AdminAgendaLoginForm'
 import { AdminAgendaWorkspace } from '@/components/agenda/admin/AdminAgendaWorkspace'
@@ -34,17 +33,11 @@ export function AdminAgendaPage() {
   const [loggingIn, setLoggingIn] = useState(false)
 
   const { date: selectedDate, setDate: setSelectedDate } = useAgendaDate()
-  const [agendaView, setAgendaView] = useState<AgendaViewMode>(readStoredAgendaView)
-
-  const handleAgendaViewChange = useCallback((view: AgendaViewMode) => {
-    setAgendaView(view)
-    storeAgendaView(view)
-  }, [])
 
   const isAdmin = Boolean(adminToken)
   const isStaff = Boolean(staffToken && staffUser)
 
-  const agenda = useAdminAgenda(adminToken, selectedDate, agendaView)
+  const agenda = useAdminAgenda(adminToken, selectedDate)
   const {
     schedules,
     loadedDate,
@@ -219,8 +212,6 @@ export function AdminAgendaPage() {
     <AdminAgendaWorkspace
       selectedDate={selectedDate}
       onDateChange={setSelectedDate}
-      agendaView={agendaView}
-      onAgendaViewChange={handleAgendaViewChange}
       adminToken={adminToken}
       agenda={agenda}
       openAppointmentFromNotification={openAppointmentFromNotification}

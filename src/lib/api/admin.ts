@@ -26,33 +26,6 @@ export function fetchDaySchedule(date: string, adminToken: string) {
   }))
 }
 
-export type ScheduleDayBundle = {
-  date: string
-  schedules: StaffDaySchedule[]
-  salonWindows: { startTime: string; endTime: string }[]
-}
-
-export function fetchScheduleRange(from: string, to: string, adminToken: string) {
-  const params = new URLSearchParams({ from, to })
-  return request<{
-    from: string
-    to: string
-    days?: ScheduleDayBundle[]
-  }>(`/schedule/range?${params}`, {
-    headers: { Authorization: `Bearer ${adminToken}` },
-  }).then((res) => ({
-    from: res.from,
-    to: res.to,
-    days: Array.isArray(res.days)
-      ? res.days.map((day) => ({
-          date: day.date,
-          schedules: Array.isArray(day.schedules) ? day.schedules : [],
-          salonWindows: Array.isArray(day.salonWindows) ? day.salonWindows : [],
-        }))
-      : [],
-  }))
-}
-
 export function fetchAppointments(from: string, to: string, adminToken: string) {
   const params = new URLSearchParams({ from, to })
   return request<{ appointments?: Appointment[] }>(`/appointments?${params}`, {

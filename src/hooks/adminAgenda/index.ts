@@ -7,17 +7,12 @@ import { useAdminAgendaAppointments } from './useAdminAgendaAppointments'
 import { useAdminAgendaMoves } from './useAdminAgendaMoves'
 import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAdminAppointmentNotifications } from './useAdminAppointmentNotifications'
-import type { AgendaViewMode } from '@/lib/agenda/agendaView'
 
 export type { AdminColumnSelection } from './types'
 export type { AppointmentMoveDraft } from '@/lib/agenda/pendingMoves'
 
-export function useAdminAgenda(
-  adminToken: string,
-  date: string,
-  agendaView: AgendaViewMode = 'day',
-) {
-  const schedule = useAdminAgendaSchedule(adminToken, date, agendaView)
+export function useAdminAgenda(adminToken: string, date: string) {
+  const schedule = useAdminAgendaSchedule(adminToken, date)
   const selectionState = useAdminAgendaSelection(schedule.schedules, date)
   const confirm = useAgendaConfirm()
   const notifications = useAdminAppointmentNotifications(adminToken)
@@ -53,7 +48,6 @@ export function useAdminAgenda(
     schedules: schedule.schedules,
     load: schedule.load,
     setError: schedule.setError,
-    setConfirmDialog: confirm.setConfirmDialog,
     clearSelection: selectionState.clearSelection,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
     resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
@@ -191,9 +185,6 @@ export function useAdminAgenda(
   return {
     schedules: schedule.schedules,
     salonWindows: schedule.salonWindows,
-    dayBundles: schedule.dayBundles,
-    viewDates: schedule.viewDates,
-    agendaView,
     loadedDate: schedule.loadedDate,
     loading: schedule.loading,
     error: schedule.error,
@@ -223,9 +214,6 @@ export function useAdminAgenda(
     services: appointments.services,
     slots: appointments.slots,
     slotsOverHours: appointments.slotsOverHours,
-    slotsConflict: appointments.slotsConflict,
-    dismissSlotsConflict: appointments.dismissSlotsConflict,
-    confirmSlotsConflict: appointments.confirmSlotsConflict,
     serviceSlotsPerIndex: appointments.serviceSlotsPerIndex,
     serviceAlternativeStaff: appointments.serviceAlternativeStaff,
     aptDraft: appointments.aptDraft,

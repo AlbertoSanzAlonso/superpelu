@@ -27,7 +27,6 @@ import type { AdminColumnSelection, EditingScheduleBaseline } from './types'
 import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
 import { useAdminAppointmentPersist } from './useAdminAppointmentPersist'
-import { resolveAdminAppointmentConflict } from '@/lib/agenda/appointmentAvailability'
 
 type AppointmentsDeps = {
   adminToken: string
@@ -58,8 +57,6 @@ export function useAdminAgendaAppointments({
   const [services, setServices] = useState<BookableService[]>([])
   const [slots, setSlots] = useState<string[]>([])
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
-  const [slotsConflict, setSlotsConflict] = useState<string | null>(null)
-  const [forceSchedule, setForceSchedule] = useState(false)
   const availabilityRequestId = useRef(0)
   const [serviceSlotsPerIndex, setServiceSlotsPerIndex] = useState<string[][]>([])
   const [serviceAlternativeStaff, setServiceAlternativeStaff] = useState<
@@ -131,21 +128,10 @@ export function useAdminAgendaAppointments({
   }, [services, aptDraft.serviceIds, schedules, viewingAppointment])
 
   useEffect(() => {
-    setForceSchedule(false)
-  }, [
-    aptDraft.startTime,
-    aptDraft.serviceIds.join(','),
-    aptDraft.serviceDurations.join(','),
-    aptDraft.serviceStartTimes.join(','),
-    aptDraft.staffAssignments.join(','),
-    activeStaffId,
-  ])
-
-  useEffect(() => {
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
     if (!activeStaffId || filteredIds.length === 0 || !date || !adminToken) {
       setSlots([])
-      setSlotsConflict(null)
+      setSlotsOverHours([])
       return
     }
 
@@ -169,41 +155,13 @@ export function useAdminAgendaAppointments({
         setSlots([])
         setSlotsOverHours([])
       })
-
-    if (!aptDraft.startTime) {
-      setSlotsConflict(null)
-      return
-    }
-
-    void resolveAdminAppointmentConflict({
-      date,
-      adminToken,
-      activeStaffId,
-      draft: aptDraft,
-      services: servicesForPicker,
-      editingId,
-      forceSchedule: forceSchedule || Boolean(editingId),
-    })
-      .then((conflict) => {
-        if (requestId !== availabilityRequestId.current) return
-        setSlotsConflict(conflict)
-      })
-      .catch(() => {
-        if (requestId !== availabilityRequestId.current) return
-        setSlotsConflict(null)
-      })
   }, [
     activeStaffId,
     aptDraft.serviceIds.join(','),
     aptDraft.serviceDurations.join(','),
-    aptDraft.serviceStartTimes.join(','),
-    aptDraft.staffAssignments.join(','),
-    aptDraft.startTime,
     date,
     adminToken,
     editingId,
-    forceSchedule,
-    servicesForPicker,
   ])
 
   // Slots disponibles por servicio individual (para tratamientos adicionales)
@@ -272,7 +230,6 @@ export function useAdminAgendaAppointments({
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
-    setForceSchedule(false)
     setError('')
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
   }, [setError])
@@ -286,7 +243,6 @@ export function useAdminAgendaAppointments({
       setActiveStaffId(staffId)
       setSelection(null)
       setEditingId(null)
-      setForceSchedule(false)
       setAptDraft({
         ...EMPTY_APPOINTMENT_DRAFT,
         startTime: time ?? '',
@@ -425,7 +381,6 @@ export function useAdminAgendaAppointments({
     aptDraft,
     editingId,
     editingScheduleBaseline,
-    forceSchedule,
     closeAppointmentDetail,
     resetAppointmentForm,
     clearSelection,
@@ -435,7 +390,6 @@ export function useAdminAgendaAppointments({
     setWhatsAppNotifyContext,
     setAppointmentFormOpen,
     resyncAppointmentSnapshots,
-    setConfirmDialog,
   })
 
   const persistCancel = useCallback(
@@ -601,21 +555,10 @@ export function useAdminAgendaAppointments({
     setNoShowDialogOpen(true)
   }, [])
 
-  const dismissSlotsConflict = useCallback(() => {
-    setSlotsConflict(null)
-    setAptDraft((d) => ({ ...d, startTime: '' }))
-  }, [])
-
-  const confirmSlotsConflict = useCallback(() => {
-    setForceSchedule(true)
-    setSlotsConflict(null)
-  }, [])
-
   const resetAppointmentUi = useCallback(() => {
     setActiveStaffId(null)
     setAppointmentFormOpen(false)
     setEditingId(null)
-    setForceSchedule(false)
     setViewingAppointment(null)
     setDetailEditMode(false)
     setDetailCustomerRegistered(false)
@@ -636,10 +579,6 @@ export function useAdminAgendaAppointments({
     services: servicesForPicker,
     slots,
     slotsOverHours,
-    slotsConflict,
-    dismissSlotsConflict,
-    confirmSlotsConflict,
-    forceSchedule,
     serviceSlotsPerIndex,
     serviceAlternativeStaff,
     aptDraft,

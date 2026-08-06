@@ -31,7 +31,17 @@ function nowSalonMinutesFromSchedule(): number {
   return hour * 60 + minute
 }
 
-export function filterPastSlotsForToday(date: string, slots: string[]): string[] {
+/**
+ * Quita horas ya pasadas del día en curso.
+ * Reserva pública: exige al menos un slot (30 min) de antelación.
+ * Agenda staff/admin: no filtra (libertad total al citar).
+ */
+export function filterPastSlotsForToday(
+  date: string,
+  slots: string[],
+  options?: { forStaffPortal?: boolean },
+): string[] {
+  if (options?.forStaffPortal) return slots
   if (date !== todaySalon()) return slots
   const now = nowSalonMinutesFromSchedule()
   const minStart = now + schedule.slotMinutes

@@ -2,47 +2,38 @@ import { Link } from 'react-router-dom'
 import { AdminAppointmentNotificationsBell } from '@/components/agenda/admin/AdminAppointmentNotificationsBell'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
-import {
-  agendaViewLabel,
-  agendaViewNavStep,
-  type AgendaViewMode,
-} from '@/lib/agenda/agendaView'
-import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/core/dates'
+import { addDaysToDateString, dayOfWeekFromDateString, todaySalon } from '@/lib/core/dates'
 import type { GridSelectionSummary } from '@/lib/agenda/timeGrid'
 import { Button } from '@/components/ui/Button'
-import type { StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
 const dayNavButtonClass =
   'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
 
-const dateInputClass =
-  'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs outline-none focus:border-gold'
-
-const staffSelectClass =
-  'h-8 min-w-[9rem] flex-1 cursor-pointer border border-gold/30 bg-cream px-2 text-xs md:max-w-[12rem] md:flex-none'
-
 const navLinkClass =
   'flex h-8 shrink-0 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
 
-const viewBtnClass =
-  'h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
+const DAY_ABBR = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'] as const
 
-const viewBtnActiveClass =
-  'h-8 shrink-0 cursor-pointer border border-gold bg-gold/15 px-2 text-xs font-medium text-gold'
+const MONTH_ABBR = [
+  'ENE',
+  'FEB',
+  'MAR',
+  'ABR',
+  'MAY',
+  'JUN',
+  'JUL',
+  'AGO',
+  'SEP',
+  'OCT',
+  'NOV',
+  'DIC',
+] as const
 
 type Props = {
   date: string
   onDateChange: (date: string) => void
-  agendaView: AgendaViewMode
-  onAgendaViewChange: (view: AgendaViewMode) => void
-  viewDates: string[]
   appointmentCount: number
-  schedules: StaffDaySchedule[]
-  staffOptions: { staffId: string; staffName: string }[]
-  activeStaffId: string | null
-  onStaffChange: (staffId: string) => void
-  onNewAppointment: () => void
   onLogout: () => void
   selectionCount?: number
   selectionSummary?: GridSelectionSummary
@@ -80,32 +71,31 @@ function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
   )
 }
 
-function formatViewRangeLabel(view: AgendaViewMode, date: string, viewDates: string[]): string {
-  if (view === 'day' || viewDates.length <= 1) return formatDisplayDate(date)
-  const first = viewDates[0]
-  const last = viewDates[viewDates.length - 1]
-  const short = (d: string) => {
-    const [y, m, day] = d.split('-').map(Number)
-    return new Date(y, m - 1, day).toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'short',
-    })
-  }
-  return `${short(first)} – ${short(last)}`
+function CalendarIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M5.75 2a.75.75 0 01.75.75V4h7V2.75a.75.75 0 011.5 0V4h.25A2.75 2.75 0 0118 6.75v8.5A2.75 2.75 0 0115.25 18H4.75A2.75 2.75 0 012 15.25v-8.5A2.75 2.75 0 014.75 4H5V2.75A.75.75 0 015.75 2zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function formatShortDate(dateStr: string): string {
+  const [, m, d] = dateStr.split('-').map(Number)
+  return `${String(d).padStart(2, '0')} ${MONTH_ABBR[m - 1]}`
+}
+
+function stripDatesFrom(anchor: string): string[] {
+  return [0, 1, 2, 3, 4, 5, 6].map((offset) => addDaysToDateString(anchor, offset))
 }
 
 export function AdminAgendaControlBar({
   date,
   onDateChange,
-  agendaView,
-  onAgendaViewChange,
-  viewDates,
   appointmentCount,
-  schedules,
-  staffOptions,
-  activeStaffId,
-  onStaffChange,
-  onNewAppointment,
   onLogout,
   selectionCount = 0,
   selectionSummary,
@@ -123,56 +113,75 @@ export function AdminAgendaControlBar({
   onNotificationSelect,
 }: Props) {
   const isToday = date === todaySalon()
-  const navStep = agendaViewNavStep(agendaView)
-  const staffList =
-    staffOptions.length > 0
-      ? staffOptions
-      : schedules
-          .filter((s) => s.working)
-          .map((s) => ({ staffId: s.staffId, staffName: s.staffName }))
+  const stripDates = stripDatesFrom(date)
   const hasSelection = selectionCount > 0 && selectionSummary != null
-  const requireStaff = agendaView !== 'day'
-  const canNewAppointment = Boolean(activeStaffId) && !gridInteractionsLocked
 
-  const dayNav = (
-    <div className="flex items-center gap-1">
+  const dayStrip = (
+    <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
+      <label className="relative flex h-8 cursor-pointer items-center gap-1.5 border border-gold/30 px-2 text-gold hover:border-gold hover:bg-gold/10">
+        <CalendarIcon />
+        <span className={`${typography.label} tabular-nums text-gold`}>{formatShortDate(date)}</span>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => {
+            if (e.target.value) onDateChange(e.target.value)
+          }}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          aria-label="Elegir fecha"
+        />
+      </label>
+
       <button
         type="button"
-        className={dayNavButtonClass}
-        aria-label={agendaView === 'day' ? 'Día anterior' : 'Periodo anterior'}
-        onClick={() => onDateChange(addDaysToDateString(date, -navStep))}
+        disabled={isToday}
+        onClick={() => onDateChange(todaySalon())}
+        className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
       >
-        <NavChevron direction="prev" />
+        Hoy
       </button>
-      <button
-        type="button"
-        className={dayNavButtonClass}
-        aria-label={agendaView === 'day' ? 'Día siguiente' : 'Periodo siguiente'}
-        onClick={() => onDateChange(addDaysToDateString(date, navStep))}
-      >
-        <NavChevron direction="next" />
-      </button>
-    </div>
-  )
 
-  const viewToggle = (
-    <div className="flex items-center" role="group" aria-label="Vista de agenda">
-      {(['day', '3days', 'week'] as const).map((view, index) => {
-        const active = agendaView === view
-        return (
-          <button
-            key={view}
-            type="button"
-            className={`${active ? viewBtnActiveClass : viewBtnClass} ${
-              index > 0 ? '-ml-px' : ''
-            } ${active ? 'relative z-10' : ''}`}
-            aria-pressed={active}
-            onClick={() => onAgendaViewChange(view)}
-          >
-            {agendaViewLabel(view)}
-          </button>
-        )
-      })}
+      <div className="flex items-center gap-0.5 overflow-x-auto px-0.5" role="group" aria-label="Semana visible">
+        {stripDates.map((d) => {
+          const active = d === date
+          const abbr = DAY_ABBR[dayOfWeekFromDateString(d)]
+          return (
+            <button
+              key={d}
+              type="button"
+              aria-pressed={active}
+              aria-label={formatShortDate(d)}
+              onClick={() => onDateChange(d)}
+              className={`h-8 shrink-0 cursor-pointer border-b-2 px-2 text-xs font-medium uppercase tracking-wide ${
+                active
+                  ? 'border-gold text-gold'
+                  : 'border-transparent text-charcoal-muted hover:text-charcoal'
+              }`}
+            >
+              {abbr}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          className={dayNavButtonClass}
+          aria-label="Día anterior"
+          onClick={() => onDateChange(addDaysToDateString(date, -1))}
+        >
+          <NavChevron direction="prev" />
+        </button>
+        <button
+          type="button"
+          className={dayNavButtonClass}
+          aria-label="Día siguiente"
+          onClick={() => onDateChange(addDaysToDateString(date, 1))}
+        >
+          <NavChevron direction="next" />
+        </button>
+      </div>
     </div>
   )
 
@@ -228,35 +237,14 @@ export function AdminAgendaControlBar({
       <div className="relative flex flex-col gap-2 px-3 py-2 md:gap-y-2">
         <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
           <div className="flex items-center justify-between gap-2">
-            {dayNav}
+            <div className="min-w-0 flex-1 overflow-x-auto">{dayStrip}</div>
             {notificationBell}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="hidden items-center gap-1 md:flex">{dayNav}</div>
-
-          <p className={`${typography.label} shrink-0 capitalize tabular-nums text-gold`}>
-            {formatViewRangeLabel(agendaView, date, viewDates)}
-          </p>
-
-          <button
-            type="button"
-            disabled={isToday}
-            onClick={() => onDateChange(todaySalon())}
-            className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Hoy
-          </button>
-
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => onDateChange(e.target.value)}
-            className={dateInputClass}
-            aria-label="Fecha"
-          />
+          <div className="hidden min-w-0 md:block">{dayStrip}</div>
 
           <span className="hidden h-4 w-px bg-gold/25 sm:block" aria-hidden />
 
@@ -264,26 +252,9 @@ export function AdminAgendaControlBar({
             {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
           </span>
 
-          <span className="hidden h-4 w-px bg-gold/25 md:block" aria-hidden />
-
-          <select
-            value={activeStaffId ?? ''}
-            onChange={(e) => onStaffChange(e.target.value)}
-            className={staffSelectClass}
-            aria-label="Profesional"
-          >
-            <option value="">{requireStaff ? 'Elegir profesional…' : 'Profesional…'}</option>
-            {staffList.map((s) => (
-              <option key={s.staffId} value={s.staffId}>
-                {s.staffName}
-              </option>
-            ))}
-          </select>
-
-          {viewToggle}
-
           {hasSelection && selectionSummary ? (
             <div className="flex flex-wrap items-center gap-2">
+              <span className="hidden h-4 w-px bg-gold/25 md:block" aria-hidden />
               <span className="text-xs font-medium tabular-nums text-charcoal">
                 {selectionCount} franja{selectionCount === 1 ? '' : 's'}
               </span>
@@ -298,18 +269,7 @@ export function AdminAgendaControlBar({
                 interactionsLocked={gridInteractionsLocked}
               />
             </div>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2 text-xs"
-              disabled={!canNewAppointment}
-              onClick={onNewAppointment}
-            >
-              + Cita
-            </Button>
-          )}
+          ) : null}
 
           <div className="ml-auto hidden items-center gap-2 md:flex">
             {notificationBell}
