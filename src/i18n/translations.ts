@@ -336,7 +336,8 @@ const es = {
       createFailed: 'No se pudo crear la cita',
       nameRequired: 'Indica tu nombre completo.',
       phoneRequired: 'Indica un teléfono móvil para contactarte.',
-      phoneInvalid: 'El teléfono debe ser un móvil español (9 dígitos, empieza por 6, 7, 8 o 9).',
+      phoneInvalid:
+        'Teléfono no válido. Usa móvil español (6/7/8/9…) o internacional con prefijo (+44…, +33…).',
       birthdateRequired: 'Indica tu fecha de nacimiento.',
       birthdateInvalid: 'La fecha de nacimiento no es válida.',
       customerTypeRequired: 'Indica si ya has sido cliente.',
@@ -352,7 +353,7 @@ const es = {
       HORARIO_NO_DISPONIBLE: 'Ese horario ya no está libre. Elige otra hora.',
       HORARIO_ENCADENADO_NO_DISPONIBLE:
         'Ya no hay hueco para enlazar todos los tratamientos a esa hora. Elige otra hora u otro profesional.',
-      TELEFONO_INVALIDO: 'Teléfono no válido (móvil español).',
+      TELEFONO_INVALIDO: 'Teléfono no válido.',
       NOMBRE_INVALIDO: 'Indica al menos el nombre.',
       FECHA_NACIMIENTO_OBLIGATORIA: 'La fecha de nacimiento es obligatoria.',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida.',
@@ -918,7 +919,8 @@ const en = {
       createFailed: 'Could not create the appointment',
       nameRequired: 'Please enter your full name.',
       phoneRequired: 'Please enter a mobile number so we can reach you.',
-      phoneInvalid: 'Enter a valid Spanish mobile (9 digits, starting with 6, 7, 8 or 9).',
+      phoneInvalid:
+        'Invalid phone. Use a Spanish mobile (6/7/8/9…) or international with country code (+44…, +33…).',
       birthdateRequired: 'Please enter your date of birth.',
       birthdateInvalid: 'The date of birth is not valid.',
       customerTypeRequired: 'Please tell us if you have been a client before.',
@@ -934,7 +936,7 @@ const en = {
       HORARIO_NO_DISPONIBLE: 'That time is no longer available. Choose another slot.',
       HORARIO_ENCADENADO_NO_DISPONIBLE:
         'There is no longer enough time to link all treatments at that slot. Choose another time or stylist.',
-      TELEFONO_INVALIDO: 'Invalid phone number (Spanish mobile).',
+      TELEFONO_INVALIDO: 'Invalid phone number.',
       NOMBRE_INVALIDO: 'Please enter at least a first name.',
       FECHA_NACIMIENTO_OBLIGATORIA: 'Date of birth is required.',
       FECHA_NACIMIENTO_INVALIDA: 'Invalid date of birth.',

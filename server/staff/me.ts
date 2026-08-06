@@ -51,7 +51,7 @@ async function requireStaff(c: {
 }
 
 const errorMessages: Record<string, string> = {
-  TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
+  TELEFONO_INVALIDO: 'Teléfono no válido',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',

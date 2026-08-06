@@ -13,7 +13,7 @@ import {
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isValidDateString } from '@/lib/core/dates'
 import { capitalizePersonName } from '@/lib/customer/name'
-import { isValidSpanishPhone } from '@/lib/customer/phone'
+import { isValidPhone } from '@/lib/customer/phone'
 import type {
   Appointment,
   BookableService,
@@ -490,7 +490,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setFieldErrors({ phone: errors.phoneRequired })
       return
     }
-    if (!isValidSpanishPhone(customerPhone)) {
+    if (!isValidPhone(customerPhone)) {
       setFieldErrors({ phone: errors.phoneInvalid })
       return
     }
@@ -526,7 +526,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     const next: { name?: string; phone?: string; birthdate?: string } = {}
     if (!customerPhone.trim()) {
       next.phone = errors.phoneRequired
-    } else if (!isValidSpanishPhone(customerPhone)) {
+    } else if (!isValidPhone(customerPhone)) {
       next.phone = errors.phoneInvalid
     }
 

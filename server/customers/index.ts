@@ -4,7 +4,7 @@ import {
   splitCustomerName,
 } from '@/lib/customer/name'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { normalizePhone, isValidSpanishPhone } from '@/lib/customer/phone'
+import { normalizePhone, isValidPhone } from '@/lib/customer/phone'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
 
 export type CustomerInput = {
@@ -83,7 +83,7 @@ export function resolveCustomerFromInput(input: {
   phone: string
 }): { firstName: string; lastName: string; phone: string } {
   const phone = normalizePhone(input.phone)
-  if (!isValidSpanishPhone(input.phone)) {
+  if (!isValidPhone(input.phone)) {
     throw new Error('TELEFONO_INVALIDO')
   }
 
@@ -279,7 +279,7 @@ export async function upsertCustomerForBooking(input: {
   forStaffPortal?: boolean
 }): Promise<{ phone: string; nameSnapshot: string; profile: CustomerRow }> {
   const phone = normalizePhone(input.customerPhone)
-  if (!isValidSpanishPhone(input.customerPhone)) {
+  if (!isValidPhone(input.customerPhone)) {
     throw new Error('TELEFONO_INVALIDO')
   }
 

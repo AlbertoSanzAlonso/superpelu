@@ -1160,7 +1160,7 @@ const adminScheduleErrors: Record<string, string> = {
   HORARIO_NO_DISPONIBLE: 'Ese horario no está disponible',
   HORARIO_ENCADENADO_NO_DISPONIBLE: 'Ese horario no está disponible para todos los tratamientos',
   CITA_NO_ENCONTRADA: 'Cita no encontrada',
-  TELEFONO_INVALIDO: 'Teléfono no válido (móvil español)',
+  TELEFONO_INVALIDO: 'Teléfono no válido',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
