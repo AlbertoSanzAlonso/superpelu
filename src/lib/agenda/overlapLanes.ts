@@ -23,7 +23,8 @@ export type OverlapLaneLayout = {
   widthPercent: number
 }
 
-const GUTTER_PERCENT = 1.5
+/** Hueco solo entre lanes solapadas; las fichas llegan al borde de la columna. */
+const INTER_LANE_GAP_PERCENT = 1
 
 function appointmentSegments(apt: OverlapLaneAppointment) {
   return getOccupiedSegmentsForAppointment(
@@ -50,13 +51,13 @@ function earliestStart(apt: OverlapLaneAppointment): number {
 export const FULL_WIDTH_LANE: OverlapLaneLayout = {
   laneIndex: 0,
   laneCount: 1,
-  leftPercent: GUTTER_PERCENT,
-  widthPercent: 100 - GUTTER_PERCENT * 2,
+  leftPercent: 0,
+  widthPercent: 100,
 }
 
 /**
  * Empaqueta citas solapadas en lanes lado a lado (estilo calendario BUK).
- * Sin solape → laneCount 1 y ancho casi completo.
+ * Sin solape → laneCount 1 y ancho completo de la columna.
  */
 export function assignOverlapLanes(
   appointments: readonly OverlapLaneAppointment[],
@@ -131,11 +132,12 @@ export function assignOverlapLanes(
     }
 
     const laneCount = Math.max(laneSegments.length, 1)
-    const widthPercent = (100 - GUTTER_PERCENT * (laneCount + 1)) / laneCount
+    const gap = laneCount > 1 ? INTER_LANE_GAP_PERCENT : 0
+    const widthPercent = (100 - gap * (laneCount - 1)) / laneCount
 
     for (const apt of clusterApts) {
       const laneIndex = laneById.get(apt.id) ?? 0
-      const leftPercent = GUTTER_PERCENT + laneIndex * (widthPercent + GUTTER_PERCENT)
+      const leftPercent = laneIndex * (widthPercent + gap)
       result.set(apt.id, {
         laneIndex,
         laneCount,
