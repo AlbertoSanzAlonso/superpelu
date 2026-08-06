@@ -594,6 +594,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
             })),
             startTime,
             serviceStartOverrides,
+            staffAssignments,
           )
         : undefined
       const isReturning = customerType === 'returning'

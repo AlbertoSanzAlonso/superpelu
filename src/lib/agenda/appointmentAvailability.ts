@@ -88,8 +88,14 @@ export async function resolveAdminAppointmentConflict(
     effectiveServices,
     draft.startTime,
     rawOverrides,
+    staffAssignments,
   )
-  const chainedDefault = buildFlexibleServiceStartTimes(effectiveServices, draft.startTime, [])
+  const chainedDefault = buildFlexibleServiceStartTimes(
+    effectiveServices,
+    draft.startTime,
+    [],
+    staffAssignments,
+  )
   const serviceStartOverrides = serviceStartTimes.map((time, index) =>
     time === chainedDefault[index] || !time ? undefined : time,
   )

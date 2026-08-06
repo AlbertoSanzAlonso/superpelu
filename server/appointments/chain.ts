@@ -77,8 +77,14 @@ function resolveVisitServiceStartTimes(
   services: ResolvedBookingService[],
   visitStartTime: string,
   serviceStartOverrides: readonly (string | undefined)[],
+  staffAssignments?: readonly string[],
 ): string[] {
-  return buildFlexibleServiceStartTimes(services, visitStartTime, serviceStartOverrides)
+  return buildFlexibleServiceStartTimes(
+    services,
+    visitStartTime,
+    serviceStartOverrides,
+    staffAssignments,
+  )
 }
 
 function buildPartialChainSegments(
@@ -91,6 +97,7 @@ function buildPartialChainSegments(
     services,
     visitStartTime,
     serviceStartOverrides,
+    assignments,
   )
   return assignments.map((staffId, serviceIndex) => ({
     serviceIndex,
@@ -357,6 +364,7 @@ export async function createChainedBookingAppointment(
     effectiveServices,
     input.startTime,
     rawServiceStartTimes,
+    staffAssignments,
   )
 
   const primaryId = await sql.begin(async (tx) => {
@@ -373,6 +381,7 @@ export async function createChainedBookingAppointment(
           effectiveServices,
           i,
           allStartMinutes[i],
+          staffAssignments,
         )
         if (
           await isBookingUnavailable(
@@ -404,9 +413,10 @@ export async function createChainedBookingAppointment(
       if (usesColorSplitBooking(service.id)) {
         const colorGroup = await prepareColorBookingGroupIds(service.id)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-        // Siempre eliminar el lavado cuando hay un servicio de peluquería concatenado después.
-        // La profesional lava implícitamente antes de iniciar el siguiente tratamiento.
-        const skipWash = getColorWashReplacementIndex(services) === i + 1
+        // Solo omitir lavado si el mismo profesional continúa con peluquería.
+        // Otra coloración u otro especialista → lavado propio.
+        const skipWash =
+          getColorWashReplacementIndex(effectiveServices, i, staffAssignments) != null
         const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
         await insertColorBookingGroup(
           {

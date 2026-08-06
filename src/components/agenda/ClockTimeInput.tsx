@@ -7,13 +7,15 @@ type Props = {
   defaultTime?: string
   /** Permite volver a vacío (p. ej. hora encadenada automática). */
   allowEmpty?: boolean
-  /** Texto junto al reloj cuando value está vacío (p. ej. «Automática»). */
+  /** Texto breve cuando value está vacío (p. ej. «Auto»). Sin repetir la hora. */
   emptyHint?: string
   minuteStep?: number
   minMinutes?: number
   maxMinutes?: number
   disabled?: boolean
   required?: boolean
+  /** Reloj más compacto (p. ej. dentro de un tratamiento). */
+  compact?: boolean
   className?: string
 }
 
@@ -33,11 +35,13 @@ function SpinButton({
   disabled,
   onClick,
   direction,
+  compact,
 }: {
   label: string
   disabled?: boolean
   onClick: () => void
   direction: 'up' | 'down'
+  compact?: boolean
 }) {
   return (
     <button
@@ -45,7 +49,9 @@ function SpinButton({
       disabled={disabled}
       aria-label={label}
       onClick={onClick}
-      className="flex h-6 w-9 items-center justify-center border border-gold/30 text-[10px] text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40"
+      className={`flex cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40 ${
+        compact ? 'h-4 w-6 text-[8px]' : 'h-5 w-7 text-[9px]'
+      }`}
     >
       {direction === 'up' ? '▲' : '▼'}
     </button>
@@ -61,12 +67,13 @@ export function ClockTimeInput({
   onChange,
   defaultTime,
   allowEmpty = false,
-  emptyHint,
+  emptyHint = 'Auto',
   minuteStep = 5,
   minMinutes = 6 * 60,
   maxMinutes = 22 * 60 + 55,
   disabled = false,
   required = false,
+  compact = false,
   className = '',
 }: Props) {
   const baseTime = value || defaultTime || FALLBACK_TIME
@@ -75,6 +82,9 @@ export function ClockTimeInput({
   const minutes = total % 60
   const isUnset = value === ''
   const isAutomatic = allowEmpty && isUnset
+  const digitCn = compact
+    ? 'w-6 text-center text-sm tabular-nums'
+    : 'w-7 text-center text-sm tabular-nums'
 
   const commit = (nextMinutes: number) => {
     const clamped = clampMinutes(nextMinutes, minMinutes, maxMinutes)
@@ -107,15 +117,16 @@ export function ClockTimeInput({
         />
       )}
       <div
-        className={`flex flex-wrap items-center gap-3 border border-gold/30 bg-cream px-2 py-1.5 ${
-          disabled ? 'opacity-50' : ''
-        }`}
+        className={`inline-flex flex-wrap items-center gap-1.5 border border-gold/30 bg-cream ${
+          compact ? 'px-1.5 py-1' : 'px-2 py-1'
+        } ${disabled ? 'opacity-50' : ''}`}
       >
-        <div className="flex items-center gap-1.5">
-          <div className="flex flex-col items-center gap-0.5">
+        <div className="flex items-center gap-0.5" aria-label={`Hora ${minutesToTime(total)}`}>
+          <div className="flex flex-col items-center gap-px">
             <SpinButton
               label="Subir hora"
               direction="up"
+              compact={compact}
               disabled={disabled || total + 60 > maxMinutes}
               onClick={() => bumpHours(1)}
             />
@@ -123,7 +134,7 @@ export function ClockTimeInput({
               type="button"
               disabled={disabled}
               onClick={confirmDisplayed}
-              className={`w-9 text-center text-base tabular-nums disabled:opacity-50 ${
+              className={`${digitCn} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                 isUnset ? 'text-charcoal-muted' : 'font-medium text-charcoal'
               }`}
               aria-label={`Hora ${String(hours).padStart(2, '0')}`}
@@ -133,19 +144,24 @@ export function ClockTimeInput({
             <SpinButton
               label="Bajar hora"
               direction="down"
+              compact={compact}
               disabled={disabled || total - 60 < minMinutes}
               onClick={() => bumpHours(-1)}
             />
           </div>
 
-          <span className="pb-0.5 text-base font-medium text-charcoal-muted" aria-hidden>
+          <span
+            className={`font-medium text-charcoal-muted ${compact ? 'text-sm' : 'text-sm'}`}
+            aria-hidden
+          >
             :
           </span>
 
-          <div className="flex flex-col items-center gap-0.5">
+          <div className="flex flex-col items-center gap-px">
             <SpinButton
               label={`Subir ${minuteStep} minutos`}
               direction="up"
+              compact={compact}
               disabled={disabled || total + minuteStep > maxMinutes}
               onClick={() => bumpMinutes(1)}
             />
@@ -153,7 +169,7 @@ export function ClockTimeInput({
               type="button"
               disabled={disabled}
               onClick={confirmDisplayed}
-              className={`w-9 text-center text-base tabular-nums disabled:opacity-50 ${
+              className={`${digitCn} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
                 isUnset ? 'text-charcoal-muted' : 'font-medium text-charcoal'
               }`}
               aria-label={`Minutos ${String(minutes).padStart(2, '0')}`}
@@ -163,38 +179,29 @@ export function ClockTimeInput({
             <SpinButton
               label={`Bajar ${minuteStep} minutos`}
               direction="down"
+              compact={compact}
               disabled={disabled || total - minuteStep < minMinutes}
               onClick={() => bumpMinutes(-1)}
             />
           </div>
         </div>
 
-        <div className="min-w-0 flex-1 space-y-1">
-          {isAutomatic ? (
-            <p className="text-xs text-charcoal-muted">
-              {emptyHint ?? `Automática · ${minutesToTime(total)}`}
-            </p>
-          ) : isUnset ? (
-            <p className="text-xs text-charcoal-muted">
-              Sugerida · {minutesToTime(total)}
-            </p>
-          ) : (
-            <p className="text-xs tabular-nums text-charcoal">{minutesToTime(total)}</p>
-          )}
-          {allowEmpty && !isAutomatic && (
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange('')}
-              className="text-xs text-gold underline-offset-2 hover:underline disabled:opacity-40"
-            >
-              Volver a automática
-            </button>
-          )}
-          {isUnset && (
-            <p className="text-[10px] text-charcoal-muted">Ajusta ▲▼ para fijar hora</p>
-          )}
-        </div>
+        {allowEmpty && (
+          <div className="min-w-0">
+            {isAutomatic ? (
+              <span className="text-[10px] text-charcoal-muted">{emptyHint}</span>
+            ) : (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange('')}
+                className="cursor-pointer text-[10px] text-gold underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Auto
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

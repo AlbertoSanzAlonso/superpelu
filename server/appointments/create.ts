@@ -230,8 +230,14 @@ export async function createAppointment(
       effectiveServices,
       input.startTime,
       rawServiceStartTimes,
+      staffAssignments,
     )
-    const chainedDefault = buildFlexibleServiceStartTimes(effectiveServices, input.startTime, [])
+    const chainedDefault = buildFlexibleServiceStartTimes(
+      effectiveServices,
+      input.startTime,
+      [],
+      staffAssignments,
+    )
     const serviceStartOverrides = serviceStartTimes.map((time, index) =>
       time === chainedDefault[index] || !time ? undefined : time,
     )

@@ -132,17 +132,29 @@ export function AgendaAppointmentModal({
     if (entries.length === 0) return []
     // Mínimo editable por tratamiento: sin el override propio (permite atrasar
     // un tratamiento fijado a huecos anteriores libres).
+    const staffForEntries = entries.map(
+      (e) => draft.staffAssignments[e.formIndex] || staffId,
+    )
     const earliest = buildEarliestEditableServiceStartTimes(
       entries.map((e) => e.service),
       draft.startTime,
       entries.map((e) => e.override),
+      staffForEntries,
     )
     const byFormIndex = draft.serviceIds.map(() => '')
     entries.forEach((entry, j) => {
       byFormIndex[entry.formIndex] = earliest[j]!
     })
     return byFormIndex
-  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
+  }, [
+    draft.startTime,
+    draft.serviceIds,
+    draft.serviceDurations,
+    draft.serviceStartTimes,
+    draft.staffAssignments,
+    staffId,
+    services,
+  ])
 
   const serviceOverlaps = useMemo(
     () => checkServiceOverlaps(draft, services, staffId),
@@ -451,6 +463,7 @@ export function AgendaAppointmentModal({
                       Hora de la cita
                     </label>
                     <ClockTimeInput
+                      compact
                       value={draft.startTime}
                       onChange={(time) =>
                         onDraftChange({
@@ -469,7 +482,7 @@ export function AgendaAppointmentModal({
                         <button
                           type="button"
                           onClick={() => removeService(index)}
-                          className="absolute -right-1.5 -top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+                          className="absolute -right-1.5 -top-1.5 z-10 flex size-5 cursor-pointer items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
                           aria-label="Quitar tratamiento"
                         >
                           ×
@@ -483,65 +496,63 @@ export function AgendaAppointmentModal({
                         loading={services.length === 0}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
-                      {serviceId && staffOptions.length > 1 && (
-                        <div>
-                          <label className={`${typography.label} mb-0.5 block text-xs`}>
-                            Especialista
-                          </label>
-                          <select
-                            value={draft.staffAssignments[index] || staffId}
-                            onChange={(e) => setStaffAtIndex(index, e.target.value)}
-                            className={selectCn}
-                          >
-                            {staffOptions.map((s) => (
-                              <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                      {serviceId && index > 0 && (() => {
-                        const currentVal = draft.serviceStartTimes[index] ?? ''
-                        const chainedTime =
-                          draft.startTime && chainedStartTimes[index]
-                            ? chainedStartTimes[index]
-                            : undefined
-                        const chainedHint = chainedTime
-                          ? `Automática (${chainedTime})`
-                          : 'Automática (encadenada)'
-
-                        return (
-                          <div>
-                            <label className={`${typography.label} mb-0.5 block text-xs`}>
-                              Hora de inicio
+                      {serviceId && (
+                        <div className="flex flex-wrap items-end gap-2">
+                          {index > 0 && (
+                            <div className="shrink-0">
+                              <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                                Hora
+                              </label>
+                              <ClockTimeInput
+                                compact
+                                value={draft.serviceStartTimes[index] ?? ''}
+                                onChange={(time) => setServiceStartTime(index, time)}
+                                defaultTime={
+                                  draft.startTime && chainedStartTimes[index]
+                                    ? chainedStartTimes[index]
+                                    : undefined
+                                }
+                                allowEmpty
+                                emptyHint="Auto"
+                              />
+                            </div>
+                          )}
+                          {staffOptions.length > 1 && (
+                            <div className="min-w-0 flex-1">
+                              <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                                Especialista
+                              </label>
+                              <select
+                                value={draft.staffAssignments[index] || staffId}
+                                onChange={(e) => setStaffAtIndex(index, e.target.value)}
+                                className={selectCn}
+                              >
+                                {staffOptions.map((s) => (
+                                  <option key={s.id} value={s.id}>
+                                    {s.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                              Duración
                             </label>
-                            <ClockTimeInput
-                              value={currentVal}
-                              onChange={(time) => setServiceStartTime(index, time)}
-                              defaultTime={chainedTime}
-                              allowEmpty
-                              emptyHint={chainedHint}
+                            <input
+                              type="number"
+                              min="5"
+                              max="480"
+                              step="5"
+                              value={draft.serviceDurations[index] ?? ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setServiceDuration(index, val === '' ? null : parseInt(val, 10))
+                              }}
+                              className={selectCn}
+                              placeholder="Auto"
                             />
                           </div>
-                        )
-                      })()}
-                      {serviceId && (
-                        <div>
-                          <label className={`${typography.label} mb-0.5 block text-xs`}>
-                            Duración (minutos)
-                          </label>
-                          <input
-                            type="number"
-                            min="5"
-                            max="480"
-                            step="5"
-                            value={draft.serviceDurations[index] ?? ''}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              setServiceDuration(index, val === '' ? null : parseInt(val, 10))
-                            }}
-                            className={selectCn}
-                            placeholder="Automática"
-                          />
                         </div>
                       )}
                     </div>

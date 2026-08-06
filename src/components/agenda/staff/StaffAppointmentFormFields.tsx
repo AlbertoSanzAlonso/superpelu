@@ -271,17 +271,29 @@ export function StaffAppointmentFormFields({
     }
     if (entries.length === 0) return []
     // Mínimo editable: ignora el override del propio índice para poder atrasarlo.
+    const staffForEntries = entries.map(
+      (e) => draft.staffAssignments[e.formIndex] || defaultStaffId || '',
+    )
     const earliest = buildEarliestEditableServiceStartTimes(
       entries.map((e) => e.service),
       draft.startTime,
       entries.map((e) => e.override),
+      staffForEntries,
     )
     const byFormIndex = draft.serviceIds.map(() => '')
     entries.forEach((entry, j) => {
       byFormIndex[entry.formIndex] = earliest[j]!
     })
     return byFormIndex
-  }, [draft.startTime, draft.serviceIds, draft.serviceDurations, draft.serviceStartTimes, services])
+  }, [
+    draft.startTime,
+    draft.serviceIds,
+    draft.serviceDurations,
+    draft.serviceStartTimes,
+    draft.staffAssignments,
+    defaultStaffId,
+    services,
+  ])
 
   const serviceOverlaps = useMemo(
     () => checkServiceOverlaps(draft, services, defaultStaffId),
@@ -368,7 +380,7 @@ export function StaffAppointmentFormFields({
                   type="button"
                   disabled={isFirst}
                   onClick={() => moveService(index, index - 1)}
-                  className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  className="flex size-5 cursor-pointer items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
                   aria-label="Subir tratamiento"
                 >
                   ▲
@@ -377,7 +389,7 @@ export function StaffAppointmentFormFields({
                   type="button"
                   disabled={isLast}
                   onClick={() => moveService(index, index + 1)}
-                  className="flex size-5 items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
+                  className="flex size-5 cursor-pointer items-center justify-center border border-gold/30 text-xs text-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-25"
                   aria-label="Bajar tratamiento"
                 >
                   ▼
@@ -433,7 +445,7 @@ export function StaffAppointmentFormFields({
                 <button
                   type="button"
                   onClick={() => handleRemoveService(index)}
-                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center self-start rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+                  className="mt-0.5 flex size-5 shrink-0 cursor-pointer items-center justify-center self-start rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
                   aria-label="Quitar tratamiento"
                 >
                   ×
@@ -454,75 +466,123 @@ export function StaffAppointmentFormFields({
                     if (id) setExpandedServiceIndex(index)
                   }}
                 />
-                {serviceId && staffList && staffList.length > 1 && (
-                  <div>
-                    <label className={`${typography.label} mb-0.5 block text-xs`}>
-                      Especialista
-                    </label>
-                    <select
-                      value={staffIdForIndex(index)}
-                      onChange={(e) => setStaffAtIndex(index, e.target.value)}
-                      className={selectCn}
-                    >
-                      {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 {serviceId &&
-                  index > 0 &&
                   (() => {
                     const currentVal = draft.serviceStartTimes[index] ?? ''
                     const chainedTime =
                       draft.startTime && chainedStartTimes[index]
                         ? chainedStartTimes[index]
                         : undefined
-                    const chainedHint = chainedTime
-                      ? `Automática (${chainedTime})`
-                      : 'Automática (encadenada)'
+                    const showStartTime = index > 0
+                    const showStaff = Boolean(staffList && staffList.length > 1)
 
-                    if (isAdmin) {
+                    const durationField = (
+                      <div className="min-w-0 flex-1">
+                        <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                          Duración
+                        </label>
+                        <select
+                          value={draft.serviceDurations[index] ?? ''}
+                          onChange={(e) => {
+                            const val = e.target.value
+                            setServiceDuration(index, val === '' ? null : parseInt(val, 10))
+                          }}
+                          className={selectCn}
+                        >
+                          <option value="">Automática</option>
+                          {DURATION_OPTIONS.map((m) => (
+                            <option key={m} value={m}>
+                              {m} min
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+
+                    const staffField = showStaff ? (
+                      <div className="min-w-0 flex-1">
+                        <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                          Especialista
+                        </label>
+                        <select
+                          value={staffIdForIndex(index)}
+                          onChange={(e) => setStaffAtIndex(index, e.target.value)}
+                          className={selectCn}
+                        >
+                          {staffList!.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null
+
+                    if (!showStartTime) {
                       return (
-                        <div>
-                          <label className={`${typography.label} mb-0.5 block text-xs`}>
-                            Hora de inicio
-                          </label>
-                          <ClockTimeInput
-                            value={currentVal}
-                            onChange={(time) => setServiceStartTime(index, time)}
-                            defaultTime={chainedTime}
-                            allowEmpty
-                            emptyHint={chainedHint}
-                          />
+                        <div className="flex flex-wrap items-end gap-2">
+                          {staffField}
+                          {durationField}
                         </div>
                       )
                     }
 
-                    const { freeOptions, isOccupied } =
-                      buildEditableServiceTimeOptions({
-                        currentVal,
-                        perServiceFree: serviceSlots?.[index] ?? [],
-                        fallbackFree: [],
-                        ownTimes: currentVal ? [currentVal] : [],
-                      })
-
-                    return (
-                      <div>
-                        <label className={`${typography.label} mb-0.5 block text-xs`}>
-                          Hora de inicio
+                    const timeField = (
+                      <div className="shrink-0">
+                        <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                          Hora
                         </label>
                         <ClockTimeInput
+                          compact
                           value={currentVal}
                           onChange={(time) => setServiceStartTime(index, time)}
-                          defaultTime={chainedTime ?? freeOptions[0]}
+                          defaultTime={
+                            isAdmin ? chainedTime : (chainedTime ?? undefined)
+                          }
                           allowEmpty
-                          emptyHint={chainedHint}
+                          emptyHint="Auto"
                         />
+                      </div>
+                    )
+
+                    if (isAdmin) {
+                      return (
+                        <div className="flex flex-wrap items-end gap-2">
+                          {timeField}
+                          {staffField}
+                          {durationField}
+                        </div>
+                      )
+                    }
+
+                    const { freeOptions, isOccupied } = buildEditableServiceTimeOptions({
+                      currentVal,
+                      perServiceFree: serviceSlots?.[index] ?? [],
+                      fallbackFree: [],
+                      ownTimes: currentVal ? [currentVal] : [],
+                    })
+
+                    return (
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="shrink-0">
+                            <label className={`${typography.label} mb-0.5 block text-[10px]`}>
+                              Hora
+                            </label>
+                            <ClockTimeInput
+                              compact
+                              value={currentVal}
+                              onChange={(time) => setServiceStartTime(index, time)}
+                              defaultTime={chainedTime ?? freeOptions[0]}
+                              allowEmpty
+                              emptyHint="Auto"
+                            />
+                          </div>
+                          {staffField}
+                          {durationField}
+                        </div>
                         {isOccupied && (
-                          <div className="mt-1 space-y-0.5 text-xs text-amber-700">
+                          <div className="space-y-0.5 text-xs text-amber-700">
                             {freeOptions.length > 0 && (
                               <p>
                                 Otras horas disponibles:{' '}
@@ -557,28 +617,6 @@ export function StaffAppointmentFormFields({
                       </div>
                     )
                   })()}
-                {serviceId && (
-                  <div>
-                    <label className={`${typography.label} mb-0.5 block text-xs`}>
-                      Duración
-                    </label>
-                    <select
-                      value={draft.serviceDurations[index] ?? ''}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setServiceDuration(index, val === '' ? null : parseInt(val, 10))
-                      }}
-                      className={selectCn}
-                    >
-                      <option value="">Automática</option>
-                      {DURATION_OPTIONS.map((m) => (
-                        <option key={m} value={m}>
-                          {m} min
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -587,7 +625,7 @@ export function StaffAppointmentFormFields({
       <button
         type="button"
         onClick={handleAddService}
-        className="flex w-full items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
+        className="flex w-full cursor-pointer items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
       >
         <span className="text-sm leading-none">+</span> Añadir tratamiento
       </button>
@@ -608,6 +646,7 @@ export function StaffAppointmentFormFields({
     <div>
       <label className={timeLabelCn}>Hora de la cita</label>
       <ClockTimeInput
+        compact
         value={draft.startTime}
         onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
         defaultTime={draft.startTime || timeOptions[0] || '10:00'}

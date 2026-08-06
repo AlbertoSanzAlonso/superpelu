@@ -86,7 +86,7 @@ export function StaffAppointmentFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
+            className="shrink-0 cursor-pointer border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
             aria-label="Cerrar"
           >
             ✕

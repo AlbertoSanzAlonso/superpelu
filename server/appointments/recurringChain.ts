@@ -87,6 +87,7 @@ export async function previewRecurringChainConflicts(
     effectiveServices,
     input.startTime,
     rawStartTimeOverrides,
+    staffAssignments,
   )
 
   const conflicts: SeriesDateConflict[] = []
@@ -206,6 +207,7 @@ export async function createRecurringChainedAppointment(
     effectiveServices,
     input.startTime,
     rawStartTimeOverrides,
+    staffAssignments,
   )
 
   const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
@@ -260,6 +262,7 @@ export async function createRecurringChainedAppointment(
         effectiveServices,
         resolution.startTime,
         shiftedOverrides,
+        dayStaffAssignments,
       )
     }
 
@@ -294,6 +297,7 @@ export async function createRecurringChainedAppointment(
           effectiveServices,
           i,
           timeToMinutes(serviceStartTime),
+          dayPlan.staffAssignments,
         )
         if (await isBookingUnavailable(tx, staffId, dayPlan.date, segments)) {
           throw new Error('HORARIO_ENCADENADO_NO_DISPONIBLE')
@@ -313,7 +317,12 @@ export async function createRecurringChainedAppointment(
         if (usesColorSplitBooking(service.id)) {
           const colorGroup = await prepareColorBookingGroupIds(service.id)
           if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-          const skipWash = getColorWashReplacementIndex(effectiveServices) === i + 1
+          const skipWash =
+            getColorWashReplacementIndex(
+              effectiveServices,
+              i,
+              dayPlan.staffAssignments,
+            ) != null
           const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
           await insertColorBookingGroup(
             {

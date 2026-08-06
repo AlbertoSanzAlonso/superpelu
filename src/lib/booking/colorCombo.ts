@@ -31,41 +31,90 @@ export function findColorServiceIndex(services: readonly { id: string }[]): numb
   return services.findIndex((service) => usesColorSplitBooking(service.id))
 }
 
+function sameStaff(
+  staffAssignments: readonly (string | null | undefined)[] | undefined,
+  a: number,
+  b: number,
+): boolean {
+  if (!staffAssignments?.length) return true
+  const staffA = staffAssignments[a]
+  const staffB = staffAssignments[b]
+  if (!staffA || !staffB) return true
+  return staffA === staffB
+}
+
 /**
- * Si hay coloración y el tratamiento inmediatamente posterior es de peluquería (no estética),
- * ese servicio sustituye el aclarado y empieza a la misma hora que iría el lavado.
+ * Índice del servicio que sustituye el lavado de la coloración en `colorIndex`,
+ * o null si esa coloración debe llevar su propio lavado.
+ *
+ * Reglas:
+ * - Solo peluquería (no estética) puede sustituir el lavado.
+ * - Otra coloración split no sustituye (necesita su propio lavado o sustituto).
+ * - Con `staffAssignments`: solo cuenta un tratamiento posterior del **mismo**
+ *   profesional. Coloraciones en paralelo con otro especialista no quitan el lavado.
+ * - Sin `staffAssignments`: solo el tratamiento inmediatamente siguiente (reserva clásica).
  */
 export function getColorWashReplacementIndex(
   services: readonly BookingServiceWithCategory[],
+  colorIndex: number = findColorServiceIndex(services),
+  staffAssignments?: readonly (string | null | undefined)[],
 ): number | null {
-  const colorIndex = findColorServiceIndex(services)
-  if (colorIndex < 0) return null
-  const nextIndex = colorIndex + 1
-  if (nextIndex >= services.length) return null
-  if (isEstheticCategory(services[nextIndex].categoryId)) return null
-  return nextIndex
+  if (colorIndex < 0 || colorIndex >= services.length) return null
+  if (!usesColorSplitBooking(services[colorIndex]!.id)) return null
+
+  const hasStaff = Boolean(staffAssignments?.length)
+
+  for (let nextIndex = colorIndex + 1; nextIndex < services.length; nextIndex++) {
+    if (!hasStaff) {
+      if (nextIndex !== colorIndex + 1) break
+    } else if (!sameStaff(staffAssignments, colorIndex, nextIndex)) {
+      continue
+    }
+
+    const next = services[nextIndex]!
+    if (isEstheticCategory(next.categoryId)) {
+      if (!hasStaff) return null
+      continue
+    }
+    if (usesColorSplitBooking(next.id)) return null
+    return nextIndex
+  }
+  return null
 }
 
-export function usesColorWashReplacement(services: readonly BookingServiceWithCategory[]): boolean {
-  return getColorWashReplacementIndex(services) != null
+/** Coloración cuyo lavado sustituye el servicio en `serviceIndex`, si aplica. */
+export function findColorIndexReplacedByService(
+  services: readonly BookingServiceWithCategory[],
+  serviceIndex: number,
+  staffAssignments?: readonly (string | null | undefined)[],
+): number | null {
+  for (let colorIndex = 0; colorIndex < serviceIndex; colorIndex++) {
+    if (getColorWashReplacementIndex(services, colorIndex, staffAssignments) === serviceIndex) {
+      return colorIndex
+    }
+  }
+  return null
+}
+
+export function usesColorWashReplacement(
+  services: readonly BookingServiceWithCategory[],
+  staffAssignments?: readonly (string | null | undefined)[],
+): boolean {
+  return services.some((_, i) => getColorWashReplacementIndex(services, i, staffAssignments) != null)
 }
 
 export function getOccupiedSegmentsForChainService(
   services: readonly BookingServiceWithCategory[],
   serviceIndex: number,
   startMinutes: number,
+  staffAssignments?: readonly (string | null | undefined)[],
 ): OccupiedSegment[] {
   const service = services[serviceIndex]
-  const replacementIndex = getColorWashReplacementIndex(services)
-
   if (
-    replacementIndex != null &&
-    serviceIndex === replacementIndex - 1 &&
-    usesColorSplitBooking(service.id)
+    usesColorSplitBooking(service.id) &&
+    getColorWashReplacementIndex(services, serviceIndex, staffAssignments) != null
   ) {
-    // Cuando hay un servicio de peluquería concatenado tras el color,
-    // el lavado se elimina siempre. El color solo bloquea la aplicación (30 min).
-    // La profesional lava implícitamente antes de iniciar el siguiente servicio.
+    // Mismo profesional continúa con peluquería: sin fila de lavado; solo aplicación.
     return [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   }
 
@@ -74,10 +123,16 @@ export function getOccupiedSegmentsForChainService(
   })
 }
 
-export function getFirstServiceBookingSpan(services: readonly BookingServiceWithCategory[]): number {
+export function getFirstServiceBookingSpan(
+  services: readonly BookingServiceWithCategory[],
+  staffAssignments?: readonly (string | null | undefined)[],
+): number {
   if (services.length === 0) return 0
   const first = services[0]
-  if (usesColorSplitBooking(first.id) && getColorWashReplacementIndex(services) === 1) {
+  if (
+    usesColorSplitBooking(first.id) &&
+    getColorWashReplacementIndex(services, 0, staffAssignments) != null
+  ) {
     return COLOR_SPLIT_SEGMENT_MINUTES
   }
   return getBookingSpanMinutes(first.id, first.durationMinutes, first.bookingPattern)
