@@ -22,7 +22,6 @@ import { ApiError } from '@/lib/api/request'
 import { typography } from '@/styles/typography'
 import { CategoryForm, type CategoryFormData } from '@/components/admin/CategoryForm'
 import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
-import { ServiceRemoveModal, type ServiceRemoveAction } from '@/components/admin/ServiceRemoveModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatPatternSummary, isSegmentedPattern } from '@/lib/booking/servicePattern'
 
@@ -43,6 +42,9 @@ type ServiceModalState = {
 
 const tagClass =
   'inline-block rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide font-medium'
+
+const searchFieldClass =
+  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:max-w-xs'
 
 const adminIconBtnClass =
   'flex size-6 shrink-0 items-center justify-center border border-gold/25 bg-cream text-charcoal-muted hover:border-gold hover:text-gold'
@@ -126,6 +128,18 @@ function IconChevronDown() {
   )
 }
 
+function IconBan() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-1.5 0a6.5 6.5 0 01-10.45 5.147L15.147 5.55A6.47 6.47 0 0116.5 10zM4.853 14.45A6.5 6.5 0 0114.45 4.853L4.853 14.45z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
 function sortServicesForDisplay(list: AdminService[]) {
   return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.nameEs.localeCompare(b.nameEs, 'es'))
 }
@@ -150,6 +164,7 @@ function ServiceListRow({
   compact,
   onEdit,
   onDeactivate,
+  onDelete,
   onReactivate,
   onMoveUp,
   onMoveDown,
@@ -160,6 +175,7 @@ function ServiceListRow({
   compact: boolean
   onEdit: () => void
   onDeactivate: () => void
+  onDelete: () => void
   onReactivate: () => void
   onMoveUp?: () => void
   onMoveDown?: () => void
@@ -210,14 +226,22 @@ function ServiceListRow({
                 <AdminIconButton label="Editar" onClick={onEdit}>
                   <IconPencil />
                 </AdminIconButton>
-                <AdminIconButton label="Desactivar" variant="danger" onClick={onDeactivate}>
+                <AdminIconButton label="Desactivar" onClick={onDeactivate}>
+                  <IconBan />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar" variant="danger" onClick={onDelete}>
                   <IconTrash />
                 </AdminIconButton>
               </>
             ) : (
-              <AdminIconButton label="Reactivar" onClick={onReactivate}>
-                <IconRefresh />
-              </AdminIconButton>
+              <>
+                <AdminIconButton label="Reactivar" onClick={onReactivate}>
+                  <IconRefresh />
+                </AdminIconButton>
+                <AdminIconButton label="Eliminar" variant="danger" onClick={onDelete}>
+                  <IconTrash />
+                </AdminIconButton>
+              </>
             )}
           </div>
         </div>
@@ -288,22 +312,42 @@ function ServiceListRow({
               type="button"
               variant="ghost"
               size="sm"
-              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              className="text-xs !px-2 !py-0.5"
               onClick={onDeactivate}
             >
               Desactivar
             </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
+            </Button>
           </>
         ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-xs !px-2 !py-0.5"
-            onClick={onReactivate}
-          >
-            Reactivar
-          </Button>
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5"
+              onClick={onReactivate}
+            >
+              Reactivar
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-xs !px-2 !py-0.5 text-red-600 hover:text-red-800"
+              onClick={onDelete}
+            >
+              Eliminar
+            </Button>
+          </>
         )}
       </div>
     </div>
@@ -517,6 +561,7 @@ export function AdminServicesPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
+  const [serviceQuery, setServiceQuery] = useState('')
   const [busy, setBusy] = useState(false)
 
   const [categoryModal, setCategoryModal] = useState<CategoryModalState>({
@@ -534,12 +579,8 @@ export function AdminServicesPage() {
   const [confirmAction, setConfirmAction] = useState<{
     title: string
     message: string
+    confirmLabel?: string
     onConfirm: () => void | Promise<void>
-  } | null>(null)
-
-  const [serviceRemoveModal, setServiceRemoveModal] = useState<{
-    id: string
-    name: string
   } | null>(null)
 
   const loadData = useCallback(async () => {
@@ -706,27 +747,48 @@ export function AdminServicesPage() {
     }
   }
 
-  const handleRemoveService = (service: AdminService) => {
-    setServiceRemoveModal({ id: service.id, name: firstLine(service.nameEs) })
+  const handleDeactivateService = (service: AdminService) => {
+    if (!adminToken) return
+    setConfirmAction({
+      title: 'Desactivar tratamiento',
+      message: `¿Desactivar «${firstLine(service.nameEs)}»? Dejará de aparecer en reservas y agenda; se puede reactivar después.`,
+      confirmLabel: 'Desactivar',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setBusy(true)
+        setError('')
+        try {
+          await deleteAdminService(adminToken, service.id)
+          await loadData()
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Error al desactivar')
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
-  const handleConfirmRemoveService = async (action: ServiceRemoveAction) => {
-    if (!adminToken || !serviceRemoveModal) return
-    setBusy(true)
-    setError('')
-    try {
-      if (action === 'deactivate') {
-        await deleteAdminService(adminToken, serviceRemoveModal.id)
-      } else {
-        await hardDeleteAdminService(adminToken, serviceRemoveModal.id)
-      }
-      setServiceRemoveModal(null)
-      await loadData()
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Error al eliminar')
-    } finally {
-      setBusy(false)
-    }
+  const handleDeleteService = (service: AdminService) => {
+    if (!adminToken) return
+    setConfirmAction({
+      title: 'Eliminar tratamiento',
+      message: `¿Eliminar permanentemente «${firstLine(service.nameEs)}»? No se puede deshacer. Fallará si tiene citas asociadas.`,
+      confirmLabel: 'Eliminar',
+      onConfirm: async () => {
+        setConfirmAction(null)
+        setBusy(true)
+        setError('')
+        try {
+          await hardDeleteAdminService(adminToken, service.id)
+          await loadData()
+        } catch (err) {
+          setError(err instanceof ApiError ? err.message : 'Error al eliminar')
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   const handleReactivateService = async (id: string) => {
@@ -753,12 +815,31 @@ export function AdminServicesPage() {
     )
   }
 
+  const queryNorm = serviceQuery.trim().toLocaleLowerCase('es')
+  const serviceMatchesQuery = (service: AdminService) => {
+    if (!queryNorm) return true
+    return (
+      service.nameEs.toLocaleLowerCase('es').includes(queryNorm) ||
+      (service.nameEn ? service.nameEn.toLocaleLowerCase('es').includes(queryNorm) : false)
+    )
+  }
+
   const servicesForCategory = (categoryId: string) =>
-    sortServicesForDisplay(services.filter((s) => s.categoryId === categoryId))
+    sortServicesForDisplay(
+      services.filter((s) => s.categoryId === categoryId && serviceMatchesQuery(s)),
+    )
 
-  const uncategorizedServices = sortServicesForDisplay(services.filter((s) => !s.categoryId))
+  const uncategorizedServices = sortServicesForDisplay(
+    services.filter((s) => !s.categoryId && serviceMatchesQuery(s)),
+  )
 
-  const sortedCategories = sortCategoriesForDisplay(categories)
+  const sortedCategories = sortCategoriesForDisplay(
+    queryNorm
+      ? categories.filter((cat) =>
+          services.some((s) => s.categoryId === cat.id && serviceMatchesQuery(s)),
+        )
+      : categories,
+  )
 
   return (
     <AgendaWorkspaceShell>
@@ -790,6 +871,17 @@ export function AdminServicesPage() {
           </Button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          <label className="sr-only" htmlFor="services-search">
+            Buscar tratamientos
+          </label>
+          <input
+            id="services-search"
+            type="search"
+            placeholder="Buscar tratamiento…"
+            value={serviceQuery}
+            onChange={(e) => setServiceQuery(e.target.value)}
+            className={searchFieldClass}
+          />
           <Button
             type="button"
             variant="solid"
@@ -824,7 +916,7 @@ export function AdminServicesPage() {
           <div className="services-admin-list w-full max-w-full divide-y divide-gold/10">
             {sortedCategories.map((cat, index) => {
               const catServices = servicesForCategory(cat.id)
-              const expanded = expandedCategoryId === cat.id
+              const expanded = Boolean(queryNorm) || expandedCategoryId === cat.id
               return (
                 <div key={cat.id}>
                   <CategoryListRow
@@ -866,7 +958,8 @@ export function AdminServicesPage() {
                                 categoryId: svc.categoryId ?? '',
                               })
                             }
-                            onDeactivate={() => handleRemoveService(svc)}
+                            onDeactivate={() => handleDeactivateService(svc)}
+                            onDelete={() => handleDeleteService(svc)}
                             onReactivate={() => handleReactivateService(svc.id)}
                           />
                         ))
@@ -915,16 +1008,19 @@ export function AdminServicesPage() {
                     onEdit={() =>
                       setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })
                     }
-                    onDeactivate={() => handleRemoveService(svc)}
+                    onDeactivate={() => handleDeactivateService(svc)}
+                    onDelete={() => handleDeleteService(svc)}
                     onReactivate={() => handleReactivateService(svc.id)}
                   />
                 ))}
               </div>
             )}
 
-            {sortedCategories.length === 0 && services.length === 0 && (
+            {sortedCategories.length === 0 && uncategorizedServices.length === 0 && (
               <p className={`${typography.body} p-8 text-center`}>
-                No hay servicios ni categorías. Crea tu primera categoría o servicio.
+                {queryNorm
+                  ? 'Ningún tratamiento coincide con la búsqueda.'
+                  : 'No hay servicios ni categorías. Crea tu primera categoría o servicio.'}
               </p>
             )}
           </div>
@@ -967,19 +1063,11 @@ export function AdminServicesPage() {
         </div>
       )}
 
-      <ServiceRemoveModal
-        open={serviceRemoveModal != null}
-        serviceName={serviceRemoveModal?.name ?? ''}
-        busy={busy}
-        onClose={() => setServiceRemoveModal(null)}
-        onConfirm={(action) => void handleConfirmRemoveService(action)}
-      />
-
       <ConfirmDialog
         open={confirmAction != null}
         title={confirmAction?.title ?? ''}
         message={confirmAction?.message}
-        confirmLabel={confirmAction?.title.startsWith('Desactivar') ? 'Desactivar' : 'Confirmar'}
+        confirmLabel={confirmAction?.confirmLabel ?? 'Confirmar'}
         destructive
         busy={busy}
         onClose={() => setConfirmAction(null)}
