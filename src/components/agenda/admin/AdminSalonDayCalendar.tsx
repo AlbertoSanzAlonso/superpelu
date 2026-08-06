@@ -591,7 +591,7 @@ export function AdminSalonDayCalendar({
         className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream/40 backdrop-blur-[2px]"
         title="Ctrl + rueda para zoom"
       >
-        <div className="flex min-w-max">
+        <div className="flex w-max min-w-full">
           <div className="sticky left-0 z-40 isolate shrink-0 bg-cream/40 backdrop-blur-[2px]">
             <div
               className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
@@ -600,11 +600,11 @@ export function AdminSalonDayCalendar({
             <TimeGutter range={range} windows={gutterWindows} />
           </div>
 
-          <div className="flex flex-1">
+          <div className="flex min-w-0 flex-1">
             {schedules.map((schedule, index) => (
-              <div key={schedule.staffId} className="flex">
+              <div key={schedule.staffId} className="flex min-w-0 flex-1">
                 {index > 0 && (
-                  <div className="flex flex-col">
+                  <div className="flex shrink-0 flex-col">
                     <div
                       className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
                       aria-hidden
