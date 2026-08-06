@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { AdminAppointmentNotificationsBell } from '@/components/agenda/admin/AdminAppointmentNotificationsBell'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 const dayNavButtonClass =
-  'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10'
+  'flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold hover:bg-gold/10'
 
 const navLinkClass =
   'flex h-8 shrink-0 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
@@ -29,6 +30,8 @@ const MONTH_ABBR = [
   'NOV',
   'DIC',
 ] as const
+
+const STRIP_LEN = 7
 
 type Props = {
   date: string
@@ -89,7 +92,12 @@ function formatShortDate(dateStr: string): string {
 }
 
 function stripDatesFrom(anchor: string): string[] {
-  return [0, 1, 2, 3, 4, 5, 6].map((offset) => addDaysToDateString(anchor, offset))
+  return Array.from({ length: STRIP_LEN }, (_, offset) => addDaysToDateString(anchor, offset))
+}
+
+function windowContains(windowStart: string, date: string): boolean {
+  const end = addDaysToDateString(windowStart, STRIP_LEN - 1)
+  return date >= windowStart && date <= end
 }
 
 export function AdminAgendaControlBar({
@@ -112,78 +120,142 @@ export function AdminAgendaControlBar({
   onNotificationBellClose,
   onNotificationSelect,
 }: Props) {
+  const [windowStart, setWindowStart] = useState(date)
+  const [stripAnim, setStripAnim] = useState<'next' | 'prev' | null>(null)
   const isToday = date === todaySalon()
-  const stripDates = stripDatesFrom(date)
+  const stripDates = stripDatesFrom(windowStart)
+  const windowEnd = stripDates[STRIP_LEN - 1]!
   const hasSelection = selectionCount > 0 && selectionSummary != null
 
-  const dayStrip = (
-    <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
-      <label className="relative flex h-8 cursor-pointer items-center gap-1.5 border border-gold/30 px-2 text-gold hover:border-gold hover:bg-gold/10">
-        <CalendarIcon />
-        <span className={`${typography.label} tabular-nums text-gold`}>{formatShortDate(date)}</span>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => {
-            if (e.target.value) onDateChange(e.target.value)
-          }}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          aria-label="Elegir fecha"
-        />
-      </label>
+  useEffect(() => {
+    if (windowContains(windowStart, date)) return
+    setStripAnim(date > windowStart ? 'next' : 'prev')
+    setWindowStart(date)
+  }, [date, windowStart])
 
-      <button
-        type="button"
-        disabled={isToday}
-        onClick={() => onDateChange(todaySalon())}
-        className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Hoy
-      </button>
+  useEffect(() => {
+    if (!stripAnim) return
+    const id = window.setTimeout(() => setStripAnim(null), 400)
+    return () => window.clearTimeout(id)
+  }, [stripAnim, windowStart])
 
-      <div className="flex items-center gap-0.5 overflow-x-auto px-0.5" role="group" aria-label="Semana visible">
-        {stripDates.map((d) => {
-          const active = d === date
-          const abbr = DAY_ABBR[dayOfWeekFromDateString(d)]
-          return (
-            <button
-              key={d}
-              type="button"
-              aria-pressed={active}
-              aria-label={formatShortDate(d)}
-              onClick={() => onDateChange(d)}
-              className={`h-8 shrink-0 cursor-pointer border-b-2 px-2 text-xs font-medium uppercase tracking-wide ${
-                active
-                  ? 'border-gold text-gold'
-                  : 'border-transparent text-charcoal-muted hover:text-charcoal'
-              }`}
-            >
-              {abbr}
-            </button>
-          )
-        })}
-      </div>
+  function selectDate(next: string) {
+    if (next === date) return
+    onDateChange(next)
+  }
 
-      <div className="flex items-center gap-1">
+  function jumpToDate(next: string) {
+    if (!windowContains(windowStart, next)) {
+      setStripAnim(next > windowStart ? 'next' : 'prev')
+      setWindowStart(next)
+    }
+    selectDate(next)
+  }
+
+  function goPrev() {
+    if (date > windowStart) {
+      selectDate(addDaysToDateString(date, -1))
+      return
+    }
+    const prev = addDaysToDateString(date, -1)
+    setStripAnim('prev')
+    setWindowStart(addDaysToDateString(prev, -(STRIP_LEN - 1)))
+    selectDate(prev)
+  }
+
+  function goNext() {
+    if (date < windowEnd) {
+      selectDate(addDaysToDateString(date, 1))
+      return
+    }
+    const next = addDaysToDateString(date, 1)
+    setStripAnim('next')
+    setWindowStart(next)
+    selectDate(next)
+  }
+
+  const stripAnimClass =
+    stripAnim === 'next'
+      ? 'agenda-strip-enter-next'
+      : stripAnim === 'prev'
+        ? 'agenda-strip-enter-prev'
+        : ''
+
+  function renderDayStrip() {
+    return (
+      <div className="flex min-w-0 items-center gap-1" role="navigation" aria-label="Días de la agenda">
+        <label className="relative flex h-8 cursor-pointer items-center gap-1.5 border border-gold/30 px-2 text-gold transition-colors hover:border-gold hover:bg-gold/10">
+          <CalendarIcon />
+          <span className={`${typography.label} tabular-nums text-gold`}>{formatShortDate(date)}</span>
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => {
+              if (e.target.value) jumpToDate(e.target.value)
+            }}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label="Elegir fecha"
+          />
+        </label>
+
         <button
           type="button"
-          className={dayNavButtonClass}
-          aria-label="Día anterior"
-          onClick={() => onDateChange(addDaysToDateString(date, -1))}
+          disabled={isToday}
+          onClick={() => jumpToDate(todaySalon())}
+          className="h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs font-medium uppercase tracking-wide text-charcoal-muted transition-colors hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <NavChevron direction="prev" />
+          Hoy
         </button>
-        <button
-          type="button"
-          className={dayNavButtonClass}
-          aria-label="Día siguiente"
-          onClick={() => onDateChange(addDaysToDateString(date, 1))}
+
+        <div
+          key={windowStart}
+          className={`flex items-center gap-0.5 overflow-x-auto px-0.5 ${stripAnimClass}`}
+          role="group"
+          aria-label="Semana visible"
         >
-          <NavChevron direction="next" />
-        </button>
+          {stripDates.map((d) => {
+            const active = d === date
+            const abbr = DAY_ABBR[dayOfWeekFromDateString(d)]
+            return (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={active}
+                aria-label={formatShortDate(d)}
+                onClick={() => selectDate(d)}
+                className={`h-8 shrink-0 cursor-pointer border-b-2 px-2 text-xs font-medium uppercase tracking-wide transition-[color,border-color] duration-300 ease-[var(--ease-premium)] ${
+                  active
+                    ? 'border-gold text-gold'
+                    : 'border-transparent text-charcoal-muted hover:text-charcoal'
+                }`}
+              >
+                {abbr}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            className={dayNavButtonClass}
+            aria-label="Día anterior"
+            onClick={goPrev}
+          >
+            <NavChevron direction="prev" />
+          </button>
+          <button
+            type="button"
+            className={dayNavButtonClass}
+            aria-label="Día siguiente"
+            onClick={goNext}
+          >
+            <NavChevron direction="next" />
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   const showNotifications =
     onNotificationBellOpen != null &&
@@ -237,14 +309,14 @@ export function AdminAgendaControlBar({
       <div className="relative flex flex-col gap-2 px-3 py-2 md:gap-y-2">
         <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
           <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 overflow-x-auto">{dayStrip}</div>
+            <div className="min-w-0 flex-1 overflow-x-auto">{renderDayStrip()}</div>
             {notificationBell}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="hidden min-w-0 md:block">{dayStrip}</div>
+          <div className="hidden min-w-0 md:block">{renderDayStrip()}</div>
 
           <span className="hidden h-4 w-px bg-gold/25 sm:block" aria-hidden />
 

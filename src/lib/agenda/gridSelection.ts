@@ -19,7 +19,7 @@ export function summarizeScheduleGridSelection(
   date: string,
   times: Set<string>,
 ): GridSelectionSummary {
-  const cells = buildStaffDayGrid(schedule, date)
+  const cells = buildStaffDayGrid(schedule, date, undefined, 'fullDisplay')
   return summarizeGridSelection(times, cells)
 }
 

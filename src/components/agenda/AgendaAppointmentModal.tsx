@@ -16,7 +16,6 @@ import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
 import {
   ALL_DAY_SLOTS,
-  buildEditableServiceTimeOptions,
 } from '@/lib/agenda/serviceTimeOptions'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
@@ -73,10 +72,10 @@ export function AgendaAppointmentModal({
   customerRegistered,
   draft,
   services,
-  slots,
-  slotsOverHours = [],
-  serviceSlots,
-  serviceAlternativeStaff,
+  slots: _slots,
+  slotsOverHours: _slotsOverHours = [],
+  serviceSlots: _serviceSlots,
+  serviceAlternativeStaff: _serviceAlternativeStaff,
   saving = false,
   onModeChange,
   onDraftChange,
@@ -107,47 +106,7 @@ export function AgendaAppointmentModal({
     })
   }, [appointment.createdAt])
 
-  const ownTimes = useMemo(() => {
-    const times = new Set<string>()
-    if (draft.startTime) times.add(draft.startTime)
-    for (const time of draft.serviceStartTimes) {
-      if (time) times.add(time)
-    }
-    return times
-  }, [draft.startTime, draft.serviceStartTimes])
-
-  // En edición, las horas de esta misma cita no cuentan como ocupadas.
-  const freeSet = useMemo(() => {
-    const set = new Set(slots)
-    for (const time of ownTimes) set.add(time)
-    return set
-  }, [slots, ownTimes])
-  const overHoursSet = useMemo(() => new Set(slotsOverHours), [slotsOverHours])
-  const displayFreeSlots = useMemo(
-    () =>
-      [...new Set([...slots, ...[...ownTimes].filter((t) => !overHoursSet.has(t))])].sort(),
-    [slots, ownTimes, overHoursSet],
-  )
-  const mainOccupiedOptions = useMemo(
-    () => ALL_DAY_SLOTS.filter((t) => !freeSet.has(t) && !overHoursSet.has(t)),
-    [freeSet, overHoursSet],
-  )
-  const mainExtraCurrent = useMemo(
-    () =>
-      draft.startTime &&
-      !freeSet.has(draft.startTime) &&
-      !overHoursSet.has(draft.startTime) &&
-      !mainOccupiedOptions.includes(draft.startTime)
-        ? [draft.startTime]
-        : [],
-    [draft.startTime, freeSet, overHoursSet, mainOccupiedOptions],
-  )
-  const isOverHoursSelected = draft.startTime ? overHoursSet.has(draft.startTime) : false
-  const isMainOccupiedSelected =
-    Boolean(draft.startTime) && !freeSet.has(draft.startTime) && !overHoursSet.has(draft.startTime)
-
   const serviceIds = draft.serviceIds.length > 0 ? draft.serviceIds : ['']
-  const hasServices = draft.serviceIds.length > 0 && draft.serviceIds[0] !== ''
 
   const chainedStartTimes = useMemo(() => {
     if (!draft.startTime || draft.serviceIds.length === 0 || draft.serviceIds[0] === '') return []
@@ -502,24 +461,12 @@ export function AgendaAppointmentModal({
                           serviceStartTimes: [],
                         })
                       }
-                      emptyLabel={hasServices ? 'Elige hora' : 'Tratamiento primero'}
-                      freeOptions={displayFreeSlots}
-                      overHoursOptions={slotsOverHours}
-                      occupiedOptions={[...mainExtraCurrent, ...mainOccupiedOptions]}
+                      emptyLabel="Elige hora"
+                      freeOptions={[...ALL_DAY_SLOTS]}
                       className={selectCn}
-                      disabled={!hasServices}
+                      disabled={false}
                       required
                     />
-                    {isOverHoursSelected && (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Esta hora va más allá del horario del salón.
-                      </p>
-                    )}
-                    {isMainOccupiedSelected && (
-                      <p className="mt-1 text-xs text-amber-700">
-                        Esta hora está ocupada; se guardará igualmente.
-                      </p>
-                    )}
                   </div>
 
                   {serviceIds.map((serviceId, index) => (
@@ -560,18 +507,6 @@ export function AgendaAppointmentModal({
                       )}
                       {serviceId && index > 0 && (() => {
                         const currentVal = draft.serviceStartTimes[index] ?? ''
-                        const {
-                          freeOptions: freeOptionsDisplay,
-                          occupiedOptions,
-                          extraCurrent,
-                          isOccupied,
-                        } = buildEditableServiceTimeOptions({
-                          currentVal,
-                          perServiceFree: serviceSlots?.[index] ?? [],
-                          fallbackFree: [],
-                          // Solo la hora de este tratamiento: no mezclar huecos de otros especialistas.
-                          ownTimes: currentVal ? [currentVal] : [],
-                        })
                         const chainedLabel =
                           draft.startTime && chainedStartTimes[index]
                             ? chainedStartTimes[index]
@@ -586,43 +521,9 @@ export function AgendaAppointmentModal({
                               value={currentVal}
                               onChange={(time) => setServiceStartTime(index, time)}
                               emptyLabel={chainedLabel}
-                              freeOptions={freeOptionsDisplay}
-                              occupiedOptions={[...extraCurrent, ...occupiedOptions]}
+                              freeOptions={[...ALL_DAY_SLOTS]}
                               className={selectCn}
                             />
-                            {isOccupied && (
-                              <div className="mt-1 space-y-0.5 text-xs text-amber-700">
-                                {freeOptionsDisplay.length > 0 && (
-                                  <p>
-                                    Otras horas disponibles:{' '}
-                                    {freeOptionsDisplay.slice(0, 5).map((t, i2) => (
-                                      <button
-                                        key={t}
-                                        type="button"
-                                        onClick={() => setServiceStartTime(index, t)}
-                                        className="cursor-pointer font-medium underline"
-                                      >
-                                        {t}
-                                        {i2 < Math.min(freeOptionsDisplay.length, 5) - 1 ? ', ' : ''}
-                                      </button>
-                                    ))}
-                                  </p>
-                                )}
-                                {serviceAlternativeStaff?.[index] != null && (
-                                  <p>
-                                    A esta hora está libre:{' '}
-                                    <span className="font-medium">
-                                      {serviceAlternativeStaff[index]!.name}
-                                    </span>
-                                  </p>
-                                )}
-                                {isOccupied &&
-                                  freeOptionsDisplay.length === 0 &&
-                                  !serviceAlternativeStaff?.[index] && (
-                                    <p>Sin disponibilidad para este tratamiento.</p>
-                                  )}
-                              </div>
-                            )}
                           </div>
                         )
                       })()}

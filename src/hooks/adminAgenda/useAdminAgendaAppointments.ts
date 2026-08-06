@@ -14,10 +14,6 @@ import {
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
 } from '@/lib/api'
-import {
-  singleFreeTimeFromGridSummary,
-  summarizeStaffColumnGridSelection,
-} from '@/lib/agenda/gridSelection'
 import type {
   BookableService,
   DayScheduleAppointment,
@@ -362,17 +358,11 @@ export function useAdminAgendaAppointments({
   )
 
   const createAppointmentFromSelection = useCallback(() => {
-    if (!selection) return
-    const summary = summarizeStaffColumnGridSelection(
-      schedules,
-      selection.staffId,
-      date,
-      selection.times,
-    )
-    const startTime = singleFreeTimeFromGridSummary(summary)
+    if (!selection || selection.times.size !== 1) return
+    const startTime = [...selection.times][0]
     if (!startTime) return
     openNewAppointment(selection.staffId, selection.staffName, startTime)
-  }, [selection, schedules, date, openNewAppointment])
+  }, [selection, openNewAppointment])
 
   const persist = useAdminAppointmentPersist({
     adminToken,

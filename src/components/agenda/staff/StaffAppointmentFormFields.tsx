@@ -79,24 +79,12 @@ export function StaffAppointmentFormFields({
   adminToken,
   compact = false,
 }: Props) {
-  const freeSet = useMemo(() => new Set(slots), [slots])
-  const overHoursSet = useMemo(() => new Set(slotsOverHours), [slotsOverHours])
+  const isAdmin = Boolean(adminToken)
   const timeOptions = useMemo(() => {
+    if (isAdmin) return [...ALL_DAY_SLOTS]
     const base = [...new Set([...slots, ...(draft.startTime ? [draft.startTime] : [])])]
     return base.sort()
-  }, [slots, draft.startTime])
-  const occupiedOptions = useMemo(() => {
-    if (!adminToken) return []
-    return ALL_DAY_SLOTS.filter(
-      (t) => !freeSet.has(t) && !overHoursSet.has(t) && t !== draft.startTime,
-    )
-  }, [adminToken, freeSet, overHoursSet, draft.startTime])
-  const isOverHoursSelected = draft.startTime ? overHoursSet.has(draft.startTime) : false
-  const isOccupiedSelected =
-    Boolean(adminToken) &&
-    Boolean(draft.startTime) &&
-    !freeSet.has(draft.startTime) &&
-    !overHoursSet.has(draft.startTime)
+  }, [isAdmin, slots, draft.startTime])
   const selectCn = compact
     ? 'w-full border border-gold/30 bg-cream px-3 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50'
     : 'w-full border border-gold/30 bg-cream px-3 py-2 text-sm outline-none focus:border-gold disabled:opacity-50'
@@ -369,6 +357,27 @@ export function StaffAppointmentFormFields({
                 )}
                 {serviceId && index > 0 && (() => {
                   const currentVal = draft.serviceStartTimes[index] ?? ''
+                  const chainedLabel = draft.startTime && chainedStartTimes[index]
+                    ? chainedStartTimes[index]
+                    : 'Automática (encadenada)'
+
+                  if (isAdmin) {
+                    return (
+                      <div>
+                        <label className={`${typography.label} mb-0.5 block text-xs`}>
+                          Hora de inicio
+                        </label>
+                        <ScrollableTimeSelect
+                          value={currentVal}
+                          onChange={(time) => setServiceStartTime(index, time)}
+                          emptyLabel={chainedLabel}
+                          freeOptions={[...ALL_DAY_SLOTS]}
+                          className={selectCn}
+                        />
+                      </div>
+                    )
+                  }
+
                   const { freeOptions, occupiedOptions, extraCurrent, isOccupied } =
                     buildEditableServiceTimeOptions({
                       currentVal,
@@ -376,9 +385,6 @@ export function StaffAppointmentFormFields({
                       fallbackFree: [],
                       ownTimes: currentVal ? [currentVal] : [],
                     })
-                  const chainedLabel = draft.startTime && chainedStartTimes[index]
-                    ? chainedStartTimes[index]
-                    : 'Automática (encadenada)'
 
                   return (
                     <div>
@@ -477,30 +483,13 @@ export function StaffAppointmentFormFields({
       <ScrollableTimeSelect
         value={draft.startTime}
         onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
-        emptyLabel={
-          hasServices
-            ? compact
-              ? 'Elige hora'
-              : 'Primero elige el tratamiento'
-            : 'Tratamiento primero'
-        }
+        emptyLabel={isAdmin ? 'Elige hora' : hasServices ? (compact ? 'Elige hora' : 'Primero elige el tratamiento') : 'Tratamiento primero'}
         freeOptions={timeOptions}
-        overHoursOptions={slotsOverHours}
-        occupiedOptions={occupiedOptions}
+        overHoursOptions={isAdmin ? [] : slotsOverHours}
         className={selectCn}
-        disabled={!hasServices}
+        disabled={isAdmin ? false : !hasServices}
         required
       />
-      {isOverHoursSelected && (
-        <p className="mt-1 text-xs text-amber-700">
-          Esta hora va más allá del horario del salón.
-        </p>
-      )}
-      {isOccupiedSelected && (
-        <p className="mt-1 text-xs text-amber-700">
-          Esta hora está ocupada o fuera de franja; se guardará igualmente.
-        </p>
-      )}
     </div>
   )
 

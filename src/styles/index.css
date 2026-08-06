@@ -91,6 +91,101 @@
     animation: bookingStepEnter 520ms var(--ease-premium) forwards;
   }
 
+  /* Agenda admin: cambio de día */
+  .agenda-day-enter-next {
+    animation: agendaDayEnterNext 420ms var(--ease-premium) both;
+  }
+
+  .agenda-day-enter-prev {
+    animation: agendaDayEnterPrev 420ms var(--ease-premium) both;
+  }
+
+  .agenda-strip-enter-next {
+    animation: agendaStripEnterNext 380ms var(--ease-premium) both;
+  }
+
+  .agenda-strip-enter-prev {
+    animation: agendaStripEnterPrev 380ms var(--ease-premium) both;
+  }
+
+  /* Agenda admin: notificaciones */
+  .agenda-toast-enter {
+    animation: agendaToastEnter 420ms var(--ease-premium) both;
+  }
+
+  .agenda-toast-leave {
+    animation: agendaToastLeave 320ms var(--ease-premium) both;
+  }
+
+  .agenda-notify-bell {
+    transition:
+      border-color 220ms var(--ease-premium),
+      background-color 220ms var(--ease-premium),
+      transform 220ms var(--ease-premium),
+      color 220ms var(--ease-premium);
+  }
+
+  .agenda-notify-bell:hover {
+    transform: translateY(-1px);
+  }
+
+  .agenda-notify-bell:active {
+    transform: translateY(0) scale(0.96);
+  }
+
+  .agenda-notify-bell--unseen {
+    animation: agendaBellPulse 2.8s var(--ease-premium) infinite;
+  }
+
+  .agenda-notify-badge {
+    animation: agendaBadgePop 380ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .agenda-notify-panel-enter {
+    animation: agendaNotifyPanelEnter 320ms var(--ease-premium) both;
+    transform-origin: top right;
+  }
+
+  .agenda-notify-panel-leave {
+    animation: agendaNotifyPanelLeave 240ms var(--ease-premium) both;
+    transform-origin: top right;
+  }
+
+  .agenda-notify-backdrop-enter {
+    animation: agendaNotifyBackdropEnter 240ms var(--ease-premium) both;
+  }
+
+  .agenda-notify-backdrop-leave {
+    animation: agendaNotifyBackdropLeave 200ms var(--ease-premium) both;
+  }
+
+  .agenda-notify-item {
+    transition: background-color 180ms var(--ease-premium);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agenda-day-enter-next,
+    .agenda-day-enter-prev,
+    .agenda-strip-enter-next,
+    .agenda-strip-enter-prev,
+    .agenda-toast-enter,
+    .agenda-toast-leave,
+    .agenda-notify-bell--unseen,
+    .agenda-notify-badge,
+    .agenda-notify-panel-enter,
+    .agenda-notify-panel-leave,
+    .agenda-notify-backdrop-enter,
+    .agenda-notify-backdrop-leave {
+      animation: none;
+    }
+
+    .agenda-notify-bell,
+    .agenda-notify-bell:hover,
+    .agenda-notify-bell:active {
+      transform: none;
+    }
+  }
+
   /* Agenda admin: arrastre de citas */
   .agenda-calendar-scroll:has(.agenda-drag-ghost) {
     cursor: grabbing;
@@ -189,5 +284,135 @@
     opacity: 1;
     filter: blur(0);
     transform: translateY(0);
+  }
+}
+
+@keyframes agendaDayEnterNext {
+  from {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes agendaDayEnterPrev {
+  from {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes agendaStripEnterNext {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes agendaStripEnterPrev {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes agendaToastEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes agendaToastLeave {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(12px, 8px, 0) scale(0.96);
+  }
+}
+
+@keyframes agendaBellPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-gold) 0%, transparent);
+  }
+  40% {
+    box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-gold) 18%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-gold) 0%, transparent);
+  }
+}
+
+@keyframes agendaBadgePop {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes agendaNotifyPanelEnter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes agendaNotifyPanelLeave {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+}
+
+@keyframes agendaNotifyBackdropEnter {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes agendaNotifyBackdropLeave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }

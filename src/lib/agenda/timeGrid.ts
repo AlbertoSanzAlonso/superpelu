@@ -216,7 +216,13 @@ export function summarizeGridSelection(
 
   for (const cell of cells) {
     if (!selected.has(cell.time)) continue
-    if (cell.status === 'free') freeTimes.push(cell.time)
+    if (
+      cell.status === 'free' ||
+      cell.status === 'closed' ||
+      cell.status === 'past'
+    ) {
+      freeTimes.push(cell.time)
+    }
     if (cell.status === 'block' && cell.blockId) blockIds.add(cell.blockId)
     if (cell.status === 'appointment') hasAppointment = true
   }

@@ -9,6 +9,7 @@ import {
   type CalendarDayRange,
 } from '@/lib/agenda/adminCalendar'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
+import { salonSchedule } from '@/data/schedule'
 import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
 import { useSlotRangeDrag } from '@/hooks/agenda/useSlotRangeDrag'
 import {
@@ -158,9 +159,15 @@ function SlotLayer({
   onCellClick: (cell: TimeGridCell, shiftKey: boolean) => void
   onPaintSlots: (times: Set<string>) => void
 }) {
-  const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
+  const cells = useMemo(
+    () => buildStaffDayGrid(schedule, date, salonSchedule.slotMinutes, 'fullDisplay'),
+    [schedule, date],
+  )
   const selectableTimes = useMemo(
-    () => cells.filter((c) => c.status === 'free').map((c) => c.time),
+    () =>
+      cells
+        .filter((c) => c.status === 'free' || c.status === 'closed' || c.status === 'past')
+        .map((c) => c.time),
     [cells],
   )
   const selectedTimes =
@@ -178,21 +185,26 @@ function SlotLayer({
       {cells.map((cell) => {
         const isSelected =
           selection?.staffId === schedule.staffId && selection.times.has(cell.time)
+        const isBookable =
+          cell.status === 'free' || cell.status === 'closed' || cell.status === 'past'
         const isFormSlot =
           formStaffId === schedule.staffId &&
           formSlotTime === cell.time &&
-          cell.status === 'free' &&
+          isBookable &&
           !isSelected
 
-        if (cell.status === 'closed') {
-          return null
-        }
-
-        if (cell.status === 'past') {
+        if (cell.status === 'appointment') {
           return (
-            <div
+            <button
               key={cell.time}
-              className="pointer-events-none absolute inset-x-0 z-[14] bg-charcoal/[0.06]"
+              type="button"
+              data-slot-time={cell.time}
+              data-slot-scope={schedule.staffId}
+              onClick={(e) => onCellClick(cell, e.shiftKey)}
+              className={[
+                'absolute inset-x-0 z-[15] border border-transparent',
+                pointerPassthrough ? 'pointer-events-none' : 'cursor-pointer',
+              ].join(' ')}
               style={{
                 top: eventTopPx(cell.time, range),
                 height: range.slotHeightPx,
@@ -201,7 +213,9 @@ function SlotLayer({
           )
         }
 
-        const isFree = cell.status === 'free'
+        if (!isBookable && cell.status !== 'block') {
+          return null
+        }
 
         return (
           <button
@@ -210,18 +224,18 @@ function SlotLayer({
             aria-pressed={isSelected}
             data-slot-time={cell.time}
             data-slot-scope={schedule.staffId}
-            data-slot-selectable={isFree ? '1' : undefined}
+            data-slot-selectable={isBookable ? '1' : undefined}
             onPointerDown={
-              isFree ? (e) => drag.onFreeSlotPointerDown(e, cell.time) : undefined
+              isBookable ? (e) => drag.onFreeSlotPointerDown(e, cell.time) : undefined
             }
             onClick={(e) => {
-              if (isFree && drag.shouldSuppressClick()) return
+              if (isBookable && drag.shouldSuppressClick()) return
               onCellClick(cell, e.shiftKey)
             }}
             className={[
               'absolute inset-x-0 z-[15] border border-transparent transition-colors',
               pointerPassthrough ? 'pointer-events-none' : '',
-              isFree ? 'cursor-pointer hover:bg-gold/10' : 'cursor-pointer',
+              'cursor-pointer hover:bg-gold/10',
               isSelected ? 'bg-gold/20 ring-2 ring-inset ring-gold' : '',
               isFormSlot ? 'ring-2 ring-inset ring-gold/50' : '',
             ].join(' ')}
@@ -368,7 +382,6 @@ function StaffColumn({
   }, [schedule, pendingMoveSummary])
 
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
-    if (cell.status === 'past') return
     if (slotsLocked && cell.status !== 'appointment') return
     if (cell.status === 'appointment' && cell.appointmentId) {
       const apt = schedule.appointments.find((a) => a.id === cell.appointmentId)
@@ -380,7 +393,12 @@ function StaffColumn({
       if (block) onOpenBlock(schedule.staffId, block)
       return
     }
-    if (cell.status === 'free' || cell.status === 'block') {
+    if (
+      cell.status === 'free' ||
+      cell.status === 'block' ||
+      cell.status === 'closed' ||
+      cell.status === 'past'
+    ) {
       onToggleSlot(schedule.staffId, schedule.staffName, cell.time)
     }
   }
@@ -407,7 +425,6 @@ function StaffColumn({
       <div className="relative select-none" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} windows={columnWindows} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
-        {columnWindows.length > 0 ? (
         <SlotLayer
           schedule={schedule}
           date={date}
@@ -419,7 +436,6 @@ function StaffColumn({
           onCellClick={handleCellClick}
           onPaintSlots={handlePaintSlots}
         />
-        ) : null}
 
         {schedule.appointments.map((apt) => (
           <DraggableAppointmentBlock

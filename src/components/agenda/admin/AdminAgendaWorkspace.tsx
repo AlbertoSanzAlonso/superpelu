@@ -18,6 +18,7 @@ import { StaffAppointmentFormModal } from '@/components/agenda/staff/StaffAppoin
 import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { typography } from '@/styles/typography'
 import type { UseAdminAgendaReturn } from '@/hooks/useAdminAgenda'
+import { useEffect, useRef, useState } from 'react'
 
 export function AdminAgendaWorkspace({
   selectedDate,
@@ -43,10 +44,23 @@ export function AdminAgendaWorkspace({
   const appointmentModalOpen =
     agenda.appointmentFormOpen || agenda.viewingAppointment != null
 
+  const prevDateRef = useRef(selectedDate)
+  const [dayAnim, setDayAnim] = useState<'next' | 'prev' | null>(null)
+
+  useEffect(() => {
+    const prev = prevDateRef.current
+    if (prev === selectedDate) return
+    setDayAnim(selectedDate > prev ? 'next' : 'prev')
+    prevDateRef.current = selectedDate
+  }, [selectedDate])
+
   function closeAppointmentForm() {
     agenda.setAppointmentFormOpen(false)
     agenda.resetAppointmentForm()
   }
+
+  const dayAnimClass =
+    dayAnim === 'next' ? 'agenda-day-enter-next' : dayAnim === 'prev' ? 'agenda-day-enter-prev' : ''
 
   return (
     <AgendaWorkspaceShell>
@@ -88,27 +102,29 @@ export function AdminAgendaWorkspace({
         ) : (
           <>
             <AdminCalendarLegend />
-            <div className="min-h-0 flex-1">
-              <AdminSalonDayCalendar
-                date={selectedDate}
-                schedules={agenda.schedules}
-                salonWindows={agenda.salonWindows}
-                selection={agenda.selection}
-                formSlotTime={agenda.formSlotTime}
-                formStaffId={agenda.formStaffId}
-                pendingMoveSummary={agenda.pendingMoveSummary}
-                moveBusy={agenda.moveBusy}
-                gridInteractionsLocked={agenda.gridInteractionsLocked}
-                onToggleSlot={agenda.toggleSlot}
-                onPaintSlots={agenda.applySlots}
-                onEditAppointment={agenda.openAppointmentDetail}
-                onOpenBlock={agenda.openBlockDetail}
-                onResizeBlock={(staffId, block, startTime, endTime) =>
-                  void agenda.resizeBlock(staffId, block, startTime, endTime)
-                }
-                onProposeAppointmentMove={agenda.proposeAppointmentMove}
-                onSelectStaff={agenda.selectStaff}
-              />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              <div key={selectedDate} className={`h-full min-h-0 ${dayAnimClass}`}>
+                <AdminSalonDayCalendar
+                  date={selectedDate}
+                  schedules={agenda.schedules}
+                  salonWindows={agenda.salonWindows}
+                  selection={agenda.selection}
+                  formSlotTime={agenda.formSlotTime}
+                  formStaffId={agenda.formStaffId}
+                  pendingMoveSummary={agenda.pendingMoveSummary}
+                  moveBusy={agenda.moveBusy}
+                  gridInteractionsLocked={agenda.gridInteractionsLocked}
+                  onToggleSlot={agenda.toggleSlot}
+                  onPaintSlots={agenda.applySlots}
+                  onEditAppointment={agenda.openAppointmentDetail}
+                  onOpenBlock={agenda.openBlockDetail}
+                  onResizeBlock={(staffId, block, startTime, endTime) =>
+                    void agenda.resizeBlock(staffId, block, startTime, endTime)
+                  }
+                  onProposeAppointmentMove={agenda.proposeAppointmentMove}
+                  onSelectStaff={agenda.selectStaff}
+                />
+              </div>
             </div>
           </>
         )}
