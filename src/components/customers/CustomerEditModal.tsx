@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
@@ -7,7 +7,7 @@ import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignP
 import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
-import { useForeignPhoneLocalePrompt } from '@/hooks/useForeignPhoneLocalePrompt'
+import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -52,14 +52,8 @@ export function CustomerEditModal({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [foreignPhonePromptOpen, setForeignPhonePromptOpen] = useState(false)
   const [error, setError] = useState('')
-
-  const switchToEnglish = useCallback(() => setLocale('en'), [])
-  const foreignPhonePrompt = useForeignPhoneLocalePrompt(
-    isCreate ? phoneInput : (customer?.phone ?? ''),
-    locale,
-    switchToEnglish,
-  )
 
   useEffect(() => {
     if (!open) return
@@ -84,6 +78,7 @@ export function CustomerEditModal({
     setSaving(false)
     setDeleting(false)
     setDeleteConfirmOpen(false)
+    setForeignPhonePromptOpen(false)
   }, [open, customer, isCreate])
 
   if (!open || (!isCreate && !customer)) return null
@@ -91,20 +86,25 @@ export function CustomerEditModal({
   const phone = isCreate ? phoneInput : customer!.phone
   const busy = saving || deleting
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  function validateForm(): boolean {
     if (!firstName.trim()) {
       setError('Indica al menos el nombre')
-      return
+      return false
     }
     if (!isValidEmail(email)) {
       setError('El correo electrónico no es válido')
-      return
+      return false
     }
     if (isCreate && !normalizePhone(phoneInput)) {
       setError('Indica un teléfono válido')
-      return
+      return false
     }
+    return true
+  }
+
+  async function persist(localeOverride?: Locale) {
+    const localeToSave = localeOverride ?? locale
+    if (localeOverride) setLocale(localeOverride)
 
     setSaving(true)
     setError('')
@@ -117,7 +117,7 @@ export function CustomerEditModal({
           email: email.trim() || null,
           notes: notes.trim() || null,
           birthdate: birthdate.trim() || null,
-          locale,
+          locale: localeToSave,
         })
         onSaved(created)
       } else {
@@ -127,7 +127,7 @@ export function CustomerEditModal({
           email: email.trim() || null,
           notes: notes.trim() || null,
           birthdate: birthdate.trim() || null,
-          locale,
+          locale: localeToSave,
         })
         onSaved(updated)
       }
@@ -137,6 +137,18 @@ export function CustomerEditModal({
     } finally {
       setSaving(false)
     }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!validateForm()) return
+
+    if (isCreate && shouldAskForeignPhoneLocale(phoneInput, locale)) {
+      setForeignPhonePromptOpen(true)
+      return
+    }
+
+    await persist()
   }
 
   async function handleDelete() {
@@ -196,7 +208,6 @@ export function CustomerEditModal({
                 autoComplete="tel"
                 value={phoneInput}
                 onChange={(e) => setPhoneInput(e.target.value)}
-                onBlur={foreignPhonePrompt.maybePrompt}
                 disabled={busy}
                 placeholder="+34…"
               />
@@ -315,9 +326,15 @@ export function CustomerEditModal({
       />
 
       <ForeignPhoneLocaleConfirmDialog
-        open={foreignPhonePrompt.open}
-        onAccept={foreignPhonePrompt.accept}
-        onDecline={foreignPhonePrompt.decline}
+        open={foreignPhonePromptOpen}
+        onAccept={() => {
+          setForeignPhonePromptOpen(false)
+          void persist('en')
+        }}
+        onDecline={() => {
+          setForeignPhonePromptOpen(false)
+          void persist('es')
+        }}
       />
     </>
   )
