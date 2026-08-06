@@ -146,60 +146,35 @@ export async function updateService(
     bookingPattern?: ServiceBookingPattern | null
   },
 ): Promise<void> {
-  const sets: string[] = []
-  const vals: unknown[] = []
-  let idx = 1
+  const patch: Record<string, unknown> = {}
 
-  if (data.nameEs !== undefined) {
-    sets.push(`name = $${idx++}`)
-    vals.push(data.nameEs)
-  }
-  if (data.nameEn !== undefined) {
-    sets.push(`name_en = $${idx++}`)
-    vals.push(data.nameEn)
-  }
+  if (data.nameEs !== undefined) patch.name = data.nameEs
+  if (data.nameEn !== undefined) patch.name_en = data.nameEn
   if (data.bookingPattern !== undefined) {
     const bookingPattern = normalizeBookingPattern(data.bookingPattern)
-    sets.push(`booking_pattern = $${idx++}`)
-    vals.push(bookingPattern != null ? JSON.stringify(bookingPattern) : null)
-    sets.push(`duration_minutes = $${idx++}`)
-    vals.push(
+    patch.booking_pattern = bookingPattern != null ? JSON.stringify(bookingPattern) : null
+    patch.duration_minutes =
       bookingPattern != null
         ? patternTotalSpanMinutes(bookingPattern)
-        : (data.durationMinutes ?? null),
-    )
+        : (data.durationMinutes ?? null)
   } else if (data.durationMinutes !== undefined) {
-    sets.push(`duration_minutes = $${idx++}`)
-    vals.push(data.durationMinutes)
+    patch.duration_minutes = data.durationMinutes
   }
-  if (data.categoryId !== undefined) {
-    sets.push(`category_id = $${idx++}`)
-    vals.push(data.categoryId)
-  }
-  if (data.bookableOnline !== undefined) {
-    sets.push(`bookable_online = $${idx++}`)
-    vals.push(data.bookableOnline)
-  }
-  if (data.active !== undefined) {
-    sets.push(`active = $${idx++}`)
-    vals.push(data.active)
-  }
-  if (data.sortOrder !== undefined) {
-    sets.push(`sort_order = $${idx++}`)
-    vals.push(data.sortOrder)
-  }
+  if (data.categoryId !== undefined) patch.category_id = data.categoryId
+  if (data.bookableOnline !== undefined) patch.bookable_online = data.bookableOnline
+  if (data.active !== undefined) patch.active = data.active
+  if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder
 
-  if (sets.length === 0) return
+  if (Object.keys(patch).length === 0 && data.categoryId === undefined) return
 
-  sets.push(`updated_at = $${idx++}`)
-  vals.push(new Date().toISOString())
-
-  vals.push(id)
-  await sql`
-    UPDATE services
-    SET ${sql.unsafe(sets.join(', '))}
-    WHERE id = ${id}
-  `
+  if (Object.keys(patch).length > 0) {
+    patch.updated_at = new Date().toISOString()
+    await sql`
+      UPDATE services
+      SET ${sql(patch)}
+      WHERE id = ${id}
+    `
+  }
 
   if (data.categoryId !== undefined) {
     await sql`DELETE FROM staff_services WHERE service_id = ${id}`
@@ -285,44 +260,21 @@ export async function updateServiceCategory(
     priceNote?: string | null
   },
 ): Promise<void> {
-  const sets: string[] = []
-  const vals: unknown[] = []
-  let idx = 1
+  const patch: Record<string, unknown> = {}
 
-  if (data.nameEs !== undefined) {
-    sets.push(`name_es = $${idx++}`)
-    vals.push(data.nameEs)
-  }
-  if (data.nameEn !== undefined) {
-    sets.push(`name_en = $${idx++}`)
-    vals.push(data.nameEn)
-  }
-  if (data.active !== undefined) {
-    sets.push(`active = $${idx++}`)
-    vals.push(data.active)
-  }
-  if (data.sortOrder !== undefined) {
-    sets.push(`sort_order = $${idx++}`)
-    vals.push(data.sortOrder)
-  }
-  if (data.priceFromCents !== undefined) {
-    sets.push(`price_from_cents = $${idx++}`)
-    vals.push(data.priceFromCents)
-  }
-  if (data.priceNote !== undefined) {
-    sets.push(`price_note = $${idx++}`)
-    vals.push(data.priceNote)
-  }
+  if (data.nameEs !== undefined) patch.name_es = data.nameEs
+  if (data.nameEn !== undefined) patch.name_en = data.nameEn
+  if (data.active !== undefined) patch.active = data.active
+  if (data.sortOrder !== undefined) patch.sort_order = data.sortOrder
+  if (data.priceFromCents !== undefined) patch.price_from_cents = data.priceFromCents
+  if (data.priceNote !== undefined) patch.price_note = data.priceNote
 
-  if (sets.length === 0) return
+  if (Object.keys(patch).length === 0) return
 
-  sets.push(`updated_at = $${idx++}`)
-  vals.push(new Date().toISOString())
-
-  vals.push(id)
+  patch.updated_at = new Date().toISOString()
   await sql`
     UPDATE service_categories
-    SET ${sql.unsafe(sets.join(', '))}
+    SET ${sql(patch)}
     WHERE id = ${id}
   `
 }

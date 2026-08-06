@@ -410,8 +410,14 @@ app.patch('/api/admin/services/:id', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
   const body = await c.req.json().catch(() => ({})) as UpdateServiceBody
-  await updateService(id, body)
-  return c.json({ ok: true })
+  try {
+    await updateService(id, body)
+    return c.json({ ok: true })
+  } catch (err) {
+    console.error('Superpelu update service:', err)
+    const message = err instanceof Error ? err.message : 'No se pudo actualizar el servicio'
+    return c.json({ error: message }, 400)
+  }
 })
 
 app.delete('/api/admin/services/:id', async (c) => {
@@ -459,8 +465,14 @@ app.patch('/api/admin/service-categories/:id', async (c) => {
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const id = c.req.param('id')
   const body = await c.req.json().catch(() => ({})) as UpdateCategoryBody
-  await updateServiceCategory(id, body)
-  return c.json({ ok: true })
+  try {
+    await updateServiceCategory(id, body)
+    return c.json({ ok: true })
+  } catch (err) {
+    console.error('Superpelu update service category:', err)
+    const message = err instanceof Error ? err.message : 'No se pudo actualizar la categoría'
+    return c.json({ error: message }, 400)
+  }
 })
 
 app.delete('/api/admin/service-categories/:id', async (c) => {
