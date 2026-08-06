@@ -57,7 +57,6 @@ type Props = {
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
   onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
-  activeStaffId?: string | null
   onSelectStaff: (staffId: string, staffName: string) => void
 }
 
@@ -243,18 +242,14 @@ const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 
 function StaffColumnHeader({
   schedule,
-  selected,
   onSelectStaff,
 }: {
   schedule: StaffDaySchedule
-  selected: boolean
   onSelectStaff: (staffId: string, staffName: string) => void
 }) {
   return (
     <div
-      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 px-3 backdrop-blur-none ${
-        selected ? 'bg-gold/15' : 'bg-cream'
-      }`}
+      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3 backdrop-blur-none`}
     >
       <StaffInitial name={schedule.staffName} />
       <button
@@ -262,7 +257,6 @@ function StaffColumnHeader({
         onClick={() => onSelectStaff(schedule.staffId, schedule.staffName)}
         className="min-w-0 cursor-pointer text-left transition-colors hover:text-gold"
         aria-label={`Seleccionar ${schedule.staffName}`}
-        aria-pressed={selected}
       >
         {schedule.working && schedule.windows.length > 0 ? (
           <div className="min-w-0">
@@ -295,7 +289,6 @@ function StaffColumn({
   onToggleSlot,
   onEditAppointment,
   onOpenBlock,
-  activeStaffId,
   onSelectStaff,
 }: {
   schedule: StaffDaySchedule
@@ -313,7 +306,6 @@ function StaffColumn({
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
-  activeStaffId: string | null
   onSelectStaff: (staffId: string, staffName: string) => void
 }) {
   const { activeDrag, isDragSessionActive } = useAppointmentDrag()
@@ -397,11 +389,7 @@ function StaffColumn({
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
-      <StaffColumnHeader
-        schedule={schedule}
-        selected={activeStaffId === schedule.staffId}
-        onSelectStaff={onSelectStaff}
-      />
+      <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
 
       <div className="relative" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} windows={columnWindows} />
@@ -492,7 +480,6 @@ export function AdminSalonDayCalendar({
   onEditAppointment,
   onOpenBlock,
   onProposeAppointmentMove,
-  activeStaffId = null,
   onSelectStaff,
 }: Props) {
   const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
@@ -628,7 +615,6 @@ export function AdminSalonDayCalendar({
                   onToggleSlot={onToggleSlot}
                   onEditAppointment={onEditAppointment}
                   onOpenBlock={onOpenBlock}
-                  activeStaffId={activeStaffId}
                   onSelectStaff={onSelectStaff}
                 />
               </div>

@@ -230,7 +230,6 @@ export function AdminAgendaWorkspace({
                   onEditAppointment={agenda.openAppointmentDetail}
                   onOpenBlock={agenda.openBlockDetail}
                   onProposeAppointmentMove={agenda.proposeAppointmentMove}
-                  activeStaffId={agenda.activeStaffId}
                   onSelectStaff={agenda.selectStaff}
                 />
               ) : agenda.activeStaffId ? (
