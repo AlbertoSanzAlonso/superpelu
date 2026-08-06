@@ -55,6 +55,8 @@ type Props = {
   hint?: string
   adminToken?: string
   compact?: boolean
+  /** La hora de la visita se edita fuera (p. ej. título del modal). */
+  hideVisitTime?: boolean
 }
 
 export function StaffAppointmentFormFields({
@@ -78,6 +80,7 @@ export function StaffAppointmentFormFields({
   hint,
   adminToken,
   compact = false,
+  hideVisitTime = false,
 }: Props) {
   const isAdmin = Boolean(adminToken)
   const timeOptions = useMemo(() => {
@@ -533,7 +536,6 @@ export function StaffAppointmentFormFields({
                           Hora
                         </label>
                         <ClockTimeInput
-                          compact
                           value={currentVal}
                           onChange={(time) => setServiceStartTime(index, time)}
                           defaultTime={
@@ -570,7 +572,6 @@ export function StaffAppointmentFormFields({
                               Hora
                             </label>
                             <ClockTimeInput
-                              compact
                               value={currentVal}
                               onChange={(time) => setServiceStartTime(index, time)}
                               defaultTime={chainedTime ?? freeOptions[0]}
@@ -642,11 +643,19 @@ export function StaffAppointmentFormFields({
     </div>
   )
 
-  const timeSection = (
+  const timeSection = hideVisitTime ? (
+    <input
+      tabIndex={-1}
+      aria-hidden
+      className="pointer-events-none absolute h-0 w-0 opacity-0"
+      value={draft.startTime}
+      required
+      onChange={() => {}}
+    />
+  ) : (
     <div>
       <label className={timeLabelCn}>Hora de la cita</label>
       <ClockTimeInput
-        compact
         value={draft.startTime}
         onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
         defaultTime={draft.startTime || timeOptions[0] || '10:00'}

@@ -7,15 +7,13 @@ type Props = {
   defaultTime?: string
   /** Permite volver a vacío (p. ej. hora encadenada automática). */
   allowEmpty?: boolean
-  /** Texto breve cuando value está vacío (p. ej. «Auto»). Sin repetir la hora. */
+  /** Texto breve cuando value está vacío (p. ej. «Auto»). */
   emptyHint?: string
   minuteStep?: number
   minMinutes?: number
   maxMinutes?: number
   disabled?: boolean
   required?: boolean
-  /** Reloj más compacto (p. ej. dentro de un tratamiento). */
-  compact?: boolean
   className?: string
 }
 
@@ -30,37 +28,13 @@ function parseOrFallback(time: string | undefined, fallback: string): number {
   return timeToMinutes(time)
 }
 
-function SpinButton({
-  label,
-  disabled,
-  onClick,
-  direction,
-  compact,
-}: {
-  label: string
-  disabled?: boolean
-  onClick: () => void
-  direction: 'up' | 'down'
-  compact?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      aria-label={label}
-      onClick={onClick}
-      className={`flex cursor-pointer items-center justify-center border border-gold/30 text-gold transition-colors hover:border-gold hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-40 ${
-        compact ? 'h-4 w-6 text-[8px]' : 'h-5 w-7 text-[9px]'
-      }`}
-    >
-      {direction === 'up' ? '▲' : '▼'}
-    </button>
-  )
-}
+/** Misma altura visual que los selects compactos del modal (`py-1.5 text-sm`). */
+const fieldCn =
+  'border border-gold/30 bg-cream px-2 py-1.5 text-sm tabular-nums text-charcoal outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
 
 /**
- * Selector de hora tipo reloj: columnas HH / MM con subir/bajar
- * desde la hora actual o la hora por defecto.
+ * Hora con campos numéricos HH / MM (flechas nativas del input),
+ * alineados en altura con especialista y duración.
  */
 export function ClockTimeInput({
   value,
@@ -73,7 +47,6 @@ export function ClockTimeInput({
   maxMinutes = 22 * 60 + 55,
   disabled = false,
   required = false,
-  compact = false,
   className = '',
 }: Props) {
   const baseTime = value || defaultTime || FALLBACK_TIME
@@ -82,29 +55,27 @@ export function ClockTimeInput({
   const minutes = total % 60
   const isUnset = value === ''
   const isAutomatic = allowEmpty && isUnset
-  const digitCn = compact
-    ? 'w-6 text-center text-sm tabular-nums'
-    : 'w-7 text-center text-sm tabular-nums'
 
   const commit = (nextMinutes: number) => {
-    const clamped = clampMinutes(nextMinutes, minMinutes, maxMinutes)
-    onChange(minutesToTime(clamped))
+    onChange(minutesToTime(clampMinutes(nextMinutes, minMinutes, maxMinutes)))
   }
 
-  const bumpHours = (delta: number) => {
-    commit(total + delta * 60)
+  const setHours = (raw: number) => {
+    const h = Number.isFinite(raw) ? Math.trunc(raw) : hours
+    commit(h * 60 + minutes)
   }
 
-  const bumpMinutes = (delta: number) => {
-    commit(total + delta * minuteStep)
-  }
-
-  const confirmDisplayed = () => {
-    if (!disabled && isUnset) onChange(minutesToTime(total))
+  const setMinutes = (raw: number) => {
+    let m = Number.isFinite(raw) ? Math.trunc(raw) : minutes
+    // Ajusta al múltiplo de step más cercano.
+    m = Math.round(m / minuteStep) * minuteStep
+    if (m >= 60) m = 60 - minuteStep
+    if (m < 0) m = 0
+    commit(hours * 60 + m)
   }
 
   return (
-    <div className={className}>
+    <div className={`inline-flex items-center gap-1.5 ${className}`}>
       {required && (
         <input
           tabIndex={-1}
@@ -116,93 +87,47 @@ export function ClockTimeInput({
           onChange={() => {}}
         />
       )}
-      <div
-        className={`inline-flex flex-wrap items-center gap-1.5 border border-gold/30 bg-cream ${
-          compact ? 'px-1.5 py-1' : 'px-2 py-1'
-        } ${disabled ? 'opacity-50' : ''}`}
-      >
-        <div className="flex items-center gap-0.5" aria-label={`Hora ${minutesToTime(total)}`}>
-          <div className="flex flex-col items-center gap-px">
-            <SpinButton
-              label="Subir hora"
-              direction="up"
-              compact={compact}
-              disabled={disabled || total + 60 > maxMinutes}
-              onClick={() => bumpHours(1)}
-            />
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={confirmDisplayed}
-              className={`${digitCn} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                isUnset ? 'text-charcoal-muted' : 'font-medium text-charcoal'
-              }`}
-              aria-label={`Hora ${String(hours).padStart(2, '0')}`}
-            >
-              {String(hours).padStart(2, '0')}
-            </button>
-            <SpinButton
-              label="Bajar hora"
-              direction="down"
-              compact={compact}
-              disabled={disabled || total - 60 < minMinutes}
-              onClick={() => bumpHours(-1)}
-            />
-          </div>
-
-          <span
-            className={`font-medium text-charcoal-muted ${compact ? 'text-sm' : 'text-sm'}`}
-            aria-hidden
+      <input
+        type="number"
+        inputMode="numeric"
+        min={Math.floor(minMinutes / 60)}
+        max={Math.floor(maxMinutes / 60)}
+        step={1}
+        value={hours}
+        disabled={disabled}
+        aria-label="Horas"
+        onChange={(e) => setHours(e.target.valueAsNumber)}
+        className={`${fieldCn} w-[3.25rem] cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
+      />
+      <span className="text-sm font-medium text-charcoal-muted" aria-hidden>
+        :
+      </span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={0}
+        max={60 - minuteStep}
+        step={minuteStep}
+        value={minutes}
+        disabled={disabled}
+        aria-label="Minutos"
+        onChange={(e) => setMinutes(e.target.valueAsNumber)}
+        className={`${fieldCn} w-[3.25rem] cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
+      />
+      {allowEmpty && (
+        isAutomatic ? (
+          <span className="text-[10px] text-charcoal-muted">{emptyHint}</span>
+        ) : (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange('')}
+            className="cursor-pointer text-[10px] text-gold underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
           >
-            :
-          </span>
-
-          <div className="flex flex-col items-center gap-px">
-            <SpinButton
-              label={`Subir ${minuteStep} minutos`}
-              direction="up"
-              compact={compact}
-              disabled={disabled || total + minuteStep > maxMinutes}
-              onClick={() => bumpMinutes(1)}
-            />
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={confirmDisplayed}
-              className={`${digitCn} cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
-                isUnset ? 'text-charcoal-muted' : 'font-medium text-charcoal'
-              }`}
-              aria-label={`Minutos ${String(minutes).padStart(2, '0')}`}
-            >
-              {String(minutes).padStart(2, '0')}
-            </button>
-            <SpinButton
-              label={`Bajar ${minuteStep} minutos`}
-              direction="down"
-              compact={compact}
-              disabled={disabled || total - minuteStep < minMinutes}
-              onClick={() => bumpMinutes(-1)}
-            />
-          </div>
-        </div>
-
-        {allowEmpty && (
-          <div className="min-w-0">
-            {isAutomatic ? (
-              <span className="text-[10px] text-charcoal-muted">{emptyHint}</span>
-            ) : (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange('')}
-                className="cursor-pointer text-[10px] text-gold underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Auto
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+            Auto
+          </button>
+        )
+      )}
     </div>
   )
 }

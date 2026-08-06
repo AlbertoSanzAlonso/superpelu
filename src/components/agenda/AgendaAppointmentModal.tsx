@@ -463,7 +463,6 @@ export function AgendaAppointmentModal({
                       Hora de la cita
                     </label>
                     <ClockTimeInput
-                      compact
                       value={draft.startTime}
                       onChange={(time) =>
                         onDraftChange({
@@ -504,7 +503,6 @@ export function AgendaAppointmentModal({
                                 Hora
                               </label>
                               <ClockTimeInput
-                                compact
                                 value={draft.serviceStartTimes[index] ?? ''}
                                 onChange={(time) => setServiceStartTime(index, time)}
                                 defaultTime={
