@@ -1,11 +1,8 @@
 import type { SalonTimeRange } from '@/data/schedule'
 
 /**
- * Datos de recuperación puntual (v1) tras un sync erróneo que copió el horario
- * del salón a todo el personal. Se aplica una sola vez vía `salon_settings`.
- *
- * La fuente de verdad operativa es `staff_availability` (editable en `/horarios`).
- * No reutilizar este mapa para sync continuo.
+ * Horarios de partida (una sola escritura a BD). Después solo se editan en `/horarios`.
+ * No usar para sync automático en arranques posteriores.
  */
 export const staffWeeklyHoursRestoreV1: Record<
   string,

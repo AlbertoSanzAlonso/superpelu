@@ -1,7 +1,6 @@
 import { priceEurToCents, serviceCategories } from '@/data/serviceCategories'
 import { salonServices, salonServiceIds } from '@/data/salonServices'
 import {
-  defaultWeeklyHoursForStaff,
   legacyMockStaffIds,
   salonStaffMembers,
 } from '@/data/salonStaff'
@@ -9,7 +8,10 @@ import { sql } from '@server/pg/client.js'
 import { staffWeeklyHoursRestoreV1 } from '@server/pg/staffHoursRestoreV1.js'
 import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/index.js'
 
-/** Flag: restauración v1 ya aplicada; no volver a escribir staff_availability desde código. */
+/**
+ * Escritura única de horarios de partida (Susana/Mónica/Andrea/Olga).
+ * Después solo se cambian desde `/horarios` → BD; el arranque no vuelve a fijarlos.
+ */
 const STAFF_HOURS_RESTORE_KEY = 'staff_weekly_hours_restored_v1'
 
 function nowIso(): string {
@@ -182,7 +184,7 @@ export async function syncStaffAllServices(): Promise<void> {
   `
 }
 
-async function syncStaffMemberAvailability(
+async function writeStaffWeeklyHours(
   staffId: string,
   hours: Partial<Record<number, readonly { start: string; end: string }[]>>,
 ): Promise<void> {
@@ -194,35 +196,18 @@ async function syncStaffMemberAvailability(
   await setStaffSchedule(staffId, weeklyWindows)
 }
 
-export async function seedStaffAvailabilityIfMissing(): Promise<void> {
-  const staffIds = (
-    await sql<{ id: string }[]>`SELECT id FROM staff WHERE active = TRUE`
-  ).map((r) => r.id)
-
-  for (const staffId of staffIds) {
-    const [{ count }] = await sql<{ count: string }[]>`
-      SELECT COUNT(*)::text AS count FROM staff_availability WHERE staff_id = ${staffId}
-    `
-    if (Number(count) > 0) continue
-
-    // Solo instalación / profesional nuevo sin filas. Después manda `/horarios` → BD.
-    await syncStaffMemberAvailability(staffId, defaultWeeklyHoursForStaff())
-  }
-}
-
 /**
- * Recuperación puntual tras el sync erróneo al horario del salón.
- * Una vez marcada en salon_settings, nunca vuelve a tocar staff_availability:
- * los cambios en `/horarios` son la fuente de verdad.
+ * Aplica los horarios de partida una sola vez y marca el flag.
+ * No hay más escrituras automáticas de `staff_availability` en el seed.
  */
-export async function restoreCatalogStaffWeeklyHoursOnce(): Promise<void> {
+export async function applyStartingStaffWeeklyHoursOnce(): Promise<void> {
   const existing = await sql<{ value: string }[]>`
     SELECT value FROM salon_settings WHERE key = ${STAFF_HOURS_RESTORE_KEY} LIMIT 1
   `
   if (existing.length > 0) return
 
   for (const [staffId, hours] of Object.entries(staffWeeklyHoursRestoreV1)) {
-    await syncStaffMemberAvailability(staffId, hours)
+    await writeStaffWeeklyHours(staffId, hours)
   }
 
   const now = nowIso()
@@ -241,8 +226,6 @@ export async function runSeed(): Promise<void> {
   await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()
   await seedSalonScheduleIfMissing()
-  await seedStaffAvailabilityIfMissing()
-  // Una sola vez: recupera horarios reales del catálogo tras el sync erróneo al salón.
-  // Los arranques siguientes no tocan staff_availability ya poblada.
-  await restoreCatalogStaffWeeklyHoursOnce()
+  // Una sola vez: horarios de partida en BD. Luego solo editables en `/horarios`.
+  await applyStartingStaffWeeklyHoursOnce()
 }
