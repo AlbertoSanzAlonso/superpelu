@@ -6,7 +6,10 @@ import {
   salonStaffMembers,
 } from '@/data/salonStaff'
 import { sql } from '@server/pg/client.js'
-import { seedSalonScheduleIfMissing } from '@server/schedule/index.js'
+import {
+  seedSalonScheduleIfMissing,
+  syncAllStaffAvailabilityFromSalon,
+} from '@server/schedule/index.js'
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -196,15 +199,6 @@ async function syncStaffMemberAvailability(
   }
 }
 
-export async function syncStaffAvailabilityFromCatalog(): Promise<void> {
-  for (const member of salonStaffMembers) {
-    await syncStaffMemberAvailability(
-      member.id,
-      member.weeklyHours ?? defaultWeeklyHoursForStaff(),
-    )
-  }
-}
-
 export async function seedStaffAvailabilityIfMissing(): Promise<void> {
   const staffIds = (
     await sql<{ id: string }[]>`SELECT id FROM staff WHERE active = TRUE`
@@ -232,6 +226,7 @@ export async function runSeed(): Promise<void> {
   await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()
   await seedSalonScheduleIfMissing()
-  await syncStaffAvailabilityFromCatalog()
   await seedStaffAvailabilityIfMissing()
+  // Alinea personal al horario del salón (antes se pisaba con defaults del catálogo).
+  await syncAllStaffAvailabilityFromSalon()
 }

@@ -86,6 +86,16 @@ export function ScheduleManagementPage() {
     try {
       if (activeTab === 'salon') {
         await updateSalonSchedule(adminToken, salonWindows)
+        const synced = Object.fromEntries(
+          DAY_ORDER.map((d) => [d, salonWindows[d]?.map((r) => ({ ...r })) ?? []]),
+        )
+        setStaffWindowsMap((prev) => {
+          const next: Record<string, WeeklyWindows> = {}
+          for (const staffId of Object.keys(prev)) {
+            next[staffId] = synced
+          }
+          return next
+        })
       } else if (activeTab !== 'especiales') {
         await updateStaffSchedule(adminToken, activeTab, staffWindowsMap[activeTab] ?? {})
       }

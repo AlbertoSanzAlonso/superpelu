@@ -82,7 +82,7 @@ import {
   isWithinSalonBookingWindow,
   todaySalon,
 } from '@/lib/core/dates'
-import { isSalonOpenOnDate } from '@server/schedule/salonDay.js'
+import { getSalonDayWindows, isSalonOpenOnDate } from '@server/schedule/salonDay.js'
 import { schedule } from '@server/config.js'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import { splitCustomerName } from '@/lib/customer/name'
@@ -1122,7 +1122,15 @@ app.get('/api/schedule/day', async (c) => {
     return c.json({ error: 'Falta date' }, 400)
   }
 
-  return c.json({ date, schedules: await listStaffDaySchedules(date) })
+  const salonDayWindows = await getSalonDayWindows(date)
+  return c.json({
+    date,
+    schedules: await listStaffDaySchedules(date),
+    salonWindows: salonDayWindows.map((w) => ({
+      startTime: w.startTime,
+      endTime: w.endTime,
+    })),
+  })
 })
 
 app.get('/api/admin/stats', async (c) => {

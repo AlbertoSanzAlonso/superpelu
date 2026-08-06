@@ -13,11 +13,16 @@ export function verifyAdminToken(adminToken: string) {
 
 export function fetchDaySchedule(date: string, adminToken: string) {
   const params = new URLSearchParams({ date })
-  return request<{ date: string; schedules?: StaffDaySchedule[] }>(`/schedule/day?${params}`, {
+  return request<{
+    date: string
+    schedules?: StaffDaySchedule[]
+    salonWindows?: { startTime: string; endTime: string }[]
+  }>(`/schedule/day?${params}`, {
     headers: { Authorization: `Bearer ${adminToken}` },
   }).then((res) => ({
     date: res.date,
     schedules: Array.isArray(res.schedules) ? res.schedules : [],
+    salonWindows: Array.isArray(res.salonWindows) ? res.salonWindows : [],
   }))
 }
 

@@ -17,20 +17,20 @@ export const salonSchedule = {
       { start: '16:00', end: '20:00' },
     ],
     2: [
-      { start: '10:00', end: '14:00' },
-      { start: '15:00', end: '20:00' },
+      { start: '10:00', end: '14:30' },
+      { start: '15:30', end: '20:00' },
     ],
     3: [
-      { start: '10:00', end: '14:00' },
-      { start: '15:00', end: '20:00' },
+      { start: '10:00', end: '14:30' },
+      { start: '15:30', end: '20:00' },
     ],
     4: [
-      { start: '10:00', end: '14:00' },
-      { start: '15:00', end: '20:00' },
+      { start: '10:00', end: '14:30' },
+      { start: '15:30', end: '20:00' },
     ],
     5: [
-      { start: '10:00', end: '14:00' },
-      { start: '15:00', end: '20:00' },
+      { start: '10:00', end: '14:30' },
+      { start: '15:30', end: '20:00' },
     ],
     6: [{ start: '10:00', end: '14:00' }],
   } as const satisfies Record<number, readonly SalonTimeRange[]>,

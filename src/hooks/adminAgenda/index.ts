@@ -175,6 +175,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
 
   return {
     schedules: schedule.schedules,
+    salonWindows: schedule.salonWindows,
     loadedDate: schedule.loadedDate,
     loading: schedule.loading,
     error: schedule.error,

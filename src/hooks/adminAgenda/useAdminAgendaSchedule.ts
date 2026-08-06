@@ -3,8 +3,18 @@ import { ApiError, fetchDaySchedule } from '@/lib/api'
 import type { StaffDaySchedule } from '@/types/booking'
 import { schedulesEqual } from './schedulesEqual'
 
+function salonWindowsEqual(
+  a: { startTime: string; endTime: string }[],
+  b: { startTime: string; endTime: string }[],
+): boolean {
+  if (a === b) return true
+  if (a.length !== b.length) return false
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
 export function useAdminAgendaSchedule(adminToken: string, date: string) {
   const [schedules, setSchedules] = useState<StaffDaySchedule[]>([])
+  const [salonWindows, setSalonWindows] = useState<{ startTime: string; endTime: string }[]>([])
   const [loadedDate, setLoadedDate] = useState<string | null>(null)
   const [loading, setLoading] = useState(() => Boolean(adminToken))
   const [error, setError] = useState('')
@@ -23,6 +33,9 @@ export function useAdminAgendaSchedule(adminToken: string, date: string) {
       const res = await fetchDaySchedule(fetchDate, adminToken)
       hasLoadedOnceRef.current = true
       setSchedules((prev) => (schedulesEqual(prev, res.schedules) ? prev : res.schedules))
+      setSalonWindows((prev) =>
+        salonWindowsEqual(prev, res.salonWindows) ? prev : res.salonWindows,
+      )
       setLoadedDate(fetchDate)
       return res.schedules
     } catch (err) {
@@ -49,6 +62,7 @@ export function useAdminAgendaSchedule(adminToken: string, date: string) {
 
   return {
     schedules,
+    salonWindows,
     loadedDate,
     loading,
     error,

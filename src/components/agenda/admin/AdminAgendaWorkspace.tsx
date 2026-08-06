@@ -133,6 +133,7 @@ export function AdminAgendaWorkspace({
               <AdminSalonDayCalendar
                 date={selectedDate}
                 schedules={agenda.schedules}
+                salonWindows={agenda.salonWindows}
                 selection={agenda.selection}
                 formSlotTime={agenda.formSlotTime}
                 formStaffId={agenda.formStaffId}

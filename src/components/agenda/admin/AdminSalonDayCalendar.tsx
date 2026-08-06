@@ -30,13 +30,10 @@ import {
   FULL_WIDTH_LANE,
   type OverlapLaneAppointment,
 } from '@/lib/agenda/overlapLanes'
-import { dayOfWeekFromDateString } from '@/lib/core/dates'
-import { salonWindowsForDayOfWeek } from '@/data/schedule'
 import {
   agendaClosedSlotClassName,
   agendaOpenSlotClassName,
   formatWorkWindowsLabel,
-  rangesToWorkWindows,
   slotStartInWorkWindows,
   type WorkTimeWindow,
 } from '@/lib/core/scheduleHours'
@@ -46,6 +43,7 @@ import { typography } from '@/styles/typography'
 type Props = {
   date: string
   schedules: StaffDaySchedule[]
+  salonWindows: WorkTimeWindow[]
   selection: AdminColumnSelection | null
   formSlotTime: string | null
   formStaffId: string | null
@@ -470,6 +468,7 @@ function StaffColumn({
 export function AdminSalonDayCalendar({
   date,
   schedules,
+  salonWindows,
   selection,
   formSlotTime,
   formStaffId,
@@ -484,10 +483,7 @@ export function AdminSalonDayCalendar({
   onSelectStaff,
 }: Props) {
   const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
-  const gutterWindows = useMemo(
-    () => rangesToWorkWindows(salonWindowsForDayOfWeek(dayOfWeekFromDateString(date))),
-    [date],
-  )
+  const gutterWindows = salonWindows
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
   const columnRefs = useRef(new Map<string, HTMLDivElement>())
 
