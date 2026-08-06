@@ -13,10 +13,7 @@ import {
   canMarkAppointmentNoShow,
 } from '@/lib/agenda/noShow'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
-import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
-import {
-  ALL_DAY_SLOTS,
-} from '@/lib/agenda/serviceTimeOptions'
+import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -366,7 +363,7 @@ export function AgendaAppointmentModal({
 
         {mode === 'view' ? (
           <>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-premium sm:px-5">
               <div className="grid gap-6 lg:grid-cols-2">
                 <section>
                   <p className="mb-3 font-semibold capitalize text-charcoal">
@@ -422,7 +419,7 @@ export function AgendaAppointmentModal({
           </>
         ) : (
           <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-5">
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-premium sm:px-5">
               <div className="grid gap-6 lg:grid-cols-2">
                 <section className="space-y-3">
                   <p className={`${typography.label} text-gold`}>Cita</p>
@@ -453,7 +450,7 @@ export function AgendaAppointmentModal({
                     <label className={`${typography.label} mb-0.5 block text-xs`}>
                       Hora de la cita
                     </label>
-                    <ScrollableTimeSelect
+                    <ClockTimeInput
                       value={draft.startTime}
                       onChange={(time) =>
                         onDraftChange({
@@ -461,10 +458,7 @@ export function AgendaAppointmentModal({
                           serviceStartTimes: [],
                         })
                       }
-                      emptyLabel="Elige hora"
-                      freeOptions={[...ALL_DAY_SLOTS]}
-                      className={selectCn}
-                      disabled={false}
+                      defaultTime={draft.startTime || '10:00'}
                       required
                     />
                   </div>
@@ -507,22 +501,25 @@ export function AgendaAppointmentModal({
                       )}
                       {serviceId && index > 0 && (() => {
                         const currentVal = draft.serviceStartTimes[index] ?? ''
-                        const chainedLabel =
+                        const chainedTime =
                           draft.startTime && chainedStartTimes[index]
                             ? chainedStartTimes[index]
-                            : 'Automática (encadenada)'
+                            : undefined
+                        const chainedHint = chainedTime
+                          ? `Automática (${chainedTime})`
+                          : 'Automática (encadenada)'
 
                         return (
                           <div>
                             <label className={`${typography.label} mb-0.5 block text-xs`}>
                               Hora de inicio
                             </label>
-                            <ScrollableTimeSelect
+                            <ClockTimeInput
                               value={currentVal}
                               onChange={(time) => setServiceStartTime(index, time)}
-                              emptyLabel={chainedLabel}
-                              freeOptions={[...ALL_DAY_SLOTS]}
-                              className={selectCn}
+                              defaultTime={chainedTime}
+                              allowEmpty
+                              emptyHint={chainedHint}
                             />
                           </div>
                         )

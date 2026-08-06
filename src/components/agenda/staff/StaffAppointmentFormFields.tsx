@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
@@ -9,7 +9,7 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
-import { ScrollableTimeSelect } from '@/components/agenda/ScrollableTimeSelect'
+import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 import { buildEditableServiceTimeOptions, ALL_DAY_SLOTS } from '@/lib/agenda/serviceTimeOptions'
@@ -289,18 +289,81 @@ export function StaffAppointmentFormFields({
   )
   const hasOverlaps = serviceOverlaps.length > 0
 
+  /** Índice expandido; los huecos vacíos siempre se muestran abiertos. */
+  const [expandedServiceIndex, setExpandedServiceIndex] = useState<number | null>(null)
+  const filledServiceCount = serviceIds.filter((s) => s !== '').length
+  const serviceIdsKey = serviceIds.join('\0')
+
+  useEffect(() => {
+    const emptyIndex = serviceIds.findIndex((id) => !id)
+    if (emptyIndex >= 0) {
+      setExpandedServiceIndex(emptyIndex)
+      return
+    }
+    setExpandedServiceIndex((prev) => {
+      if (prev != null && prev < serviceIds.length) return prev
+      return null
+    })
+    // Solo reaccionar a cambios de lista de servicios, no a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serviceIdsKey es la identidad estable
+  }, [serviceIdsKey])
+
+  const handleAddService = useCallback(() => {
+    const nextIndex = serviceIds.filter((s) => s !== '').length
+    addService()
+    setExpandedServiceIndex(nextIndex)
+  }, [addService, serviceIds])
+
+  const handleRemoveService = useCallback(
+    (index: number) => {
+      removeService(index)
+      setExpandedServiceIndex((prev) => {
+        if (prev == null) return null
+        if (prev === index) return null
+        if (prev > index) return prev - 1
+        return prev
+      })
+    },
+    [removeService],
+  )
+
   const servicesSection = (
     <div className="space-y-2">
       <p className={`${typography.label} text-gold`}>Tratamientos</p>
       {serviceIds.map((serviceId, index) => {
-        const filledCount = serviceIds.filter((s) => s !== '').length
         const isFirst = index === 0 || !serviceId
-        const isLast = !serviceId || index >= filledCount - 1
+        const isLast = !serviceId || index >= filledServiceCount - 1
+        const svc = serviceId ? services.find((s) => s.id === serviceId) : undefined
+        const isEmpty = !serviceId
+        const isExpanded =
+          isEmpty ||
+          expandedServiceIndex === index ||
+          (expandedServiceIndex === null && filledServiceCount <= 1 && Boolean(serviceId))
+        const staffName =
+          staffList?.find((s) => s.id === staffIdForIndex(index))?.name ??
+          staffList?.find((s) => s.id === defaultStaffId)?.name
+        const startLabel =
+          index === 0
+            ? draft.startTime || null
+            : draft.serviceStartTimes[index] || chainedStartTimes[index] || null
+        const durationMin =
+          draft.serviceDurations[index] ?? svc?.durationMinutes ?? null
+        const summaryParts = [
+          svc?.nameEs ?? 'Tratamiento',
+          staffName,
+          startLabel,
+          durationMin != null ? `${durationMin} min` : null,
+        ].filter(Boolean)
 
         return (
-          <div key={index} className="relative rounded border border-gold/15 p-3">
-            <div className="flex items-start gap-2">
-              <div className="flex shrink-0 flex-col gap-0.5 pt-1">
+          <div
+            key={index}
+            className={`relative rounded border ${
+              isExpanded ? 'border-gold/30 bg-gold/5' : 'border-gold/15'
+            }`}
+          >
+            <div className="flex items-stretch gap-1.5 p-2">
+              <div className="flex shrink-0 flex-col justify-center gap-0.5">
                 <button
                   type="button"
                   disabled={isFirst}
@@ -320,24 +383,76 @@ export function StaffAppointmentFormFields({
                   ▼
                 </button>
               </div>
-              <div className="min-w-0 flex-1 space-y-2">
-                {index > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => removeService(index)}
-                    className="absolute right-1.5 top-1.5 z-10 flex size-5 items-center justify-center rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
-                    aria-label="Quitar tratamiento"
-                  >
-                    ×
-                  </button>
-                )}
+
+              <button
+                type="button"
+                disabled={isEmpty}
+                aria-expanded={isExpanded}
+                onClick={() =>
+                  setExpandedServiceIndex((prev) => (prev === index ? null : index))
+                }
+                className={`min-w-0 flex-1 px-1 py-1 text-left ${
+                  isEmpty ? 'cursor-default' : 'cursor-pointer hover:bg-gold/5'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-gold">
+                      Tratamiento {index + 1}
+                    </p>
+                    {isEmpty ? (
+                      <p className={`${typography.caption} text-charcoal-muted`}>
+                        Elige especialidad y tratamiento
+                      </p>
+                    ) : (
+                      <p className="truncate text-sm text-charcoal">
+                        {summaryParts.join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                  {!isEmpty && (
+                    <svg
+                      className={`h-4 w-4 shrink-0 text-gold transition-transform ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </div>
+              </button>
+
+              {index > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveService(index)}
+                  className="mt-0.5 flex size-5 shrink-0 items-center justify-center self-start rounded-full border border-red-300 bg-red-50 text-xs text-red-600 hover:bg-red-100"
+                  aria-label="Quitar tratamiento"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            {isExpanded && (
+              <div className="space-y-2 border-t border-gold/15 px-3 pb-3 pt-2">
                 <ServiceCategoryPicker
                   compact={compact}
                   variant="staff"
                   services={services}
                   serviceId={serviceId}
                   loading={services.length === 0}
-                  onServiceChange={(id) => setServiceAtIndex(index, id)}
+                  onServiceChange={(id) => {
+                    setServiceAtIndex(index, id)
+                    if (id) setExpandedServiceIndex(index)
+                  }}
                 />
                 {serviceId && staffList && staffList.length > 1 && (
                   <div>
@@ -350,86 +465,98 @@ export function StaffAppointmentFormFields({
                       className={selectCn}
                     >
                       {staffList.map((s) => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
                       ))}
                     </select>
                   </div>
                 )}
-                {serviceId && index > 0 && (() => {
-                  const currentVal = draft.serviceStartTimes[index] ?? ''
-                  const chainedLabel = draft.startTime && chainedStartTimes[index]
-                    ? chainedStartTimes[index]
-                    : 'Automática (encadenada)'
+                {serviceId &&
+                  index > 0 &&
+                  (() => {
+                    const currentVal = draft.serviceStartTimes[index] ?? ''
+                    const chainedTime =
+                      draft.startTime && chainedStartTimes[index]
+                        ? chainedStartTimes[index]
+                        : undefined
+                    const chainedHint = chainedTime
+                      ? `Automática (${chainedTime})`
+                      : 'Automática (encadenada)'
 
-                  if (isAdmin) {
+                    if (isAdmin) {
+                      return (
+                        <div>
+                          <label className={`${typography.label} mb-0.5 block text-xs`}>
+                            Hora de inicio
+                          </label>
+                          <ClockTimeInput
+                            value={currentVal}
+                            onChange={(time) => setServiceStartTime(index, time)}
+                            defaultTime={chainedTime}
+                            allowEmpty
+                            emptyHint={chainedHint}
+                          />
+                        </div>
+                      )
+                    }
+
+                    const { freeOptions, isOccupied } =
+                      buildEditableServiceTimeOptions({
+                        currentVal,
+                        perServiceFree: serviceSlots?.[index] ?? [],
+                        fallbackFree: [],
+                        ownTimes: currentVal ? [currentVal] : [],
+                      })
+
                     return (
                       <div>
                         <label className={`${typography.label} mb-0.5 block text-xs`}>
                           Hora de inicio
                         </label>
-                        <ScrollableTimeSelect
+                        <ClockTimeInput
                           value={currentVal}
                           onChange={(time) => setServiceStartTime(index, time)}
-                          emptyLabel={chainedLabel}
-                          freeOptions={[...ALL_DAY_SLOTS]}
-                          className={selectCn}
+                          defaultTime={chainedTime ?? freeOptions[0]}
+                          allowEmpty
+                          emptyHint={chainedHint}
                         />
+                        {isOccupied && (
+                          <div className="mt-1 space-y-0.5 text-xs text-amber-700">
+                            {freeOptions.length > 0 && (
+                              <p>
+                                Otras horas disponibles:{' '}
+                                {freeOptions.slice(0, 5).map((t, i2) => (
+                                  <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => setServiceStartTime(index, t)}
+                                    className="cursor-pointer font-medium underline"
+                                  >
+                                    {t}
+                                    {i2 < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
+                                  </button>
+                                ))}
+                              </p>
+                            )}
+                            {serviceAlternativeStaff?.[index] != null && (
+                              <p>
+                                A esta hora está libre:{' '}
+                                <span className="font-medium">
+                                  {serviceAlternativeStaff[index]!.name}
+                                </span>
+                              </p>
+                            )}
+                            {isOccupied &&
+                              freeOptions.length === 0 &&
+                              !serviceAlternativeStaff?.[index] && (
+                                <p>Sin disponibilidad para este tratamiento.</p>
+                              )}
+                          </div>
+                        )}
                       </div>
                     )
-                  }
-
-                  const { freeOptions, occupiedOptions, extraCurrent, isOccupied } =
-                    buildEditableServiceTimeOptions({
-                      currentVal,
-                      perServiceFree: serviceSlots?.[index] ?? [],
-                      fallbackFree: [],
-                      ownTimes: currentVal ? [currentVal] : [],
-                    })
-
-                  return (
-                    <div>
-                      <label className={`${typography.label} mb-0.5 block text-xs`}>
-                        Hora de inicio
-                      </label>
-                      <ScrollableTimeSelect
-                        value={currentVal}
-                        onChange={(time) => setServiceStartTime(index, time)}
-                        emptyLabel={chainedLabel}
-                        freeOptions={freeOptions}
-                        occupiedOptions={[...extraCurrent, ...occupiedOptions]}
-                        className={selectCn}
-                      />
-                      {isOccupied && (
-                        <div className="mt-1 space-y-0.5 text-xs text-amber-700">
-                          {freeOptions.length > 0 && (
-                            <p>
-                              Otras horas disponibles:{' '}
-                              {freeOptions.slice(0, 5).map((t, i2) => (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  onClick={() => setServiceStartTime(index, t)}
-                                  className="cursor-pointer font-medium underline"
-                                >
-                                  {t}{i2 < Math.min(freeOptions.length, 5) - 1 ? ', ' : ''}
-                                </button>
-                              ))}
-                            </p>
-                          )}
-                          {serviceAlternativeStaff?.[index] != null && (
-                            <p>
-                              A esta hora está libre:{' '}
-                              <span className="font-medium">{serviceAlternativeStaff[index]!.name}</span>
-                            </p>
-                          )}
-                          {isOccupied && freeOptions.length === 0 && !serviceAlternativeStaff?.[index] && (
-                            <p>Sin disponibilidad para este tratamiento.</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
+                  })()}
                 {serviceId && (
                   <div>
                     <label className={`${typography.label} mb-0.5 block text-xs`}>
@@ -453,13 +580,13 @@ export function StaffAppointmentFormFields({
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         )
       })}
       <button
         type="button"
-        onClick={addService}
+        onClick={handleAddService}
         className="flex w-full items-center justify-center gap-1 border border-dashed border-gold/40 px-3 py-2 text-xs text-gold transition-colors hover:border-gold hover:bg-gold/5"
       >
         <span className="text-sm leading-none">+</span> Añadir tratamiento
@@ -480,16 +607,16 @@ export function StaffAppointmentFormFields({
   const timeSection = (
     <div>
       <label className={timeLabelCn}>Hora de la cita</label>
-      <ScrollableTimeSelect
+      <ClockTimeInput
         value={draft.startTime}
         onChange={(time) => onDraftChange({ startTime: time, serviceStartTimes: [] })}
-        emptyLabel={isAdmin ? 'Elige hora' : hasServices ? (compact ? 'Elige hora' : 'Primero elige el tratamiento') : 'Tratamiento primero'}
-        freeOptions={timeOptions}
-        overHoursOptions={isAdmin ? [] : slotsOverHours}
-        className={selectCn}
+        defaultTime={draft.startTime || timeOptions[0] || '10:00'}
         disabled={isAdmin ? false : !hasServices}
         required
       />
+      {!isAdmin && slotsOverHours.length > 0 && draft.startTime && slotsOverHours.includes(draft.startTime) && (
+        <p className="mt-1 text-xs text-amber-700">Esta hora está fuera del horario habitual.</p>
+      )}
     </div>
   )
 
