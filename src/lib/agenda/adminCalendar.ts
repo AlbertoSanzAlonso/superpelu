@@ -3,6 +3,10 @@ import { nowSalonMinutes, todaySalon } from '@/lib/core/dates'
 import type { StaffDaySchedule } from '@/types/booking'
 
 export const CALENDAR_SLOT_HEIGHT_PX = 44
+export const CALENDAR_SLOT_HEIGHT_MIN_PX = 28
+export const CALENDAR_SLOT_HEIGHT_MAX_PX = 88
+
+const AGENDA_SLOT_HEIGHT_STORAGE_KEY = 'agenda-admin-slot-height'
 
 export function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
@@ -20,6 +24,7 @@ export type CalendarDayRange = {
   endMinutes: number
   slotMinutes: number
   slotCount: number
+  slotHeightPx: number
   totalHeightPx: number
   timeLabels: string[]
 }
@@ -27,11 +32,44 @@ export type CalendarDayRange = {
 const SALON_DAY_START = '10:00'
 const SALON_DAY_END = '20:00'
 
+export function clampCalendarSlotHeightPx(height: number): number {
+  return Math.min(
+    CALENDAR_SLOT_HEIGHT_MAX_PX,
+    Math.max(CALENDAR_SLOT_HEIGHT_MIN_PX, Math.round(height)),
+  )
+}
+
+export function readStoredCalendarSlotHeightPx(): number {
+  if (typeof sessionStorage === 'undefined') return CALENDAR_SLOT_HEIGHT_PX
+  try {
+    const raw = sessionStorage.getItem(AGENDA_SLOT_HEIGHT_STORAGE_KEY)
+    if (raw == null) return CALENDAR_SLOT_HEIGHT_PX
+    const parsed = Number(raw)
+    if (!Number.isFinite(parsed)) return CALENDAR_SLOT_HEIGHT_PX
+    return clampCalendarSlotHeightPx(parsed)
+  } catch {
+    return CALENDAR_SLOT_HEIGHT_PX
+  }
+}
+
+export function storeCalendarSlotHeightPx(height: number): void {
+  if (typeof sessionStorage === 'undefined') return
+  try {
+    sessionStorage.setItem(AGENDA_SLOT_HEIGHT_STORAGE_KEY, String(clampCalendarSlotHeightPx(height)))
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 /** Franja fija del salón (10:00–20:00) para la vista admin. */
-export function resolveCalendarDayRange(_schedules?: StaffDaySchedule[]): CalendarDayRange {
+export function resolveCalendarDayRange(
+  _schedules?: StaffDaySchedule[],
+  slotHeightPx: number = CALENDAR_SLOT_HEIGHT_PX,
+): CalendarDayRange {
   const slotMinutes = salonSchedule.slotMinutes
   const startMinutes = timeToMinutes(SALON_DAY_START)
   const endMinutes = timeToMinutes(SALON_DAY_END)
+  const height = clampCalendarSlotHeightPx(slotHeightPx)
 
   const slotCount = (endMinutes - startMinutes) / slotMinutes
   const timeLabels: string[] = []
@@ -44,7 +82,8 @@ export function resolveCalendarDayRange(_schedules?: StaffDaySchedule[]): Calend
     endMinutes,
     slotMinutes,
     slotCount,
-    totalHeightPx: slotCount * CALENDAR_SLOT_HEIGHT_PX,
+    slotHeightPx: height,
+    totalHeightPx: slotCount * height,
     timeLabels,
   }
 }
@@ -52,7 +91,7 @@ export function resolveCalendarDayRange(_schedules?: StaffDaySchedule[]): Calend
 export function eventTopPx(
   startTime: string,
   range: CalendarDayRange,
-  slotHeight = CALENDAR_SLOT_HEIGHT_PX,
+  slotHeight = range.slotHeightPx,
 ): number {
   const offsetSlots = (timeToMinutes(startTime) - range.startMinutes) / range.slotMinutes
   return offsetSlots * slotHeight
@@ -61,7 +100,7 @@ export function eventTopPx(
 export function eventHeightPx(
   durationMinutes: number,
   range: CalendarDayRange,
-  slotHeight = CALENDAR_SLOT_HEIGHT_PX,
+  slotHeight = range.slotHeightPx,
 ): number {
   return (durationMinutes / range.slotMinutes) * slotHeight
 }
@@ -73,7 +112,7 @@ export function blockDurationMinutes(startTime: string, endTime: string): number
 export function currentTimeLineTopPx(
   date: string,
   range: CalendarDayRange,
-  slotHeight = CALENDAR_SLOT_HEIGHT_PX,
+  slotHeight = range.slotHeightPx,
 ): number | null {
   if (date !== todaySalon()) return null
   const now = nowSalonMinutes()

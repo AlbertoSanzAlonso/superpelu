@@ -877,7 +877,7 @@ export function AdminServicesPage() {
           <input
             id="services-search"
             type="search"
-            placeholder="Buscar tratamiento…"
+            placeholder="Buscar servicio…"
             value={serviceQuery}
             onChange={(e) => setServiceQuery(e.target.value)}
             className={searchFieldClass}

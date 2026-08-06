@@ -9,7 +9,6 @@ import {
   type RefObject,
 } from 'react'
 import {
-  CALENDAR_SLOT_HEIGHT_PX,
   eventHeightPx,
   eventTopPx,
   minutesToTime,
@@ -82,7 +81,7 @@ const AppointmentDragContext = createContext<ContextValue | null>(null)
 function snapStartTimeFromTop(topPx: number, range: CalendarDayRange): string {
   const slotIndex = Math.max(
     0,
-    Math.min(range.slotCount - 1, Math.round(topPx / CALENDAR_SLOT_HEIGHT_PX)),
+    Math.min(range.slotCount - 1, Math.round(topPx / range.slotHeightPx)),
   )
   return minutesToTime(range.startMinutes + slotIndex * range.slotMinutes)
 }
@@ -169,20 +168,20 @@ export function AppointmentDragProvider({
           
           if (session.resizeEdge === 'bottom') {
             // Resizing from bottom: duration = new bottom - top
-            const newDurationMinutes = Math.round((smoothTop - originalTop) / CALENDAR_SLOT_HEIGHT_PX * range.slotMinutes / 5) * 5
+            const newDurationMinutes = Math.round((smoothTop - originalTop) / range.slotHeightPx * range.slotMinutes / 5) * 5
             newDuration = Math.max(5, newDurationMinutes)
             snappedTopPx = originalTop
             snappedStartTime = session.appointment.startTime
           } else {
             // Resizing from top: duration = original bottom - new top
             const originalBottom = originalTop + height
-            const newDurationMinutes = Math.round((originalBottom - smoothTop) / CALENDAR_SLOT_HEIGHT_PX * range.slotMinutes / 5) * 5
+            const newDurationMinutes = Math.round((originalBottom - smoothTop) / range.slotHeightPx * range.slotMinutes / 5) * 5
             newDuration = Math.max(5, newDurationMinutes)
             snappedTopPx = smoothTop
             // Calculate new start time based on new top position
             const slotIndex = Math.max(
               0,
-              Math.min(range.slotCount - 1, Math.round(smoothTop / CALENDAR_SLOT_HEIGHT_PX))
+              Math.min(range.slotCount - 1, Math.round(smoothTop / range.slotHeightPx))
             )
             snappedStartTime = minutesToTime(range.startMinutes + slotIndex * range.slotMinutes)
           }

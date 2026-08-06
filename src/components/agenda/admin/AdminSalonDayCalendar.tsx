@@ -1,11 +1,13 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   blockDurationMinutes,
-  CALENDAR_SLOT_HEIGHT_PX,
+  clampCalendarSlotHeightPx,
   currentTimeLineTopPx,
   eventHeightPx,
   eventTopPx,
+  readStoredCalendarSlotHeightPx,
   resolveCalendarDayRange,
+  storeCalendarSlotHeightPx,
   type CalendarDayRange,
 } from '@/lib/agenda/adminCalendar'
 import { blockEventClass } from '@/lib/catalog/serviceCategoryColors'
@@ -86,7 +88,7 @@ function TimeGutter({ range, windows }: { range: CalendarDayRange; windows: Work
               `${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap pr-2 pt-0.5 tabular-nums backdrop-blur-[1px]`,
               closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10 bg-cream/25',
             ].join(' ')}
-            style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
+            style={{ height: range.slotHeightPx }}
           >
             {time}
           </div>
@@ -111,7 +113,7 @@ function ColumnGrid({
           <div
             key={time}
             className={closed ? agendaClosedSlotClassName : agendaOpenSlotClassName}
-            style={{ height: CALENDAR_SLOT_HEIGHT_PX }}
+            style={{ height: range.slotHeightPx }}
           />
         )
       })}
@@ -162,7 +164,7 @@ function SlotLayer({
               className="pointer-events-none absolute inset-x-0 z-[14] bg-charcoal/[0.06]"
               style={{
                 top: eventTopPx(cell.time, range),
-                height: CALENDAR_SLOT_HEIGHT_PX,
+                height: range.slotHeightPx,
               }}
             />
           )
@@ -183,7 +185,7 @@ function SlotLayer({
             ].join(' ')}
             style={{
               top: eventTopPx(cell.time, range),
-              height: CALENDAR_SLOT_HEIGHT_PX,
+              height: range.slotHeightPx,
             }}
           />
         )
@@ -216,7 +218,7 @@ function BlockEvent({
         if (interactionsLocked) return
         onOpen()
       }}
-      className={`absolute inset-x-1 z-20 overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 disabled:cursor-not-allowed disabled:opacity-60 ${blockEventClass()}`}
+      className={`absolute inset-x-1 z-20 cursor-pointer overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 disabled:cursor-not-allowed disabled:opacity-60 ${blockEventClass()}`}
       style={{ top, height: Math.max(height - 2, 22) }}
       title={block.note ? `Bloqueado — ${block.note}` : 'Bloqueado — ver observaciones'}
     >
@@ -482,10 +484,51 @@ export function AdminSalonDayCalendar({
   activeStaffId = null,
   onSelectStaff,
 }: Props) {
-  const range = useMemo(() => resolveCalendarDayRange(schedules), [schedules])
+  const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const slotHeightRef = useRef(slotHeightPx)
+  const range = useMemo(
+    () => resolveCalendarDayRange(schedules, slotHeightPx),
+    [schedules, slotHeightPx],
+  )
   const gutterWindows = salonWindows
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
   const columnRefs = useRef(new Map<string, HTMLDivElement>())
+
+  useEffect(() => {
+    slotHeightRef.current = slotHeightPx
+    storeCalendarSlotHeightPx(slotHeightPx)
+  }, [slotHeightPx])
+
+  useEffect(() => {
+    if (schedules.length === 0) return
+    const el = scrollRef.current
+    if (!el) return
+
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return
+      e.preventDefault()
+
+      const currentHeight = slotHeightRef.current
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1
+      const nextHeight = clampCalendarSlotHeightPx(currentHeight * factor)
+      if (nextHeight === currentHeight) return
+
+      const rect = el.getBoundingClientRect()
+      const pointerY = e.clientY - rect.top
+      const contentY = el.scrollTop + pointerY
+      const scale = nextHeight / currentHeight
+
+      slotHeightRef.current = nextHeight
+      setSlotHeightPx(nextHeight)
+      requestAnimationFrame(() => {
+        el.scrollTop = contentY * scale - pointerY
+      })
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [schedules.length])
 
   const setColumnRef = useCallback((staffId: string, el: HTMLDivElement | null) => {
     if (el) columnRefs.current.set(staffId, el)
@@ -531,7 +574,11 @@ export function AdminSalonDayCalendar({
       onDragEnd={onProposeAppointmentMove}
       onClickWithoutDrag={handleClickWithoutDrag}
     >
-      <div className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream/40 backdrop-blur-[2px]">
+      <div
+        ref={scrollRef}
+        className="agenda-calendar-scroll h-full min-h-0 overflow-auto border border-gold/25 bg-cream/40 backdrop-blur-[2px]"
+        title="Ctrl + rueda para zoom"
+      >
         <div className="flex min-w-max">
           <div className="sticky left-0 z-40 isolate shrink-0 bg-cream/40 backdrop-blur-[2px]">
             <div
