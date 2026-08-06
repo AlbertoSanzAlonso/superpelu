@@ -501,7 +501,7 @@ function AppointmentDragOverlay({
   let top: number
   let height: number
   if (activeDrag.resizeEdge && activeDrag.newDuration) {
-    const newHeightPx = Math.max(eventHeightPx(activeDrag.newDuration, range) - 2, 22)
+    const newHeightPx = Math.max(eventHeightPx(activeDrag.newDuration, range), 22)
     if (activeDrag.resizeEdge === 'bottom') {
       top = columnRect.top + STAFF_COLUMN_HEADER_PX + activeDrag.snappedTopPx
       height = newHeightPx
@@ -510,7 +510,7 @@ function AppointmentDragOverlay({
       height = newHeightPx
     }
   } else {
-    height = Math.max(activeDrag.height - 2, 22)
+    height = Math.max(activeDrag.height, 22)
     const smoothTop = Math.max(0, Math.min(gridHeightPx - activeDrag.height, yInGrid - activeDrag.grabOffsetY))
     top = columnRect.top + STAFF_COLUMN_HEADER_PX + smoothTop
   }
@@ -567,7 +567,7 @@ export function AppointmentDragSnapSlot({
       className="agenda-drag-snap-indicator pointer-events-none absolute z-[12] border-2 border-dashed border-gold/45 bg-gold/10"
       style={{
         top: activeDrag.snappedTopPx,
-        height: Math.max(activeDrag.height - 2, 22),
+        height: Math.max(activeDrag.height, 22),
         left: `${lane.leftPercent}%`,
         width: `${lane.widthPercent}%`,
       }}

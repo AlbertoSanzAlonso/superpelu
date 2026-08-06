@@ -287,7 +287,7 @@ function DayColumn({
                 onEditAppointment(date, staffId, apt)
               }}
               className={`absolute inset-x-0 z-30 cursor-pointer overflow-hidden border px-1.5 py-1 text-left text-[10px] ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)}`}
-              style={{ top, height: Math.max(height - 2, 22) }}
+              style={{ top, height: Math.max(height, 22) }}
               title={`${apt.customerName} — ${formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', { colorGroupRole: apt.colorGroupRole })}`}
             >
               <span className="block truncate font-medium">{apt.customerName}</span>

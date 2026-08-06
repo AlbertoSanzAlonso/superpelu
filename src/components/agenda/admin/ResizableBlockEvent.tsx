@@ -174,7 +174,7 @@ export function ResizableBlockEvent({
       className={`absolute inset-x-1 z-20 overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 ${blockEventClass()} ${
         interactionsLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
       } ${preview ? 'ring-2 ring-inset ring-gold/50' : ''}`}
-      style={{ top, height: Math.max(height - 2, 22) }}
+      style={{ top, height: Math.max(height, 22) }}
       title={
         block.note
           ? `Bloqueado ${displayStart}–${displayEnd} — ${block.note}`

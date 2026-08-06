@@ -174,7 +174,7 @@ export function DraggableAppointmentBlock({
     <div
       key={key}
       className={`agenda-appointment-block absolute z-30 overflow-hidden border px-1.5 py-1 text-left text-xs leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)} ${className}`}
-      style={{ top, height: Math.max(height - 2, 22), ...laneStyle }}
+      style={{ top, height: Math.max(height, 22), ...laneStyle }}
       title={
         apt.notes?.trim()
           ? `${apt.customerName} — ${apt.serviceName}\n${apt.notes.trim()}`

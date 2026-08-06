@@ -157,19 +157,22 @@ export function AdminAgendaControlBar({
 
   const viewToggle = (
     <div className="flex items-center" role="group" aria-label="Vista de agenda">
-      {(['day', '3days', 'week'] as const).map((view, index) => (
-        <button
-          key={view}
-          type="button"
-          className={`${agendaView === view ? viewBtnActiveClass : viewBtnClass} ${
-            index === 0 ? '' : 'border-l-0'
-          }`}
-          aria-pressed={agendaView === view}
-          onClick={() => onAgendaViewChange(view)}
-        >
-          {agendaViewLabel(view)}
-        </button>
-      ))}
+      {(['day', '3days', 'week'] as const).map((view, index) => {
+        const active = agendaView === view
+        return (
+          <button
+            key={view}
+            type="button"
+            className={`${active ? viewBtnActiveClass : viewBtnClass} ${
+              index > 0 ? '-ml-px' : ''
+            } ${active ? 'relative z-10' : ''}`}
+            aria-pressed={active}
+            onClick={() => onAgendaViewChange(view)}
+          >
+            {agendaViewLabel(view)}
+          </button>
+        )
+      })}
     </div>
   )
 
