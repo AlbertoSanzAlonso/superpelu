@@ -376,6 +376,8 @@ Opcional. Tras crear cita, el servidor puede enviar confirmación por WhatsApp (
 | `OPENWA_SESSION_ID` | ID de sesión conectada (QR escaneado) |
 | `OPENWA_NOTIFY_PUBLIC_ONLY` | Si `true`, solo reservas `/reservar` (no agenda) |
 
+**Solo agentes (no la API):** no crear citas de prueba en producción ni usar teléfonos inventados (`+3460000000x`, etc.): pueden ser reales y OpenWA les envía WhatsApp. Los humanos en agenda no tienen esa restricción. Ver `.cursor/rules/no-prod-test-spam.mdc`.
+
 Diagnóstico admin: `GET /api/admin/whatsapp` (Bearer `ADMIN_SECRET`).
 
 ### Enlaces del mensaje (cancelar / calendario)
