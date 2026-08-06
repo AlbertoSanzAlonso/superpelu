@@ -20,7 +20,7 @@ import {
 } from '@server/catalog/admin.js'
 import { listStaffForService, listStaffForServices, getStaff } from '@server/staff/index.js'
 import { me } from '@server/staff/me.js'
-import { listStaffDaySchedules } from '@server/staff/schedule.js'
+import { listStaffDaySchedules, listStaffScheduleRange } from '@server/staff/schedule.js'
 import { createStaff, deleteStaff, listAdminStaff, updateStaff } from '@server/staff/admin.js'
 import {
   cancelAppointment,
@@ -1143,6 +1143,39 @@ app.get('/api/schedule/day', async (c) => {
       endTime: w.endTime,
     })),
   })
+})
+
+/** Varios días de agenda admin (vista 3 días / semana). */
+app.get('/api/schedule/range', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) {
+    return c.json({ error: 'No autorizado' }, 401)
+  }
+
+  const from = c.req.query('from')
+  const to = c.req.query('to')
+  if (!from || !to) {
+    return c.json({ error: 'Faltan from o to' }, 400)
+  }
+  if (from > to) {
+    return c.json({ error: 'from debe ser ≤ to' }, 400)
+  }
+
+  const days = await listStaffScheduleRange(from, to)
+  const withSalon = await Promise.all(
+    days.map(async (day) => {
+      const salonDayWindows = await getSalonDayWindows(day.date)
+      return {
+        date: day.date,
+        schedules: day.schedules,
+        salonWindows: salonDayWindows.map((w) => ({
+          startTime: w.startTime,
+          endTime: w.endTime,
+        })),
+      }
+    }),
+  )
+  return c.json({ from, to, days: withSalon })
 })
 
 app.get('/api/admin/stats', async (c) => {

@@ -291,4 +291,27 @@ export async function listStaffDaySchedules(date: string) {
   return enrichColorGroupLinks(filtered)
 }
 
+export async function listStaffScheduleRange(from: string, to: string) {
+  const dates: string[] = []
+  let cursor = from
+  while (cursor <= to) {
+    dates.push(cursor)
+    const [y, m, d] = cursor.split('-').map(Number)
+    const next = new Date(y, m - 1, d)
+    next.setDate(next.getDate() + 1)
+    const ny = next.getFullYear()
+    const nm = String(next.getMonth() + 1).padStart(2, '0')
+    const nd = String(next.getDate()).padStart(2, '0')
+    cursor = `${ny}-${nm}-${nd}`
+    if (dates.length > 31) break
+  }
+
+  return Promise.all(
+    dates.map(async (date) => ({
+      date,
+      schedules: await listStaffDaySchedules(date),
+    })),
+  )
+}
+
 export { getAvailableSlots }

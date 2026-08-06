@@ -10,6 +10,7 @@ export type {
 export {
   verifyAdminToken,
   fetchDaySchedule,
+  fetchScheduleRange,
   fetchAppointments,
   cancelAppointment,
   markAppointmentNoShow,

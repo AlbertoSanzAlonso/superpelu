@@ -7,12 +7,17 @@ import { useAdminAgendaAppointments } from './useAdminAgendaAppointments'
 import { useAdminAgendaMoves } from './useAdminAgendaMoves'
 import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAdminAppointmentNotifications } from './useAdminAppointmentNotifications'
+import type { AgendaViewMode } from '@/lib/agenda/agendaView'
 
 export type { AdminColumnSelection } from './types'
 export type { AppointmentMoveDraft } from '@/lib/agenda/pendingMoves'
 
-export function useAdminAgenda(adminToken: string, date: string) {
-  const schedule = useAdminAgendaSchedule(adminToken, date)
+export function useAdminAgenda(
+  adminToken: string,
+  date: string,
+  agendaView: AgendaViewMode = 'day',
+) {
+  const schedule = useAdminAgendaSchedule(adminToken, date, agendaView)
   const selectionState = useAdminAgendaSelection(schedule.schedules, date)
   const confirm = useAgendaConfirm()
   const notifications = useAdminAppointmentNotifications(adminToken)
@@ -176,6 +181,9 @@ export function useAdminAgenda(adminToken: string, date: string) {
   return {
     schedules: schedule.schedules,
     salonWindows: schedule.salonWindows,
+    dayBundles: schedule.dayBundles,
+    viewDates: schedule.viewDates,
+    agendaView,
     loadedDate: schedule.loadedDate,
     loading: schedule.loading,
     error: schedule.error,

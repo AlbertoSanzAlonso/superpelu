@@ -1,5 +1,6 @@
 import { salonSchedule } from '@/data/schedule'
 import { nowSalonMinutes, todaySalon } from '@/lib/core/dates'
+import type { WorkTimeWindow } from '@/lib/core/scheduleHours'
 import type { StaffDaySchedule } from '@/types/booking'
 
 export const CALENDAR_SLOT_HEIGHT_PX = 44
@@ -28,9 +29,6 @@ export type CalendarDayRange = {
   totalHeightPx: number
   timeLabels: string[]
 }
-
-const SALON_DAY_START = '10:00'
-const SALON_DAY_END = '20:00'
 
 export function clampCalendarSlotHeightPx(height: number): number {
   return Math.min(
@@ -61,16 +59,32 @@ export function storeCalendarSlotHeightPx(height: number): void {
   }
 }
 
-/** Franja fija del salón (10:00–20:00) para la vista admin. */
+/**
+ * Franja vertical de la agenda admin.
+ * Si hay horario del salón para el día (Horarios / BD), usa min–max de esas franjas;
+ * si no, cae a openTime/closeTime del catálogo (no un 10–20 fijo aparte).
+ */
 export function resolveCalendarDayRange(
   _schedules?: StaffDaySchedule[],
   slotHeightPx: number = CALENDAR_SLOT_HEIGHT_PX,
+  salonWindows?: WorkTimeWindow[],
 ): CalendarDayRange {
   const slotMinutes = salonSchedule.slotMinutes
-  const startMinutes = timeToMinutes(SALON_DAY_START)
-  const endMinutes = timeToMinutes(SALON_DAY_END)
-  const height = clampCalendarSlotHeightPx(slotHeightPx)
+  let startMinutes = timeToMinutes(salonSchedule.openTime)
+  let endMinutes = timeToMinutes(salonSchedule.closeTime)
 
+  if (salonWindows && salonWindows.length > 0) {
+    startMinutes = Math.min(...salonWindows.map((w) => timeToMinutes(w.startTime)))
+    endMinutes = Math.max(...salonWindows.map((w) => timeToMinutes(w.endTime)))
+  }
+
+  startMinutes = Math.floor(startMinutes / slotMinutes) * slotMinutes
+  endMinutes = Math.ceil(endMinutes / slotMinutes) * slotMinutes
+  if (endMinutes <= startMinutes) {
+    endMinutes = startMinutes + slotMinutes
+  }
+
+  const height = clampCalendarSlotHeightPx(slotHeightPx)
   const slotCount = (endMinutes - startMinutes) / slotMinutes
   const timeLabels: string[] = []
   for (let m = startMinutes; m < endMinutes; m += slotMinutes) {

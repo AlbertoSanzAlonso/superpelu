@@ -2,6 +2,11 @@ import { Link } from 'react-router-dom'
 import { AdminAppointmentNotificationsBell } from '@/components/agenda/admin/AdminAppointmentNotificationsBell'
 import { StaffGridSelectionActions } from '@/components/agenda/staff/StaffGridSelectionActions'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
+import {
+  agendaViewLabel,
+  agendaViewNavStep,
+  type AgendaViewMode,
+} from '@/lib/agenda/agendaView'
 import { addDaysToDateString, formatDisplayDate, todaySalon } from '@/lib/core/dates'
 import type { GridSelectionSummary } from '@/lib/agenda/timeGrid'
 import { Button } from '@/components/ui/Button'
@@ -20,11 +25,21 @@ const staffSelectClass =
 const navLinkClass =
   'flex h-8 shrink-0 cursor-pointer items-center border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
 
+const viewBtnClass =
+  'h-8 shrink-0 cursor-pointer border border-gold/30 px-2 text-xs text-charcoal-muted hover:border-gold'
+
+const viewBtnActiveClass =
+  'h-8 shrink-0 cursor-pointer border border-gold bg-gold/15 px-2 text-xs font-medium text-gold'
+
 type Props = {
   date: string
   onDateChange: (date: string) => void
+  agendaView: AgendaViewMode
+  onAgendaViewChange: (view: AgendaViewMode) => void
+  viewDates: string[]
   appointmentCount: number
   schedules: StaffDaySchedule[]
+  staffOptions: { staffId: string; staffName: string }[]
   activeStaffId: string | null
   onStaffChange: (staffId: string) => void
   onNewAppointment: () => void
@@ -36,7 +51,6 @@ type Props = {
   onCreateAppointmentFromSelection?: () => void
   onClearSelection?: () => void
   selectionBusy?: boolean
-  /** Movimientos de cita sin guardar: deshabilita crear citas y bloquear. */
   gridInteractionsLocked?: boolean
   notificationInbox?: AdminAppointmentNotificationItem[]
   notificationBellOpen?: boolean
@@ -69,11 +83,29 @@ function NavChevron({ direction }: { direction: 'prev' | 'next' }) {
   )
 }
 
+function formatViewRangeLabel(view: AgendaViewMode, date: string, viewDates: string[]): string {
+  if (view === 'day' || viewDates.length <= 1) return formatDisplayDate(date)
+  const first = viewDates[0]
+  const last = viewDates[viewDates.length - 1]
+  const short = (d: string) => {
+    const [y, m, day] = d.split('-').map(Number)
+    return new Date(y, m - 1, day).toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'short',
+    })
+  }
+  return `${short(first)} – ${short(last)}`
+}
+
 export function AdminAgendaControlBar({
   date,
   onDateChange,
+  agendaView,
+  onAgendaViewChange,
+  viewDates,
   appointmentCount,
   schedules,
+  staffOptions,
   activeStaffId,
   onStaffChange,
   onNewAppointment,
@@ -97,27 +129,53 @@ export function AdminAgendaControlBar({
   onToggleBukFallback,
 }: Props) {
   const isToday = date === todaySalon()
-  const workingStaff = schedules.filter((s) => s.working)
+  const navStep = agendaViewNavStep(agendaView)
+  const staffList =
+    staffOptions.length > 0
+      ? staffOptions
+      : schedules
+          .filter((s) => s.working)
+          .map((s) => ({ staffId: s.staffId, staffName: s.staffName }))
   const hasSelection = selectionCount > 0 && selectionSummary != null
+  const requireStaff = agendaView !== 'day'
+  const canNewAppointment = Boolean(activeStaffId) && !gridInteractionsLocked
 
   const dayNav = (
     <div className="flex items-center gap-1">
       <button
         type="button"
         className={dayNavButtonClass}
-        aria-label="Día anterior"
-        onClick={() => onDateChange(addDaysToDateString(date, -1))}
+        aria-label={agendaView === 'day' ? 'Día anterior' : 'Periodo anterior'}
+        onClick={() => onDateChange(addDaysToDateString(date, -navStep))}
       >
         <NavChevron direction="prev" />
       </button>
       <button
         type="button"
         className={dayNavButtonClass}
-        aria-label="Día siguiente"
-        onClick={() => onDateChange(addDaysToDateString(date, 1))}
+        aria-label={agendaView === 'day' ? 'Día siguiente' : 'Periodo siguiente'}
+        onClick={() => onDateChange(addDaysToDateString(date, navStep))}
       >
         <NavChevron direction="next" />
       </button>
+    </div>
+  )
+
+  const viewToggle = (
+    <div className="flex items-center" role="group" aria-label="Vista de agenda">
+      {(['day', '3days', 'week'] as const).map((view, index) => (
+        <button
+          key={view}
+          type="button"
+          className={`${agendaView === view ? viewBtnActiveClass : viewBtnClass} ${
+            index === 0 ? '' : 'border-l-0'
+          }`}
+          aria-pressed={agendaView === view}
+          onClick={() => onAgendaViewChange(view)}
+        >
+          {agendaViewLabel(view)}
+        </button>
+      ))}
     </div>
   )
 
@@ -191,94 +249,96 @@ export function AdminAgendaControlBar({
         aria-hidden
       />
       <div className="relative flex flex-col gap-2 px-3 py-2 md:gap-y-2">
-      <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
-        <div className="flex items-center justify-between gap-2">
-          {dayNav}
-          {notificationBell}
+        <div className="flex w-full min-w-0 flex-col gap-2 md:hidden">
+          <div className="flex items-center justify-between gap-2">
+            {dayNav}
+            {notificationBell}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">{navLinks}</div>
-      </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <div className="hidden items-center gap-1 md:flex">{dayNav}</div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="hidden items-center gap-1 md:flex">{dayNav}</div>
 
-      <p className={`${typography.label} shrink-0 capitalize tabular-nums text-gold`}>
-        {formatDisplayDate(date)}
-      </p>
+          <p className={`${typography.label} shrink-0 capitalize tabular-nums text-gold`}>
+            {formatViewRangeLabel(agendaView, date, viewDates)}
+          </p>
 
-      <button
-        type="button"
-        disabled={isToday}
-        onClick={() => onDateChange(todaySalon())}
-        className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        Hoy
-      </button>
+          <button
+            type="button"
+            disabled={isToday}
+            onClick={() => onDateChange(todaySalon())}
+            className="cursor-pointer border border-gold/30 px-2 py-1 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Hoy
+          </button>
 
-      <input
-        type="date"
-        value={date}
-        onChange={(e) => onDateChange(e.target.value)}
-        className={dateInputClass}
-        aria-label="Fecha"
-      />
-
-      <span className="hidden h-4 w-px bg-gold/25 sm:block" aria-hidden />
-
-      <span className={`${typography.caption} shrink-0 tabular-nums`}>
-        {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
-      </span>
-
-      <span className="hidden h-4 w-px bg-gold/25 md:block" aria-hidden />
-
-      <select
-        value={activeStaffId ?? ''}
-        onChange={(e) => onStaffChange(e.target.value)}
-        className={staffSelectClass}
-        aria-label="Profesional"
-      >
-        <option value="">Profesional…</option>
-        {workingStaff.map((s) => (
-          <option key={s.staffId} value={s.staffId}>
-            {s.staffName}
-          </option>
-        ))}
-      </select>
-
-      {hasSelection && selectionSummary ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium tabular-nums text-charcoal">
-            {selectionCount} franja{selectionCount === 1 ? '' : 's'}
-          </span>
-          <StaffGridSelectionActions
-            toolbar
-            summary={selectionSummary}
-            onBlock={onBlockSelection!}
-            onUnblock={onUnblockSelection!}
-            onCreateAppointment={onCreateAppointmentFromSelection!}
-            onClearSelection={onClearSelection!}
-            busy={selectionBusy}
-            interactionsLocked={gridInteractionsLocked}
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => onDateChange(e.target.value)}
+            className={dateInputClass}
+            aria-label="Fecha"
           />
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-8 px-2 text-xs"
-          disabled={!activeStaffId || gridInteractionsLocked}
-          onClick={onNewAppointment}
-        >
-          + Cita
-        </Button>
-      )}
 
-      <div className="ml-auto hidden items-center gap-2 md:flex">
-        {notificationBell}
-        {navLinks}
-      </div>
-      </div>
+          <span className="hidden h-4 w-px bg-gold/25 sm:block" aria-hidden />
+
+          <span className={`${typography.caption} shrink-0 tabular-nums`}>
+            {appointmentCount} {appointmentCount === 1 ? 'cita' : 'citas'}
+          </span>
+
+          <span className="hidden h-4 w-px bg-gold/25 md:block" aria-hidden />
+
+          <select
+            value={activeStaffId ?? ''}
+            onChange={(e) => onStaffChange(e.target.value)}
+            className={staffSelectClass}
+            aria-label="Profesional"
+          >
+            <option value="">{requireStaff ? 'Elegir profesional…' : 'Profesional…'}</option>
+            {staffList.map((s) => (
+              <option key={s.staffId} value={s.staffId}>
+                {s.staffName}
+              </option>
+            ))}
+          </select>
+
+          {viewToggle}
+
+          {hasSelection && selectionSummary ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium tabular-nums text-charcoal">
+                {selectionCount} franja{selectionCount === 1 ? '' : 's'}
+              </span>
+              <StaffGridSelectionActions
+                toolbar
+                summary={selectionSummary}
+                onBlock={onBlockSelection!}
+                onUnblock={onUnblockSelection!}
+                onCreateAppointment={onCreateAppointmentFromSelection!}
+                onClearSelection={onClearSelection!}
+                busy={selectionBusy}
+                interactionsLocked={gridInteractionsLocked}
+              />
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 px-2 text-xs"
+              disabled={!canNewAppointment}
+              onClick={onNewAppointment}
+            >
+              + Cita
+            </Button>
+          )}
+
+          <div className="ml-auto hidden items-center gap-2 md:flex">
+            {notificationBell}
+            {navLinks}
+          </div>
+        </div>
       </div>
     </div>
   )

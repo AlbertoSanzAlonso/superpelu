@@ -1,5 +1,6 @@
 import { AdminAppointmentToastStack } from '@/components/agenda/admin/AdminAppointmentToastStack'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
+import type { AgendaViewMode } from '@/lib/agenda/agendaView'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
@@ -7,6 +8,7 @@ import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
 import { AdminSalonDayCalendar } from '@/components/agenda/admin/AdminSalonDayCalendar'
+import { AdminMultiDayCalendar } from '@/components/agenda/admin/AdminMultiDayCalendar'
 import { AppointmentMoveBar } from '@/components/agenda/admin/AppointmentMoveBar'
 import { BlockDetailModal } from '@/components/agenda/BlockDetailModal'
 import { CancelAppointmentScopeModal } from '@/components/agenda/CancelAppointmentScopeModal'
@@ -19,11 +21,20 @@ import { SeriesConflictModal } from '@/components/agenda/SeriesConflictModal'
 import { typography } from '@/styles/typography'
 import type { UseAdminAgendaReturn } from '@/hooks/useAdminAgenda'
 import { fetchBookingFallback, updateBookingFallback } from '@/lib/api/admin'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { DayScheduleAppointment, DayScheduleBlock } from '@/types/booking'
+
+type PendingColumnAction =
+  | { kind: 'toggle'; date: string; staffId: string; staffName: string; time: string }
+  | { kind: 'edit'; date: string; staffId: string; apt: DayScheduleAppointment }
+  | { kind: 'block'; date: string; staffId: string; block: DayScheduleBlock }
+  | { kind: 'new'; date: string; staffId: string; staffName: string; time: string }
 
 export function AdminAgendaWorkspace({
   selectedDate,
   onDateChange,
+  agendaView,
+  onAgendaViewChange,
   adminToken,
   agenda,
   openAppointmentFromNotification,
@@ -31,22 +42,50 @@ export function AdminAgendaWorkspace({
 }: {
   selectedDate: string
   onDateChange: (date: string) => void
+  agendaView: AgendaViewMode
+  onAgendaViewChange: (view: AgendaViewMode) => void
   adminToken: string
   agenda: UseAdminAgendaReturn
   openAppointmentFromNotification: (item: AdminAppointmentNotificationItem) => void
   onLogout: () => void
 }) {
   const notifications = agenda.appointmentNotifications
-  const totalAppointments = agenda.schedules.reduce((n, s) => n + s.appointments.length, 0)
+  const totalAppointments =
+    agendaView === 'day'
+      ? agenda.schedules.reduce((n, s) => n + s.appointments.length, 0)
+      : agenda.dayBundles.reduce(
+          (n, day) =>
+            n +
+            day.schedules
+              .filter((s) => !agenda.activeStaffId || s.staffId === agenda.activeStaffId)
+              .reduce((m, s) => m + s.appointments.length, 0),
+          0,
+        )
+
+  const staffOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const day of agenda.dayBundles) {
+      for (const s of day.schedules) {
+        if (!map.has(s.staffId)) map.set(s.staffId, s.staffName)
+      }
+    }
+    for (const s of agenda.schedules) {
+      if (!map.has(s.staffId)) map.set(s.staffId, s.staffName)
+    }
+    return [...map.entries()].map(([staffId, staffName]) => ({ staffId, staffName }))
+  }, [agenda.dayBundles, agenda.schedules])
 
   const activeStaffName =
-    agenda.schedules.find((s) => s.staffId === agenda.activeStaffId)?.staffName ?? ''
+    staffOptions.find((s) => s.staffId === agenda.activeStaffId)?.staffName ??
+    agenda.schedules.find((s) => s.staffId === agenda.activeStaffId)?.staffName ??
+    ''
 
   const appointmentModalOpen =
     agenda.appointmentFormOpen || agenda.viewingAppointment != null
 
   const [bukFallbackEnabled, setBukFallbackEnabled] = useState(false)
   const [bukFallbackBusy, setBukFallbackBusy] = useState(false)
+  const [pendingColumnAction, setPendingColumnAction] = useState<PendingColumnAction | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -55,12 +94,37 @@ export function AdminAgendaWorkspace({
         if (!cancelled) setBukFallbackEnabled(res.enabled)
       })
       .catch(() => {
-        /* ignore: toggle stays off until retry */
+        /* ignore */
       })
     return () => {
       cancelled = true
     }
   }, [adminToken])
+
+  useEffect(() => {
+    if (agendaView === 'day') return
+    if (agenda.activeStaffId) return
+    const first = staffOptions[0]
+    if (first) agenda.selectStaff(first.staffId)
+  }, [agendaView, agenda.activeStaffId, staffOptions, agenda.selectStaff])
+
+  useEffect(() => {
+    if (!pendingColumnAction) return
+    if (selectedDate !== pendingColumnAction.date) return
+    if (agenda.loadedDate !== selectedDate) return
+    const action = pendingColumnAction
+    setPendingColumnAction(null)
+    if (action.kind === 'toggle') {
+      agenda.toggleSlot(action.staffId, action.staffName, action.time)
+    } else if (action.kind === 'new') {
+      agenda.openNewAppointment(action.staffId, action.staffName, action.time)
+    } else if (action.kind === 'edit') {
+      agenda.openAppointmentDetail(action.staffId, action.apt)
+    } else if (action.kind === 'block') {
+      agenda.openBlockDetail(action.staffId, action.block)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once when date/bundle ready
+  }, [pendingColumnAction, selectedDate, agenda.loadedDate])
 
   async function toggleBukFallback() {
     if (bukFallbackBusy) return
@@ -80,14 +144,35 @@ export function AdminAgendaWorkspace({
     agenda.resetAppointmentForm()
   }
 
+  function queueColumnAction(action: PendingColumnAction) {
+    if (action.date === selectedDate && agenda.loadedDate === selectedDate) {
+      if (action.kind === 'toggle') {
+        agenda.toggleSlot(action.staffId, action.staffName, action.time)
+      } else if (action.kind === 'new') {
+        agenda.openNewAppointment(action.staffId, action.staffName, action.time)
+      } else if (action.kind === 'edit') {
+        agenda.openAppointmentDetail(action.staffId, action.apt)
+      } else if (action.kind === 'block') {
+        agenda.openBlockDetail(action.staffId, action.block)
+      }
+      return
+    }
+    setPendingColumnAction(action)
+    onDateChange(action.date)
+  }
+
   return (
     <AgendaWorkspaceShell>
       <header className="relative z-20 shrink-0 overflow-visible">
         <AdminAgendaControlBar
           date={selectedDate}
           onDateChange={onDateChange}
+          agendaView={agendaView}
+          onAgendaViewChange={onAgendaViewChange}
+          viewDates={agenda.viewDates}
           appointmentCount={totalAppointments}
           schedules={agenda.schedules}
+          staffOptions={staffOptions}
           activeStaffId={agenda.activeStaffId}
           onStaffChange={agenda.selectStaff}
           onNewAppointment={() => {
@@ -124,29 +209,55 @@ export function AdminAgendaWorkspace({
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2">
-        {agenda.loading && agenda.schedules.length === 0 ? (
+        {agenda.loading && agenda.schedules.length === 0 && agenda.dayBundles.length === 0 ? (
           <p className={`${typography.caption} py-8 text-center`}>Cargando agenda…</p>
         ) : (
           <>
             <AdminCalendarLegend />
             <div className="min-h-0 flex-1">
-              <AdminSalonDayCalendar
-                date={selectedDate}
-                schedules={agenda.schedules}
-                salonWindows={agenda.salonWindows}
-                selection={agenda.selection}
-                formSlotTime={agenda.formSlotTime}
-                formStaffId={agenda.formStaffId}
-                pendingMoveSummary={agenda.pendingMoveSummary}
-                moveBusy={agenda.moveBusy}
-                gridInteractionsLocked={agenda.gridInteractionsLocked}
-                onToggleSlot={agenda.toggleSlot}
-                onEditAppointment={agenda.openAppointmentDetail}
-                onOpenBlock={agenda.openBlockDetail}
-                onProposeAppointmentMove={agenda.proposeAppointmentMove}
-                activeStaffId={agenda.activeStaffId}
-                onSelectStaff={agenda.selectStaff}
-              />
+              {agendaView === 'day' ? (
+                <AdminSalonDayCalendar
+                  date={selectedDate}
+                  schedules={agenda.schedules}
+                  salonWindows={agenda.salonWindows}
+                  selection={agenda.selection}
+                  formSlotTime={agenda.formSlotTime}
+                  formStaffId={agenda.formStaffId}
+                  pendingMoveSummary={agenda.pendingMoveSummary}
+                  moveBusy={agenda.moveBusy}
+                  gridInteractionsLocked={agenda.gridInteractionsLocked}
+                  onToggleSlot={agenda.toggleSlot}
+                  onEditAppointment={agenda.openAppointmentDetail}
+                  onOpenBlock={agenda.openBlockDetail}
+                  onProposeAppointmentMove={agenda.proposeAppointmentMove}
+                  activeStaffId={agenda.activeStaffId}
+                  onSelectStaff={agenda.selectStaff}
+                />
+              ) : agenda.activeStaffId ? (
+                <AdminMultiDayCalendar
+                  staffId={agenda.activeStaffId}
+                  staffName={activeStaffName}
+                  dayBundles={agenda.dayBundles}
+                  selection={agenda.selection}
+                  formSlotTime={agenda.formSlotTime}
+                  formStaffId={agenda.formStaffId}
+                  gridInteractionsLocked={agenda.gridInteractionsLocked}
+                  onFocusDate={onDateChange}
+                  onToggleSlot={(date, staffId, staffName, time) =>
+                    queueColumnAction({ kind: 'toggle', date, staffId, staffName, time })
+                  }
+                  onEditAppointment={(date, staffId, apt) =>
+                    queueColumnAction({ kind: 'edit', date, staffId, apt })
+                  }
+                  onOpenBlock={(date, staffId, block) =>
+                    queueColumnAction({ kind: 'block', date, staffId, block })
+                  }
+                />
+              ) : (
+                <p className={`${typography.caption} py-8 text-center`}>
+                  Elige un profesional para ver la agenda de varios días.
+                </p>
+              )}
             </div>
           </>
         )}

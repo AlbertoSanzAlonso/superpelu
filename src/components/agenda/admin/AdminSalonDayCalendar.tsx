@@ -73,10 +73,20 @@ function StaffInitial({ name }: { name: string }) {
   )
 }
 
-function TimeGutter({ range, windows }: { range: CalendarDayRange; windows: WorkTimeWindow[] }) {
+function TimeGutter({
+  range,
+  windows,
+  compact = false,
+}: {
+  range: CalendarDayRange
+  windows: WorkTimeWindow[]
+  compact?: boolean
+}) {
   return (
     <div
-      className="relative z-10 w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px]"
+      className={`relative z-10 shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px] ${
+        compact ? 'w-[2.75rem] min-w-[2.75rem]' : 'w-[4.5rem] min-w-[4.5rem]'
+      }`}
       style={{ height: range.totalHeightPx }}
     >
       {range.timeLabels.map((time) => {
@@ -85,12 +95,13 @@ function TimeGutter({ range, windows }: { range: CalendarDayRange; windows: Work
           <div
             key={time}
             className={[
-              `${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap pr-2 pt-0.5 tabular-nums backdrop-blur-[1px]`,
+              `${typography.caption} flex items-start overflow-hidden whitespace-nowrap pt-0.5 tabular-nums backdrop-blur-[1px]`,
+              compact ? 'justify-center px-0.5 text-[10px]' : 'justify-end pr-2',
               closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10 bg-cream/25',
             ].join(' ')}
             style={{ height: range.slotHeightPx }}
           >
-            {time}
+            {compact ? time.slice(0, 5) : time}
           </div>
         )
       })}
@@ -488,9 +499,10 @@ export function AdminSalonDayCalendar({
   const scrollRef = useRef<HTMLDivElement>(null)
   const slotHeightRef = useRef(slotHeightPx)
   const range = useMemo(
-    () => resolveCalendarDayRange(schedules, slotHeightPx),
-    [schedules, slotHeightPx],
+    () => resolveCalendarDayRange(schedules, slotHeightPx, salonWindows),
+    [schedules, slotHeightPx, salonWindows],
   )
+  /** Sombreado de la franja de horas = horario general del salón (API), no schedule.ts. */
   const gutterWindows = salonWindows
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
   const columnRefs = useRef(new Map<string, HTMLDivElement>())
@@ -589,27 +601,37 @@ export function AdminSalonDayCalendar({
           </div>
 
           <div className="flex flex-1">
-            {schedules.map((schedule) => (
-              <StaffColumn
-                key={schedule.staffId}
-                schedule={schedule}
-                date={date}
-                range={range}
-                nowLineTop={nowLineTop}
-                selection={selection}
-                formSlotTime={formSlotTime}
-                formStaffId={formStaffId}
-                pendingMoveSummary={pendingMoveSummary}
-                gridInteractionsLocked={gridInteractionsLocked}
-                dragEnabled={dragEnabled}
-                columnRef={(el) => setColumnRef(schedule.staffId, el)}
-                columnTopFromClientY={columnTopFromClientY}
-                onToggleSlot={onToggleSlot}
-                onEditAppointment={onEditAppointment}
-                onOpenBlock={onOpenBlock}
-                activeStaffId={activeStaffId}
-                onSelectStaff={onSelectStaff}
-              />
+            {schedules.map((schedule, index) => (
+              <div key={schedule.staffId} className="flex">
+                {index > 0 && (
+                  <div className="flex flex-col">
+                    <div
+                      className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+                      aria-hidden
+                    />
+                    <TimeGutter range={range} windows={gutterWindows} compact />
+                  </div>
+                )}
+                <StaffColumn
+                  schedule={schedule}
+                  date={date}
+                  range={range}
+                  nowLineTop={nowLineTop}
+                  selection={selection}
+                  formSlotTime={formSlotTime}
+                  formStaffId={formStaffId}
+                  pendingMoveSummary={pendingMoveSummary}
+                  gridInteractionsLocked={gridInteractionsLocked}
+                  dragEnabled={dragEnabled}
+                  columnRef={(el) => setColumnRef(schedule.staffId, el)}
+                  columnTopFromClientY={columnTopFromClientY}
+                  onToggleSlot={onToggleSlot}
+                  onEditAppointment={onEditAppointment}
+                  onOpenBlock={onOpenBlock}
+                  activeStaffId={activeStaffId}
+                  onSelectStaff={onSelectStaff}
+                />
+              </div>
             ))}
           </div>
         </div>
