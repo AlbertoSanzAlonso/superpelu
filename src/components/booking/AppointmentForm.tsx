@@ -169,9 +169,10 @@ export function AppointmentForm({
                   removeService: b.removeService,
                   addAnotherService: b.addAnotherService,
                   continueWithServices: b.continueWithServices,
+                  sameServiceHint: b.sameServiceHint,
                 }}
                 selectedServices={form.selectedServices}
-                onRemoveService={form.removeServiceId}
+                onRemoveServiceAt={form.removeServiceAt}
                 onBackToCategories={() => wizard.setStep(0)}
                 onContinue={wizard.handleContinueWithServices}
                 {...pickerBase}

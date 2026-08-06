@@ -75,8 +75,8 @@ export function ServiceCategoryPickerPublic({
     [services, selectedCategoryId],
   )
 
-  function isServiceSelected(id: string): boolean {
-    return multiSelect ? serviceIds.includes(id) : serviceId === id
+  function serviceSelectionCount(id: string): number {
+    return multiSelect ? serviceIds.filter((item) => item === id).length : serviceId === id ? 1 : 0
   }
 
   function handleCategoryPick(categoryId: string) {
@@ -197,11 +197,14 @@ export function ServiceCategoryPickerPublic({
             </div>
           ) : (
             <div className="grid gap-2 md:grid-cols-3 md:gap-3">
-              {categoryServices.map((service) => (
+              {categoryServices.map((service) => {
+                const selectedCount = serviceSelectionCount(service.id)
+                const selected = selectedCount > 0
+                return (
                 <label
                   key={service.id}
                   className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 transition-colors md:p-3 ${
-                    isServiceSelected(service.id)
+                    selected
                       ? 'border-gold bg-gold/5'
                       : 'border-gold/20 hover:border-gold/40'
                   }`}
@@ -210,7 +213,7 @@ export function ServiceCategoryPickerPublic({
                     type={multiSelect ? 'checkbox' : 'radio'}
                     name={multiSelect ? `service-${service.id}` : 'service'}
                     value={service.id}
-                    checked={isServiceSelected(service.id)}
+                    checked={selected}
                     onChange={() => {
                       if (multiSelect) {
                         onToggleService?.(service.id)
@@ -222,8 +225,15 @@ export function ServiceCategoryPickerPublic({
                     className="mt-0.5 shrink-0 accent-gold"
                   />
                   <span className="min-w-0 flex-1 text-left">
-                    <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
-                      {serviceDisplayName(service, locale)}
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
+                        {serviceDisplayName(service, locale)}
+                      </span>
+                      {multiSelect && selectedCount > 0 && (
+                        <span className="shrink-0 text-xs font-medium text-gold tabular-nums">
+                          ×{selectedCount}
+                        </span>
+                      )}
                     </span>
                     {service.showDurationInBooking !== false && (
                       <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
@@ -232,7 +242,8 @@ export function ServiceCategoryPickerPublic({
                     )}
                   </span>
                 </label>
-              ))}
+                )
+              })}
             </div>
           )}
         </fieldset>

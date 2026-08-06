@@ -271,6 +271,8 @@ const es = {
     continueWithServices: 'Continuar',
     selectedServices: 'Tratamientos elegidos',
     removeService: 'Quitar',
+    sameServiceHint:
+      'Puedes elegir el mismo tratamiento varias veces si reservas para más de una persona a la vez (cada una con una profesional distinta).',
     chooseStaffForSlot: 'Elige un profesional para continuar',
     chooseStaffForFirstTreatment: (service: string, time: string) =>
       `Elige profesional para ${service} (${time})`,
@@ -859,6 +861,8 @@ const en = {
     continueWithServices: 'Continue',
     selectedServices: 'Selected treatments',
     removeService: 'Remove',
+    sameServiceHint:
+      'You can select the same treatment more than once if you are booking for more than one person at the same time (each with a different stylist).',
     chooseStaffForSlot: 'Choose a stylist to continue',
     chooseStaffForFirstTreatment: (service: string, time: string) =>
       `Choose a stylist for ${service} (${time})`,

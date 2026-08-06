@@ -218,14 +218,19 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     [resetScheduleSelection],
   )
 
-  const toggleServiceId = useCallback(
+  const addServiceId = useCallback(
     (id: string) => {
-      setServiceIdsState((current) => {
-        if (current.includes(id)) {
-          return current.filter((item) => item !== id)
-        }
-        return [...current, id]
-      })
+      setServiceIdsState((current) => [...current, id])
+      resetScheduleSelection()
+    },
+    [resetScheduleSelection],
+  )
+
+  const toggleServiceId = addServiceId
+
+  const removeServiceAt = useCallback(
+    (index: number) => {
+      setServiceIdsState((current) => current.filter((_, i) => i !== index))
       resetScheduleSelection()
     },
     [resetScheduleSelection],
@@ -655,7 +660,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     loadServices,
     serviceIds,
     setServiceIds,
+    addServiceId,
     toggleServiceId,
+    removeServiceAt,
     removeServiceId,
     selectedServices,
     staffAtSlot,

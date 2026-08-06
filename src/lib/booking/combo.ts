@@ -56,6 +56,9 @@ export function getChainedServiceStartTimes(
 /**
  * Horas de inicio por tratamiento: encadenado desde `visitStartTime`, con aplazamientos
  * puntuales en `overrides[i]` (el resto sigue en cadena desde el anterior).
+ *
+ * Si el mismo tratamiento se elige otra vez seguido (p. ej. dos cortes para dos personas)
+ * y no es el mismo profesional, arrancan a la misma hora en paralelo.
  */
 function endMinutesAfterChainService(
   services: readonly BookingServiceWithCategory[],
@@ -70,6 +73,38 @@ function endMinutesAfterChainService(
     staffAssignments,
   )
   return Math.max(...segments.map((segment) => segment.startMinutes + segment.durationMinutes))
+}
+
+/** Cuántas instancias del primer servicio van en paralelo al inicio de la visita. */
+export function countLeadingParallelInstances(
+  services: readonly { id: string }[],
+): number {
+  if (services.length === 0) return 0
+  const firstId = services[0]!.id
+  let count = 1
+  while (count < services.length && services[count]!.id === firstId) {
+    count += 1
+  }
+  return count
+}
+
+/**
+ * Mismo tratamiento seguido → cita simultánea con otra profesional.
+ * Si el mismo profesional quedara en ambos (agenda), se encadena para no solapar.
+ */
+function shouldStartInParallelWithPrevious(
+  services: readonly BookingServiceWithCategory[],
+  index: number,
+  staffAssignments?: readonly (string | null | undefined)[],
+): boolean {
+  if (index <= 0) return false
+  if (services[index]!.id !== services[index - 1]!.id) return false
+  if (!staffAssignments?.length) return true
+  const prevStaff = staffAssignments[index - 1]
+  const currStaff = staffAssignments[index]
+  if (!currStaff) return true
+  if (prevStaff && currStaff === prevStaff) return false
+  return true
 }
 
 function buildChainStartMinutes(
@@ -87,6 +122,8 @@ function buildChainStartMinutes(
       start = overrides[i]!
     } else if (i === 0) {
       start = visitStartMinutes
+    } else if (shouldStartInParallelWithPrevious(services, i, staffAssignments)) {
+      start = starts[i - 1]!
     } else {
       const replacedColorIdx = findColorIndexReplacedByService(services, i, staffAssignments)
       if (replacedColorIdx != null) {

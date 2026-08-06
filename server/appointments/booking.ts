@@ -11,7 +11,7 @@ import {
   staffCanPerformService,
   type PublicStaff,
 } from "@server/staff/index.js"
-import { getChainedBookingSegments, type BookingServiceLine } from "@/lib/booking/combo"
+import { getChainedBookingSegments, countLeadingParallelInstances, type BookingServiceLine } from "@/lib/booking/combo"
 import { getFirstServiceBookingSpan, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { schedule } from "@server/config.js"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
@@ -556,19 +556,20 @@ export async function getServiceDaySlotsForServices(
   }
 
   const slots: string[] = []
+  const parallelCount = countLeadingParallelInstances(services)
   for (const start of [...candidateStarts].sort((a, b) => timeToMinutes(a) - timeToMinutes(b))) {
-    let firstServiceFits = false
+    let freeStaff = 0
     for (const member of staffForFirst) {
       if (await isStaffFreeForServiceAt(date, member.id, services[0], start, {
         ...options,
         chainServices: services,
         chainServiceIndex: 0,
       })) {
-        firstServiceFits = true
-        break
+        freeStaff += 1
+        if (freeStaff >= parallelCount) break
       }
     }
-    if (firstServiceFits) slots.push(start)
+    if (freeStaff >= parallelCount) slots.push(start)
   }
 
   return filterPastSlotsForToday(date, slots, { forStaffPortal: options.forStaffPortal })

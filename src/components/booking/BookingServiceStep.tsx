@@ -12,6 +12,7 @@ type BookingServiceStepProps = {
     removeService: string
     addAnotherService: string
     continueWithServices: string
+    sameServiceHint?: string
   }
   services: BookableService[]
   serviceIds: string[]
@@ -20,7 +21,7 @@ type BookingServiceStepProps = {
   error: string
   onRetry: () => void
   onToggleService: (serviceId: string) => void
-  onRemoveService: (serviceId: string) => void
+  onRemoveServiceAt: (index: number) => void
   categoryId: string
   onCategoryChange: (categoryId: string) => void
   onBackToCategories: () => void
@@ -31,7 +32,7 @@ export function BookingServiceStep({
   locale,
   labels,
   selectedServices,
-  onRemoveService,
+  onRemoveServiceAt,
   onBackToCategories,
   onContinue,
   ...pickerProps
@@ -39,19 +40,22 @@ export function BookingServiceStep({
   return (
     <div className="space-y-6">
       <ServiceCategoryPickerPublic {...pickerProps} multiSelect visibleSection="service" />
+      {labels.sameServiceHint && (
+        <p className={`${typography.caption} text-center`}>{labels.sameServiceHint}</p>
+      )}
       {selectedServices.length > 0 && (
         <div className="space-y-3">
           <p className={`${typography.label} text-center`}>{labels.selectedServices}</p>
           <ul className="space-y-2">
-            {selectedServices.map((service) => (
+            {selectedServices.map((service, index) => (
               <li
-                key={service.id}
+                key={`${service.id}-${index}`}
                 className="flex items-center justify-between gap-3 border border-gold/25 bg-cream/40 px-3 py-2 text-sm"
               >
                 <span className="text-left text-gold">{serviceDisplayName(service, locale)}</span>
                 <button
                   type="button"
-                  onClick={() => onRemoveService(service.id)}
+                  onClick={() => onRemoveServiceAt(index)}
                   className={`${typography.caption} shrink-0 cursor-pointer text-charcoal-muted underline-offset-2 hover:underline`}
                 >
                   {labels.removeService}
