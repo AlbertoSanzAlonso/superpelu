@@ -115,6 +115,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
                 appointmentFormOpen && !agenda.editingId ? agenda.aptDraft.startTime || null : null
               }
               onToggleSlot={agenda.toggleGridSlot}
+              onPaintSlots={agenda.setGridTimes}
               onSelectAppointment={(apt) => openAppointmentForm({ edit: apt })}
               onOpenBlock={agenda.openBlockDetail}
             />

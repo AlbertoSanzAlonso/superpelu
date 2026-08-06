@@ -240,7 +240,12 @@ export function fetchMyBlockSeries(token: string, blockId: string) {
 export function updateMyBlock(
   token: string,
   blockId: string,
-  payload: { note?: string | null; mode?: 'single' | 'series' },
+  payload: {
+    note?: string | null
+    startTime?: string
+    endTime?: string
+    mode?: 'single' | 'series'
+  },
 ) {
   return staffRequest<{ block: TimeBlock }>(`/me/blocks/${blockId}`, token, {
     method: 'PATCH',

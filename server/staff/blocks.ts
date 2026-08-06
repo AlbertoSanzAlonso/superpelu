@@ -225,6 +225,85 @@ export async function updateStaffBlockNote(
   return updated[0] ?? null
 }
 
+/**
+ * Cambia horario de un bloqueo (una ocurrencia o toda la serie).
+ * No solapa con otros bloqueos del mismo profesional/día.
+ */
+export async function updateStaffBlockTimes(
+  blockId: string,
+  startTime: string,
+  endTime: string,
+  mode: UpdateBlockNoteMode = 'single',
+  staffId?: string,
+): Promise<StaffBlockRow | null> {
+  const rows = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  const row = rows[0]
+  if (!row) return null
+  if (staffId != null && row.staff_id !== staffId) return null
+
+  const start = timeToMinutes(startTime)
+  const end = timeToMinutes(endTime)
+  if (end <= start) {
+    throw new Error('RANGO_INVALIDO')
+  }
+
+  const applySeries = mode === 'series' && Boolean(row.series_id)
+  const targetRows = applySeries
+    ? staffId != null
+      ? await sql<StaffBlockRow[]>`
+          SELECT * FROM staff_time_blocks
+          WHERE series_id = ${row.series_id} AND staff_id = ${staffId}
+        `
+      : await sql<StaffBlockRow[]>`
+          SELECT * FROM staff_time_blocks WHERE series_id = ${row.series_id}
+        `
+    : [row]
+
+  const excludeIds = new Set(targetRows.map((r) => r.id))
+
+  for (const target of targetRows) {
+    const existing = await getBlocksForStaffOnDate(target.staff_id, target.block_date)
+    if (
+      existing.some(
+        (b) =>
+          !excludeIds.has(b.id) &&
+          overlapsTimeRange(start, end, timeToMinutes(b.start_time), timeToMinutes(b.end_time)),
+      )
+    ) {
+      throw new Error('BLOQUEO_SOLAPADO')
+    }
+  }
+
+  if (applySeries) {
+    if (staffId != null) {
+      await sql`
+        UPDATE staff_time_blocks
+        SET start_time = ${startTime}, end_time = ${endTime}
+        WHERE series_id = ${row.series_id} AND staff_id = ${staffId}
+      `
+    } else {
+      await sql`
+        UPDATE staff_time_blocks
+        SET start_time = ${startTime}, end_time = ${endTime}
+        WHERE series_id = ${row.series_id}
+      `
+    }
+  } else {
+    await sql`
+      UPDATE staff_time_blocks
+      SET start_time = ${startTime}, end_time = ${endTime}
+      WHERE id = ${blockId}
+    `
+  }
+
+  const updated = await sql<StaffBlockRow[]>`
+    SELECT * FROM staff_time_blocks WHERE id = ${blockId}
+  `
+  return updated[0] ?? null
+}
+
 export async function deleteStaffBlock(
   blockId: string,
   staffId: string,

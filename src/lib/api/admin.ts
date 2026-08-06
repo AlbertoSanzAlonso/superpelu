@@ -329,9 +329,16 @@ export function createAdminBlock(
 export function updateAdminBlock(
   adminToken: string,
   blockId: string,
-  payload: { note?: string | null; mode?: 'single' | 'series' },
+  payload: {
+    note?: string | null
+    startTime?: string
+    endTime?: string
+    mode?: 'single' | 'series'
+  },
 ) {
-  return request<{ block: { id: string; note: string | null } }>(`/schedule/blocks/${blockId}`, {
+  return request<{
+    block: { id: string; note: string | null; startTime?: string; endTime?: string }
+  }>(`/schedule/blocks/${blockId}`, {
     method: 'PATCH',
     headers: adminHeaders(adminToken),
     body: JSON.stringify(payload),

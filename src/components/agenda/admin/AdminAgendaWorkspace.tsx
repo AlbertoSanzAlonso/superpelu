@@ -194,8 +194,12 @@ export function AdminAgendaWorkspace({
                   moveBusy={agenda.moveBusy}
                   gridInteractionsLocked={agenda.gridInteractionsLocked}
                   onToggleSlot={agenda.toggleSlot}
+                  onPaintSlots={agenda.applySlots}
                   onEditAppointment={agenda.openAppointmentDetail}
                   onOpenBlock={agenda.openBlockDetail}
+                  onResizeBlock={(staffId, block, startTime, endTime) =>
+                    void agenda.resizeBlock(staffId, block, startTime, endTime)
+                  }
                   onProposeAppointmentMove={agenda.proposeAppointmentMove}
                   onSelectStaff={agenda.selectStaff}
                 />
@@ -212,12 +216,20 @@ export function AdminAgendaWorkspace({
                   onToggleSlot={(date, staffId, staffName, time) =>
                     queueColumnAction({ kind: 'toggle', date, staffId, staffName, time })
                   }
+                  onPaintSlots={(date, staffId, staffName, times) => {
+                    if (date !== selectedDate) onDateChange(date)
+                    agenda.applySlots(staffId, staffName, times)
+                  }}
                   onEditAppointment={(date, staffId, apt) =>
                     queueColumnAction({ kind: 'edit', date, staffId, apt })
                   }
                   onOpenBlock={(date, staffId, block) =>
                     queueColumnAction({ kind: 'block', date, staffId, block })
                   }
+                  onResizeBlock={(date, staffId, block, startTime, endTime) => {
+                    if (date !== selectedDate) onDateChange(date)
+                    void agenda.resizeBlock(staffId, block, startTime, endTime)
+                  }}
                 />
               ) : (
                 <p className={`${typography.caption} py-8 text-center`}>

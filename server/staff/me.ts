@@ -24,6 +24,7 @@ import {
   getBlocksForStaffBetween,
   rowBlockToPublic,
   updateStaffBlockNote,
+  updateStaffBlockTimes,
   type BlockScope,
   type DeleteBlockMode,
   type UpdateBlockNoteMode,
@@ -367,19 +368,54 @@ me.post('/me/blocks', async (c) => {
 me.patch('/me/blocks/:id', async (c) => {
   const { error, staff } = await requireStaff(c)
   if (error) return error
-  const body = await c.req.json<{ note?: string | null; mode?: UpdateBlockNoteMode }>()
+  const body = await c.req.json<{
+    note?: string | null
+    startTime?: string
+    endTime?: string
+    mode?: UpdateBlockNoteMode
+  }>()
   const mode = body.mode ?? 'single'
   if (mode !== 'single' && mode !== 'series') {
     return c.json({ error: 'mode debe ser single o series' }, 400)
   }
-  const row = await updateStaffBlockNote(
-    c.req.param('id'),
-    body.note ?? null,
-    mode,
-    staff!.id,
-  )
-  if (!row) return c.json({ error: 'Bloqueo no encontrado' }, 404)
-  return c.json({ block: rowBlockToPublic(row) })
+
+  const hasTimes =
+    typeof body.startTime === 'string' &&
+    body.startTime.length > 0 &&
+    typeof body.endTime === 'string' &&
+    body.endTime.length > 0
+  const hasNote = 'note' in body
+
+  if (!hasTimes && !hasNote) {
+    return c.json({ error: 'Indica note y/o startTime+endTime' }, 400)
+  }
+
+  try {
+    let row = null
+    if (hasTimes) {
+      row = await updateStaffBlockTimes(
+        c.req.param('id'),
+        body.startTime!,
+        body.endTime!,
+        mode,
+        staff!.id,
+      )
+      if (!row) return c.json({ error: 'Bloqueo no encontrado' }, 404)
+    }
+    if (hasNote) {
+      row = await updateStaffBlockNote(
+        c.req.param('id'),
+        body.note ?? null,
+        mode,
+        staff!.id,
+      )
+      if (!row) return c.json({ error: 'Bloqueo no encontrado' }, 404)
+    }
+    return c.json({ block: rowBlockToPublic(row!) })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    return c.json({ error: errorMessages[code] ?? 'No se pudo actualizar el bloqueo' }, 409)
+  }
 })
 
 me.delete('/me/blocks/:id', async (c) => {

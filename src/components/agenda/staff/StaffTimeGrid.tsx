@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { salonSchedule } from '@/data/schedule'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
+import { useSlotRangeDrag } from '@/hooks/agenda/useSlotRangeDrag'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import {
   agendaColorLegend,
@@ -18,6 +19,7 @@ type Props = {
   selectedTimes: ReadonlySet<string>
   formSlotTime: string | null
   onToggleSlot: (time: string) => void
+  onPaintSlots: (times: Set<string>) => void
   onSelectAppointment: (apt: DayScheduleAppointment) => void
   onOpenBlock: (block: DayScheduleBlock) => void
 }
@@ -43,6 +45,7 @@ export function StaffTimeGrid({
   selectedTimes,
   formSlotTime,
   onToggleSlot,
+  onPaintSlots,
   onSelectAppointment,
   onOpenBlock,
 }: Props) {
@@ -50,6 +53,18 @@ export function StaffTimeGrid({
     () => buildStaffDayGrid(schedule, date, salonSchedule.slotMinutes, 'fullDisplay'),
     [schedule, date],
   )
+  const selectableTimes = useMemo(
+    () => cells.filter((c) => c.status === 'free').map((c) => c.time),
+    [cells],
+  )
+  const drag = useSlotRangeDrag({
+    selectableTimes,
+    selectedTimes,
+    scope: schedule.staffId,
+    enabled: true,
+    onPaint: onPaintSlots,
+  })
+
   function handleCellClick(cell: TimeGridCell, shiftKey: boolean) {
     if (cell.status === 'past' || cell.status === 'closed') return
 
@@ -99,15 +114,19 @@ export function StaffTimeGrid({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
+      <div className="grid select-none grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
         {cells.map((cell) => {
           const isMultiSelected = selectedTimes.has(cell.time)
           const isFormSlot = cell.status === 'free' && cell.time === formSlotTime && !isMultiSelected
+          const isFree = cell.status === 'free'
           return (
             <button
               key={cell.time}
               type="button"
               disabled={cell.status === 'past' || cell.status === 'closed'}
+              data-slot-time={cell.time}
+              data-slot-scope={schedule.staffId}
+              data-slot-selectable={isFree ? '1' : undefined}
               title={
                 cell.appointmentNotes
                   ? `${cell.title ?? ''} — ${cell.subtitle ?? ''}\n${cell.appointmentNotes}`
@@ -115,7 +134,13 @@ export function StaffTimeGrid({
                     ? `${cell.title}${cell.subtitle ? ` — ${cell.subtitle}` : ''}`
                     : undefined
               }
-              onClick={(e) => handleCellClick(cell, e.shiftKey)}
+              onPointerDown={
+                isFree ? (e) => drag.onFreeSlotPointerDown(e, cell.time) : undefined
+              }
+              onClick={(e) => {
+                if (isFree && drag.shouldSuppressClick()) return
+                handleCellClick(cell, e.shiftKey)
+              }}
               aria-pressed={isMultiSelected}
               className={[
                 'min-h-[4.5rem] border px-2 py-2 text-left text-sm transition-colors',

@@ -24,6 +24,14 @@ export function useAdminAgendaSelection(schedules: StaffDaySchedule[], date: str
     [],
   )
 
+  const applySlots = useCallback((staffId: string, staffName: string, times: Set<string>) => {
+    if (times.size === 0) {
+      setSelection(null)
+      return
+    }
+    setSelection({ staffId, staffName, times: new Set(times) })
+  }, [])
+
   const selectionSummary = useCallback(() => {
     if (!selection) {
       return { freeTimes: [], blockIds: [], hasAppointment: false }
@@ -42,6 +50,7 @@ export function useAdminAgendaSelection(schedules: StaffDaySchedule[], date: str
     selection,
     setSelection,
     toggleSlot,
+    applySlots,
     clearSelection,
     selectionSummary,
     resetSelection,

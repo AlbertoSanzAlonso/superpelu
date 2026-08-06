@@ -583,6 +583,7 @@ export function useStaffAgenda(token: string) {
     selectFreeSlot,
     selectedGridTimes: gridSelection.times,
     toggleGridSlot: gridSelection.toggle,
+    setGridTimes: gridSelection.setTimes,
     clearGridSelection: gridSelection.clear,
     blockCreateModalOpen: blockCreate.modalOpen,
     pendingBlockGroups: blockCreate.pendingGroups,

@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  blockDurationMinutes,
   clampCalendarSlotHeightPx,
   currentTimeLineTopPx,
-  eventHeightPx,
   eventTopPx,
   readStoredCalendarSlotHeightPx,
   resolveCalendarDayRange,
   storeCalendarSlotHeightPx,
   type CalendarDayRange,
 } from '@/lib/agenda/adminCalendar'
-import { blockEventClass } from '@/lib/catalog/serviceCategoryColors'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
 import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
+import { useSlotRangeDrag } from '@/hooks/agenda/useSlotRangeDrag'
 import {
   AppointmentDragProvider,
   AppointmentDragSnapSlot,
@@ -20,6 +18,7 @@ import {
 } from '@/components/agenda/admin/AppointmentDragContext'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 import { DraggableAppointmentBlock } from '@/components/agenda/admin/DraggableAppointmentBlock'
+import { ResizableBlockEvent } from '@/components/agenda/admin/ResizableBlockEvent'
 import {
   pointerYInStaffGrid,
 } from '@/components/agenda/admin/staffColumnHitTest'
@@ -54,8 +53,15 @@ type Props = {
   /** Citas desplazadas sin guardar: no crear citas ni bloquear en la grilla. */
   gridInteractionsLocked: boolean
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
+  onPaintSlots: (staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
+  onResizeBlock: (
+    staffId: string,
+    block: DayScheduleBlock,
+    startTime: string,
+    endTime: string,
+  ) => void
   onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
   onSelectStaff: (staffId: string, staffName: string) => void
 }
@@ -140,6 +146,7 @@ function SlotLayer({
   formStaffId,
   pointerPassthrough,
   onCellClick,
+  onPaintSlots,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -149,8 +156,22 @@ function SlotLayer({
   formStaffId: string | null
   pointerPassthrough?: boolean
   onCellClick: (cell: TimeGridCell, shiftKey: boolean) => void
+  onPaintSlots: (times: Set<string>) => void
 }) {
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
+  const selectableTimes = useMemo(
+    () => cells.filter((c) => c.status === 'free').map((c) => c.time),
+    [cells],
+  )
+  const selectedTimes =
+    selection?.staffId === schedule.staffId ? selection.times : EMPTY_TIMES
+  const drag = useSlotRangeDrag({
+    selectableTimes,
+    selectedTimes,
+    scope: schedule.staffId,
+    enabled: !pointerPassthrough,
+    onPaint: onPaintSlots,
+  })
 
   return (
     <>
@@ -180,16 +201,27 @@ function SlotLayer({
           )
         }
 
+        const isFree = cell.status === 'free'
+
         return (
           <button
             key={cell.time}
             type="button"
             aria-pressed={isSelected}
-            onClick={(e) => onCellClick(cell, e.shiftKey)}
+            data-slot-time={cell.time}
+            data-slot-scope={schedule.staffId}
+            data-slot-selectable={isFree ? '1' : undefined}
+            onPointerDown={
+              isFree ? (e) => drag.onFreeSlotPointerDown(e, cell.time) : undefined
+            }
+            onClick={(e) => {
+              if (isFree && drag.shouldSuppressClick()) return
+              onCellClick(cell, e.shiftKey)
+            }}
             className={[
               'absolute inset-x-0 z-[15] border border-transparent transition-colors',
               pointerPassthrough ? 'pointer-events-none' : '',
-              cell.status === 'free' ? 'cursor-pointer hover:bg-gold/10' : 'cursor-pointer',
+              isFree ? 'cursor-pointer hover:bg-gold/10' : 'cursor-pointer',
               isSelected ? 'bg-gold/20 ring-2 ring-inset ring-gold' : '',
               isFormSlot ? 'ring-2 ring-inset ring-gold/50' : '',
             ].join(' ')}
@@ -204,39 +236,7 @@ function SlotLayer({
   )
 }
 
-function BlockEvent({
-  block,
-  range,
-  interactionsLocked,
-  onOpen,
-}: {
-  block: DayScheduleBlock
-  range: CalendarDayRange
-  interactionsLocked: boolean
-  onOpen: () => void
-}) {
-  const duration = blockDurationMinutes(block.startTime, block.endTime)
-  const top = eventTopPx(block.startTime, range)
-  const height = eventHeightPx(duration, range)
-
-  return (
-    <button
-      type="button"
-      disabled={interactionsLocked}
-      onClick={(e) => {
-        e.stopPropagation()
-        if (interactionsLocked) return
-        onOpen()
-      }}
-      className={`absolute inset-x-1 z-20 cursor-pointer overflow-hidden border border-dashed px-2 py-1 text-left text-xs transition-colors hover:border-charcoal/40 disabled:cursor-not-allowed disabled:opacity-60 ${blockEventClass()}`}
-      style={{ top, height: Math.max(height - 2, 22) }}
-      title={block.note ? `Bloqueado — ${block.note}` : 'Bloqueado — ver observaciones'}
-    >
-      <span className="font-medium">Bloqueado</span>
-      {block.note && <span className="mt-0.5 block truncate opacity-80">{block.note}</span>}
-    </button>
-  )
-}
+const EMPTY_TIMES: ReadonlySet<string> = new Set()
 
 const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 
@@ -287,8 +287,10 @@ function StaffColumn({
   columnRef,
   columnTopFromClientY,
   onToggleSlot,
+  onPaintSlots,
   onEditAppointment,
   onOpenBlock,
+  onResizeBlock,
   onSelectStaff,
 }: {
   schedule: StaffDaySchedule
@@ -304,8 +306,15 @@ function StaffColumn({
   columnRef: (el: HTMLDivElement | null) => void
   columnTopFromClientY: (clientY: number, staffId: string) => number | null
   onToggleSlot: (staffId: string, staffName: string, time: string) => void
+  onPaintSlots: (staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
+  onResizeBlock: (
+    staffId: string,
+    block: DayScheduleBlock,
+    startTime: string,
+    endTime: string,
+  ) => void
   onSelectStaff: (staffId: string, staffName: string) => void
 }) {
   const { activeDrag, isDragSessionActive } = useAppointmentDrag()
@@ -376,6 +385,10 @@ function StaffColumn({
     }
   }
 
+  function handlePaintSlots(times: Set<string>) {
+    onPaintSlots(schedule.staffId, schedule.staffName, times)
+  }
+
   const columnWindows =
     schedule.working && schedule.windows.length > 0 ? schedule.windows : []
 
@@ -391,7 +404,7 @@ function StaffColumn({
     >
       <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
 
-      <div className="relative" style={{ height: range.totalHeightPx }}>
+      <div className="relative select-none" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} windows={columnWindows} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
         {columnWindows.length > 0 ? (
@@ -404,6 +417,7 @@ function StaffColumn({
           formStaffId={formStaffId}
           pointerPassthrough={slotsLocked}
           onCellClick={handleCellClick}
+          onPaintSlots={handlePaintSlots}
         />
         ) : null}
 
@@ -445,12 +459,18 @@ function StaffColumn({
         })}
 
         {schedule.blocks.map((block) => (
-          <BlockEvent
+          <ResizableBlockEvent
             key={block.id}
             block={block}
             range={range}
             interactionsLocked={slotsLocked}
+            resizeEnabled={dragEnabled && !slotsLocked}
+            staffId={schedule.staffId}
+            columnTopFromClientY={columnTopFromClientY}
             onOpen={() => onOpenBlock(schedule.staffId, block)}
+            onResizeEnd={(b, startTime, endTime) =>
+              onResizeBlock(schedule.staffId, b, startTime, endTime)
+            }
           />
         ))}
 
@@ -477,8 +497,10 @@ export function AdminSalonDayCalendar({
   moveBusy,
   gridInteractionsLocked,
   onToggleSlot,
+  onPaintSlots,
   onEditAppointment,
   onOpenBlock,
+  onResizeBlock,
   onProposeAppointmentMove,
   onSelectStaff,
 }: Props) {
@@ -613,8 +635,10 @@ export function AdminSalonDayCalendar({
                   columnRef={(el) => setColumnRef(schedule.staffId, el)}
                   columnTopFromClientY={columnTopFromClientY}
                   onToggleSlot={onToggleSlot}
+                  onPaintSlots={onPaintSlots}
                   onEditAppointment={onEditAppointment}
                   onOpenBlock={onOpenBlock}
+                  onResizeBlock={onResizeBlock}
                   onSelectStaff={onSelectStaff}
                 />
               </div>

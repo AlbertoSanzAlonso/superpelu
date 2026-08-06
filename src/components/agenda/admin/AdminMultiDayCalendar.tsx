@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  blockDurationMinutes,
   clampCalendarSlotHeightPx,
   currentTimeLineTopPx,
   eventHeightPx,
@@ -12,6 +11,8 @@ import {
 } from '@/lib/agenda/adminCalendar'
 import type { ScheduleDayBundle } from '@/lib/api/admin'
 import type { AdminColumnSelection } from '@/hooks/useAdminAgenda'
+import { useSlotRangeDrag } from '@/hooks/agenda/useSlotRangeDrag'
+import { ResizableBlockEvent } from '@/components/agenda/admin/ResizableBlockEvent'
 import {
   agendaClosedSlotClassName,
   agendaOpenSlotClassName,
@@ -21,12 +22,13 @@ import {
 import type { DayScheduleAppointment, DayScheduleBlock, StaffDaySchedule } from '@/types/booking'
 import { typography } from '@/styles/typography'
 import { buildStaffDayGrid, type TimeGridCell } from '@/lib/agenda/timeGrid'
-import { appointmentEventClass, blockEventClass } from '@/lib/catalog/serviceCategoryColors'
+import { appointmentEventClass } from '@/lib/catalog/serviceCategoryColors'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import { WashPhaseIcon } from '@/components/agenda/WashPhaseIcon'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 
 const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
+const EMPTY_TIMES: ReadonlySet<string> = new Set()
 
 type Props = {
   staffId: string
@@ -38,8 +40,16 @@ type Props = {
   gridInteractionsLocked: boolean
   onFocusDate: (date: string) => void
   onToggleSlot: (date: string, staffId: string, staffName: string, time: string) => void
+  onPaintSlots: (date: string, staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (date: string, staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (date: string, staffId: string, block: DayScheduleBlock) => void
+  onResizeBlock: (
+    date: string,
+    staffId: string,
+    block: DayScheduleBlock,
+    startTime: string,
+    endTime: string,
+  ) => void
 }
 
 function shortDayLabel(dateStr: string): string {
@@ -103,8 +113,10 @@ function DayColumn({
   staffName,
   onFocusDate,
   onToggleSlot,
+  onPaintSlots,
   onEditAppointment,
   onOpenBlock,
+  onResizeBlock,
 }: {
   date: string
   schedule: StaffDaySchedule
@@ -119,10 +131,41 @@ function DayColumn({
   staffName: string
   onFocusDate: (date: string) => void
   onToggleSlot: (date: string, staffId: string, staffName: string, time: string) => void
+  onPaintSlots: (date: string, staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (date: string, staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (date: string, staffId: string, block: DayScheduleBlock) => void
+  onResizeBlock: (
+    date: string,
+    staffId: string,
+    block: DayScheduleBlock,
+    startTime: string,
+    endTime: string,
+  ) => void
 }) {
+  const gridRef = useRef<HTMLDivElement>(null)
   const cells = useMemo(() => buildStaffDayGrid(schedule, date), [schedule, date])
+  const selectableTimes = useMemo(
+    () => cells.filter((c) => c.status === 'free').map((c) => c.time),
+    [cells],
+  )
+  const selectedTimes = selection?.staffId === staffId ? selection.times : EMPTY_TIMES
+  const drag = useSlotRangeDrag({
+    selectableTimes,
+    selectedTimes,
+    scope: `${staffId}:${date}`,
+    enabled: !gridInteractionsLocked,
+    onPaint: (times) => {
+      onFocusDate(date)
+      onPaintSlots(date, staffId, staffName, times)
+    },
+  })
+
+  function columnTopFromClientY(clientY: number): number | null {
+    const el = gridRef.current
+    if (!el) return null
+    const rect = el.getBoundingClientRect()
+    return Math.max(0, Math.min(range.totalHeightPx, clientY - rect.top))
+  }
 
   function handleCellClick(cell: TimeGridCell) {
     onFocusDate(date)
@@ -150,7 +193,11 @@ function DayColumn({
       >
         <p className={`${typography.label} truncate capitalize text-gold`}>{shortDayLabel(date)}</p>
       </div>
-      <div className="relative" style={{ height: range.totalHeightPx }}>
+      <div
+        ref={gridRef}
+        className="relative select-none"
+        style={{ height: range.totalHeightPx }}
+      >
         {range.timeLabels.map((time) => {
           const closed = !slotStartInWorkWindows(time, range.slotMinutes, salonWindows)
           return (
@@ -179,14 +226,24 @@ function DayColumn({
               />
             )
           }
+          const isFree = cell.status === 'free'
           return (
             <button
               key={cell.time}
               type="button"
-              onClick={() => handleCellClick(cell)}
+              data-slot-time={cell.time}
+              data-slot-scope={`${staffId}:${date}`}
+              data-slot-selectable={isFree ? '1' : undefined}
+              onPointerDown={
+                isFree ? (e) => drag.onFreeSlotPointerDown(e, cell.time) : undefined
+              }
+              onClick={() => {
+                if (isFree && drag.shouldSuppressClick()) return
+                handleCellClick(cell)
+              }}
               className={[
                 'absolute inset-x-0 z-[15] cursor-pointer border border-transparent transition-colors',
-                cell.status === 'free' ? 'hover:bg-gold/10' : '',
+                isFree ? 'hover:bg-gold/10' : '',
                 isSelected ? 'bg-gold/20 ring-2 ring-inset ring-gold' : '',
                 isFormSlot ? 'ring-2 ring-inset ring-gold/50' : '',
               ].join(' ')}
@@ -198,28 +255,25 @@ function DayColumn({
           )
         })}
 
-        {schedule.blocks.map((block) => {
-          const duration = blockDurationMinutes(block.startTime, block.endTime)
-          const top = eventTopPx(block.startTime, range)
-          const height = eventHeightPx(duration, range)
-          return (
-            <button
-              key={block.id}
-              type="button"
-              disabled={gridInteractionsLocked}
-              onClick={(e) => {
-                e.stopPropagation()
-                onFocusDate(date)
-                onOpenBlock(date, staffId, block)
-              }}
-              className={`absolute inset-x-1 z-20 cursor-pointer overflow-hidden border border-dashed px-1.5 py-1 text-left text-[10px] transition-colors hover:border-charcoal/40 disabled:cursor-not-allowed disabled:opacity-60 ${blockEventClass()}`}
-              style={{ top, height: Math.max(height - 2, 18) }}
-              title={block.note ? `Bloqueado — ${block.note}` : 'Bloqueado'}
-            >
-              <span className="font-medium">Bloqueado</span>
-            </button>
-          )
-        })}
+        {schedule.blocks.map((block) => (
+          <ResizableBlockEvent
+            key={block.id}
+            block={block}
+            range={range}
+            interactionsLocked={gridInteractionsLocked}
+            resizeEnabled={!gridInteractionsLocked}
+            staffId={staffId}
+            columnTopFromClientY={(clientY) => columnTopFromClientY(clientY)}
+            onOpen={() => {
+              onFocusDate(date)
+              onOpenBlock(date, staffId, block)
+            }}
+            onResizeEnd={(b, startTime, endTime) => {
+              onFocusDate(date)
+              onResizeBlock(date, staffId, b, startTime, endTime)
+            }}
+          />
+        ))}
 
         {schedule.appointments.map((apt) => {
           const top = eventTopPx(apt.startTime, range)
@@ -228,31 +282,26 @@ function DayColumn({
             <button
               key={apt.id}
               type="button"
-              onClick={(e) => {
-                e.stopPropagation()
+              onClick={() => {
                 onFocusDate(date)
                 onEditAppointment(date, staffId, apt)
               }}
-              className={`absolute inset-x-1 z-30 cursor-pointer overflow-hidden border px-1.5 py-1 text-left text-[10px] leading-tight shadow-sm ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)}`}
-              style={{ top, height: Math.max(height - 2, 18) }}
-              title={`${apt.customerName} — ${apt.serviceName}`}
+              className={`absolute inset-x-1 z-30 cursor-pointer overflow-hidden border px-1.5 py-1 text-left text-[10px] ${appointmentEventClass(apt.categoryId, apt.serviceId, apt.colorGroupRole, apt.status)}`}
+              style={{ top, height: Math.max(height - 2, 22) }}
+              title={`${apt.customerName} — ${formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', { colorGroupRole: apt.colorGroupRole })}`}
             >
-              <span className="flex items-start gap-0.5 font-medium">
-                {isColorGroupWashRow(apt.colorGroupRole) && <WashPhaseIcon />}
-                <span className="min-w-0 truncate">{apt.customerName}</span>
-              </span>
-              <span className="mt-0.5 block truncate opacity-80">{apt.serviceName}</span>
-              <span className="mt-0.5 block opacity-70 tabular-nums">
-                {formatAppointmentTimeRange(apt.serviceId, apt.startTime, apt.durationMinutes, 'es', {
-                  colorGroupRole: apt.colorGroupRole,
-                  bookingPattern: apt.bookingPattern,
-                })}
+              <span className="block truncate font-medium">{apt.customerName}</span>
+              <span className="flex items-center gap-0.5 truncate opacity-80">
+                {isColorGroupWashRow(apt.colorGroupRole) && (
+                  <WashPhaseIcon className="h-2.5 w-2.5 shrink-0" title="Lavado" />
+                )}
+                <span className="truncate">{apt.serviceName}</span>
               </span>
             </button>
           )
         })}
 
-        {nowLineTop != null && (
+        {nowLineTop !== null && (
           <div
             className="pointer-events-none absolute right-0 left-0 z-20 border-t-2 border-red-500/80"
             style={{ top: nowLineTop }}
@@ -286,8 +335,10 @@ export function AdminMultiDayCalendar({
   gridInteractionsLocked,
   onFocusDate,
   onToggleSlot,
+  onPaintSlots,
   onEditAppointment,
   onOpenBlock,
+  onResizeBlock,
 }: Props) {
   const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -385,8 +436,10 @@ export function AdminMultiDayCalendar({
                   staffName={staffName}
                   onFocusDate={onFocusDate}
                   onToggleSlot={onToggleSlot}
+                  onPaintSlots={onPaintSlots}
                   onEditAppointment={onEditAppointment}
                   onOpenBlock={onOpenBlock}
+                  onResizeBlock={onResizeBlock}
                 />
               </div>
             )

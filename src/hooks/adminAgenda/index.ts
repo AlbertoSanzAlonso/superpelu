@@ -114,6 +114,15 @@ export function useAdminAgenda(
     [gridInteractionsLocked, appointments.selectStaff, selectionState.toggleSlot],
   )
 
+  const applySlots = useCallback(
+    (staffId: string, staffName: string, times: Set<string>) => {
+      if (gridInteractionsLocked) return
+      appointments.selectStaff(staffId)
+      selectionState.applySlots(staffId, staffName, times)
+    },
+    [gridInteractionsLocked, appointments.selectStaff, selectionState.applySlots],
+  )
+
   const requestBlockSelectedSlots = useCallback(() => {
     if (gridInteractionsLocked) return
     blocks.requestBlockSelectedSlots()
@@ -192,6 +201,7 @@ export function useAdminAgenda(
     selection: selectionState.selection,
     selectionSummary: selectionState.selectionSummary(),
     toggleSlot,
+    applySlots,
     clearSelection: selectionState.clearSelection,
     gridInteractionsLocked,
     gridActionsBusy: schedule.gridActionsBusy,
@@ -280,6 +290,7 @@ export function useAdminAgenda(
     viewingBlockSeriesLoading: blocks.viewingBlockSeriesLoading,
     blockDetailBusy: blocks.blockDetailBusy,
     openBlockDetail: blocks.openBlockDetail,
+    resizeBlock: blocks.resizeBlock,
     closeBlockDetail: blocks.closeBlockDetail,
     saveBlockNote: blocks.saveBlockNote,
     deleteViewingBlock: blocks.deleteViewingBlock,
