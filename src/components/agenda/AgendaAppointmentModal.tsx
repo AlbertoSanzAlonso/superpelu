@@ -511,7 +511,6 @@ export function AgendaAppointmentModal({
                                     : undefined
                                 }
                                 allowEmpty
-                                emptyHint="Auto"
                               />
                             </div>
                           )}

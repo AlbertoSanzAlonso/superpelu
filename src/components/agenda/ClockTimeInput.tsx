@@ -5,15 +5,15 @@ type Props = {
   onChange: (value: string) => void
   /** Hora mostrada y base de ajuste cuando `value` está vacío. */
   defaultTime?: string
-  /** Permite volver a vacío (p. ej. hora encadenada automática). */
+  /** Permite value vacío (hora encadenada automática). */
   allowEmpty?: boolean
-  /** Texto breve cuando value está vacío (p. ej. «Auto»). */
-  emptyHint?: string
   minuteStep?: number
   minMinutes?: number
   maxMinutes?: number
   disabled?: boolean
   required?: boolean
+  /** Muestra etiquetas «Horas» / «Minutos» (editor del título). */
+  labeled?: boolean
   className?: string
 }
 
@@ -28,25 +28,23 @@ function parseOrFallback(time: string | undefined, fallback: string): number {
   return timeToMinutes(time)
 }
 
-/** Misma altura visual que los selects compactos del modal (`py-1.5 text-sm`). */
+/** Misma altura que selects compactos; ancho con margen para las flechas nativas. */
 const fieldCn =
-  'border border-gold/30 bg-cream px-2 py-1.5 text-sm tabular-nums text-charcoal outline-none focus:border-gold disabled:cursor-not-allowed disabled:opacity-50'
+  'clock-time-num w-[4.75rem] min-w-[4.75rem] border border-gold/40 bg-white px-2 py-1.5 text-center text-sm tabular-nums text-charcoal outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 disabled:cursor-not-allowed disabled:opacity-50'
 
 /**
- * Hora con campos numéricos HH / MM (flechas nativas del input),
- * alineados en altura con especialista y duración.
+ * Hora con campos numéricos HH / MM (flechas nativas del input).
  */
 export function ClockTimeInput({
   value,
   onChange,
   defaultTime,
-  allowEmpty = false,
-  emptyHint = 'Auto',
   minuteStep = 5,
   minMinutes = 6 * 60,
   maxMinutes = 22 * 60 + 55,
   disabled = false,
   required = false,
+  labeled = false,
   className = '',
 }: Props) {
   const baseTime = value || defaultTime || FALLBACK_TIME
@@ -54,28 +52,57 @@ export function ClockTimeInput({
   const hours = Math.floor(total / 60)
   const minutes = total % 60
   const isUnset = value === ''
-  const isAutomatic = allowEmpty && isUnset
 
   const commit = (nextMinutes: number) => {
     onChange(minutesToTime(clampMinutes(nextMinutes, minMinutes, maxMinutes)))
   }
 
   const setHours = (raw: number) => {
-    const h = Number.isFinite(raw) ? Math.trunc(raw) : hours
-    commit(h * 60 + minutes)
+    if (!Number.isFinite(raw)) return
+    commit(Math.trunc(raw) * 60 + minutes)
   }
 
   const setMinutes = (raw: number) => {
-    let m = Number.isFinite(raw) ? Math.trunc(raw) : minutes
-    // Ajusta al múltiplo de step más cercano.
+    if (!Number.isFinite(raw)) return
+    let m = Math.trunc(raw)
     m = Math.round(m / minuteStep) * minuteStep
     if (m >= 60) m = 60 - minuteStep
     if (m < 0) m = 0
     commit(hours * 60 + m)
   }
 
+  const hourInput = (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={Math.floor(minMinutes / 60)}
+      max={Math.floor(maxMinutes / 60)}
+      step={1}
+      value={hours}
+      disabled={disabled}
+      aria-label="Horas"
+      onChange={(e) => setHours(e.target.valueAsNumber)}
+      className={`${fieldCn} cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
+    />
+  )
+
+  const minuteInput = (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={0}
+      max={60 - minuteStep}
+      step={minuteStep}
+      value={minutes}
+      disabled={disabled}
+      aria-label="Minutos"
+      onChange={(e) => setMinutes(e.target.valueAsNumber)}
+      className={`${fieldCn} cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
+    />
+  )
+
   return (
-    <div className={`inline-flex items-center gap-1.5 ${className}`}>
+    <div className={`inline-flex items-end gap-2 ${className}`}>
       {required && (
         <input
           tabIndex={-1}
@@ -87,46 +114,29 @@ export function ClockTimeInput({
           onChange={() => {}}
         />
       )}
-      <input
-        type="number"
-        inputMode="numeric"
-        min={Math.floor(minMinutes / 60)}
-        max={Math.floor(maxMinutes / 60)}
-        step={1}
-        value={hours}
-        disabled={disabled}
-        aria-label="Horas"
-        onChange={(e) => setHours(e.target.valueAsNumber)}
-        className={`${fieldCn} w-[3.25rem] cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
-      />
-      <span className="text-sm font-medium text-charcoal-muted" aria-hidden>
-        :
-      </span>
-      <input
-        type="number"
-        inputMode="numeric"
-        min={0}
-        max={60 - minuteStep}
-        step={minuteStep}
-        value={minutes}
-        disabled={disabled}
-        aria-label="Minutos"
-        onChange={(e) => setMinutes(e.target.valueAsNumber)}
-        className={`${fieldCn} w-[3.25rem] cursor-text ${isUnset ? 'text-charcoal-muted' : ''}`}
-      />
-      {allowEmpty && (
-        isAutomatic ? (
-          <span className="text-[10px] text-charcoal-muted">{emptyHint}</span>
-        ) : (
-          <button
-            type="button"
-            disabled={disabled}
-            onClick={() => onChange('')}
-            className="cursor-pointer text-[10px] text-gold underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Auto
-          </button>
-        )
+      {labeled ? (
+        <>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-charcoal-muted">
+              Horas
+            </span>
+            {hourInput}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-charcoal-muted">
+              Minutos
+            </span>
+            {minuteInput}
+          </div>
+        </>
+      ) : (
+        <>
+          {hourInput}
+          <span className="pb-1.5 text-sm font-medium text-charcoal-muted" aria-hidden>
+            :
+          </span>
+          {minuteInput}
+        </>
       )}
     </div>
   )

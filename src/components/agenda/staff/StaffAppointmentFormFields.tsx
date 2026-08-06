@@ -542,7 +542,6 @@ export function StaffAppointmentFormFields({
                             isAdmin ? chainedTime : (chainedTime ?? undefined)
                           }
                           allowEmpty
-                          emptyHint="Auto"
                         />
                       </div>
                     )
@@ -576,7 +575,6 @@ export function StaffAppointmentFormFields({
                               onChange={(time) => setServiceStartTime(index, time)}
                               defaultTime={chainedTime ?? freeOptions[0]}
                               allowEmpty
-                              emptyHint="Auto"
                             />
                           </div>
                           {staffField}

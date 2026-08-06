@@ -107,30 +107,40 @@ export function StaffAppointmentFormModal({
           <div>
             <h2
               id="appointment-form-modal-title"
-              className={`${typography.h3} flex flex-wrap items-baseline gap-x-2 text-gold`}
+              className={`${typography.h3} flex flex-wrap items-center gap-x-2 gap-y-1 text-gold`}
             >
               <span>{title}</span>
-              <div ref={timeWrapRef} className="relative inline-flex items-baseline">
+              <div ref={timeWrapRef} className="relative inline-flex items-center">
                 <button
                   type="button"
                   aria-expanded={timeOpen}
                   aria-controls={timePanelId}
                   onClick={() => setTimeOpen((prev) => !prev)}
-                  className="cursor-pointer font-normal tabular-nums text-charcoal-muted underline-offset-4 hover:text-charcoal hover:underline"
+                  className={`inline-flex cursor-pointer items-center gap-1.5 border px-2 py-0.5 text-base font-normal tabular-nums transition-colors ${
+                    timeOpen
+                      ? 'border-gold bg-gold/10 text-charcoal'
+                      : 'border-gold/40 text-charcoal-muted hover:border-gold hover:bg-gold/5 hover:text-charcoal'
+                  }`}
                   title="Cambiar hora de la cita"
                 >
-                  · {displayTime}
+                  <span>{displayTime}</span>
+                  <span className="text-[10px] text-gold" aria-hidden>
+                    {timeOpen ? '▲' : '▼'}
+                  </span>
                 </button>
                 {timeOpen && (
                   <div
                     id={timePanelId}
                     role="dialog"
                     aria-label="Editar hora de la cita"
-                    className="absolute left-0 top-full z-40 mt-2 border border-gold/30 bg-cream p-3 shadow-md"
+                    className="absolute left-0 top-full z-40 mt-2 min-w-[12rem] border border-gold/30 bg-cream p-3 shadow-md"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <p className={`${typography.label} mb-2 text-[10px] text-gold`}>Hora</p>
+                    <p className={`${typography.label} mb-2 text-[10px] text-gold`}>
+                      Cambiar hora
+                    </p>
                     <ClockTimeInput
+                      labeled
                       value={draft.startTime}
                       onChange={(time) => {
                         onDraftChange({ startTime: time, serviceStartTimes: [] })
@@ -138,6 +148,9 @@ export function StaffAppointmentFormModal({
                       defaultTime={draft.startTime || '10:00'}
                       required
                     />
+                    <p className="mt-2 text-[10px] text-charcoal-muted">
+                      Usa las flechas o escribe la hora
+                    </p>
                   </div>
                 )}
               </div>
