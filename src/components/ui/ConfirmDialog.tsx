@@ -45,8 +45,8 @@ export function ConfirmDialog({
           {title}
         </h2>
         {message && <p className={`${typography.body} mb-5 text-sm`}>{message}</p>}
-        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1 whitespace-nowrap sm:flex-none">
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
             {cancelLabel}
           </Button>
           <Button
@@ -55,7 +55,7 @@ export function ConfirmDialog({
             size="sm"
             disabled={busy}
             onClick={() => void onConfirm()}
-            className={`flex-1 whitespace-nowrap sm:flex-none ${destructive ? 'border-red-700 text-red-800 hover:bg-red-50' : 'bg-gold/10'}`}
+            className={`flex-1 ${destructive ? 'border-red-700 text-red-800 hover:bg-red-50' : 'bg-gold/10'}`}
           >
             {busy ? 'Procesando…' : confirmLabel}
           </Button>
