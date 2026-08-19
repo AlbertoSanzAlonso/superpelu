@@ -35,7 +35,7 @@ export async function listStaffForServices(serviceIds: string[]): Promise<Public
   )
 }
 
-/** Profesionales activos asociados a la categoría del servicio. */
+/** Profesionales activos asociados a la categoría del servicio (según categorías marcadas en /personal). */
 export async function listStaffForService(serviceId: string): Promise<PublicStaff[]> {
   const rows = await sql<StaffRow[]>`
     SELECT s.* FROM staff s

@@ -133,6 +133,11 @@ export function useAdminAgendaAppointments({
     }
 
     const requestId = ++availabilityRequestId.current
+    const filteredAssignments = aptDraft.staffAssignments.filter((_, i) => aptDraft.serviceIds[i])
+    const chainAssignments =
+      filteredAssignments.length === filteredIds.length
+        ? filteredAssignments.map((id) => id || activeStaffId)
+        : undefined
 
     fetchAdminMultiSlots(
       effectiveDate,
@@ -141,6 +146,7 @@ export function useAdminAgendaAppointments({
       adminToken,
       editingId ?? undefined,
       aptDraft.serviceDurations,
+      chainAssignments,
     )
       .then((r) => {
         if (requestId !== availabilityRequestId.current) return
@@ -156,6 +162,7 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     aptDraft.serviceIds.join(','),
     aptDraft.serviceDurations.join(','),
+    aptDraft.staffAssignments.join(','),
     aptDraft.date,
     date,
     adminToken,

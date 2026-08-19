@@ -11,7 +11,12 @@ import {
   staffCanPerformService,
   type PublicStaff,
 } from "@server/staff/index.js"
-import { getChainedBookingSegments, countLeadingParallelInstances, type BookingServiceLine } from "@/lib/booking/combo"
+import {
+  buildFlexibleServiceStartTimes,
+  getChainedBookingSegments,
+  countLeadingParallelInstances,
+  type BookingServiceLine,
+} from "@/lib/booking/combo"
 import { getFirstServiceBookingSpan, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { schedule } from "@server/config.js"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
@@ -263,6 +268,99 @@ export type SlotOptions = {
   allowOverHours?: boolean
   /** Agenda admin: no excluir horas por solape con otras citas. */
   allowAppointmentOverlap?: boolean
+  /** Un profesional por tratamiento en visitas multi (cadena). */
+  staffAssignments?: string[]
+}
+
+function resolveStaffChainServiceIndices(
+  staffId: string,
+  serviceCount: number,
+  staffAssignments?: readonly string[],
+): number[] {
+  if (staffAssignments?.length === serviceCount) {
+    const indices = staffAssignments
+      .map((id, index) => (id === staffId ? index : -1))
+      .filter((index) => index >= 0)
+    if (indices.length > 0) return indices
+  }
+  return [0]
+}
+
+function isSameStaffForAllChainServices(
+  staffId: string,
+  serviceCount: number,
+  staffAssignments?: readonly string[],
+): boolean {
+  return (
+    staffAssignments?.length === serviceCount &&
+    staffAssignments.every((id) => id === staffId)
+  )
+}
+
+async function staffCanPerformChainServicesForSlot(
+  staffId: string,
+  services: readonly { id: string }[],
+  staffAssignments?: readonly string[],
+): Promise<boolean> {
+  const sameStaffAll = isSameStaffForAllChainServices(
+    staffId,
+    services.length,
+    staffAssignments,
+  )
+  if (sameStaffAll) {
+    for (const service of services) {
+      if (!(await staffCanPerformService(staffId, service.id))) return false
+    }
+    return true
+  }
+  for (const index of resolveStaffChainServiceIndices(
+    staffId,
+    services.length,
+    staffAssignments,
+  )) {
+    if (!(await staffCanPerformService(staffId, services[index]!.id))) return false
+  }
+  return true
+}
+
+function getOccupiedSegmentsForStaffChainSlot(
+  services: readonly BookingServiceLine[],
+  visitStartMinutes: number,
+  staffId: string,
+  staffAssignments?: readonly string[],
+): OccupiedSegment[] {
+  const sameStaffAll = isSameStaffForAllChainServices(
+    staffId,
+    services.length,
+    staffAssignments,
+  )
+  if (sameStaffAll) {
+    return getChainedBookingSegments(services, visitStartMinutes, [], staffAssignments)
+  }
+
+  const startTimes = buildFlexibleServiceStartTimes(
+    services,
+    minutesToTime(visitStartMinutes),
+    [],
+    staffAssignments,
+  ).map(timeToMinutes)
+
+  const segments: OccupiedSegment[] = []
+  for (const index of resolveStaffChainServiceIndices(
+    staffId,
+    services.length,
+    staffAssignments,
+  )) {
+    segments.push(
+      ...getOccupiedSegmentsForChainService(
+        services,
+        index,
+        startTimes[index]!,
+        staffAssignments,
+      ),
+    )
+  }
+  return segments
 }
 
 export type ResolvedBookingService = BookingServiceLine & {
@@ -324,10 +422,9 @@ export async function getAvailableSlotsForServices(
   const staff = await getStaff(staffId)
   if (!staff || !staff.active) return []
 
-  // En un combo multi-profesional los slots se calculan para el primer tratamiento
-  // (el que ocupa la hora de inicio de la visita). Solo ese corresponde a este staff;
-  // los demás se asignan después en el chain. Verificamos solo el primero.
-  if (!(await staffCanPerformService(staffId, services[0].id))) return []
+  if (!(await staffCanPerformChainServicesForSlot(staffId, services, options.staffAssignments))) {
+    return []
+  }
 
   const windows = await getStaffDayWindows(staffId, date)
   if (windows.length === 0) return []
@@ -340,7 +437,12 @@ export async function getAvailableSlotsForServices(
       start < window.endMinutes;
       start += schedule.slotMinutes
     ) {
-      const segments = getChainedBookingSegments(services, start)
+      const segments = getOccupiedSegmentsForStaffChainSlot(
+        services,
+        start,
+        staffId,
+        options.staffAssignments,
+      )
       if (
         !(await isBookingUnavailable(
           sql,
@@ -392,7 +494,9 @@ export async function getOverHoursSlotsForServices(
 
   const staff = await getStaff(staffId)
   if (!staff || !staff.active) return []
-  if (!(await staffCanPerformService(staffId, services[0].id))) return []
+  if (!(await staffCanPerformChainServicesForSlot(staffId, services, options.staffAssignments))) {
+    return []
+  }
 
   const windows = await getStaffDayWindows(staffId, date)
   if (windows.length === 0) return []
@@ -406,7 +510,12 @@ export async function getOverHoursSlotsForServices(
       start < window.endMinutes;
       start += schedule.slotMinutes
     ) {
-      const segments = getChainedBookingSegments(services, start)
+      const segments = getOccupiedSegmentsForStaffChainSlot(
+        services,
+        start,
+        staffId,
+        options.staffAssignments,
+      )
       const fitsWindow = segments.every((seg) =>
         segmentFitsInWorkWindows(seg.startMinutes, seg.durationMinutes, workWindows),
       )

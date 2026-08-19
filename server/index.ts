@@ -1185,6 +1185,11 @@ app.get('/api/schedule/slots', async (c) => {
   const staffId = c.req.query('staffId')
   const exclude = c.req.query('excludeAppointmentId')
   const serviceDurations = parseServiceDurationsQuery(c.req.query('serviceDurations'))
+  const staffAssignments =
+    c.req.query('staffAssignments')
+      ?.split(',')
+      .map((id) => id.trim())
+      .filter(Boolean) ?? []
   if (!date || !staffId) {
     return c.json({ error: 'Faltan date o staffId' }, 400)
   }
@@ -1204,6 +1209,7 @@ app.get('/api/schedule/slots', async (c) => {
     excludeAppointmentId: exclude,
     serviceDurations,
     allowAppointmentOverlap: true as const,
+    ...(staffAssignments.length > 0 ? { staffAssignments } : {}),
   }
   const slots = ids.length > 1
     ? await getAvailableSlotsForServices(date, ids, staffId, slotOptions)
