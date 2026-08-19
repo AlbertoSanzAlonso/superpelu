@@ -5,6 +5,7 @@ import { StaffAppointmentFormFields } from '@/components/agenda/staff/StaffAppoi
 import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { BookableService } from '@/types/booking'
+import type { StaffWithCategories } from '@/lib/catalog/staffForService'
 import { typography } from '@/styles/typography'
 
 type Props = {
@@ -20,6 +21,7 @@ type Props = {
   serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   /** Lista de profesionales para el selector por tratamiento. */
   staffList?: { id: string; name: string }[]
+  staffWithCategories?: StaffWithCategories[]
   /** Profesional por defecto al crear cita (p. ej. columna o selector de agenda). */
   defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
@@ -49,6 +51,7 @@ export function StaffAppointmentFormModal({
   serviceSlots,
   serviceAlternativeStaff,
   staffList,
+  staffWithCategories,
   defaultStaffId,
   onDraftChange,
   onSubmit,
@@ -229,6 +232,7 @@ export function StaffAppointmentFormModal({
             serviceSlots={serviceSlots}
             serviceAlternativeStaff={serviceAlternativeStaff}
             staffList={staffList}
+            staffWithCategories={staffWithCategories}
             defaultStaffId={defaultStaffId}
             onDraftChange={onDraftChange}
             onSubmit={onSubmit}

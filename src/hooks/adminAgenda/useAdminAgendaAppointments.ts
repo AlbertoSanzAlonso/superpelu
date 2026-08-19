@@ -12,8 +12,10 @@ import {
   fetchAdminMultiSlots,
   fetchStaffAtSlotAdmin,
   fetchCustomerDetail,
-  fetchStaffServicesForAdmin,
+  fetchAdminServices,
 } from '@/lib/api'
+import { fetchAdminStaff, type AdminStaffMember } from '@/lib/api/admin'
+import { mapAdminServiceToBookable } from '@/lib/catalog/adminServices'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type {
   BookableService,
@@ -51,7 +53,8 @@ export function useAdminAgendaAppointments({
   resyncAppointmentSnapshots,
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
-  const [services, setServices] = useState<BookableService[]>([])
+  const [catalogServices, setCatalogServices] = useState<BookableService[]>([])
+  const [adminStaff, setAdminStaff] = useState<AdminStaffMember[]>([])
   const [slots, setSlots] = useState<string[]>([])
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
   const availabilityRequestId = useRef(0)
@@ -92,20 +95,26 @@ export function useAdminAgendaAppointments({
   const scheduleForActiveStaff = schedules.find((s) => s.staffId === activeStaffId) ?? null
 
   useEffect(() => {
-    if (!activeStaffId || !adminToken) {
-      setServices([])
+    if (!adminToken) {
+      setCatalogServices([])
+      setAdminStaff([])
       return
     }
-    fetchStaffServicesForAdmin(activeStaffId, adminToken)
+    fetchAdminServices(adminToken)
       .then((r) => {
-        setServices(r.services)
+        setCatalogServices(
+          r.services.filter((service) => service.active).map(mapAdminServiceToBookable),
+        )
       })
-      .catch(() => setServices([]))
-  }, [activeStaffId, adminToken])
+      .catch(() => setCatalogServices([]))
+    fetchAdminStaff(adminToken)
+      .then((r) => setAdminStaff(r.staff.filter((member) => member.active)))
+      .catch(() => setAdminStaff([]))
+  }, [adminToken])
 
-  /** Conserva en el picker los tratamientos del draft aunque el staff activo no los liste. */
+  /** Catálogo completo (admin): permite combinar peluquería + estética con distintas profesionales. */
   const servicesForPicker = useMemo(() => {
-    const byId = new Map(services.map((s) => [s.id, s]))
+    const byId = new Map(catalogServices.map((s) => [s.id, s]))
     const allApts = schedules.flatMap((s) => s.appointments)
     for (const id of aptDraft.serviceIds) {
       if (!id || byId.has(id)) continue
@@ -123,7 +132,7 @@ export function useAdminAgendaAppointments({
       })
     }
     return Array.from(byId.values())
-  }, [services, aptDraft.serviceIds, schedules, viewingAppointment])
+  }, [catalogServices, aptDraft.serviceIds, schedules, viewingAppointment])
 
   useEffect(() => {
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
@@ -589,6 +598,7 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     scheduleForActiveStaff,
     services: servicesForPicker,
+    adminStaff,
     slots,
     slotsOverHours,
     serviceSlotsPerIndex,

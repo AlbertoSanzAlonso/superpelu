@@ -192,6 +192,7 @@ export function AdminAgendaWorkspace({
             id: s.staffId,
             name: s.staffName,
           }))}
+          staffWithCategories={agenda.adminStaff}
           onStaffChange={agenda.changeDetailStaff}
           onActiveStaffSync={agenda.syncDetailActiveStaff}
           appointment={agenda.viewingAppointment.apt}
@@ -238,7 +239,8 @@ export function AdminAgendaWorkspace({
           slotsOverHours={agenda.slotsOverHours}
           serviceSlots={agenda.serviceSlotsPerIndex}
           serviceAlternativeStaff={agenda.serviceAlternativeStaff}
-          staffList={agenda.schedules.map((s) => ({ id: s.staffId, name: s.staffName }))}
+          staffList={agenda.adminStaff.map((s) => ({ id: s.id, name: s.name }))}
+          staffWithCategories={agenda.adminStaff}
           defaultStaffId={agenda.activeStaffId ?? undefined}
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}

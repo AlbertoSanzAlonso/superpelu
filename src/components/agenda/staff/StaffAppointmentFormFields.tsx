@@ -11,7 +11,11 @@ import { typography } from '@/styles/typography'
 import { usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
-import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import {
+  resolveStaffAssignmentForService,
+  staffOptionsForService,
+  type StaffWithCategories,
+} from '@/lib/catalog/staffForService'
 import { buildEditableServiceTimeOptions, ALL_DAY_SLOTS } from '@/lib/agenda/serviceTimeOptions'
 
 const fieldCompact = '!px-3 !py-2'
@@ -43,6 +47,8 @@ type Props = {
   serviceAlternativeStaff?: ({ id: string; name: string } | null)[]
   /** Lista de profesionales disponibles para el selector por tratamiento. */
   staffList?: { id: string; name: string }[]
+  /** Categorías por profesional (agenda admin: filtra especialista por tratamiento). */
+  staffWithCategories?: StaffWithCategories[]
   /** Profesional activo en agenda al abrir el formulario. */
   defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
@@ -71,6 +77,7 @@ export function StaffAppointmentFormFields({
   serviceSlots,
   serviceAlternativeStaff,
   staffList,
+  staffWithCategories,
   defaultStaffId,
   onDraftChange,
   onSubmit,
@@ -175,12 +182,20 @@ export function StaffAppointmentFormFields({
       }
       const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
       const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments)
-      if (id && !newAssignments[index] && defaultStaffId) {
-        newAssignments[index] = defaultStaffId
+      if (id) {
+        newAssignments[index] = resolveStaffAssignmentForService(
+          id,
+          index,
+          newAssignments[index] || undefined,
+          defaultStaffId,
+          services,
+          staffWithCategories,
+          staffList ?? [],
+        )
       }
       onDraftChange({ serviceIds: next, serviceDurations: newDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, defaultStaffId, services, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
+    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, defaultStaffId, services, staffWithCategories, staffList, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
   )
 
   const setServiceStartTime = useCallback(
@@ -480,7 +495,14 @@ export function StaffAppointmentFormFields({
                         ? chainedStartTimes[index]
                         : undefined
                     const showStartTime = index > 0
-                    const showStaff = Boolean(staffList && staffList.length > 1)
+                    const eligibleStaff = staffOptionsForService(
+                      serviceId,
+                      services,
+                      staffWithCategories,
+                      staffIdForIndex(index),
+                      staffList ?? [],
+                    )
+                    const showStaff = eligibleStaff.length > 1
 
                     const durationField = (
                       <div className="min-w-0">
@@ -515,7 +537,7 @@ export function StaffAppointmentFormFields({
                           onChange={(e) => setStaffAtIndex(index, e.target.value)}
                           className={selectCn}
                         >
-                          {staffList!.map((s) => (
+                          {eligibleStaff.map((s) => (
                             <option key={s.id} value={s.id}>
                               {s.name}
                             </option>

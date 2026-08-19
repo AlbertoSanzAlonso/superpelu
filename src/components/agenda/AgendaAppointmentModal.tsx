@@ -16,6 +16,11 @@ import {
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { buildEarliestEditableServiceStartTimes } from '@/lib/booking/combo'
+import {
+  resolveStaffAssignmentForService,
+  staffOptionsForService,
+  type StaffWithCategories,
+} from '@/lib/catalog/staffForService'
 import type { Appointment, BookableService, DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -28,6 +33,7 @@ type Props = {
   staffId: string
   staffName: string
   staffOptions: AgendaStaffOption[]
+  staffWithCategories?: StaffWithCategories[]
   onStaffChange: (staffId: string) => void
   /** Actualiza el profesional activo sin tocar el resto de staffAssignments (multi-tratamiento). */
   onActiveStaffSync?: (staffId: string) => void
@@ -65,6 +71,7 @@ export function AgendaAppointmentModal({
   staffId,
   staffName,
   staffOptions,
+  staffWithCategories,
   onStaffChange,
   onActiveStaffSync,
   appointment,
@@ -246,8 +253,16 @@ export function AgendaAppointmentModal({
         newDurations[index] = selectedService.durationMinutes
       }
       const newAssignments = normalizeArr(next, draft.staffAssignments, staffId)
-      if (id && !newAssignments[index]) {
-        newAssignments[index] = staffId
+      if (id) {
+        newAssignments[index] = resolveStaffAssignmentForService(
+          id,
+          index,
+          newAssignments[index] || undefined,
+          staffId,
+          services,
+          staffWithCategories,
+          staffOptions,
+        )
       }
       onDraftChange({
         serviceIds: next,
@@ -263,6 +278,8 @@ export function AgendaAppointmentModal({
       draft.staffAssignments,
       services,
       staffId,
+      staffWithCategories,
+      staffOptions,
       onDraftChange,
       normalizeArr,
     ],
@@ -530,7 +547,15 @@ export function AgendaAppointmentModal({
                         loading={services.length === 0}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
-                      {serviceId && (
+                      {serviceId && (() => {
+                        const eligibleStaff = staffOptionsForService(
+                          serviceId,
+                          services,
+                          staffWithCategories,
+                          draft.staffAssignments[index] || staffId,
+                          staffOptions,
+                        )
+                        return (
                         <div className="space-y-2">
                           {index > 0 && (
                             <div>
@@ -549,7 +574,7 @@ export function AgendaAppointmentModal({
                               />
                             </div>
                           )}
-                          {staffOptions.length > 1 && (
+                          {eligibleStaff.length > 1 && (
                             <div className="min-w-0">
                               <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                                 Especialista
@@ -559,7 +584,7 @@ export function AgendaAppointmentModal({
                                 onChange={(e) => setStaffAtIndex(index, e.target.value)}
                                 className={selectCn}
                               >
-                                {staffOptions.map((s) => (
+                                {eligibleStaff.map((s) => (
                                   <option key={s.id} value={s.id}>
                                     {s.name}
                                   </option>
@@ -586,7 +611,8 @@ export function AgendaAppointmentModal({
                             />
                           </div>
                         </div>
-                      )}
+                        )
+                      })()}
                     </div>
                   ))}
 
