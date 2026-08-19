@@ -31,18 +31,6 @@ export function findColorServiceIndex(services: readonly { id: string }[]): numb
   return services.findIndex((service) => usesColorSplitBooking(service.id))
 }
 
-function sameStaff(
-  staffAssignments: readonly (string | null | undefined)[] | undefined,
-  a: number,
-  b: number,
-): boolean {
-  if (!staffAssignments?.length) return true
-  const staffA = staffAssignments[a]
-  const staffB = staffAssignments[b]
-  if (!staffA || !staffB) return true
-  return staffA === staffB
-}
-
 /**
  * Índice del servicio que sustituye el lavado de la coloración en `colorIndex`,
  * o null si esa coloración debe llevar su propio lavado.
@@ -50,8 +38,9 @@ function sameStaff(
  * Reglas:
  * - Solo peluquería (no estética) puede sustituir el lavado.
  * - Otra coloración split no sustituye (necesita su propio lavado o sustituto).
- * - Con `staffAssignments`: solo cuenta un tratamiento posterior del **mismo**
- *   profesional. Coloraciones en paralelo con otro especialista no quitan el lavado.
+ * - Con `staffAssignments`: cualquier tratamiento posterior de peluquería puede
+ *   sustituir el lavado, sea del mismo o de otro profesional. Ej: color con Olga
+ *   + peinado con Mónica → no se crea fila de lavado de Olga.
  * - Sin `staffAssignments`: solo el tratamiento inmediatamente siguiente (reserva clásica).
  */
 export function getColorWashReplacementIndex(
@@ -67,8 +56,6 @@ export function getColorWashReplacementIndex(
   for (let nextIndex = colorIndex + 1; nextIndex < services.length; nextIndex++) {
     if (!hasStaff) {
       if (nextIndex !== colorIndex + 1) break
-    } else if (!sameStaff(staffAssignments, colorIndex, nextIndex)) {
-      continue
     }
 
     const next = services[nextIndex]!
