@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AppointmentClientPanelEdit } from '@/components/agenda/AppointmentClientPanelEdit'
 import { AppointmentClientPanelView } from '@/components/agenda/AppointmentClientPanelView'
 import { AppointmentServiceBlocks } from '@/components/agenda/AppointmentServiceBlocks'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { AppointmentModalFooter } from '@/components/agenda/AppointmentModalFooter'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { Button } from '@/components/ui/Button'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
@@ -87,6 +88,33 @@ export function AgendaAppointmentModal({
   onCustomerRegisteredChange,
   error,
 }: Props) {
+  const [unsavedWarningOpen, setUnsavedWarningOpen] = useState(false)
+  const draftAtEditStart = useRef<string | null>(null)
+
+  // Captura el draft cuando se entra en modo edición
+  useEffect(() => {
+    if (mode === 'edit') {
+      draftAtEditStart.current = JSON.stringify(draft)
+    } else {
+      draftAtEditStart.current = null
+    }
+    // Solo al cambiar de modo, no con cada cambio de draft
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  const isDirty =
+    mode === 'edit' &&
+    draftAtEditStart.current !== null &&
+    draftAtEditStart.current !== JSON.stringify(draft)
+
+  const handleClose = useCallback(() => {
+    if (isDirty) {
+      setUnsavedWarningOpen(true)
+    } else {
+      onClose()
+    }
+  }, [isDirty, onClose])
+
   const appointmentStatus = appointment.status ?? 'confirmed'
   const showNoShowAction =
     onMarkNoShow &&
@@ -334,7 +362,7 @@ export function AgendaAppointmentModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="agenda-apt-modal-title"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="flex h-dvh w-full max-w-3xl flex-col overflow-hidden bg-cream sm:h-auto sm:max-h-[92vh] sm:border sm:border-gold/30 sm:shadow-lg"
@@ -356,7 +384,7 @@ export function AgendaAppointmentModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shrink-0 cursor-pointer border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
             aria-label="Cerrar"
           >
@@ -430,7 +458,7 @@ export function AgendaAppointmentModal({
             </AppointmentModalFooter>
           </>
         ) : (
-          <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <form id="agenda-apt-modal-form" onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-premium sm:px-5">
               <div className="grid gap-6 lg:grid-cols-2">
                 <section className="space-y-3">
@@ -623,6 +651,19 @@ export function AgendaAppointmentModal({
           </form>
         )}
       </div>
+      <ConfirmDialog
+        open={unsavedWarningOpen}
+        title="¿Salir sin guardar?"
+        message="Tienes cambios sin guardar en esta cita."
+        confirmLabel="Guardar cambios"
+        cancelLabel="Salir sin guardar"
+        onClose={() => { setUnsavedWarningOpen(false); onClose() }}
+        onConfirm={() => {
+          setUnsavedWarningOpen(false)
+          const form = document.querySelector<HTMLFormElement>('#agenda-apt-modal-form')
+          form?.requestSubmit()
+        }}
+      />
     </div>
   )
 }

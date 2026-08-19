@@ -727,7 +727,7 @@ export function StaffAppointmentFormFields({
   )
 
   return (
-    <form onSubmit={onSubmit}>
+    <form id="staff-apt-modal-form" onSubmit={onSubmit}>
       {compact ? (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-[1fr_1fr]">
           <div className="space-y-3">

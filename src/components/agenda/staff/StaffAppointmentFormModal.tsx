@@ -1,7 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { EMPTY_APPOINTMENT_DRAFT } from '@/components/agenda/staff/types'
 import { StaffAppointmentFormFields } from '@/components/agenda/staff/StaffAppointmentFormFields'
 import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { BookableService } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -57,10 +59,30 @@ export function StaffAppointmentFormModal({
   const [timeOpen, setTimeOpen] = useState(false)
   const timeWrapRef = useRef<HTMLDivElement>(null)
   const timePanelId = useId()
+  const [unsavedWarningOpen, setUnsavedWarningOpen] = useState(false)
+  const draftAtOpen = useRef<string>(JSON.stringify(EMPTY_APPOINTMENT_DRAFT))
 
   useEffect(() => {
-    if (!open) setTimeOpen(false)
+    if (open) {
+      draftAtOpen.current = JSON.stringify(draft)
+    }
+    // Solo al abrir
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
+
+  useEffect(() => {
+    if (!open) { setTimeOpen(false); setUnsavedWarningOpen(false) }
+  }, [open])
+
+  const isDirty = draftAtOpen.current !== JSON.stringify(draft)
+
+  const handleClose = useCallback(() => {
+    if (isDirty) {
+      setUnsavedWarningOpen(true)
+    } else {
+      onClose()
+    }
+  }, [isDirty, onClose])
 
   useEffect(() => {
     if (!timeOpen) return
@@ -97,7 +119,7 @@ export function StaffAppointmentFormModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="appointment-form-modal-title"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream sm:h-auto sm:max-h-[92vh] sm:max-w-5xl sm:border sm:border-gold/30 sm:shadow-lg"
@@ -156,7 +178,7 @@ export function StaffAppointmentFormModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="shrink-0 cursor-pointer border border-gold/30 px-2.5 py-1.5 text-sm text-charcoal-muted hover:border-gold"
             aria-label="Cerrar"
           >
@@ -199,6 +221,19 @@ export function StaffAppointmentFormModal({
           />
         </div>
       </div>
+      <ConfirmDialog
+        open={unsavedWarningOpen}
+        title="¿Salir sin guardar?"
+        message="Tienes cambios sin guardar en esta cita."
+        confirmLabel="Guardar cambios"
+        cancelLabel="Salir sin guardar"
+        onClose={() => { setUnsavedWarningOpen(false); onClose() }}
+        onConfirm={() => {
+          setUnsavedWarningOpen(false)
+          const fakeEvent = new Event('submit', { bubbles: true, cancelable: true })
+          document.querySelector<HTMLFormElement>('#staff-apt-modal-form')?.dispatchEvent(fakeEvent)
+        }}
+      />
     </div>
   )
 }
