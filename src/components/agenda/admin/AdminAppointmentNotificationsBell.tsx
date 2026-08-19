@@ -96,7 +96,8 @@ export function AdminAppointmentNotificationsBell({
     <div ref={rootRef} className="relative">
       {panelVisible && (
         <div
-          className={`fixed inset-0 z-40 cursor-pointer bg-charcoal/0 ${backdropAnimClass}`}
+          className={`fixed inset-0 z-40 bg-charcoal/0 ${backdropAnimClass}`}
+          style={{ pointerEvents: panelLeaving ? 'none' : 'auto' }}
           onClick={onClose}
           aria-hidden
         />
@@ -105,7 +106,7 @@ export function AdminAppointmentNotificationsBell({
         type="button"
         onMouseDown={(e) => e.stopPropagation()}
         onClick={() => (open ? onClose() : onOpen())}
-        className={`agenda-notify-bell relative flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10 ${
+        className={`agenda-notify-bell relative z-50 flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-gold hover:border-gold hover:bg-gold/10 ${
           unseenCount > 0 && !open ? 'agenda-notify-bell--unseen' : ''
         }`}
         aria-label={

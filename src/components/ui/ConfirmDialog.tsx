@@ -51,7 +51,7 @@ export function ConfirmDialog({
           {title}
         </h2>
         {message && <p className={`${typography.body} mb-5 text-sm`}>{message}</p>}
-        <div className="flex flex-col gap-2 sm:flex-row">
+        <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
             {cancelLabel}
           </Button>
@@ -65,19 +65,17 @@ export function ConfirmDialog({
           >
             {busy ? 'Procesando…' : confirmLabel}
           </Button>
-          {secondaryLabel && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={busy}
-              onClick={onSecondary}
-              className="flex-1"
-            >
-              {secondaryLabel}
-            </Button>
-          )}
         </div>
+        {secondaryLabel && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onSecondary}
+            className="mt-3 w-full cursor-pointer text-center text-sm text-charcoal-muted underline-offset-2 hover:text-charcoal hover:underline disabled:pointer-events-none disabled:opacity-50"
+          >
+            {secondaryLabel}
+          </button>
+        )}
       </div>
     </div>
   )
