@@ -464,9 +464,13 @@ export function AgendaAppointmentModal({
               <div className="grid gap-6 lg:grid-cols-2">
                 <section className="space-y-3">
                   <p className={`${typography.label} text-gold`}>Cita</p>
-                  <p className={`${typography.caption} capitalize text-charcoal-muted`}>
-                    {formatDisplayDate(date)}
-                  </p>
+                  <input
+                    type="date"
+                    value={draft.date || date}
+                    onChange={(e) => onDraftChange({ date: e.target.value })}
+                    className="border border-gold/40 bg-cream px-2 py-0.5 text-sm tabular-nums text-charcoal-muted transition-colors hover:border-gold hover:bg-gold/5 hover:text-charcoal focus:border-gold focus:outline-none cursor-pointer"
+                    title="Cambiar fecha de la cita"
+                  />
                   {staffOptions.length > 0 && serviceIds.filter(Boolean).length <= 1 && (
                     <div>
                       <label className={`${typography.label} mb-0.5 block text-xs`}>
