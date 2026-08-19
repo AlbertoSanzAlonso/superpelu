@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
+  buildAdminCategoryOptions,
   categoryIdForService,
   categoryLabelFor,
   getAllServiceCategories,
@@ -25,9 +26,11 @@ type Props = {
   loading?: boolean
   className?: string
   compact?: boolean
-  /** Muestra todas las especialidades del catálogo aunque no haya tratamientos cargados en esa categoría. */
+  /** Agenda admin: catálogo completo, independiente del profesional activo. */
+  catalogMode?: 'staff' | 'admin'
+  /** @deprecated Usar catalogMode="admin" */
   showAllCategories?: boolean
-  /** Especialidades desde API admin (prioritario frente al catálogo estático). */
+  /** Nombres de especialidad desde API admin (opcional). */
   categoryOptions?: { id: string; label: string }[]
 }
 
@@ -40,26 +43,33 @@ export function ServiceCategoryPicker({
   loading = false,
   className = '',
   compact = false,
+  catalogMode = 'staff',
   showAllCategories = false,
   categoryOptions,
 }: Props) {
   const labels = servicePickerLabels[variant]
+  const isAdminCatalog = catalogMode === 'admin' || showAllCategories
 
   const categories = useMemo(() => {
-    if (categoryOptions && categoryOptions.length > 0) {
-      return categoryOptions.map((option) => ({ id: option.id, label: option.label }))
-    }
-    if (showAllCategories) {
+    if (isAdminCatalog) {
+      if (categoryOptions && categoryOptions.length > 0) {
+        return buildAdminCategoryOptions(
+          categoryOptions.map((option) => ({ id: option.id, nameEs: option.label })),
+        )
+      }
       return getAllServiceCategories().map((cat) => ({
         id: cat.id,
         label: categoryLabelFor(cat.id),
       }))
     }
+    if (categoryOptions && categoryOptions.length > 0) {
+      return categoryOptions.map((option) => ({ id: option.id, label: option.label }))
+    }
     return getOrderedCategoriesForServices(services).map((cat) => ({
       id: cat.id,
       label: categoryLabelFor(cat.id),
     }))
-  }, [services, showAllCategories, categoryOptions])
+  }, [services, isAdminCatalog, categoryOptions])
 
   const categoryFromService = categoryIdForService(services, serviceId)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
@@ -78,8 +88,7 @@ export function ServiceCategoryPicker({
     [services, selectedCategoryId],
   )
 
-  const categoryDisabled =
-    disabled || (!showAllCategories && (loading || services.length === 0))
+  const categoryDisabled = disabled || (!isAdminCatalog && (loading || services.length === 0))
   const servicesLoading = loading && services.length === 0
   const serviceDisabled =
     disabled || servicesLoading || !selectedCategoryId || categoryServices.length === 0

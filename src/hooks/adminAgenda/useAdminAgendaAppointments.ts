@@ -20,6 +20,7 @@ import {
 } from '@/lib/api/admin-catalog'
 import { fetchAdminStaff, type AdminStaffMember } from '@/lib/api/admin'
 import { mapAdminServiceToBookable } from '@/lib/catalog/adminServices'
+import { buildAdminCategoryOptions } from '@/lib/catalog/servicePicker'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type {
   BookableService,
@@ -109,34 +110,43 @@ export function useAdminAgendaAppointments({
       return
     }
     setCatalogLoading(true)
-    Promise.all([
+    void Promise.allSettled([
       fetchAdminServices(adminToken),
       fetchAdminServiceCategories(adminToken),
       fetchAdminStaff(adminToken),
     ])
-      .then(([servicesRes, categoriesRes, staffRes]) => {
-        setCatalogServices(
-          servicesRes.services
-            .filter((service) => service.active)
-            .map(mapAdminServiceToBookable),
-        )
-        setAdminCategories(categoriesRes.categories.filter((category) => category.active))
-        setAdminStaff(staffRes.staff.filter((member) => member.active))
-      })
-      .catch(() => {
-        setCatalogServices([])
-        setAdminCategories([])
-        setAdminStaff([])
+      .then((results) => {
+        const [servicesResult, categoriesResult, staffResult] = results
+
+        if (servicesResult.status === 'fulfilled') {
+          setCatalogServices(
+            servicesResult.value.services
+              .filter((service) => service.active)
+              .map(mapAdminServiceToBookable),
+          )
+        } else {
+          setCatalogServices([])
+        }
+
+        if (categoriesResult.status === 'fulfilled') {
+          setAdminCategories(
+            categoriesResult.value.categories.filter((category) => category.active),
+          )
+        } else {
+          setAdminCategories([])
+        }
+
+        if (staffResult.status === 'fulfilled') {
+          setAdminStaff(staffResult.value.staff.filter((member) => member.active))
+        } else {
+          setAdminStaff([])
+        }
       })
       .finally(() => setCatalogLoading(false))
   }, [adminToken])
 
   const categoryOptionsForPicker = useMemo(
-    () =>
-      adminCategories.map((category) => ({
-        id: category.id,
-        label: category.nameEs,
-      })),
+    () => buildAdminCategoryOptions(adminCategories),
     [adminCategories],
   )
 

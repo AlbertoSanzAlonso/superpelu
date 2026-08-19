@@ -50,6 +50,7 @@ type Props = {
   /** Categorías por profesional (agenda admin: filtra especialista por tratamiento). */
   staffWithCategories?: StaffWithCategories[]
   /** Catálogo admin: muestra todas las especialidades al añadir tratamientos. */
+  catalogMode?: 'staff' | 'admin'
   showAllCategories?: boolean
   categoryOptions?: { id: string; label: string }[]
   catalogLoading?: boolean
@@ -82,6 +83,7 @@ export function StaffAppointmentFormFields({
   serviceAlternativeStaff,
   staffList,
   staffWithCategories,
+  catalogMode = 'staff',
   showAllCategories = false,
   categoryOptions,
   catalogLoading = false,
@@ -489,6 +491,7 @@ export function StaffAppointmentFormFields({
                   services={services}
                   serviceId={serviceId}
                   loading={catalogLoading}
+                  catalogMode={catalogMode}
                   showAllCategories={showAllCategories}
                   categoryOptions={categoryOptions}
                   onServiceChange={(id) => {
@@ -511,9 +514,10 @@ export function StaffAppointmentFormFields({
                       staffIdForIndex(index),
                       staffList ?? [],
                     )
-                    const showStaff = showAllCategories
-                      ? eligibleStaff.length > 0
-                      : eligibleStaff.length > 1
+                    const showStaff =
+                      catalogMode === 'admin' || showAllCategories
+                        ? eligibleStaff.length > 0
+                        : eligibleStaff.length > 1
 
                     const durationField = (
                       <div className="min-w-0">

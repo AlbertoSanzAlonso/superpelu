@@ -43,6 +43,7 @@ type Props = {
   services: BookableService[]
   catalogLoading?: boolean
   categoryOptions?: { id: string; label: string }[]
+  catalogMode?: 'staff' | 'admin'
   slots: string[]
   slotsOverHours?: string[]
   /** Slots libres por tratamiento (índice = posición en serviceIds). */
@@ -82,6 +83,7 @@ export function AgendaAppointmentModal({
   services,
   catalogLoading = false,
   categoryOptions,
+  catalogMode = 'staff',
   slots: _slots,
   slotsOverHours: _slotsOverHours = [],
   serviceSlots: _serviceSlots,
@@ -549,6 +551,7 @@ export function AgendaAppointmentModal({
                         services={services}
                         serviceId={serviceId}
                         loading={catalogLoading}
+                        catalogMode={staffWithCategories?.length ? 'admin' : catalogMode}
                         showAllCategories={Boolean(staffWithCategories?.length)}
                         categoryOptions={categoryOptions}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
@@ -563,7 +566,9 @@ export function AgendaAppointmentModal({
                         )
                         const showStaff = staffWithCategories?.length
                           ? eligibleStaff.length > 0
-                          : eligibleStaff.length > 1
+                          : catalogMode === 'admin'
+                            ? eligibleStaff.length > 0
+                            : eligibleStaff.length > 1
                         return (
                         <div className="space-y-2">
                           {index > 0 && (

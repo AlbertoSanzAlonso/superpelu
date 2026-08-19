@@ -22,6 +22,7 @@ type Props = {
   /** Lista de profesionales para el selector por tratamiento. */
   staffList?: { id: string; name: string }[]
   staffWithCategories?: StaffWithCategories[]
+  catalogMode?: 'staff' | 'admin'
   showAllCategories?: boolean
   categoryOptions?: { id: string; label: string }[]
   catalogLoading?: boolean
@@ -55,6 +56,7 @@ export function StaffAppointmentFormModal({
   serviceAlternativeStaff,
   staffList,
   staffWithCategories,
+  catalogMode,
   showAllCategories,
   categoryOptions,
   catalogLoading,
@@ -239,6 +241,7 @@ export function StaffAppointmentFormModal({
             serviceAlternativeStaff={serviceAlternativeStaff}
             staffList={staffList}
             staffWithCategories={staffWithCategories}
+            catalogMode={catalogMode}
             showAllCategories={showAllCategories}
             categoryOptions={categoryOptions}
             catalogLoading={catalogLoading}

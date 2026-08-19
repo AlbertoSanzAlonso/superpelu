@@ -30,9 +30,31 @@ export function getOrderedCategoriesForServices(services: BookableService[]) {
   return serviceCategories.filter((c) => ids.has(c.id))
 }
 
-/** Las 12 especialidades del catálogo (reserva pública). */
+/** Las especialidades del catálogo (reserva pública y agenda admin). */
 export function getAllServiceCategories() {
   return [...serviceCategories]
+}
+
+/** Opciones de especialidad para backoffice: catálogo completo + nombres de la API. */
+export function buildAdminCategoryOptions(
+  apiCategories: readonly { id: string; nameEs: string }[] = [],
+): { id: string; label: string }[] {
+  const labelById = new Map(
+    getAllServiceCategories().map((category) => [category.id, categoryLabelFor(category.id)]),
+  )
+  for (const category of apiCategories) {
+    labelById.set(category.id, category.nameEs)
+  }
+  const ordered = getAllServiceCategories().map((category) => ({
+    id: category.id,
+    label: labelById.get(category.id) ?? category.nameEs,
+  }))
+  for (const category of apiCategories) {
+    if (!ordered.some((item) => item.id === category.id)) {
+      ordered.push({ id: category.id, label: category.nameEs })
+    }
+  }
+  return ordered
 }
 
 export function countServicesInCategory(services: BookableService[], categoryId: string) {
