@@ -122,10 +122,10 @@ export function appointmentBlockBarClass(
 ): string {
   const key = resolveAgendaColorKey(categoryId, serviceId, colorGroupRole)
   const bar: Record<AgendaColorKey, string> = {
-    blue: 'bg-[#3498DB] text-white',
-    red: 'bg-[#C0392B] text-white',
-    teal: 'bg-[#1ABC9C] text-white',
-    purple: 'bg-[#9B59B6] text-white',
+    blue: 'bg-[#1A6FBF] text-white',
+    red: 'bg-[#E8232A] text-white',
+    teal: 'bg-[#00A86B] text-white',
+    purple: 'bg-[#6B21A8] text-white',
     brown: 'bg-[#D35400] text-white',
     maroon: 'bg-[#922B21] text-white',
   }
