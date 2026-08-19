@@ -36,24 +36,12 @@ function appendServiceLines(
   if (rows.length <= 1) {
     const apt = rows[0]
     lines.push(`💇 ${apt.service_name}`)
-    lines.push(wa.withStaff(apt.staff_name ?? 'Superpelu'))
     return
   }
 
   lines.push(`💇 ${wa.treatmentsHeading}`)
   for (const apt of rows) {
     lines.push(`   • ${apt.service_name}`)
-  }
-
-  const staffNames = [...new Set(rows.map((apt) => apt.staff_name).filter(Boolean))]
-  if (staffNames.length === 1) {
-    lines.push(wa.withStaff(staffNames[0]!))
-  } else {
-    for (const apt of rows) {
-      if (apt.staff_name) {
-        lines.push(`   ${wa.withStaff(apt.staff_name)} — ${apt.service_name}`)
-      }
-    }
   }
 }
 

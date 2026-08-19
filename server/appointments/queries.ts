@@ -51,17 +51,31 @@ export async function listAppointments(from: string, to: string): Promise<Appoin
 export async function listAppointmentsDueForReminder(): Promise<AppointmentRow[]> {
   const today = todaySalon()
   const until = addDaysToDateString(today, 1)
+  // Para visitas multi-tratamiento (booking_group_id no nulo), solo se devuelve
+  // la primera cita del grupo (menor start_time + id) para evitar enviar un
+  // recordatorio por cada servicio. Las citas sin grupo se incluyen todas.
   return sql<AppointmentRow[]>`
-    SELECT * FROM appointments
+    SELECT DISTINCT ON (COALESCE(booking_group_id, id)) *
+    FROM appointments
     WHERE status = 'confirmed'
       AND reminder_sent_at IS NULL
       AND appointment_date >= ${today}
       AND appointment_date <= ${until}
       AND (color_group_role IS NULL OR color_group_role = ${COLOR_GROUP_ROLE.color})
-    ORDER BY appointment_date ASC, start_time ASC
+    ORDER BY COALESCE(booking_group_id, id), appointment_date ASC, start_time ASC, id ASC
   `
 }
 
 export async function markReminderSent(id: string): Promise<void> {
-  await sql`UPDATE appointments SET reminder_sent_at = now() WHERE id = ${id}`
+  // Marca también las demás citas del mismo grupo de reserva para evitar
+  // que el scheduler envíe recordatorios adicionales por los otros servicios.
+  await sql`
+    UPDATE appointments
+    SET reminder_sent_at = now()
+    WHERE id = ${id}
+       OR (
+            booking_group_id IS NOT NULL
+            AND booking_group_id = (SELECT booking_group_id FROM appointments WHERE id = ${id})
+          )
+  `
 }
