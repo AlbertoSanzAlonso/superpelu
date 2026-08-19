@@ -346,10 +346,11 @@ export async function createChainedBookingAppointment(
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
+    guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
   const locale = input.forStaffPortal
-    ? normalizeLocale(profile.locale ?? input.customerLocale)
+    ? normalizeLocale(profile?.locale ?? input.customerLocale)
     : normalizeLocale(input.locale)
   const reminderSentAt =
     hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null

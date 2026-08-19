@@ -34,6 +34,7 @@ type Props = {
   appointmentOrigin?: string | null
   error?: string
   isSubmitting?: boolean
+  guestWithoutProfile?: boolean
 }
 
 export function StaffAppointmentFormModal({
@@ -60,6 +61,7 @@ export function StaffAppointmentFormModal({
   appointmentOrigin,
   error,
   isSubmitting,
+  guestWithoutProfile = false,
 }: Props) {
   const [timeOpen, setTimeOpen] = useState(false)
   const timeWrapRef = useRef<HTMLDivElement>(null)
@@ -238,6 +240,7 @@ export function StaffAppointmentFormModal({
             hint={hint}
             adminToken={adminToken}
             isSubmitting={isSubmitting}
+            guestWithoutProfile={guestWithoutProfile}
           />
         </div>
       </div>

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
+import { GuestCustomerConfirmDialog } from '@/components/customers/GuestCustomerConfirmDialog'
+import { GuestToCustomerConfirmDialog } from '@/components/customers/GuestToCustomerConfirmDialog'
 import { canMarkAppointmentNoShow, APPOINTMENT_STATUS_NO_SHOW } from '@/lib/agenda/noShow'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
@@ -166,6 +168,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         }
         isNoShow={editingAppointment?.status === APPOINTMENT_STATUS_NO_SHOW}
         appointmentOrigin={editingAppointment?.origin}
+        guestWithoutProfile={Boolean(agenda.editingId && agenda.editingGuestPhone)}
       />
 
       <NoShowContactDialog
@@ -230,6 +233,18 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         open={agenda.foreignPhoneLocalePromptOpen}
         onAccept={() => void agenda.acceptForeignPhoneLocale()}
         onDecline={() => void agenda.declineForeignPhoneLocale()}
+      />
+
+      <GuestCustomerConfirmDialog
+        open={agenda.guestCustomerPromptOpen}
+        onAccept={() => void agenda.acceptGuestCustomer()}
+        onDecline={agenda.declineGuestCustomer}
+      />
+
+      <GuestToCustomerConfirmDialog
+        open={agenda.guestToCustomerPromptOpen}
+        onAccept={() => void agenda.acceptGuestToCustomer()}
+        onDecline={agenda.declineGuestToCustomer}
       />
 
       {agenda.seriesConflictOpen && agenda.seriesConflictPreview && (

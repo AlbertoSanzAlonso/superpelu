@@ -45,6 +45,7 @@ import {
   updateAppointmentForAdmin,
 } from '@server/appointments/index.js'
 import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
+import { staffPortalBookingHasCustomer } from '@server/appointments/staffBookingValidation.js'
 import {
   buildIcs,
   buildManageUrl,
@@ -1383,16 +1384,15 @@ app.post('/api/schedule/appointments', async (c) => {
     endDate?: string
     forceSchedule?: boolean
     conflictResolutions?: { date: string; action: 'skip' | 'reassign' | 'reschedule'; staffId?: string; startTime?: string }[]
+    guestCustomer?: boolean
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
-  const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
   if (
     !body.staffId ||
     ids.length === 0 ||
     !body.date ||
     !body.startTime ||
-    !hasName ||
-    !body.customerPhone?.trim()
+    !staffPortalBookingHasCustomer(body)
   ) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
@@ -1427,6 +1427,7 @@ app.post('/api/schedule/appointments', async (c) => {
       forceSchedule: true,
       allowAppointmentOverlap: true,
       conflictResolutions: body.conflictResolutions,
+      guestCustomer: body.guestCustomer,
     })
     const grouped =
       row.booking_group_id != null
@@ -1468,6 +1469,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     customerLocale?: 'es' | 'en'
     notifyCustomerWhatsApp?: boolean
     forceSchedule?: boolean
+    guestCustomer?: boolean
   }>()
   try {
     const row = await updateAppointmentForAdmin(c.req.param('id'), body)

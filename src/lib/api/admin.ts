@@ -127,6 +127,7 @@ export type AdminAppointmentPayload = {
   endDate?: string
   conflictResolutions?: SeriesConflictResolution[]
   forceSchedule?: boolean
+  guestCustomer?: boolean
 }
 
 export type SeriesConflictResolution = {

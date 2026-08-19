@@ -4,10 +4,7 @@ import { serviceDisplayName } from "@/i18n/localeHelpers"
 import { normalizeLocale } from "@/i18n/types"
 import { getStaff } from "@server/staff/index.js"
 import {
-  customerNameSnapshot,
-  getCustomer,
-  resolveCustomerFromInput,
-  upsertCustomer,
+  resolveStaffPortalCustomerPatch,
 } from "@server/customers/index.js"
 import { notifyAppointmentUpdated } from "@server/notifications/whatsapp.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
@@ -117,29 +114,21 @@ export async function updateAppointmentForStaff(
   let customerPhone = existing.customer_phone
 
   if (hasCustomerPatch) {
-    const split = resolveCustomerFromInput({
-      firstName: input.customerFirstName,
-      lastName: input.customerLastName,
-      customerName: input.customerName ?? existing.customer_name,
-      phone: input.customerPhone ?? existing.customer_phone,
+    const resolved = await resolveStaffPortalCustomerPatch({
+      customerFirstName: input.customerFirstName,
+      customerLastName: input.customerLastName,
+      customerName: input.customerName,
+      customerPhone: input.customerPhone,
+      customerEmail: input.customerEmail,
+      customerNotes: input.customerNotes,
+      customerLocale: input.customerLocale,
+      guestCustomer: input.guestCustomer,
+      existingName: existing.customer_name,
+      existingPhone: existing.customer_phone,
+      existingEmail: existing.customer_email,
     })
-    const profile = await getCustomer(split.phone)
-    await upsertCustomer({
-      firstName: split.firstName,
-      lastName: split.lastName,
-      phone: split.phone,
-      email:
-        input.customerEmail !== undefined ? input.customerEmail : existing.customer_email,
-      notes:
-        input.customerNotes !== undefined
-          ? input.customerNotes
-          : (profile?.notes ?? null),
-      ...(input.customerLocale !== undefined
-        ? { locale: normalizeLocale(input.customerLocale) }
-        : {}),
-    })
-    nameSnapshot = customerNameSnapshot(split.firstName, split.lastName)
-    customerPhone = split.phone
+    nameSnapshot = resolved.nameSnapshot
+    customerPhone = resolved.customerPhone
   }
 
   // Reprogramación: si la nueva fecha/hora queda a más de 24h, reactivar el
@@ -283,11 +272,18 @@ async function replaceAppointment(
       ? input.staffAssignments.map((id) => id || targetStaffId)
       : undefined
 
-  const split = resolveCustomerFromInput({
-    firstName: input.customerFirstName,
-    lastName: input.customerLastName,
-    customerName: input.customerName ?? existing.customer_name,
-    phone: input.customerPhone ?? existing.customer_phone,
+  const customerResolved = await resolveStaffPortalCustomerPatch({
+    customerFirstName: input.customerFirstName,
+    customerLastName: input.customerLastName,
+    customerName: input.customerName,
+    customerPhone: input.customerPhone,
+    customerEmail: input.customerEmail,
+    customerNotes: input.customerNotes,
+    customerLocale: input.customerLocale,
+    guestCustomer: input.guestCustomer,
+    existingName: existing.customer_name,
+    existingPhone: existing.customer_phone,
+    existingEmail: existing.customer_email,
   })
 
   // Borrar el grupo antiguo primero para que no bloquee la recreación.
@@ -316,9 +312,9 @@ async function replaceAppointment(
       : undefined,
     date,
     startTime,
-    customerFirstName: split.firstName,
-    customerLastName: split.lastName,
-    customerPhone: split.phone,
+    customerFirstName: input.customerFirstName,
+    customerLastName: input.customerLastName,
+    customerPhone: customerResolved.customerPhone,
     customerEmail:
       input.customerEmail !== undefined ? (input.customerEmail ?? undefined) : (existing.customer_email ?? undefined),
     customerNotes:
@@ -327,6 +323,7 @@ async function replaceAppointment(
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
     forStaffPortal: true,
     forceSchedule: true,
+    guestCustomer: input.guestCustomer,
     // Es una modificación: no mandar "cita nueva" ni confundir con cancelación.
     skipCustomerWhatsApp: true,
   })

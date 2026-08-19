@@ -14,6 +14,7 @@ import {
   type AppointmentSeriesMode,
 } from '@server/appointments/index.js'
 import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
+import { staffPortalBookingHasCustomer } from '@server/appointments/staffBookingValidation.js'
 import type { SeriesScope } from '@server/appointments/seriesDates.js'
 import { getStaffDaySchedule } from '@server/staff/schedule.js'
 import { listServicesForStaff } from '@server/staff/index.js'
@@ -155,29 +156,35 @@ me.post('/me/appointments/preview-series', async (c) => {
     notes?: string
     customerLocale?: 'es' | 'en'
     endDate?: string
+    guestCustomer?: boolean
   }>().catch(() => null)
-  if (!body || !body.date || !body.startTime || !body.customerPhone) {
+  if (!body || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   try {
-    const result = await previewRecurringChainConflicts({
-      staffId: staff!.id,
-      serviceIds: body.serviceIds ?? [],
-      serviceStartTimes: body.serviceStartTimes,
-      serviceDurations: body.serviceDurations,
-      date: body.date,
-      startTime: body.startTime,
-      customerFirstName: body.customerFirstName,
-      customerLastName: body.customerLastName,
-      customerPhone: body.customerPhone,
-      customerEmail: body.customerEmail,
-      customerNotes: body.customerNotes,
-      notes: body.notes,
-      customerLocale: body.customerLocale,
-      scope: 'weekly',
-      endDate: body.endDate,
-      forStaffPortal: true,
-    })
+    const serviceIds = body.serviceIds ?? []
+    const result = await previewRecurringChainConflicts(
+      {
+        staffId: staff!.id,
+        serviceIds,
+        serviceStartTimes: body.serviceStartTimes,
+        serviceDurations: body.serviceDurations,
+        date: body.date,
+        startTime: body.startTime,
+        customerFirstName: body.customerFirstName,
+        customerLastName: body.customerLastName,
+        customerPhone: body.customerPhone ?? '',
+        customerEmail: body.customerEmail,
+        customerNotes: body.customerNotes,
+        notes: body.notes,
+        customerLocale: body.customerLocale,
+        scope: 'weekly',
+        endDate: body.endDate,
+        forStaffPortal: true,
+        guestCustomer: body.guestCustomer,
+      },
+      serviceIds,
+    )
     return c.json(result)
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
@@ -207,10 +214,10 @@ me.post('/me/appointments', async (c) => {
     endDate?: string
     forceSchedule?: boolean
     conflictResolutions?: import('@server/appointments/recurringChain.js').SeriesConflictResolution[]
+    guestCustomer?: boolean
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
-  const hasName = Boolean(body.customerName?.trim() || body.customerFirstName?.trim())
-  if (ids.length === 0 || !body.date || !body.startTime || !hasName || !body.customerPhone?.trim()) {
+  if (ids.length === 0 || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
     return c.json({ error: 'Datos incompletos' }, 400)
   }
   const scope = body.scope ?? 'single'
@@ -241,6 +248,7 @@ me.post('/me/appointments', async (c) => {
       forStaffPortal: true,
       forceSchedule: body.forceSchedule,
       conflictResolutions: body.conflictResolutions,
+      guestCustomer: body.guestCustomer,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -269,6 +277,7 @@ me.patch('/me/appointments/:id', async (c) => {
     notes?: string | null
     customerLocale?: 'es' | 'en'
     forceSchedule?: boolean
+    guestCustomer?: boolean
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)

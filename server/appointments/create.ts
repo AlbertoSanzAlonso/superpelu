@@ -71,9 +71,10 @@ async function createRecurringStaffAppointment(
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
+    guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile.locale ?? input.customerLocale)
+  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
   const serviceName = serviceDisplayName(service, locale)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
@@ -326,10 +327,11 @@ export async function createAppointment(
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
+    guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
   const locale = input.forStaffPortal
-    ? normalizeLocale(profile.locale ?? input.customerLocale)
+    ? normalizeLocale(profile?.locale ?? input.customerLocale)
     : normalizeLocale(input.locale)
   const serviceName = serviceDisplayName(service, locale)
 

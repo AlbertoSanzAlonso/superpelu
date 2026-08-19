@@ -1,4 +1,5 @@
 import { splitCustomerName } from '@/lib/customer/name'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
@@ -62,7 +63,7 @@ export function appointmentToDraft(
   const base = {
     customerFirstName: firstName,
     customerLastName: lastName,
-    customerPhone: apt.customerPhone,
+    customerPhone: isGuestCustomerPhone(apt.customerPhone) ? '' : apt.customerPhone,
     customerEmail: apt.customerEmail ?? customerProfile?.email ?? '',
     customerNotes: customerProfile?.notes ?? apt.customerNotes ?? '',
     notes: apt.notes ?? '',

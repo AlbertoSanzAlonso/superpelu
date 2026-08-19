@@ -1,4 +1,5 @@
 import type { AppointmentRow } from '@server/db.js'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/queries.js'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import {
@@ -18,6 +19,7 @@ async function sendCustomerWhatsApp(
   row: AppointmentRow,
   text: string,
 ): Promise<string | undefined> {
+  if (isGuestCustomerPhone(row.customer_phone)) return undefined
   await openWaEnsureStarted()
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
   return sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))

@@ -11,6 +11,8 @@ type Props = {
   /** Muestra observaciones de la ficha (`customers.notes`). */
   showCustomerNotes?: boolean
   phoneLabel?: string
+  /** Cita sin ficha: el móvil es opcional hasta que se quiera registrar al cliente. */
+  guestWithoutProfile?: boolean
 }
 
 export function AppointmentCustomerFields({
@@ -19,9 +21,15 @@ export function AppointmentCustomerFields({
   compact = false,
   showCustomerNotes = true,
   phoneLabel = 'Teléfono',
+  guestWithoutProfile = false,
 }: Props) {
   return (
     <div className="space-y-3">
+      {guestWithoutProfile && (
+        <p className="text-xs text-charcoal-muted">
+          Cliente sin ficha. Añade un móvil para guardarlo en el listado de clientes.
+        </p>
+      )}
       <div className={`grid gap-3 ${compact ? 'sm:grid-cols-2' : 'gap-4 sm:grid-cols-2'}`}>
         <Input
           label="Nombre"
@@ -40,7 +48,7 @@ export function AppointmentCustomerFields({
         />
         <Input
           label={phoneLabel}
-          required
+          required={!guestWithoutProfile}
           type="tel"
           value={draft.customerPhone}
           onChange={(e) => onDraftChange({ customerPhone: e.target.value })}

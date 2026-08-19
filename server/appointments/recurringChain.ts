@@ -221,9 +221,10 @@ export async function createRecurringChainedAppointment(
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
+    guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile.locale ?? input.customerLocale)
+  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
   const seriesId = randomUUID()
 
   const datesToCreate: {

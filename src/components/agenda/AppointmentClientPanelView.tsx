@@ -8,7 +8,8 @@ import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import { dash, whatsappHref } from '@/components/agenda/appointmentModalUtils'
 import { Button } from '@/components/ui/Button'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
-import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
+import { formatCustomerPhoneDisplay, isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import { normalizePhone } from '@/lib/customer/phone'
 import { typography } from '@/styles/typography'
 
 type Props = {
@@ -32,6 +33,7 @@ export function AppointmentClientPanelView({
     draft.customerLastName,
   )
   const phone = draft.customerPhone
+  const showContactActions = Boolean(phone.trim()) && !isGuestCustomerPhone(phone)
 
   return (
     <div className="rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
@@ -57,7 +59,7 @@ export function AppointmentClientPanelView({
             </p>
           )}
         </div>
-        {phone && (
+        {showContactActions && (
           <div className="flex shrink-0 gap-1.5">
             <a
               href={whatsappHref(phone)}
@@ -84,7 +86,7 @@ export function AppointmentClientPanelView({
       <dl className="space-y-2.5 text-sm">
         <div>
           <dt className={typography.label}>Móvil</dt>
-          <dd className="mt-0.5 tabular-nums">{phone ? formatPhoneDisplay(phone) : '—'}</dd>
+          <dd className="mt-0.5 tabular-nums">{formatCustomerPhoneDisplay(phone)}</dd>
         </div>
         <div>
           <dt className={typography.label}>Idioma</dt>
@@ -106,7 +108,7 @@ export function AppointmentClientPanelView({
         </div>
       </dl>
 
-      {showCustomerHistory && phone && adminToken && (
+      {showCustomerHistory && showContactActions && adminToken && (
         <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"

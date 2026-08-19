@@ -4,6 +4,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
+import { GuestCustomerConfirmDialog } from '@/components/customers/GuestCustomerConfirmDialog'
+import { GuestToCustomerConfirmDialog } from '@/components/customers/GuestToCustomerConfirmDialog'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
@@ -219,6 +221,7 @@ export function AdminAgendaWorkspace({
               agenda.setDetailReviewRequestSentAt(reviewSentAt)
             }
           }}
+          guestWithoutProfile={Boolean(agenda.editingGuestPhone)}
         />
       )}
 
@@ -282,6 +285,18 @@ export function AdminAgendaWorkspace({
         open={agenda.foreignPhoneLocalePromptOpen}
         onAccept={() => void agenda.acceptForeignPhoneLocale()}
         onDecline={() => void agenda.declineForeignPhoneLocale()}
+      />
+
+      <GuestCustomerConfirmDialog
+        open={agenda.guestCustomerPromptOpen}
+        onAccept={() => void agenda.acceptGuestCustomer()}
+        onDecline={agenda.declineGuestCustomer}
+      />
+
+      <GuestToCustomerConfirmDialog
+        open={agenda.guestToCustomerPromptOpen}
+        onAccept={() => void agenda.acceptGuestToCustomer()}
+        onDecline={agenda.declineGuestToCustomer}
       />
 
       <NoShowContactDialog

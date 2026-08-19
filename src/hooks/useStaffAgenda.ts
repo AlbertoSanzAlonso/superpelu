@@ -32,6 +32,8 @@ import { useAgendaGridTimes } from '@/hooks/agenda/useAgendaGridTimes'
 import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBlockCreate'
 import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type { Locale } from '@/i18n/types'
 import type {
   BookableService,
@@ -69,6 +71,9 @@ export function useStaffAgenda(token: string) {
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
   const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
+  const [guestCustomerPromptOpen, setGuestCustomerPromptOpen] = useState(false)
+  const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
+  const [editingGuestPhone, setEditingGuestPhone] = useState<string | null>(null)
   const createLocaleRef = useRef<Locale>('es')
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [pendingRemoveSuccess, setPendingRemoveSuccess] = useState<(() => void) | undefined>()
@@ -143,6 +148,7 @@ export function useStaffAgenda(token: string) {
 
   const resetAppointmentForm = useCallback((keepServiceIds = true) => {
     setEditingId(null)
+    setEditingGuestPhone(null)
     setError('')
     setAptDraft((d) => ({
       ...EMPTY_APPOINTMENT_DRAFT,
@@ -153,6 +159,7 @@ export function useStaffAgenda(token: string) {
   const startEditAppointment = useCallback(
     (apt: DayScheduleAppointment) => {
       setEditingId(apt.id)
+      setEditingGuestPhone(isGuestCustomerPhone(apt.customerPhone) ? apt.customerPhone : null)
 
       // Si pertenece a un grupo multi-tratamiento, cargar todos los hermanos visibles en este schedule
       let siblings: DayScheduleAppointment[] | undefined
@@ -274,6 +281,7 @@ export function useStaffAgenda(token: string) {
       forceSchedule = false,
       conflictResolutions?: SeriesConflictResolution[],
       customerLocaleOverride?: Locale,
+      guestCustomer = false,
     ): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
@@ -328,6 +336,9 @@ export function useStaffAgenda(token: string) {
             notes: aptDraft.notes || null,
             customerLocale,
             forceSchedule: true,
+            ...(guestCustomer || (editingGuestPhone && !aptDraft.customerPhone.trim())
+              ? { guestCustomer: true }
+              : {}),
           })
         } else {
           const isMultiTreatmentSeries = filteredIds.length > 1 && aptDraft.recurrenceScope === 'weekly'
@@ -341,12 +352,13 @@ export function useStaffAgenda(token: string) {
               startTime: visitStartTime,
               customerFirstName: aptDraft.customerFirstName,
               customerLastName: aptDraft.customerLastName,
-              customerPhone: aptDraft.customerPhone,
+              customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
               customerEmail: aptDraft.customerEmail || undefined,
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
               customerLocale,
               endDate: aptDraft.recurrenceEndDate || undefined,
+              ...(guestCustomer ? { guestCustomer: true } : {}),
             })
             if (preview.conflicts.length > 0) {
               setSeriesConflictPreview(preview)
@@ -364,7 +376,7 @@ export function useStaffAgenda(token: string) {
             startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
-            customerPhone: aptDraft.customerPhone,
+            customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
@@ -376,6 +388,7 @@ export function useStaffAgenda(token: string) {
                 : undefined,
             forceSchedule,
             ...(conflictResolutions ? { conflictResolutions } : {}),
+            ...(guestCustomer ? { guestCustomer: true } : {}),
           })
         }
         resetAppointmentForm()
@@ -404,13 +417,38 @@ export function useStaffAgenda(token: string) {
         return false
       }
     },
-    [aptDraft, date, editingId, load, resetAppointmentForm, token, confirmUi, schedule?.staffId],
+    [aptDraft, date, editingId, editingGuestPhone, load, resetAppointmentForm, token, confirmUi, schedule?.staffId],
   )
 
   const saveAppointment = useCallback(
     async (e: React.FormEvent): Promise<boolean> => {
       e.preventDefault()
       setError('')
+      if (!aptDraft.customerFirstName.trim()) {
+        setError('Indica el nombre del cliente')
+        return false
+      }
+      if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
+        setError('Indica un teléfono móvil')
+        return false
+      }
+      if (
+        editingId &&
+        shouldPromptGuestToCustomerConversion(editingGuestPhone, aptDraft.customerPhone)
+      ) {
+        setGuestToCustomerPromptOpen(true)
+        return false
+      }
+      if (
+        !editingId &&
+        shouldPromptGuestCustomer({
+          phone: aptDraft.customerPhone,
+          firstName: aptDraft.customerFirstName,
+        })
+      ) {
+        setGuestCustomerPromptOpen(true)
+        return false
+      }
       if (
         !editingId &&
         shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)
@@ -420,8 +458,33 @@ export function useStaffAgenda(token: string) {
       }
       return doSave()
     },
-    [doSave, editingId, aptDraft.customerPhone, aptDraft.customerLocale],
+    [
+      doSave,
+      editingId,
+      editingGuestPhone,
+      aptDraft.customerPhone,
+      aptDraft.customerLocale,
+      aptDraft.customerFirstName,
+    ],
   )
+
+  const acceptGuestCustomer = useCallback(async () => {
+    setGuestCustomerPromptOpen(false)
+    await doSave(false, undefined, undefined, true)
+  }, [doSave])
+
+  const declineGuestCustomer = useCallback(() => {
+    setGuestCustomerPromptOpen(false)
+  }, [])
+
+  const acceptGuestToCustomer = useCallback(async () => {
+    setGuestToCustomerPromptOpen(false)
+    await doSave()
+  }, [doSave])
+
+  const declineGuestToCustomer = useCallback(() => {
+    setGuestToCustomerPromptOpen(false)
+  }, [])
 
   const acceptForeignPhoneLocale = useCallback(async () => {
     setForeignPhoneLocalePromptOpen(false)
@@ -614,6 +677,13 @@ export function useStaffAgenda(token: string) {
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,
     closeForeignPhoneLocalePrompt,
+    guestCustomerPromptOpen,
+    acceptGuestCustomer,
+    declineGuestCustomer,
+    guestToCustomerPromptOpen,
+    acceptGuestToCustomer,
+    declineGuestToCustomer,
+    editingGuestPhone,
     startEditAppointment,
     selectFreeSlot,
     selectedGridTimes: gridSelection.times,

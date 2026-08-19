@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/Button'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
-import { truncateNotesPreview } from '@/lib/core/notes'
+import { formatCustomerPhoneDisplay } from '@/lib/customer/guestPhone'
 import type { DayScheduleAppointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
 
@@ -84,7 +84,7 @@ export function StaffAppointmentList({
                       })}
                     </p>
                     <p className="text-sm">
-                      {apt.serviceName} · {apt.customerName} · {apt.customerPhone}
+                      {apt.serviceName} · {apt.customerName} · {formatCustomerPhoneDisplay(apt.customerPhone)}
                     </p>
                     {notesPreview && (
                       <p className={`${typography.caption} mt-1 whitespace-pre-wrap text-charcoal-muted`}>

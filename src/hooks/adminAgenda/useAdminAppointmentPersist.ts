@@ -13,6 +13,7 @@ import type {
 } from '@/lib/api'
 import type { Locale } from '@/i18n/types'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
 
@@ -22,6 +23,7 @@ type PersistDeps = {
   activeStaffId: string | null
   aptDraft: AppointmentDraft
   editingId: string | null
+  editingGuestPhone: string | null
   editingScheduleBaseline: EditingScheduleBaseline | null
   closeAppointmentDetail: () => void
   resetAppointmentForm: () => void
@@ -40,6 +42,7 @@ export function useAdminAppointmentPersist({
   activeStaffId,
   aptDraft,
   editingId,
+  editingGuestPhone,
   editingScheduleBaseline,
   closeAppointmentDetail,
   resetAppointmentForm,
@@ -55,6 +58,8 @@ export function useAdminAppointmentPersist({
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
   const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
+  const [guestCustomerPromptOpen, setGuestCustomerPromptOpen] = useState(false)
+  const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const createLocaleRef = useRef<Locale>(aptDraft.customerLocale)
 
@@ -91,6 +96,7 @@ export function useAdminAppointmentPersist({
     async (
       notifyCustomerWhatsApp?: boolean,
       customerLocaleOverride?: Locale,
+      guestCustomer = false,
     ): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
       if (isSubmitting) return false
@@ -122,6 +128,9 @@ export function useAdminAppointmentPersist({
             customerLocale,
             notifyCustomerWhatsApp,
             forceSchedule: true,
+            ...(guestCustomer || (editingGuestPhone && !aptDraft.customerPhone.trim())
+              ? { guestCustomer: true }
+              : {}),
           })
           await resyncAppointmentSnapshots?.({ notify: true })
         } else {
@@ -139,13 +148,14 @@ export function useAdminAppointmentPersist({
                 startTime: visitStartTime,
                 customerFirstName: aptDraft.customerFirstName,
                 customerLastName: aptDraft.customerLastName,
-                customerPhone: aptDraft.customerPhone,
+                customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
                 customerEmail: aptDraft.customerEmail || undefined,
                 customerNotes: aptDraft.customerNotes || undefined,
                 notes: aptDraft.notes || undefined,
                 customerLocale,
                 scope: 'weekly',
                 endDate: aptDraft.recurrenceEndDate || undefined,
+                ...(guestCustomer ? { guestCustomer: true } : {}),
               },
               adminToken,
             )
@@ -168,7 +178,7 @@ export function useAdminAppointmentPersist({
               startTime: visitStartTime,
               customerFirstName: aptDraft.customerFirstName,
               customerLastName: aptDraft.customerLastName,
-              customerPhone: aptDraft.customerPhone,
+              customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
               customerEmail: aptDraft.customerEmail || undefined,
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
@@ -179,6 +189,7 @@ export function useAdminAppointmentPersist({
                   ? aptDraft.recurrenceEndDate
                   : undefined,
               forceSchedule: true,
+              ...(guestCustomer ? { guestCustomer: true } : {}),
             },
             adminToken,
           )
@@ -202,6 +213,7 @@ export function useAdminAppointmentPersist({
       activeStaffId,
       adminToken,
       editingId,
+      editingGuestPhone,
       isSubmitting,
       aptDraft,
       date,
@@ -227,6 +239,21 @@ export function useAdminAppointmentPersist({
     async (e: React.FormEvent): Promise<boolean> => {
       e.preventDefault()
       if (!activeStaffId || !adminToken) return false
+      if (!aptDraft.customerFirstName.trim()) {
+        setError('Indica el nombre del cliente')
+        return false
+      }
+      if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
+        setError('Indica un teléfono móvil')
+        return false
+      }
+      if (
+        editingId &&
+        shouldPromptGuestToCustomerConversion(editingGuestPhone, aptDraft.customerPhone)
+      ) {
+        setGuestToCustomerPromptOpen(true)
+        return false
+      }
       if (editingId) {
         const scheduleChanged =
           editingScheduleBaseline !== null &&
@@ -242,6 +269,15 @@ export function useAdminAppointmentPersist({
         }
         return persistAppointment()
       }
+      if (
+        shouldPromptGuestCustomer({
+          phone: aptDraft.customerPhone,
+          firstName: aptDraft.customerFirstName,
+        })
+      ) {
+        setGuestCustomerPromptOpen(true)
+        return false
+      }
       if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
         setForeignPhoneLocalePromptOpen(true)
         return false
@@ -252,17 +288,61 @@ export function useAdminAppointmentPersist({
       activeStaffId,
       adminToken,
       editingId,
+      editingGuestPhone,
       editingScheduleBaseline,
       date,
       aptDraft.date,
       aptDraft.startTime,
       aptDraft.customerPhone,
       aptDraft.customerLocale,
+      aptDraft.customerFirstName,
       persistAppointment,
       setWhatsAppNotifyDialogOpen,
       setWhatsAppNotifyContext,
+      setError,
     ],
   )
+
+  const acceptGuestCustomer = useCallback(async () => {
+    setGuestCustomerPromptOpen(false)
+    await doPersistAppointment(undefined, undefined, true)
+  }, [doPersistAppointment])
+
+  const declineGuestCustomer = useCallback(() => {
+    setGuestCustomerPromptOpen(false)
+  }, [])
+
+  const acceptGuestToCustomer = useCallback(async () => {
+    setGuestToCustomerPromptOpen(false)
+    if (
+      editingId &&
+      editingScheduleBaseline !== null &&
+      appointmentScheduleChanged(editingScheduleBaseline, {
+        staffId: activeStaffId!,
+        date: aptDraft.date || date,
+        startTime: aptDraft.startTime,
+      })
+    ) {
+      setWhatsAppNotifyContext('edit')
+      setWhatsAppNotifyDialogOpen(true)
+      return
+    }
+    await doPersistAppointment()
+  }, [
+    doPersistAppointment,
+    editingId,
+    editingScheduleBaseline,
+    activeStaffId,
+    aptDraft.date,
+    aptDraft.startTime,
+    date,
+    setWhatsAppNotifyContext,
+    setWhatsAppNotifyDialogOpen,
+  ])
+
+  const declineGuestToCustomer = useCallback(() => {
+    setGuestToCustomerPromptOpen(false)
+  }, [])
 
   const acceptForeignPhoneLocale = useCallback(async () => {
     setForeignPhoneLocalePromptOpen(false)
@@ -354,6 +434,12 @@ export function useAdminAppointmentPersist({
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,
     closeForeignPhoneLocalePrompt,
+    guestCustomerPromptOpen,
+    acceptGuestCustomer,
+    declineGuestCustomer,
+    guestToCustomerPromptOpen,
+    acceptGuestToCustomer,
+    declineGuestToCustomer,
     seriesConflictOpen,
     seriesConflictPreview,
     seriesConflictBusy,

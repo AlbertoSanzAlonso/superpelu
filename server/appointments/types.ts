@@ -46,6 +46,8 @@ export type CreateAppointmentInput = {
    * «modificada» si corresponde.
    */
   skipCustomerWhatsApp?: boolean
+  /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */
+  guestCustomer?: boolean
 }
 
 export type UpdateAppointmentInput = {
@@ -73,4 +75,6 @@ export type UpdateAppointmentInput = {
   notifyCustomerWhatsApp?: boolean
   /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */
   forceSchedule?: boolean
+  /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */
+  guestCustomer?: boolean
 }

@@ -58,6 +58,7 @@ type Props = {
   /** La hora de la visita se edita fuera (p. ej. título del modal). */
   hideVisitTime?: boolean
   isSubmitting?: boolean
+  guestWithoutProfile?: boolean
 }
 
 export function StaffAppointmentFormFields({
@@ -83,6 +84,7 @@ export function StaffAppointmentFormFields({
   compact = false,
   hideVisitTime = false,
   isSubmitting = false,
+  guestWithoutProfile = false,
 }: Props) {
   const isAdmin = Boolean(adminToken)
   const timeOptions = useMemo(() => {
@@ -673,6 +675,7 @@ export function StaffAppointmentFormFields({
           draft={draft}
           onDraftChange={onDraftChange}
           compact={compact}
+          guestWithoutProfile={guestWithoutProfile}
         />
       )}
 

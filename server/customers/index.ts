@@ -5,6 +5,8 @@ import {
 } from '@/lib/customer/name'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { normalizePhone, isValidPhone } from '@/lib/customer/phone'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import { generateGuestCustomerPhone } from '@server/customers/guest.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
 
 export type CustomerInput = {
@@ -277,7 +279,37 @@ export async function upsertCustomerForBooking(input: {
   birthdate?: string | null
   returningCustomer?: boolean
   forStaffPortal?: boolean
-}): Promise<{ phone: string; nameSnapshot: string; profile: CustomerRow }> {
+  /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */
+  guestCustomer?: boolean
+  /** Teléfono ya guardado en la cita (edición). */
+  existingPhone?: string
+}): Promise<{ phone: string; nameSnapshot: string; profile: CustomerRow | null }> {
+  const phoneInput = input.customerPhone?.trim() ?? ''
+  const existingGuest =
+    input.existingPhone != null && isGuestCustomerPhone(input.existingPhone)
+
+  if (
+    input.forStaffPortal &&
+    (input.guestCustomer || (existingGuest && !phoneInput))
+  ) {
+    let firstName = input.customerFirstName?.trim() ?? ''
+    let lastName = input.customerLastName?.trim() ?? ''
+    if (!firstName && input.customerName) {
+      const split = splitCustomerName(input.customerName)
+      firstName = split.firstName
+      lastName = split.lastName
+    }
+    if (!firstName) throw new Error('NOMBRE_INVALIDO')
+
+    const phone =
+      existingGuest && !phoneInput ? input.existingPhone! : generateGuestCustomerPhone()
+    return {
+      phone,
+      nameSnapshot: customerNameSnapshot(firstName, lastName),
+      profile: null,
+    }
+  }
+
   const phone = normalizePhone(input.customerPhone)
   if (!isValidPhone(input.customerPhone)) {
     throw new Error('TELEFONO_INVALIDO')
@@ -333,6 +365,22 @@ export async function upsertCustomerForBooking(input: {
     }
   }
 
+  if (isGuestCustomerPhone(input.customerPhone)) {
+    let firstName = input.customerFirstName?.trim() ?? ''
+    let lastName = input.customerLastName?.trim() ?? ''
+    if (!firstName && input.customerName) {
+      const split = splitCustomerName(input.customerName)
+      firstName = split.firstName
+      lastName = split.lastName
+    }
+    if (!firstName) throw new Error('NOMBRE_INVALIDO')
+    return {
+      phone: normalizePhone(input.customerPhone),
+      nameSnapshot: customerNameSnapshot(firstName, lastName),
+      profile: null,
+    }
+  }
+
   const customer = resolveCustomerFromInput({
     firstName: input.customerFirstName,
     lastName: input.customerLastName,
@@ -357,6 +405,82 @@ export async function upsertCustomerForBooking(input: {
     phone: profile.phone,
     nameSnapshot: customerNameSnapshot(profile.first_name, profile.last_name ?? ''),
     profile,
+  }
+}
+
+/** Actualiza datos de cliente en edición de cita desde agenda (admin/profesional). */
+export async function resolveStaffPortalCustomerPatch(input: {
+  customerFirstName?: string
+  customerLastName?: string
+  customerName?: string
+  customerPhone?: string
+  customerEmail?: string | null
+  customerNotes?: string | null
+  customerLocale?: Locale
+  guestCustomer?: boolean
+  existingName: string
+  existingPhone: string
+  existingEmail: string | null
+}): Promise<{ nameSnapshot: string; customerPhone: string }> {
+  const phoneInput = input.customerPhone?.trim() ?? ''
+  const existingGuest = isGuestCustomerPhone(input.existingPhone)
+  const hasCustomerPatch =
+    input.customerName !== undefined ||
+    input.customerFirstName !== undefined ||
+    input.customerLastName !== undefined ||
+    input.customerPhone !== undefined ||
+    input.customerEmail !== undefined ||
+    input.customerNotes !== undefined
+
+  if (!hasCustomerPatch) {
+    return { nameSnapshot: input.existingName, customerPhone: input.existingPhone }
+  }
+
+  if (input.guestCustomer || (existingGuest && !phoneInput)) {
+    let firstName = input.customerFirstName?.trim() ?? ''
+    let lastName = input.customerLastName?.trim() ?? ''
+    if (!firstName && input.customerName) {
+      const split = splitCustomerName(input.customerName)
+      firstName = split.firstName
+      lastName = split.lastName
+    }
+    if (!firstName && !input.customerFirstName && !input.customerLastName && !input.customerName) {
+      return { nameSnapshot: input.existingName, customerPhone: input.existingPhone }
+    }
+    if (!firstName) throw new Error('NOMBRE_INVALIDO')
+
+    const customerPhone =
+      existingGuest && !phoneInput ? input.existingPhone : generateGuestCustomerPhone()
+    return {
+      nameSnapshot: customerNameSnapshot(firstName, lastName),
+      customerPhone,
+    }
+  }
+
+  const split = resolveCustomerFromInput({
+    firstName: input.customerFirstName,
+    lastName: input.customerLastName,
+    customerName: input.customerName ?? input.existingName,
+    phone: input.customerPhone ?? input.existingPhone,
+  })
+  const profile = await getCustomer(split.phone)
+  await upsertCustomer({
+    firstName: split.firstName,
+    lastName: split.lastName,
+    phone: split.phone,
+    email:
+      input.customerEmail !== undefined ? input.customerEmail : input.existingEmail,
+    notes:
+      input.customerNotes !== undefined
+        ? input.customerNotes
+        : (profile?.notes ?? null),
+    ...(input.customerLocale !== undefined
+      ? { locale: normalizeLocale(input.customerLocale) }
+      : {}),
+  })
+  return {
+    nameSnapshot: customerNameSnapshot(split.firstName, split.lastName),
+    customerPhone: split.phone,
   }
 }
 

@@ -72,6 +72,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     appointments.noShowBusy ||
     appointments.seriesConflictOpen ||
     appointments.foreignPhoneLocalePromptOpen ||
+    appointments.guestCustomerPromptOpen ||
+    appointments.guestToCustomerPromptOpen ||
     blocks.blockModalOpen ||
     blocks.unblockModal != null ||
     blocks.blockDetailBusy ||
@@ -240,6 +242,13 @@ export function useAdminAgenda(adminToken: string, date: string) {
     foreignPhoneLocalePromptOpen: appointments.foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale: appointments.acceptForeignPhoneLocale,
     declineForeignPhoneLocale: appointments.declineForeignPhoneLocale,
+    guestCustomerPromptOpen: appointments.guestCustomerPromptOpen,
+    acceptGuestCustomer: appointments.acceptGuestCustomer,
+    declineGuestCustomer: appointments.declineGuestCustomer,
+    guestToCustomerPromptOpen: appointments.guestToCustomerPromptOpen,
+    acceptGuestToCustomer: appointments.acceptGuestToCustomer,
+    declineGuestToCustomer: appointments.declineGuestToCustomer,
+    editingGuestPhone: appointments.editingGuestPhone,
     closeForeignPhoneLocalePrompt: appointments.closeForeignPhoneLocalePrompt,
     whatsAppNotifyDialogOpen: appointments.whatsAppNotifyDialogOpen,
     whatsAppNotifyContext: appointments.whatsAppNotifyContext,

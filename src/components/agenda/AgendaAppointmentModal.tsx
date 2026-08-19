@@ -55,6 +55,7 @@ type Props = {
   onReviewRequestSent?: (sentAt: string) => void
   onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
   error?: string
+  guestWithoutProfile?: boolean
 }
 
 export function AgendaAppointmentModal({
@@ -87,6 +88,7 @@ export function AgendaAppointmentModal({
   onReviewRequestSent,
   onCustomerRegisteredChange,
   error,
+  guestWithoutProfile = false,
 }: Props) {
   const [unsavedWarningOpen, setUnsavedWarningOpen] = useState(false)
   const draftAtEditStart = useRef<string | null>(null)
@@ -615,6 +617,7 @@ export function AgendaAppointmentModal({
                     adminToken={adminToken}
                     onDraftChange={onDraftChange}
                     onCustomerRegisteredChange={onCustomerRegisteredChange}
+                    guestWithoutProfile={guestWithoutProfile}
                   />
                 </section>
               </div>

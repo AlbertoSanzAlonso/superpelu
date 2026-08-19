@@ -16,6 +16,7 @@ type Props = {
   adminToken?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
+  guestWithoutProfile?: boolean
 }
 
 export function AppointmentClientPanelEdit({
@@ -24,6 +25,7 @@ export function AppointmentClientPanelEdit({
   showCustomerHistory,
   adminToken,
   onDraftChange,
+  guestWithoutProfile = false,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const phone = draft.customerPhone
@@ -37,6 +39,7 @@ export function AppointmentClientPanelEdit({
         onDraftChange={onDraftChange}
         compact
         phoneLabel="Móvil"
+        guestWithoutProfile={guestWithoutProfile}
       />
       <Textarea
         label="Observaciones de la cita"

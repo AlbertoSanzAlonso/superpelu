@@ -14,6 +14,7 @@ import {
   fetchCustomerDetail,
   fetchStaffServicesForAdmin,
 } from '@/lib/api'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type {
   BookableService,
   DayScheduleAppointment,
@@ -71,6 +72,7 @@ export function useAdminAgendaAppointments({
   const [detailReviewRequestSentAt, setDetailReviewRequestSentAt] = useState<string | null>(null)
   const [editingScheduleBaseline, setEditingScheduleBaseline] =
     useState<EditingScheduleBaseline | null>(null)
+  const [editingGuestPhone, setEditingGuestPhone] = useState<string | null>(null)
 
   const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
   const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
@@ -239,6 +241,7 @@ export function useAdminAgendaAppointments({
 
   const resetAppointmentForm = useCallback(() => {
     setEditingId(null)
+    setEditingGuestPhone(null)
     setError('')
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
   }, [setError])
@@ -252,6 +255,7 @@ export function useAdminAgendaAppointments({
       setActiveStaffId(staffId)
       setSelection(null)
       setEditingId(null)
+      setEditingGuestPhone(null)
       setAptDraft({
         ...EMPTY_APPOINTMENT_DRAFT,
         startTime: time ?? '',
@@ -305,8 +309,9 @@ export function useAdminAgendaAppointments({
 
       setAptDraft(appointmentToDraft(apt, undefined, siblings, date))
       setDetailCustomerRegistered(false)
+      setEditingGuestPhone(isGuestCustomerPhone(apt.customerPhone) ? apt.customerPhone : null)
 
-      if (!adminToken || !apt.customerPhone) return
+      if (!adminToken || !apt.customerPhone || isGuestCustomerPhone(apt.customerPhone)) return
       fetchCustomerDetail(adminToken, apt.customerPhone)
         .then((detail) => {
           setDetailCustomerRegistered(true)
@@ -385,6 +390,7 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     aptDraft,
     editingId,
+    editingGuestPhone,
     editingScheduleBaseline,
     closeAppointmentDetail,
     resetAppointmentForm,
@@ -567,6 +573,7 @@ export function useAdminAgendaAppointments({
     setViewingAppointment(null)
     setDetailEditMode(false)
     setDetailCustomerRegistered(false)
+    setEditingGuestPhone(null)
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
     setWhatsAppNotifyDialogOpen(false)
     setPendingCancelId(null)
@@ -589,6 +596,7 @@ export function useAdminAgendaAppointments({
     aptDraft,
     setAptDraft,
     editingId,
+    editingGuestPhone,
     appointmentFormOpen,
     setAppointmentFormOpen,
     resetAppointmentForm,
@@ -615,6 +623,13 @@ export function useAdminAgendaAppointments({
     acceptForeignPhoneLocale: persist.acceptForeignPhoneLocale,
     declineForeignPhoneLocale: persist.declineForeignPhoneLocale,
     closeForeignPhoneLocalePrompt: persist.closeForeignPhoneLocalePrompt,
+    guestCustomerPromptOpen: persist.guestCustomerPromptOpen,
+    acceptGuestCustomer: persist.acceptGuestCustomer,
+    declineGuestCustomer: persist.declineGuestCustomer,
+    guestToCustomerPromptOpen: persist.guestToCustomerPromptOpen,
+    acceptGuestToCustomer: persist.acceptGuestToCustomer,
+    declineGuestToCustomer: persist.declineGuestToCustomer,
+    editingGuestPhone,
     whatsAppNotifyDialogOpen,
     setWhatsAppNotifyDialogOpen,
     whatsAppNotifyBusy,
