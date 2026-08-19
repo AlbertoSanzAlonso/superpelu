@@ -93,8 +93,8 @@ function TimeGutterColumn({
   return (
     <div
       className={[
-        'relative isolate flex shrink-0 flex-col bg-cream/40 backdrop-blur-[2px]',
-        stickyLeft ? 'sticky left-0 z-40' : 'z-30',
+        'relative flex shrink-0 flex-col bg-cream',
+        stickyLeft ? 'sticky left-0 z-20' : '',
       ].join(' ')}
     >
       <div
@@ -117,7 +117,7 @@ function TimeGutter({
 }) {
   return (
     <div
-      className={`relative shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px] ${
+      className={`relative shrink-0 border-r border-gold/20 bg-cream ${
         compact ? 'w-[4rem] min-w-[4rem]' : 'w-[4.5rem] min-w-[4.5rem]'
       }`}
       style={{ height: range.totalHeightPx }}
@@ -128,9 +128,9 @@ function TimeGutter({
           <div
             key={time}
             className={[
-              `${typography.caption} flex items-start overflow-hidden whitespace-nowrap pt-0.5 tabular-nums backdrop-blur-[1px]`,
+              `${typography.caption} flex items-start overflow-hidden whitespace-nowrap bg-cream pt-0.5 tabular-nums`,
               compact ? 'justify-center px-2' : 'justify-end px-2',
-              closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10 bg-cream/25',
+              closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10',
             ].join(' ')}
             style={{ height: range.slotHeightPx }}
           >
@@ -443,14 +443,14 @@ function StaffColumn({
       data-staff-column-id={schedule.staffId}
       data-staff-column-working={columnWindows.length > 0 ? 'true' : 'false'}
       className={[
-        'min-w-[11rem] flex-1 overflow-hidden border-l border-gold/20 transition-colors duration-150',
+        'relative w-full min-w-[11rem] overflow-hidden border-l border-gold/20 transition-colors duration-150',
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
       <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
 
       <div
-        className="relative w-full min-w-0 select-none overflow-x-clip overflow-y-hidden"
+        className="relative w-full min-w-0 contain-paint select-none overflow-hidden"
         style={{ height: range.totalHeightPx }}
       >
         <ColumnGrid range={range} windows={columnWindows} />
@@ -651,30 +651,32 @@ export function AdminSalonDayCalendar({
 
           <div className="flex min-w-0 flex-1">
             {schedules.map((schedule, index) => (
-              <div key={schedule.staffId} className="flex min-w-0 flex-1">
+              <div key={schedule.staffId} className="flex min-w-0 flex-1 overflow-hidden">
                 {index > 0 && (
                   <TimeGutterColumn range={range} windows={gutterWindows} compact />
                 )}
-                <StaffColumn
-                  schedule={schedule}
-                  date={date}
-                  range={range}
-                  nowLineTop={nowLineTop}
-                  selection={selection}
-                  formSlotTime={formSlotTime}
-                  formStaffId={formStaffId}
-                  pendingMoveSummary={pendingMoveSummary}
-                  gridInteractionsLocked={gridInteractionsLocked}
-                  dragEnabled={dragEnabled}
-                  columnRef={(el) => setColumnRef(schedule.staffId, el)}
-                  columnTopFromClientY={columnTopFromClientY}
-                  onToggleSlot={onToggleSlot}
-                  onPaintSlots={onPaintSlots}
-                  onEditAppointment={onEditAppointment}
-                  onOpenBlock={onOpenBlock}
-                  onResizeBlock={onResizeBlock}
-                  onSelectStaff={onSelectStaff}
-                />
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <StaffColumn
+                    schedule={schedule}
+                    date={date}
+                    range={range}
+                    nowLineTop={nowLineTop}
+                    selection={selection}
+                    formSlotTime={formSlotTime}
+                    formStaffId={formStaffId}
+                    pendingMoveSummary={pendingMoveSummary}
+                    gridInteractionsLocked={gridInteractionsLocked}
+                    dragEnabled={dragEnabled}
+                    columnRef={(el) => setColumnRef(schedule.staffId, el)}
+                    columnTopFromClientY={columnTopFromClientY}
+                    onToggleSlot={onToggleSlot}
+                    onPaintSlots={onPaintSlots}
+                    onEditAppointment={onEditAppointment}
+                    onOpenBlock={onOpenBlock}
+                    onResizeBlock={onResizeBlock}
+                    onSelectStaff={onSelectStaff}
+                  />
+                </div>
               </div>
             ))}
           </div>
