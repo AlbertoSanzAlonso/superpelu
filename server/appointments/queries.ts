@@ -67,8 +67,9 @@ export async function listAppointmentsDueForReminder(): Promise<AppointmentRow[]
 }
 
 export async function markReminderSent(id: string): Promise<void> {
-  // Marca también las demás citas del mismo grupo de reserva para evitar
-  // que el scheduler envíe recordatorios adicionales por los otros servicios.
+  // Marca también las demás citas del mismo grupo de reserva (booking_group_id)
+  // y del mismo grupo de coloración (color_group_id) para evitar recordatorios
+  // adicionales por los otros servicios o por la fase de lavado.
   await sql`
     UPDATE appointments
     SET reminder_sent_at = now()
@@ -76,6 +77,10 @@ export async function markReminderSent(id: string): Promise<void> {
        OR (
             booking_group_id IS NOT NULL
             AND booking_group_id = (SELECT booking_group_id FROM appointments WHERE id = ${id})
+          )
+       OR (
+            color_group_id IS NOT NULL
+            AND color_group_id = (SELECT color_group_id FROM appointments WHERE id = ${id})
           )
   `
 }

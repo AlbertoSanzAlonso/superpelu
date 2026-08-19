@@ -41,9 +41,13 @@ export function buildAppointmentRescheduledMessage(row: AppointmentRow): string 
   })
 }
 
-export function buildAppointmentReminderMessage(row: AppointmentRow): string {
+export async function buildAppointmentReminderMessage(row: AppointmentRow): Promise<string> {
+  const groupRows = row.booking_group_id
+    ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
+    : undefined
   return buildWhatsAppAppointmentMessage(row, 'reminder', {
     manageUrl: buildManageUrl(row),
+    groupRows,
   })
 }
 
@@ -125,7 +129,7 @@ export async function sendAppointmentReminder(row: AppointmentRow): Promise<bool
   if (!config) return false
   if (row.status === 'cancelled' || row.status === 'no_show') return false
 
-  const text = buildAppointmentReminderMessage(row)
+  const text = await buildAppointmentReminderMessage(row)
   const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: recordatorio enviado a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
