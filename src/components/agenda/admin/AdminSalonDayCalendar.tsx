@@ -79,6 +79,33 @@ function StaffInitial({ name }: { name: string }) {
   )
 }
 
+function TimeGutterColumn({
+  range,
+  windows,
+  compact = false,
+  stickyLeft = false,
+}: {
+  range: CalendarDayRange
+  windows: WorkTimeWindow[]
+  compact?: boolean
+  stickyLeft?: boolean
+}) {
+  return (
+    <div
+      className={[
+        'relative isolate flex shrink-0 flex-col bg-cream/40 backdrop-blur-[2px]',
+        stickyLeft ? 'sticky left-0 z-40' : 'z-30',
+      ].join(' ')}
+    >
+      <div
+        className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
+        aria-hidden
+      />
+      <TimeGutter range={range} windows={windows} compact={compact} />
+    </div>
+  )
+}
+
 function TimeGutter({
   range,
   windows,
@@ -90,7 +117,7 @@ function TimeGutter({
 }) {
   return (
     <div
-      className={`relative z-10 shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px] ${
+      className={`relative shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px] ${
         compact ? 'w-[4rem] min-w-[4rem]' : 'w-[4.5rem] min-w-[4.5rem]'
       }`}
       style={{ height: range.totalHeightPx }}
@@ -416,13 +443,16 @@ function StaffColumn({
       data-staff-column-id={schedule.staffId}
       data-staff-column-working={columnWindows.length > 0 ? 'true' : 'false'}
       className={[
-        'min-w-[11rem] flex-1 border-l border-gold/20 transition-colors duration-150',
+        'min-w-[11rem] flex-1 overflow-hidden border-l border-gold/20 transition-colors duration-150',
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
       <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
 
-      <div className="relative select-none overflow-hidden" style={{ height: range.totalHeightPx }}>
+      <div
+        className="relative w-full min-w-0 select-none overflow-x-clip overflow-y-hidden"
+        style={{ height: range.totalHeightPx }}
+      >
         <ColumnGrid range={range} windows={columnWindows} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
         <SlotLayer
@@ -617,25 +647,13 @@ export function AdminSalonDayCalendar({
         title="Ctrl + rueda para zoom"
       >
         <div className="flex w-max min-w-full">
-          <div className="sticky left-0 z-40 isolate shrink-0 bg-cream/40 backdrop-blur-[2px]">
-            <div
-              className={`sticky top-0 z-50 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
-              aria-hidden
-            />
-            <TimeGutter range={range} windows={gutterWindows} />
-          </div>
+          <TimeGutterColumn range={range} windows={gutterWindows} stickyLeft />
 
           <div className="flex min-w-0 flex-1">
             {schedules.map((schedule, index) => (
               <div key={schedule.staffId} className="flex min-w-0 flex-1">
                 {index > 0 && (
-                  <div className="flex shrink-0 flex-col">
-                    <div
-                      className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
-                      aria-hidden
-                    />
-                    <TimeGutter range={range} windows={gutterWindows} compact />
-                  </div>
+                  <TimeGutterColumn range={range} windows={gutterWindows} compact />
                 )}
                 <StaffColumn
                   schedule={schedule}
