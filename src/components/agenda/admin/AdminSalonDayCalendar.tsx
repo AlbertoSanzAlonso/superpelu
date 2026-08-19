@@ -102,7 +102,7 @@ function TimeGutter({
             key={time}
             className={[
               `${typography.caption} flex items-start overflow-hidden whitespace-nowrap pt-0.5 tabular-nums backdrop-blur-[1px]`,
-              compact ? 'justify-center px-1.5 text-[10px]' : 'justify-end px-2',
+              compact ? 'justify-center px-1.5' : 'justify-end px-2',
               closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10 bg-cream/25',
             ].join(' ')}
             style={{ height: range.slotHeightPx }}
