@@ -241,6 +241,7 @@ export function AdminAgendaWorkspace({
           serviceAlternativeStaff={agenda.serviceAlternativeStaff}
           staffList={agenda.adminStaff.map((s) => ({ id: s.id, name: s.name }))}
           staffWithCategories={agenda.adminStaff}
+          showAllCategories
           defaultStaffId={agenda.activeStaffId ?? undefined}
           onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
           onSubmit={agenda.saveAppointment}

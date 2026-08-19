@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   categoryIdForService,
   categoryLabelFor,
+  getAllServiceCategories,
   getOrderedCategoriesForServices,
   servicePickerLabels,
   servicesInCategory,
@@ -24,6 +25,8 @@ type Props = {
   loading?: boolean
   className?: string
   compact?: boolean
+  /** Muestra las 12 especialidades del catálogo aunque no haya tratamientos cargados en esa categoría. */
+  showAllCategories?: boolean
 }
 
 export function ServiceCategoryPicker({
@@ -35,10 +38,14 @@ export function ServiceCategoryPicker({
   loading = false,
   className = '',
   compact = false,
+  showAllCategories = false,
 }: Props) {
   const labels = servicePickerLabels[variant]
 
-  const categories = useMemo(() => getOrderedCategoriesForServices(services), [services])
+  const categories = useMemo(
+    () => (showAllCategories ? getAllServiceCategories() : getOrderedCategoriesForServices(services)),
+    [services, showAllCategories],
+  )
 
   const categoryFromService = categoryIdForService(services, serviceId)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
@@ -87,8 +94,6 @@ export function ServiceCategoryPicker({
             disabled={isDisabled || categories.length === 0}
           >
             {loading ? (
-              <option value="">{labels.loading}</option>
-            ) : categories.length === 0 ? (
               <option value="">{labels.loading}</option>
             ) : (
               <>

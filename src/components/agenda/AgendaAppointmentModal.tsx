@@ -545,6 +545,7 @@ export function AgendaAppointmentModal({
                         services={services}
                         serviceId={serviceId}
                         loading={services.length === 0}
+                        showAllCategories={Boolean(staffWithCategories?.length)}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
                       {serviceId && (() => {
@@ -555,6 +556,9 @@ export function AgendaAppointmentModal({
                           draft.staffAssignments[index] || staffId,
                           staffOptions,
                         )
+                        const showStaff = staffWithCategories?.length
+                          ? eligibleStaff.length > 0
+                          : eligibleStaff.length > 1
                         return (
                         <div className="space-y-2">
                           {index > 0 && (
@@ -574,7 +578,7 @@ export function AgendaAppointmentModal({
                               />
                             </div>
                           )}
-                          {eligibleStaff.length > 1 && (
+                          {showStaff && (
                             <div className="min-w-0">
                               <label className={`${typography.label} mb-0.5 block text-[10px]`}>
                                 Especialista
