@@ -17,6 +17,7 @@ import {
   type StaffWithCategories,
 } from '@/lib/catalog/staffForService'
 import { buildEditableServiceTimeOptions, ALL_DAY_SLOTS } from '@/lib/agenda/serviceTimeOptions'
+import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
