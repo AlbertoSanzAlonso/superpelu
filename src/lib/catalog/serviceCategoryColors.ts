@@ -21,26 +21,32 @@ type Palette = {
 }
 
 const palettes: Record<AgendaColorKey, Palette> = {
+  // Azul rey — cortes
   blue: {
-    event: 'bg-[#3498DB]/20 border-[#3498DB]/50 border-l-4 border-l-[#3498DB] text-charcoal',
-    swatch: 'bg-[#3498DB]/85 border-[#3498DB]',
+    event: 'bg-[#1A6FBF]/20 border-[#1A6FBF]/50 border-l-4 border-l-[#1A6FBF] text-charcoal',
+    swatch: 'bg-[#1A6FBF]/85 border-[#1A6FBF]',
   },
+  // Rojo vivo — color / decoloración
   red: {
-    event: 'bg-[#C0392B]/18 border-[#C0392B]/45 border-l-4 border-l-[#C0392B] text-charcoal',
-    swatch: 'bg-[#C0392B]/85 border-[#C0392B]',
+    event: 'bg-[#E8232A]/18 border-[#E8232A]/45 border-l-4 border-l-[#E8232A] text-charcoal',
+    swatch: 'bg-[#E8232A]/85 border-[#E8232A]',
   },
+  // Verde esmeralda — peinado / manos-pies / lavado
   teal: {
-    event: 'bg-[#1ABC9C]/18 border-[#1ABC9C]/45 border-l-4 border-l-[#1ABC9C] text-charcoal',
-    swatch: 'bg-[#1ABC9C]/85 border-[#1ABC9C]',
+    event: 'bg-[#00A86B]/18 border-[#00A86B]/45 border-l-4 border-l-[#00A86B] text-charcoal',
+    swatch: 'bg-[#00A86B]/85 border-[#00A86B]',
   },
+  // Violeta oscuro — mechas / keratina / mirada
   purple: {
-    event: 'bg-[#9B59B6]/20 border-[#9B59B6]/50 border-l-4 border-l-[#9B59B6] text-charcoal',
-    swatch: 'bg-[#9B59B6]/85 border-[#9B59B6]',
+    event: 'bg-[#6B21A8]/20 border-[#6B21A8]/50 border-l-4 border-l-[#6B21A8] text-charcoal',
+    swatch: 'bg-[#6B21A8]/85 border-[#6B21A8]',
   },
+  // Naranja — tratamientos / depilación
   brown: {
     event: 'bg-[#D35400]/16 border-[#D35400]/45 border-l-4 border-l-[#D35400] text-charcoal',
     swatch: 'bg-[#D35400]/85 border-[#D35400]',
   },
+  // Granate — variante oscura (heredada)
   maroon: {
     event: 'bg-[#922B21]/18 border-[#922B21]/45 border-l-4 border-l-[#922B21] text-charcoal',
     swatch: 'bg-[#922B21]/85 border-[#922B21]',

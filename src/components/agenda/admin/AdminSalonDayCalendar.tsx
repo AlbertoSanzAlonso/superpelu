@@ -422,7 +422,7 @@ function StaffColumn({
     >
       <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
 
-      <div className="relative select-none" style={{ height: range.totalHeightPx }}>
+      <div className="relative select-none overflow-hidden" style={{ height: range.totalHeightPx }}>
         <ColumnGrid range={range} windows={columnWindows} />
         <AppointmentDragSnapSlot staffId={schedule.staffId} activeDrag={activeDrag} />
         <SlotLayer
