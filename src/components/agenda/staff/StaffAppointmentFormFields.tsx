@@ -676,6 +676,7 @@ export function StaffAppointmentFormFields({
           onDraftChange={onDraftChange}
           compact={compact}
           guestWithoutProfile={guestWithoutProfile}
+          allowOptionalPhone
         />
       )}
 

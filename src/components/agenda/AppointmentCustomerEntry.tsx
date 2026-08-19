@@ -120,6 +120,7 @@ export function AppointmentCustomerEntry({
         draft={draft}
         onDraftChange={onDraftChange}
         compact={compact}
+        allowOptionalPhone
       />
     </div>
   )
