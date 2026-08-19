@@ -25,8 +25,10 @@ type Props = {
   loading?: boolean
   className?: string
   compact?: boolean
-  /** Muestra las 12 especialidades del catálogo aunque no haya tratamientos cargados en esa categoría. */
+  /** Muestra todas las especialidades del catálogo aunque no haya tratamientos cargados en esa categoría. */
   showAllCategories?: boolean
+  /** Especialidades desde API admin (prioritario frente al catálogo estático). */
+  categoryOptions?: { id: string; label: string }[]
 }
 
 export function ServiceCategoryPicker({
@@ -39,13 +41,25 @@ export function ServiceCategoryPicker({
   className = '',
   compact = false,
   showAllCategories = false,
+  categoryOptions,
 }: Props) {
   const labels = servicePickerLabels[variant]
 
-  const categories = useMemo(
-    () => (showAllCategories ? getAllServiceCategories() : getOrderedCategoriesForServices(services)),
-    [services, showAllCategories],
-  )
+  const categories = useMemo(() => {
+    if (categoryOptions && categoryOptions.length > 0) {
+      return categoryOptions.map((option) => ({ id: option.id, label: option.label }))
+    }
+    if (showAllCategories) {
+      return getAllServiceCategories().map((cat) => ({
+        id: cat.id,
+        label: categoryLabelFor(cat.id),
+      }))
+    }
+    return getOrderedCategoriesForServices(services).map((cat) => ({
+      id: cat.id,
+      label: categoryLabelFor(cat.id),
+    }))
+  }, [services, showAllCategories, categoryOptions])
 
   const categoryFromService = categoryIdForService(services, serviceId)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
@@ -64,7 +78,11 @@ export function ServiceCategoryPicker({
     [services, selectedCategoryId],
   )
 
-  const isDisabled = disabled || loading || services.length === 0
+  const categoryDisabled =
+    disabled || (!showAllCategories && (loading || services.length === 0))
+  const servicesLoading = loading && services.length === 0
+  const serviceDisabled =
+    disabled || servicesLoading || !selectedCategoryId || categoryServices.length === 0
 
   function handleCategoryChange(categoryId: string) {
     setPickedCategoryId(categoryId)
@@ -91,16 +109,16 @@ export function ServiceCategoryPicker({
             value={selectedCategoryId}
             onChange={(e) => handleCategoryChange(e.target.value)}
             className={selectCn}
-            disabled={isDisabled || categories.length === 0}
+            disabled={categoryDisabled || categories.length === 0}
           >
-            {loading ? (
+            {categories.length === 0 ? (
               <option value="">{labels.loading}</option>
             ) : (
               <>
                 <option value="">{labels.categoryPlaceholder}</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>
-                    {categoryLabelFor(cat.id)}
+                    {cat.label}
                   </option>
                 ))}
               </>
@@ -114,9 +132,11 @@ export function ServiceCategoryPicker({
             value={serviceId}
             onChange={(e) => onServiceChange(e.target.value)}
             className={selectCn}
-            disabled={isDisabled || categoryServices.length === 0}
+            disabled={serviceDisabled}
           >
-            {categoryServices.length === 0 ? (
+            {servicesLoading ? (
+              <option value="">{labels.loading}</option>
+            ) : categoryServices.length === 0 ? (
               <option value="">{labels.emptyCategory}</option>
             ) : (
               <>

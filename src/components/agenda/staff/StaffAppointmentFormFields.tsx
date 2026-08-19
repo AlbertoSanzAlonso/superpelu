@@ -51,6 +51,8 @@ type Props = {
   staffWithCategories?: StaffWithCategories[]
   /** Catálogo admin: muestra todas las especialidades al añadir tratamientos. */
   showAllCategories?: boolean
+  categoryOptions?: { id: string; label: string }[]
+  catalogLoading?: boolean
   /** Profesional activo en agenda al abrir el formulario. */
   defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
@@ -81,6 +83,8 @@ export function StaffAppointmentFormFields({
   staffList,
   staffWithCategories,
   showAllCategories = false,
+  categoryOptions,
+  catalogLoading = false,
   defaultStaffId,
   onDraftChange,
   onSubmit,
@@ -484,8 +488,9 @@ export function StaffAppointmentFormFields({
                   variant="staff"
                   services={services}
                   serviceId={serviceId}
-                  loading={services.length === 0}
+                  loading={catalogLoading}
                   showAllCategories={showAllCategories}
+                  categoryOptions={categoryOptions}
                   onServiceChange={(id) => {
                     setServiceAtIndex(index, id)
                     if (id) setExpandedServiceIndex(index)

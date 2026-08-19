@@ -23,6 +23,8 @@ type Props = {
   staffList?: { id: string; name: string }[]
   staffWithCategories?: StaffWithCategories[]
   showAllCategories?: boolean
+  categoryOptions?: { id: string; label: string }[]
+  catalogLoading?: boolean
   /** Profesional por defecto al crear cita (p. ej. columna o selector de agenda). */
   defaultStaffId?: string
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
@@ -54,6 +56,8 @@ export function StaffAppointmentFormModal({
   staffList,
   staffWithCategories,
   showAllCategories,
+  categoryOptions,
+  catalogLoading,
   defaultStaffId,
   onDraftChange,
   onSubmit,
@@ -236,6 +240,8 @@ export function StaffAppointmentFormModal({
             staffList={staffList}
             staffWithCategories={staffWithCategories}
             showAllCategories={showAllCategories}
+            categoryOptions={categoryOptions}
+            catalogLoading={catalogLoading}
             defaultStaffId={defaultStaffId}
             onDraftChange={onDraftChange}
             onSubmit={onSubmit}

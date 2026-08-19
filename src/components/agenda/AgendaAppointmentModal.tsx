@@ -41,6 +41,8 @@ type Props = {
   customerRegistered: boolean
   draft: AppointmentDraft
   services: BookableService[]
+  catalogLoading?: boolean
+  categoryOptions?: { id: string; label: string }[]
   slots: string[]
   slotsOverHours?: string[]
   /** Slots libres por tratamiento (índice = posición en serviceIds). */
@@ -78,6 +80,8 @@ export function AgendaAppointmentModal({
   customerRegistered,
   draft,
   services,
+  catalogLoading = false,
+  categoryOptions,
   slots: _slots,
   slotsOverHours: _slotsOverHours = [],
   serviceSlots: _serviceSlots,
@@ -544,8 +548,9 @@ export function AgendaAppointmentModal({
                         variant="staff"
                         services={services}
                         serviceId={serviceId}
-                        loading={services.length === 0}
+                        loading={catalogLoading}
                         showAllCategories={Boolean(staffWithCategories?.length)}
+                        categoryOptions={categoryOptions}
                         onServiceChange={(id) => setServiceAtIndex(index, id)}
                       />
                       {serviceId && (() => {

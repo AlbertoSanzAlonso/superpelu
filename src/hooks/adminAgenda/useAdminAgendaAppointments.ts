@@ -14,6 +14,10 @@ import {
   fetchCustomerDetail,
   fetchAdminServices,
 } from '@/lib/api'
+import {
+  fetchAdminServiceCategories,
+  type AdminServiceCategory,
+} from '@/lib/api/admin-catalog'
 import { fetchAdminStaff, type AdminStaffMember } from '@/lib/api/admin'
 import { mapAdminServiceToBookable } from '@/lib/catalog/adminServices'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
@@ -54,6 +58,8 @@ export function useAdminAgendaAppointments({
 }: AppointmentsDeps) {
   const [activeStaffId, setActiveStaffId] = useState<string | null>(null)
   const [catalogServices, setCatalogServices] = useState<BookableService[]>([])
+  const [adminCategories, setAdminCategories] = useState<AdminServiceCategory[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
   const [adminStaff, setAdminStaff] = useState<AdminStaffMember[]>([])
   const [slots, setSlots] = useState<string[]>([])
   const [slotsOverHours, setSlotsOverHours] = useState<string[]>([])
@@ -97,20 +103,42 @@ export function useAdminAgendaAppointments({
   useEffect(() => {
     if (!adminToken) {
       setCatalogServices([])
+      setAdminCategories([])
       setAdminStaff([])
+      setCatalogLoading(false)
       return
     }
-    fetchAdminServices(adminToken)
-      .then((r) => {
+    setCatalogLoading(true)
+    Promise.all([
+      fetchAdminServices(adminToken),
+      fetchAdminServiceCategories(adminToken),
+      fetchAdminStaff(adminToken),
+    ])
+      .then(([servicesRes, categoriesRes, staffRes]) => {
         setCatalogServices(
-          r.services.filter((service) => service.active).map(mapAdminServiceToBookable),
+          servicesRes.services
+            .filter((service) => service.active)
+            .map(mapAdminServiceToBookable),
         )
+        setAdminCategories(categoriesRes.categories.filter((category) => category.active))
+        setAdminStaff(staffRes.staff.filter((member) => member.active))
       })
-      .catch(() => setCatalogServices([]))
-    fetchAdminStaff(adminToken)
-      .then((r) => setAdminStaff(r.staff.filter((member) => member.active)))
-      .catch(() => setAdminStaff([]))
+      .catch(() => {
+        setCatalogServices([])
+        setAdminCategories([])
+        setAdminStaff([])
+      })
+      .finally(() => setCatalogLoading(false))
   }, [adminToken])
+
+  const categoryOptionsForPicker = useMemo(
+    () =>
+      adminCategories.map((category) => ({
+        id: category.id,
+        label: category.nameEs,
+      })),
+    [adminCategories],
+  )
 
   /** Catálogo completo (admin): permite combinar peluquería + estética con distintas profesionales. */
   const servicesForPicker = useMemo(() => {
@@ -598,6 +626,8 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     scheduleForActiveStaff,
     services: servicesForPicker,
+    catalogLoading,
+    categoryOptionsForPicker,
     adminStaff,
     slots,
     slotsOverHours,

@@ -199,6 +199,8 @@ export function AdminAgendaWorkspace({
           customerRegistered={agenda.detailCustomerRegistered}
           draft={agenda.aptDraft}
           services={agenda.services}
+          catalogLoading={agenda.catalogLoading}
+          categoryOptions={agenda.categoryOptionsForPicker}
           slots={agenda.slots}
           slotsOverHours={agenda.slotsOverHours}
           serviceSlots={agenda.serviceSlotsPerIndex}
@@ -235,6 +237,8 @@ export function AdminAgendaWorkspace({
           editingId={null}
           draft={agenda.aptDraft}
           services={agenda.services}
+          catalogLoading={agenda.catalogLoading}
+          categoryOptions={agenda.categoryOptionsForPicker}
           slots={agenda.slots}
           slotsOverHours={agenda.slotsOverHours}
           serviceSlots={agenda.serviceSlotsPerIndex}
