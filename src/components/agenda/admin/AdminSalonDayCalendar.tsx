@@ -91,7 +91,7 @@ function TimeGutter({
   return (
     <div
       className={`relative z-10 shrink-0 border-r border-gold/20 bg-cream/40 backdrop-blur-[2px] ${
-        compact ? 'w-[3.25rem] min-w-[3.25rem]' : 'w-[4.5rem] min-w-[4.5rem]'
+        compact ? 'w-[4rem] min-w-[4rem]' : 'w-[4.5rem] min-w-[4.5rem]'
       }`}
       style={{ height: range.totalHeightPx }}
     >
