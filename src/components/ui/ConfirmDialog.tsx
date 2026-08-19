@@ -6,6 +6,10 @@ export type ConfirmDialogState = {
   message?: string
   confirmLabel?: string
   cancelLabel?: string
+  /** Etiqueta de una tercera acción secundaria opcional (ej. "Seguir editando"). */
+  secondaryLabel?: string
+  /** Callback de la acción secundaria. Si no se pasa, `onClose` actúa de backdrop. */
+  onSecondary?: () => void
   destructive?: boolean
   onConfirm: () => void | Promise<void>
 }
@@ -22,6 +26,8 @@ export function ConfirmDialog({
   message,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Volver',
+  secondaryLabel,
+  onSecondary,
   destructive = false,
   busy = false,
   onClose,
@@ -45,7 +51,7 @@ export function ConfirmDialog({
           {title}
         </h2>
         {message && <p className={`${typography.body} mb-5 text-sm`}>{message}</p>}
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
             {cancelLabel}
           </Button>
@@ -59,6 +65,18 @@ export function ConfirmDialog({
           >
             {busy ? 'Procesando…' : confirmLabel}
           </Button>
+          {secondaryLabel && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={onSecondary}
+              className="flex-1"
+            >
+              {secondaryLabel}
+            </Button>
+          )}
         </div>
       </div>
     </div>

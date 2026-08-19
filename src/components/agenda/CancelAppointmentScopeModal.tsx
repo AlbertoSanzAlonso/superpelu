@@ -81,7 +81,7 @@ export function CancelAppointmentScopeModal({
             type="button"
             disabled={busy}
             onClick={() => onConfirm('single')}
-            className="w-full border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:opacity-50"
+            className="w-full cursor-pointer border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span className="font-medium">Solo este tratamiento</span>
             <span className={`${typography.caption} mt-0.5 block capitalize`}>
@@ -95,7 +95,7 @@ export function CancelAppointmentScopeModal({
               type="button"
               disabled={busy}
               onClick={() => onConfirm('group')}
-              className="w-full border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:opacity-50"
+              className="w-full cursor-pointer border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="font-medium">
                 Toda la visita ({bookingGroupCount} tratamientos)
@@ -115,7 +115,7 @@ export function CancelAppointmentScopeModal({
               type="button"
               disabled={busy}
               onClick={() => onConfirm('series')}
-              className="w-full border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:opacity-50"
+              className="w-full cursor-pointer border border-gold/25 p-3 text-left text-sm transition-colors hover:border-gold hover:bg-gold/5 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="font-medium">{verb} toda la serie</span>
               <span className={`${typography.caption} mt-0.5 block`}>

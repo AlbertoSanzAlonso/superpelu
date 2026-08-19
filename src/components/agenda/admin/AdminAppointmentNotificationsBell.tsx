@@ -96,7 +96,7 @@ export function AdminAppointmentNotificationsBell({
     <div ref={rootRef} className="relative">
       {panelVisible && (
         <div
-          className={`fixed inset-0 z-40 bg-charcoal/0 ${backdropAnimClass}`}
+          className={`fixed inset-0 z-40 cursor-pointer bg-charcoal/0 ${backdropAnimClass}`}
           onClick={onClose}
           aria-hidden
         />

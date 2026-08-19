@@ -662,7 +662,9 @@ export function AgendaAppointmentModal({
         message="Tienes cambios sin guardar en esta cita."
         confirmLabel="Guardar cambios"
         cancelLabel="Salir sin guardar"
+        secondaryLabel="Seguir editando"
         onClose={() => { setUnsavedWarningOpen(false); onClose() }}
+        onSecondary={() => setUnsavedWarningOpen(false)}
         onConfirm={() => {
           setUnsavedWarningOpen(false)
           const form = document.querySelector<HTMLFormElement>('#agenda-apt-modal-form')
