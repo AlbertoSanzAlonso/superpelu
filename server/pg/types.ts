@@ -39,6 +39,8 @@ export type AppointmentRow = {
   /** Serie periódica (agenda): mismo tratamiento repetido. */
   series_id: string | null
   scope: string | null
+  /** Origen de la cita: 'backoffice' (agenda) o 'booking_page' (reserva web). */
+  origin: string | null
 }
 
 export type StaffRow = {

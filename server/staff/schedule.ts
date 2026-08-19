@@ -78,6 +78,7 @@ export type DayScheduleAppointment = {
   bookingGroupId: string | null
   seriesId: string | null
   scope: string | null
+  origin: string | null
   colorGroupLinked: {
     id: string
     startTime: string
@@ -172,6 +173,7 @@ export async function getStaffDaySchedule(
       bookingGroupId: row.booking_group_id,
       seriesId: row.series_id,
       scope: row.scope,
+      origin: row.origin ?? null,
       colorGroupLinked: null,
     }
   })

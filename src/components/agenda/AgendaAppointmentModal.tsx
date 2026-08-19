@@ -378,7 +378,8 @@ export function AgendaAppointmentModal({
             </h2>
             {createdLabel && (
               <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
-                Creada {createdLabel} · Backoffice
+                Creada {createdLabel} ·{' '}
+                {appointment.origin === 'booking_page' ? 'Reserva cliente' : 'Backoffice'}
               </p>
             )}
           </div>

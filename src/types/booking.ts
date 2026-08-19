@@ -96,6 +96,8 @@ export type DayScheduleAppointment = {
   /** Serie periódica (agenda). */
   seriesId?: string | null
   scope?: string | null
+  /** Origen de la cita: 'backoffice' (agenda) o 'booking_page' (reserva web cliente). */
+  origin?: string | null
 }
 
 export type DayScheduleBlock = {

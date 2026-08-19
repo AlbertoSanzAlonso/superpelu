@@ -165,6 +165,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
             : false
         }
         isNoShow={editingAppointment?.status === APPOINTMENT_STATUS_NO_SHOW}
+        appointmentOrigin={editingAppointment?.origin}
       />
 
       <NoShowContactDialog

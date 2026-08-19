@@ -30,6 +30,8 @@ type Props = {
   canMarkNoShow?: boolean
   isNoShow?: boolean
   adminToken?: string
+  /** Origen de la cita al editar: 'backoffice' o 'booking_page'. */
+  appointmentOrigin?: string | null
   error?: string
 }
 
@@ -54,6 +56,7 @@ export function StaffAppointmentFormModal({
   canMarkNoShow,
   isNoShow,
   adminToken,
+  appointmentOrigin,
   error,
 }: Props) {
   const [timeOpen, setTimeOpen] = useState(false)
@@ -175,6 +178,11 @@ export function StaffAppointmentFormModal({
               </div>
             </h2>
             {staffName && <p className={`${typography.caption} mt-0.5`}>{staffName}</p>}
+            {editingId && appointmentOrigin != null && (
+              <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
+                {appointmentOrigin === 'booking_page' ? 'Reserva cliente' : 'Backoffice'}
+              </p>
+            )}
           </div>
           <button
             type="button"
