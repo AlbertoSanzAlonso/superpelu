@@ -12,6 +12,8 @@ export type AppointmentDraft = {
   /** Profesional asignado por tratamiento (misma longitud que serviceIds). Si vacío en posición i, usa el profesional activo. */
   staffAssignments: string[]
   startTime: string
+  /** Fecha de la cita (YYYY-MM-DD). Al editar, permite cambiarla a un día distinto al de la agenda. */
+  date: string
   customerFirstName: string
   customerLastName: string
   customerPhone: string
@@ -32,6 +34,7 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   serviceDurations: [],
   staffAssignments: [],
   startTime: '',
+  date: '',
   customerFirstName: '',
   customerLastName: '',
   customerPhone: '',
@@ -52,6 +55,8 @@ export function appointmentToDraft(
   },
   /** Hermanos del mismo booking_group_id ordenados por startTime (incluye apt). */
   siblings?: DayScheduleAppointment[],
+  /** Fecha de la cita (YYYY-MM-DD). Se usa para permitir cambiarla al editar. */
+  appointmentDate?: string,
 ): AppointmentDraft {
   const { firstName, lastName } = splitCustomerName(apt.customerName)
   const base = {
@@ -64,6 +69,7 @@ export function appointmentToDraft(
     customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
     recurrenceScope: 'single' as AppointmentRecurrenceScope,
     recurrenceEndDate: '',
+    date: appointmentDate ?? '',
   }
 
   if (siblings && siblings.length > 1) {

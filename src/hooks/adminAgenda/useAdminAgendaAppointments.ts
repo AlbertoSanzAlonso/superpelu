@@ -125,7 +125,8 @@ export function useAdminAgendaAppointments({
 
   useEffect(() => {
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
-    if (!activeStaffId || filteredIds.length === 0 || !date || !adminToken) {
+    const effectiveDate = (editingId && aptDraft.date) ? aptDraft.date : date
+    if (!activeStaffId || filteredIds.length === 0 || !effectiveDate || !adminToken) {
       setSlots([])
       setSlotsOverHours([])
       return
@@ -134,7 +135,7 @@ export function useAdminAgendaAppointments({
     const requestId = ++availabilityRequestId.current
 
     fetchAdminMultiSlots(
-      date,
+      effectiveDate,
       filteredIds,
       activeStaffId,
       adminToken,
@@ -155,6 +156,7 @@ export function useAdminAgendaAppointments({
     activeStaffId,
     aptDraft.serviceIds.join(','),
     aptDraft.serviceDurations.join(','),
+    aptDraft.date,
     date,
     adminToken,
     editingId,
@@ -163,7 +165,8 @@ export function useAdminAgendaAppointments({
   // Slots disponibles por servicio individual (para tratamientos adicionales)
   useEffect(() => {
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
-    if (!activeStaffId || filteredIds.length <= 1 || !date || !adminToken) {
+    const effectiveDate = (editingId && aptDraft.date) ? aptDraft.date : date
+    if (!activeStaffId || filteredIds.length <= 1 || !effectiveDate || !adminToken) {
       setServiceSlotsPerIndex([])
       return
     }
@@ -173,7 +176,7 @@ export function useAdminAgendaAppointments({
         const staffForService = aptDraft.staffAssignments[i] || activeStaffId
         const durationForService = [aptDraft.serviceDurations[i] ?? null]
         return fetchAdminMultiSlots(
-          date,
+          effectiveDate,
           [id],
           staffForService,
           adminToken,
@@ -189,6 +192,7 @@ export function useAdminAgendaAppointments({
     aptDraft.serviceIds.join(','),
     aptDraft.staffAssignments.join(','),
     aptDraft.serviceDurations.join(','),
+    aptDraft.date,
     date,
     adminToken,
     editingId,
@@ -197,7 +201,8 @@ export function useAdminAgendaAppointments({
   // Profesionales alternativos cuando un tratamiento adicional tiene hora ocupada
   useEffect(() => {
     const filteredIds = aptDraft.serviceIds.filter((s) => s !== '')
-    if (!activeStaffId || filteredIds.length <= 1 || !date || !adminToken || serviceSlotsPerIndex.length === 0) {
+    const effectiveDate = (editingId && aptDraft.date) ? aptDraft.date : date
+    if (!activeStaffId || filteredIds.length <= 1 || !effectiveDate || !adminToken || serviceSlotsPerIndex.length === 0) {
       setServiceAlternativeStaff([])
       return
     }
@@ -209,7 +214,7 @@ export function useAdminAgendaAppointments({
         const freeForThis = serviceSlotsPerIndex[i] ?? []
         if (freeForThis.includes(selectedTime)) return null
         const assignedStaffId = aptDraft.staffAssignments[i] || activeStaffId
-        return fetchStaffAtSlotAdmin(date, id, selectedTime, adminToken)
+        return fetchStaffAtSlotAdmin(effectiveDate, id, selectedTime, adminToken)
           .then((r) => r.staff.filter((s) => s.id !== assignedStaffId)[0] ?? null)
           .catch(() => null)
       }),
@@ -219,6 +224,7 @@ export function useAdminAgendaAppointments({
     aptDraft.serviceIds.join(','),
     aptDraft.serviceStartTimes.join(','),
     aptDraft.staffAssignments.join(','),
+    aptDraft.date,
     date,
     adminToken,
     serviceSlotsPerIndex,
@@ -290,7 +296,7 @@ export function useAdminAgendaAppointments({
         }
       }
 
-      setAptDraft(appointmentToDraft(apt, undefined, siblings))
+      setAptDraft(appointmentToDraft(apt, undefined, siblings, date))
       setDetailCustomerRegistered(false)
 
       if (!adminToken || !apt.customerPhone) return
@@ -303,6 +309,7 @@ export function useAdminAgendaAppointments({
               apt,
               { email: detail.customer.email, notes: detail.customer.notes, locale: detail.customer.locale },
               siblings,
+              date,
             ),
             notes: prev.notes,
             serviceIds: prev.serviceIds,
@@ -310,6 +317,7 @@ export function useAdminAgendaAppointments({
             serviceDurations: prev.serviceDurations,
             staffAssignments: prev.staffAssignments,
             startTime: prev.startTime,
+            date: prev.date,
           }))
         })
         .catch(() => {

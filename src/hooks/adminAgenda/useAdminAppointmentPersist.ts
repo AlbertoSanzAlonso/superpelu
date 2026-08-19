@@ -103,6 +103,7 @@ export function useAdminAppointmentPersist({
         const { staffAssignments, serviceDurations, serviceStartTimes, visitStartTime } =
           buildAlignedServiceFields(filteredServiceIds)
         if (editingId) {
+          const editDate = aptDraft.date || date
           await updateAdminAppointment(editingId, adminToken, {
             staffId: activeStaffId,
             staffAssignments,
@@ -110,7 +111,7 @@ export function useAdminAppointmentPersist({
             serviceStartTimes,
             serviceDurations,
             serviceId: filteredServiceIds[0] || '',
-            date,
+            date: editDate,
             startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
@@ -231,7 +232,7 @@ export function useAdminAppointmentPersist({
           editingScheduleBaseline !== null &&
           appointmentScheduleChanged(editingScheduleBaseline, {
             staffId: activeStaffId,
-            date,
+            date: aptDraft.date || date,
             startTime: aptDraft.startTime,
           })
         if (scheduleChanged) {
@@ -253,6 +254,7 @@ export function useAdminAppointmentPersist({
       editingId,
       editingScheduleBaseline,
       date,
+      aptDraft.date,
       aptDraft.startTime,
       aptDraft.customerPhone,
       aptDraft.customerLocale,

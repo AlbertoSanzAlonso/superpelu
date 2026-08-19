@@ -324,9 +324,10 @@ export async function getAvailableSlotsForServices(
   const staff = await getStaff(staffId)
   if (!staff || !staff.active) return []
 
-  for (const service of services) {
-    if (!(await staffCanPerformService(staffId, service.id))) return []
-  }
+  // En un combo multi-profesional los slots se calculan para el primer tratamiento
+  // (el que ocupa la hora de inicio de la visita). Solo ese corresponde a este staff;
+  // los demás se asignan después en el chain. Verificamos solo el primero.
+  if (!(await staffCanPerformService(staffId, services[0].id))) return []
 
   const windows = await getStaffDayWindows(staffId, date)
   if (windows.length === 0) return []
@@ -391,9 +392,7 @@ export async function getOverHoursSlotsForServices(
 
   const staff = await getStaff(staffId)
   if (!staff || !staff.active) return []
-  for (const service of services) {
-    if (!(await staffCanPerformService(staffId, service.id))) return []
-  }
+  if (!(await staffCanPerformService(staffId, services[0].id))) return []
 
   const windows = await getStaffDayWindows(staffId, date)
   if (windows.length === 0) return []

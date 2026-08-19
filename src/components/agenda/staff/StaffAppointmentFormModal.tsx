@@ -137,6 +137,15 @@ export function StaffAppointmentFormModal({
               className={`${typography.h3} flex flex-wrap items-center gap-x-2 gap-y-1 text-gold`}
             >
               <span>{title}</span>
+              {editingId && (
+                <input
+                  type="date"
+                  value={draft.date || date}
+                  onChange={(e) => onDraftChange({ date: e.target.value })}
+                  className="border border-gold/40 bg-cream px-2 py-0.5 text-base font-normal tabular-nums text-charcoal-muted transition-colors hover:border-gold hover:bg-gold/5 hover:text-charcoal focus:border-gold focus:outline-none cursor-pointer"
+                  title="Cambiar fecha de la cita"
+                />
+              )}
               <div ref={timeWrapRef} className="relative inline-flex items-center">
                 <button
                   type="button"
