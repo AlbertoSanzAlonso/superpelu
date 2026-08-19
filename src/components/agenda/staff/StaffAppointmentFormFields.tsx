@@ -57,6 +57,7 @@ type Props = {
   compact?: boolean
   /** La hora de la visita se edita fuera (p. ej. título del modal). */
   hideVisitTime?: boolean
+  isSubmitting?: boolean
 }
 
 export function StaffAppointmentFormFields({
@@ -81,6 +82,7 @@ export function StaffAppointmentFormFields({
   adminToken,
   compact = false,
   hideVisitTime = false,
+  isSubmitting = false,
 }: Props) {
   const isAdmin = Boolean(adminToken)
   const timeOptions = useMemo(() => {
@@ -195,8 +197,9 @@ export function StaffAppointmentFormFields({
   const addService = useCallback(() => {
     const next = [...serviceIds.filter((s) => s !== ''), '']
     const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
-    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations, serviceStartTimes: newTimes })
-  }, [serviceIds, draft.serviceDurations, draft.serviceStartTimes, onDraftChange, normalizeStartTimes])
+    const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments)
+    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
+  }, [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, onDraftChange, normalizeStartTimes, normalizeStaffAssignments])
 
   const removeService = useCallback(
     (index: number) => {
@@ -233,19 +236,17 @@ export function StaffAppointmentFormFields({
       }
       const newIds = [...serviceIds.filter((s) => s !== '')]
       const newDurations = normalizeDurations(serviceIds, draft.serviceDurations).filter(filledFilter)
-      const newTimes = normalizeStartTimes(serviceIds, draft.serviceStartTimes).filter(filledFilter)
       const newAssignments = normalizeStaffAssignments(serviceIds, draft.staffAssignments).filter(filledFilter)
       const [movedId] = newIds.splice(fromIndex, 1)
       const [movedDuration] = newDurations.splice(fromIndex, 1)
-      const [movedTime] = newTimes.splice(fromIndex, 1)
       const [movedAssignment] = newAssignments.splice(fromIndex, 1)
       newIds.splice(toIndex, 0, movedId)
       newDurations.splice(toIndex, 0, movedDuration)
-      newTimes.splice(toIndex, 0, movedTime)
       newAssignments.splice(toIndex, 0, movedAssignment)
-      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
+      // Limpiar horas manuales al reordenar: el encadenado recalcula automáticamente.
+      onDraftChange({ serviceIds: newIds, serviceDurations: newDurations, serviceStartTimes: [], staffAssignments: newAssignments })
     },
-    [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, onDraftChange, normalizeStartTimes, normalizeStaffAssignments],
+    [serviceIds, draft.serviceDurations, draft.staffAssignments, onDraftChange, normalizeStaffAssignments],
   )
 
   const chainedStartTimes = useMemo(() => {
@@ -700,7 +701,7 @@ export function StaffAppointmentFormFields({
       )}
 
       <div className="flex flex-wrap gap-2 pt-0.5">
-        <Button type="submit" variant="solid" size="sm" disabled={services.length === 0 || isNoShow}>
+        <Button type="submit" variant="solid" size="sm" disabled={services.length === 0 || isNoShow || isSubmitting}>
           {editingId ? 'Guardar cambios' : 'Confirmar cita'}
         </Button>
         {editingId && canMarkNoShow && onMarkNoShow && (

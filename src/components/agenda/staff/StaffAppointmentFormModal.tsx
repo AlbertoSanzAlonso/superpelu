@@ -33,6 +33,7 @@ type Props = {
   /** Origen de la cita al editar: 'backoffice' o 'booking_page'. */
   appointmentOrigin?: string | null
   error?: string
+  isSubmitting?: boolean
 }
 
 export function StaffAppointmentFormModal({
@@ -58,6 +59,7 @@ export function StaffAppointmentFormModal({
   adminToken,
   appointmentOrigin,
   error,
+  isSubmitting,
 }: Props) {
   const [timeOpen, setTimeOpen] = useState(false)
   const timeWrapRef = useRef<HTMLDivElement>(null)
@@ -226,6 +228,7 @@ export function StaffAppointmentFormModal({
             isNoShow={isNoShow}
             hint={hint}
             adminToken={adminToken}
+            isSubmitting={isSubmitting}
           />
         </div>
       </div>

@@ -55,6 +55,7 @@ export function useAdminAppointmentPersist({
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
   const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const createLocaleRef = useRef<Locale>(aptDraft.customerLocale)
 
   function buildAlignedServiceFields(filteredServiceIds: string[]) {
@@ -92,6 +93,8 @@ export function useAdminAppointmentPersist({
       customerLocaleOverride?: Locale,
     ): Promise<boolean> => {
       if (!activeStaffId || !adminToken) return false
+      if (isSubmitting) return false
+      setIsSubmitting(true)
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
       createLocaleRef.current = customerLocale
       setError('')
@@ -190,12 +193,15 @@ export function useAdminAppointmentPersist({
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
         return false
+      } finally {
+        setIsSubmitting(false)
       }
     },
     [
       activeStaffId,
       adminToken,
       editingId,
+      isSubmitting,
       aptDraft,
       date,
       resetAppointmentForm,
@@ -341,6 +347,7 @@ export function useAdminAppointmentPersist({
   return {
     persistAppointment,
     saveAppointment,
+    isSubmitting,
     foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,

@@ -236,6 +236,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     changeDetailStaff: appointments.changeDetailStaff,
     syncDetailActiveStaff: appointments.syncDetailActiveStaff,
     saveAppointment: appointments.saveAppointment,
+    isSubmitting: appointments.isSubmitting,
     foreignPhoneLocalePromptOpen: appointments.foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale: appointments.acceptForeignPhoneLocale,
     declineForeignPhoneLocale: appointments.declineForeignPhoneLocale,

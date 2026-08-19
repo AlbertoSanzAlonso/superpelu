@@ -595,6 +595,7 @@ export function useAdminAgendaAppointments({
     createAppointmentFromSelection,
     persistAppointment: persist.persistAppointment,
     saveAppointment: persist.saveAppointment,
+    isSubmitting: persist.isSubmitting,
     foreignPhoneLocalePromptOpen: persist.foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale: persist.acceptForeignPhoneLocale,
     declineForeignPhoneLocale: persist.declineForeignPhoneLocale,

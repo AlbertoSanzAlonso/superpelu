@@ -200,6 +200,7 @@ export function AdminAgendaWorkspace({
           slotsOverHours={agenda.slotsOverHours}
           serviceSlots={agenda.serviceSlotsPerIndex}
           serviceAlternativeStaff={agenda.serviceAlternativeStaff}
+          saving={agenda.isSubmitting}
           onModeChange={(m) =>
             m === 'edit' ? agenda.startDetailEdit() : agenda.setDetailEditMode(false)
           }
@@ -240,6 +241,7 @@ export function AdminAgendaWorkspace({
           onSubmit={agenda.saveAppointment}
           onClose={closeAppointmentForm}
           adminToken={adminToken}
+          isSubmitting={agenda.isSubmitting}
         />
       )}
 
