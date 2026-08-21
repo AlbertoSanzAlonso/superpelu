@@ -1856,6 +1856,10 @@ app.post('/c/:code', async (c) => {
   const remaining = activeRows.filter((row) => row.id !== cancelId)
 
   if (multiVisit) {
+    // Aviso al confirmar el cambio (no hace falta pulsar «Finalizar» para el WhatsApp).
+    void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
+      console.error('Superpelu WhatsApp: resumen tras cancelar tratamiento:', err)
+    })
     const updated = cp(locale).updated
     return replyCustomerPage(
       c,
@@ -2191,6 +2195,9 @@ app.post('/m/:code', async (c) => {
        </div>`
 
     if (multiVisit) {
+      void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
+        console.error('Superpelu WhatsApp: resumen tras modificar tratamiento:', err)
+      })
       const refreshed = await resolveCustomerBookingContext(code, token, queryLang)
       const activeCount =
         refreshed.ok ? refreshed.ctx.activeRows.length : activeRows.length
@@ -2235,7 +2242,7 @@ app.post('/m/:code', async (c) => {
   }
 })
 
-/** Envía el WhatsApp resumen tras guardar cambios en una visita multi-tratamiento. */
+/** Cierra el flujo de cambios; el WhatsApp ya se envió al cancelar/modificar cada tratamiento. */
 app.post('/m/:code/finish', async (c) => {
   const queryLang = c.req.query('lang')
   const code = c.req.param('code')
@@ -2254,12 +2261,6 @@ app.post('/m/:code/finish', async (c) => {
       `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`,
     )
   }
-
-  // No esperar a OpenWA: en el navegador de WhatsApp un POST largo parece «no hacer nada»
-  // y el cliente pulsa varias veces. La página de éxito se muestra al instante.
-  void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
-    console.error('Superpelu WhatsApp: resumen de visita (cliente):', err)
-  })
 
   const langQ = locale === 'en' ? '&lang=en' : ''
   return c.redirect(

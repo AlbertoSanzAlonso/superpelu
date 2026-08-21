@@ -175,6 +175,23 @@ const es = {
     footerNavAria: 'Enlaces del pie',
     socialAria: 'Redes sociales',
   },
+  cookieConsent: {
+    eyebrow: 'Tu privacidad',
+    title: 'Cookies',
+    body: 'Usamos cookies técnicas necesarias para el funcionamiento del sitio y, si lo aceptas, contenidos de terceros como el mapa de Google en la página del salón.',
+    points: [
+      'Las cookies técnicas permiten recordar tu idioma y el acceso a la agenda.',
+      'Google Maps solo se carga si aceptas cookies de terceros.',
+      'Puedes cambiar de opinión borrando los datos del sitio en tu navegador.',
+    ],
+    policyLink: 'Leer la política de cookies',
+    accept: 'Aceptar',
+    necessaryOnly: 'Solo necesarias',
+    mapsBlockedTitle: 'Mapa no disponible',
+    mapsBlockedBody:
+      'Para ver el mapa incrustado de Google necesitamos tu consentimiento para cookies de terceros.',
+    mapsBlockedCta: 'Aceptar y mostrar el mapa',
+  },
   marketingServices: {
     color: {
       title: 'Coloración profesional',
@@ -493,14 +510,14 @@ const es = {
     visitChanges: {
       continuePrompt: '¿Quieres modificar o cancelar otro tratamiento de tu visita?',
       continueButton: 'Sí, seguir gestionando',
-      finishButton: 'Finalizar y enviar confirmación',
-      finishSubmitting: 'Enviando…',
-      finishHint: 'Te enviaremos un WhatsApp con el resumen actualizado de tu visita.',
-      finishOnlyPrompt: 'Pulsa finalizar para recibir la confirmación por WhatsApp.',
+      finishButton: 'Listo, he terminado',
+      finishSubmitting: 'Cerrando…',
+      finishHint: 'Ya te hemos enviado un WhatsApp con el resumen actualizado.',
+      finishOnlyPrompt: 'Los cambios ya están guardados. Pulsa listo para cerrar.',
       finishTitle: 'Cambios guardados',
       finishHeading: '✅ Visita actualizada',
-      finishBody: 'Te hemos enviado un WhatsApp con el resumen de tu visita.',
-      finishAllCancelledBody: 'Te hemos enviado un WhatsApp confirmando la cancelación.',
+      finishBody: 'Tu visita ha quedado actualizada. Revisa el WhatsApp con el resumen.',
+      finishAllCancelledBody: 'Tu visita ha quedado cancelada. Revisa el WhatsApp de confirmación.',
       finishFooter: 'Si quieres, puedes reservar otra cuando quieras. ¡Gracias!',
     },
     changeFailed: {
@@ -770,6 +787,23 @@ const en = {
     cookiePolicy: 'Cookie policy',
     footerNavAria: 'Footer links',
     socialAria: 'Social media',
+  },
+  cookieConsent: {
+    eyebrow: 'Your privacy',
+    title: 'Cookies',
+    body: 'We use essential technical cookies for the site to work and, if you accept, third-party content such as the Google map on the salon page.',
+    points: [
+      'Technical cookies help remember your language and schedule access.',
+      'Google Maps only loads if you accept third-party cookies.',
+      'You can change your mind by clearing this site’s data in your browser.',
+    ],
+    policyLink: 'Read the cookie policy',
+    accept: 'Accept',
+    necessaryOnly: 'Essential only',
+    mapsBlockedTitle: 'Map unavailable',
+    mapsBlockedBody:
+      'To show the embedded Google map we need your consent for third-party cookies.',
+    mapsBlockedCta: 'Accept and show the map',
   },
   marketingServices: {
     color: {
@@ -1089,14 +1123,14 @@ const en = {
     visitChanges: {
       continuePrompt: 'Would you like to change or cancel another treatment in your visit?',
       continueButton: 'Yes, keep managing',
-      finishButton: 'Finish and send confirmation',
-      finishSubmitting: 'Sending…',
-      finishHint: 'We will send you a WhatsApp with your updated visit summary.',
-      finishOnlyPrompt: 'Tap finish to receive confirmation by WhatsApp.',
+      finishButton: 'Done',
+      finishSubmitting: 'Closing…',
+      finishHint: 'We have already sent you a WhatsApp with the updated summary.',
+      finishOnlyPrompt: 'Your changes are saved. Tap done to close.',
       finishTitle: 'Changes saved',
       finishHeading: '✅ Visit updated',
-      finishBody: 'We have sent you a WhatsApp with your visit summary.',
-      finishAllCancelledBody: 'We have sent you a WhatsApp confirming the cancellation.',
+      finishBody: 'Your visit has been updated. Check WhatsApp for the summary.',
+      finishAllCancelledBody: 'Your visit has been cancelled. Check WhatsApp for confirmation.',
       finishFooter: 'If you like, you can book again whenever you want. Thank you!',
     },
     changeFailed: {

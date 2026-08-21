@@ -1,8 +1,8 @@
 import { BRAND_MARK_SRC } from '@/components/ui/Logo'
 
 type Props = {
-  /** `section`: home servicios. `page`: reserva (contenedor). `viewport`: agenda login y workspace (misma posición en pantalla). */
-  variant?: 'section' | 'page' | 'viewport'
+  /** `section`: home servicios. `page`: reserva. `viewport`: agenda. `banner`: aviso de cookies. */
+  variant?: 'section' | 'page' | 'viewport' | 'banner'
   className?: string
 }
 
@@ -13,6 +13,8 @@ const variantClass: Record<NonNullable<Props['variant']>, string> = {
     'absolute left-1/2 top-1/2 w-[min(98vw,52rem)] -translate-x-1/2 -translate-y-1/2 md:top-[58%]',
   viewport:
     'fixed left-1/2 top-1/2 z-0 w-[min(98vw,52rem)] -translate-x-1/2 -translate-y-1/2 md:top-[58%]',
+  banner:
+    'absolute left-1/2 top-1/2 w-[min(55vw,11rem)] -translate-x-1/2 -translate-y-1/2 sm:w-[min(40vw,13rem)]',
 }
 
 export function BrandWatermark({ variant = 'section', className = '' }: Props) {

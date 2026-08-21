@@ -421,6 +421,27 @@ export function diffAppointmentSnapshots(
 ): AdminAppointmentNotificationItem[] {
   const items: AdminAppointmentNotificationItem[] = []
   const seenIds = new Set<string>()
+  const currentById = snapshotsFromAppointments(appointments)
+
+  // Tratamientos activos que quedan por visita (booking_group_id).
+  const activeRemainingByGroup = new Map<string, number>()
+  for (const snap of currentById.values()) {
+    if (!snap.bookingGroupId || !isActiveAppointmentStatus(snap.status)) continue
+    activeRemainingByGroup.set(
+      snap.bookingGroupId,
+      (activeRemainingByGroup.get(snap.bookingGroupId) ?? 0) + 1,
+    )
+  }
+
+  function kindAfterPartialGroupCancel(
+    kind: AdminAppointmentNotificationKind,
+    bookingGroupId: string | null | undefined,
+  ): AdminAppointmentNotificationKind {
+    if (kind !== 'cancelled' || !bookingGroupId) return kind
+    // Si la visita sigue con otros tratamientos, es una actualización, no anulación.
+    if ((activeRemainingByGroup.get(bookingGroupId) ?? 0) > 0) return 'modified'
+    return kind
+  }
 
   for (const apt of appointments) {
     const current = buildAppointmentSnapshot(apt)
@@ -429,14 +450,60 @@ export function diffAppointmentSnapshots(
 
     const previous = previousById.get(current.id)
     const isNew = previous === undefined
-    const kind = detectAppointmentNotificationKind(previous, current, isNew)
-    if (kind) items.push(snapshotToNotificationItem(current, kind))
+    const rawKind = detectAppointmentNotificationKind(previous, current, isNew)
+    if (!rawKind) continue
+    const kind = kindAfterPartialGroupCancel(rawKind, current.bookingGroupId)
+
+    // Si solo se anuló un tratamiento de la visita, el aviso apunta a lo que sigue activo.
+    if (
+      kind === 'modified' &&
+      rawKind === 'cancelled' &&
+      current.bookingGroupId
+    ) {
+      const remainingSnap = [...currentById.values()].find(
+        (snap) =>
+          snap.bookingGroupId === current.bookingGroupId &&
+          isActiveAppointmentStatus(snap.status),
+      )
+      if (remainingSnap) {
+        const item = snapshotToNotificationItem(remainingSnap, 'modified')
+        const remaining =
+          activeRemainingByGroup.get(current.bookingGroupId) ?? 1
+        if (remaining > 1) {
+          item.treatmentCount = remaining
+          item.serviceName = `${remaining} tratamientos`
+        }
+        items.push(item)
+        continue
+      }
+    }
+
+    items.push(snapshotToNotificationItem(current, kind))
   }
 
   for (const [id, previous] of previousById) {
     if (seenIds.has(id)) continue
     if (!isActiveAppointmentStatus(previous.status)) continue
-    items.push(snapshotToNotificationItem(previous, 'cancelled'))
+    const kind = kindAfterPartialGroupCancel('cancelled', previous.bookingGroupId)
+    if (kind === 'modified' && previous.bookingGroupId) {
+      const remainingSnap = [...currentById.values()].find(
+        (snap) =>
+          snap.bookingGroupId === previous.bookingGroupId &&
+          isActiveAppointmentStatus(snap.status),
+      )
+      if (remainingSnap) {
+        const item = snapshotToNotificationItem(remainingSnap, 'modified')
+        const remaining =
+          activeRemainingByGroup.get(previous.bookingGroupId) ?? 1
+        if (remaining > 1) {
+          item.treatmentCount = remaining
+          item.serviceName = `${remaining} tratamientos`
+        }
+        items.push(item)
+        continue
+      }
+    }
+    items.push(snapshotToNotificationItem(previous, kind))
   }
 
   return collapseVisitItems(collapseSeriesItems(items))

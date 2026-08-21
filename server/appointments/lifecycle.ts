@@ -6,6 +6,7 @@ import {
   notifyAppointmentCancelled,
   notifyAppointmentNoShow,
   notifyAppointmentRescheduled,
+  notifyCustomerBookingVisitFinished,
 } from "@server/notifications/whatsapp.js"
 import {
   notifyAdminAppointmentCancelled,
@@ -269,10 +270,26 @@ async function cancelSingleOccurrence(
   const row = await getAppointmentById(existing.id)
   if (row && !wasCancelled) {
     if (options?.notifyAdmin === true) {
-      void notifyAdminAppointmentCancelled(row)
+      if (existing.booking_group_id) {
+        const siblings = await getAppointmentsByBookingGroup(existing.booking_group_id)
+        const remaining = siblings.filter(
+          (r) => r.status === 'confirmed' && !isColorGroupWashRow(r.color_group_role),
+        )
+        if (remaining.length > 0) {
+          void notifyAdminAppointmentUpdated(existing, remaining[0]!)
+        } else {
+          void notifyAdminAppointmentCancelled(row)
+        }
+      } else {
+        void notifyAdminAppointmentCancelled(row)
+      }
     }
     if (options?.notifyCustomer) {
-      void notifyAppointmentCancelled(existing).catch((err) => {
+      // Visita multi: resumen actualizado si quedan tratamientos; si no, cancelación.
+      const notify = existing.booking_group_id
+        ? notifyCustomerBookingVisitFinished(existing.id)
+        : notifyAppointmentCancelled(existing)
+      void notify.catch((err) => {
         console.error('Superpelu WhatsApp (cita cancelada):', err)
       })
     }

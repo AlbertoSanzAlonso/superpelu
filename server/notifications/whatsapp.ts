@@ -173,12 +173,13 @@ export async function notifyAppointmentCancelled(
   )
 }
 
-/** Evita reenvíos si el cliente pulsa «Finalizar» varias veces mientras OpenWA responde. */
+/** Evita reenvíos si el cliente pulsa dos veces seguidas mientras OpenWA responde. */
 const visitFinishInFlight = new Set<string>()
 const visitFinishSentAt = new Map<string, number>()
-const VISIT_FINISH_DEDUP_MS = 5 * 60_000
+/** Solo anti doble-clic; no bloquear un segundo resumen tras otro cambio real. */
+const VISIT_FINISH_DEDUP_MS = 8_000
 
-/** Resumen de visita multi-tratamiento tras guardar cambios (cliente). */
+/** Resumen de visita multi-tratamiento tras guardar cambios (cliente o agenda). */
 export async function notifyCustomerBookingVisitFinished(linkId: string): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return

@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { CookieConsentBanner } from '@/components/layout/CookieConsentBanner'
 import { ScrollToTop } from '@/components/layout/ScrollToTop'
 import { HomePage } from '@/pages/HomePage'
 import { SalonPage } from '@/pages/SalonPage'
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/clientes/:phone" element={<CustomerHistoryPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <CookieConsentBanner />
     </BrowserRouter>
   )
 }

@@ -1,12 +1,28 @@
+import { useEffect, useState } from 'react'
 import { brand } from '@/data/content'
 import { useTranslation } from '@/i18n/useTranslation'
 import { whatsappUrl } from '@/i18n/helpers'
+import {
+  hasAcceptedThirdPartyCookies,
+  writeCookieConsent,
+  type CookieConsentRecord,
+} from '@/lib/cookieConsent'
 import { Section } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export function Studio() {
   const { t, locale } = useTranslation()
+  const [mapsAllowed, setMapsAllowed] = useState(() => hasAcceptedThirdPartyCookies())
+
+  useEffect(() => {
+    const onConsent = (event: Event) => {
+      const detail = (event as CustomEvent<CookieConsentRecord>).detail
+      setMapsAllowed(detail?.choice === 'accepted')
+    }
+    window.addEventListener('superpelu:cookie-consent', onConsent)
+    return () => window.removeEventListener('superpelu:cookie-consent', onConsent)
+  }, [])
 
   return (
     <>
@@ -70,14 +86,34 @@ export function Studio() {
         dark
       >
         <div className="ui-rounded relative aspect-[4/3] w-full overflow-hidden ring-1 ring-gold/20 md:aspect-[16/9]">
-          <iframe
-            src={brand.mapsEmbed}
-            title={t.studioSection.mapsIframeTitle}
-            className="absolute inset-0 h-full w-full border-0"
-            loading="lazy"
-            allowFullScreen
-            referrerPolicy="no-referrer-when-downgrade"
-          />
+          {mapsAllowed ? (
+            <iframe
+              src={brand.mapsEmbed}
+              title={t.studioSection.mapsIframeTitle}
+              className="absolute inset-0 h-full w-full border-0"
+              loading="lazy"
+              allowFullScreen
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-charcoal/90 px-6 text-center">
+              <p className={`${typography.label} text-gold-light`}>{t.cookieConsent.mapsBlockedTitle}</p>
+              <p className={`${typography.body} max-w-md text-sm text-cream/80`}>
+                {t.cookieConsent.mapsBlockedBody}
+              </p>
+              <Button
+                type="button"
+                variant="solid"
+                size="sm"
+                onClick={() => {
+                  writeCookieConsent('accepted')
+                  setMapsAllowed(true)
+                }}
+              >
+                {t.cookieConsent.mapsBlockedCta}
+              </Button>
+            </div>
+          )}
         </div>
         <p className="mt-6 text-center">
           <a
