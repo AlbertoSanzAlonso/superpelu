@@ -6,6 +6,7 @@ import {
   diffAppointmentSnapshots,
   loadAdminAppointmentNotifyInbox,
   loadAdminAppointmentNotifyLastSeenAt,
+  mergeAdminAppointmentNotifyInbox,
   pruneAdminAppointmentNotifyInbox,
   saveAdminAppointmentNotifyInbox,
   saveAdminAppointmentNotifyLastSeenAt,
@@ -35,6 +36,8 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   const initializedRef = useRef(false)
   const seriesTrackingRef = useRef<Map<string, SeriesTracking>>(new Map())
   const endedSeriesNotifiedRef = useRef<Set<string>>(new Set())
+  const hadAdminTokenRef = useRef(Boolean(adminToken))
+  const allowEmptyInboxPersistRef = useRef(false)
 
   const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>(() =>
     loadAdminAppointmentNotifyInbox(),
@@ -52,6 +55,16 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   }, [])
 
   useEffect(() => {
+    // Evita pisar localStorage con [] en el primer paint o si el token vacío
+    // disparó un clear accidental antes de hidratar.
+    if (inbox.length === 0 && !allowEmptyInboxPersistRef.current) {
+      const stored = loadAdminAppointmentNotifyInbox()
+      if (stored.length > 0) {
+        setInbox(stored)
+        return
+      }
+    }
+    allowEmptyInboxPersistRef.current = inbox.length === 0
     saveAdminAppointmentNotifyInbox(inbox)
   }, [inbox])
 
@@ -63,15 +76,10 @@ export function useAdminAppointmentNotifications(adminToken: string) {
     if (items.length === 0) return
     const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
     setInbox((prev) => {
-      const seen = new Set(prev.map((i) => i.key))
-      const merged = [...prev]
-      for (const item of items) {
-        if (seen.has(item.key)) continue
-        if (item.timestamp < cutoff) continue
-        seen.add(item.key)
-        merged.unshift(item)
-      }
-      return pruneAdminAppointmentNotifyInbox(merged)
+      const fresh = items.filter((item) => item.timestamp >= cutoff)
+      if (fresh.length === 0) return pruneAdminAppointmentNotifyInbox(prev)
+      allowEmptyInboxPersistRef.current = false
+      return mergeAdminAppointmentNotifyInbox(fresh, prev)
     })
     setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
     showAdminBrowserNotifications(items)
@@ -156,7 +164,13 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   }, [adminToken, pollAppointmentChanges])
 
   useEffect(() => {
-    if (!adminToken) {
+    const hadToken = hadAdminTokenRef.current
+    const hasToken = Boolean(adminToken)
+    hadAdminTokenRef.current = hasToken
+
+    // Solo al cerrar sesión (había token → ya no), no en el primer render sin login.
+    if (!hasToken && hadToken) {
+      allowEmptyInboxPersistRef.current = true
       snapshotsRef.current = new Map()
       initializedRef.current = false
       seriesTrackingRef.current = new Map()
@@ -174,14 +188,15 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   }, [])
 
   const openBell = useCallback(() => {
-    const now = Date.now()
-    setInbox((prev) => pruneAdminAppointmentNotifyInbox(prev, now))
-    setLastSeenAt(now)
-    saveAdminAppointmentNotifyLastSeenAt(now)
+    const stored = loadAdminAppointmentNotifyInbox()
+    setInbox((prev) => mergeAdminAppointmentNotifyInbox(stored, prev))
     setBellOpen(true)
   }, [])
 
   const closeBell = useCallback(() => {
+    const now = Date.now()
+    setLastSeenAt(now)
+    saveAdminAppointmentNotifyLastSeenAt(now)
     setBellOpen(false)
   }, [])
 

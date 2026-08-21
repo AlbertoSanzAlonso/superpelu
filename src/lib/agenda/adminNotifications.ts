@@ -61,23 +61,44 @@ const NOTIFY_KINDS = new Set<AdminAppointmentNotificationKind>([
   'series_ended',
 ])
 
-function isNotificationItem(value: unknown): value is AdminAppointmentNotificationItem {
-  if (!value || typeof value !== 'object') return false
-  const item = value as Partial<AdminAppointmentNotificationItem>
-  return (
-    typeof item.key === 'string' &&
-    typeof item.kind === 'string' &&
-    NOTIFY_KINDS.has(item.kind as AdminAppointmentNotificationKind) &&
-    typeof item.id === 'string' &&
-    typeof item.date === 'string' &&
-    typeof item.staffId === 'string' &&
-    typeof item.staffName === 'string' &&
-    typeof item.customerName === 'string' &&
-    typeof item.customerPhone === 'string' &&
-    typeof item.serviceName === 'string' &&
-    typeof item.startTime === 'string' &&
-    typeof item.timestamp === 'number'
-  )
+function asString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (value == null) return fallback
+  return String(value)
+}
+
+/** Recupera un aviso persistido; tolera campos opcionales/null del JSON. */
+function sanitizeNotificationItem(value: unknown): AdminAppointmentNotificationItem | null {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  const kind = raw.kind
+  if (typeof kind !== 'string' || !NOTIFY_KINDS.has(kind as AdminAppointmentNotificationKind)) {
+    return null
+  }
+  const key = asString(raw.key)
+  const id = asString(raw.id)
+  const timestamp = typeof raw.timestamp === 'number' ? raw.timestamp : Number(raw.timestamp)
+  if (!key || !id || !Number.isFinite(timestamp)) return null
+
+  const item: AdminAppointmentNotificationItem = {
+    key,
+    kind: kind as AdminAppointmentNotificationKind,
+    id,
+    date: asString(raw.date),
+    staffId: asString(raw.staffId),
+    staffName: asString(raw.staffName),
+    customerName: asString(raw.customerName),
+    customerPhone: asString(raw.customerPhone),
+    serviceName: asString(raw.serviceName),
+    startTime: asString(raw.startTime),
+    timestamp,
+  }
+  if (typeof raw.seriesId === 'string') item.seriesId = raw.seriesId
+  if (typeof raw.seriesCount === 'number') item.seriesCount = raw.seriesCount
+  if (typeof raw.seriesEndDate === 'string') item.seriesEndDate = raw.seriesEndDate
+  if (typeof raw.bookingGroupId === 'string') item.bookingGroupId = raw.bookingGroupId
+  if (typeof raw.treatmentCount === 'number') item.treatmentCount = raw.treatmentCount
+  return item
 }
 
 export function pruneAdminAppointmentNotifyInbox(
@@ -85,7 +106,23 @@ export function pruneAdminAppointmentNotifyInbox(
   now = Date.now(),
 ): AdminAppointmentNotificationItem[] {
   const cutoff = now - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
-  return items.filter((i) => i.timestamp >= cutoff)
+  return items
+    .filter((i) => i.timestamp >= cutoff)
+    .sort((a, b) => b.timestamp - a.timestamp)
+}
+
+/** Une dos bandejas por `key` (gana el más reciente) y poda a 4 h. */
+export function mergeAdminAppointmentNotifyInbox(
+  ...lists: AdminAppointmentNotificationItem[][]
+): AdminAppointmentNotificationItem[] {
+  const byKey = new Map<string, AdminAppointmentNotificationItem>()
+  for (const list of lists) {
+    for (const item of list) {
+      const prev = byKey.get(item.key)
+      if (!prev || item.timestamp >= prev.timestamp) byKey.set(item.key, item)
+    }
+  }
+  return pruneAdminAppointmentNotifyInbox([...byKey.values()])
 }
 
 export function loadAdminAppointmentNotifyInbox(): AdminAppointmentNotificationItem[] {
@@ -95,7 +132,12 @@ export function loadAdminAppointmentNotifyInbox(): AdminAppointmentNotificationI
     if (!raw) return []
     const parsed: unknown = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
-    return pruneAdminAppointmentNotifyInbox(parsed.filter(isNotificationItem))
+    const items: AdminAppointmentNotificationItem[] = []
+    for (const entry of parsed) {
+      const item = sanitizeNotificationItem(entry)
+      if (item) items.push(item)
+    }
+    return pruneAdminAppointmentNotifyInbox(items)
   } catch {
     return []
   }
@@ -112,14 +154,14 @@ export function saveAdminAppointmentNotifyInbox(items: AdminAppointmentNotificat
 }
 
 export function loadAdminAppointmentNotifyLastSeenAt(): number {
-  if (typeof localStorage === 'undefined') return Date.now()
+  if (typeof localStorage === 'undefined') return 0
   try {
     const raw = localStorage.getItem(LAST_SEEN_STORAGE_KEY)
-    if (!raw) return Date.now()
+    if (!raw) return 0
     const value = Number(raw)
-    return Number.isFinite(value) ? value : Date.now()
+    return Number.isFinite(value) ? value : 0
   } catch {
-    return Date.now()
+    return 0
   }
 }
 

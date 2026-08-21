@@ -59,11 +59,10 @@ export function AdminAppointmentNotificationsBell({
   const [panelVisible, setPanelVisible] = useState(open)
   const [panelLeaving, setPanelLeaving] = useState(false)
 
-  const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
-  const recentInbox = useMemo(
-    () => inbox.filter((i) => i.timestamp >= cutoff),
-    [inbox, cutoff],
-  )
+  const recentInbox = useMemo(() => {
+    const cutoff = Date.now() - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
+    return inbox.filter((i) => i.timestamp >= cutoff)
+  }, [inbox])
 
   const unseenCount = useMemo(
     () => recentInbox.filter((i) => i.timestamp > lastSeenAt).length,
