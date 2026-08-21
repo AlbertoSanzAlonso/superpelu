@@ -202,9 +202,10 @@ export function StaffAppointmentFormModal({
               </div>
             </h2>
             {staffName && <p className={`${typography.caption} mt-0.5`}>{staffName}</p>}
-            {editingId && appointmentOrigin != null && (
+            {editingId && (
               <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
-                {appointmentOrigin === 'booking_page' ? 'Reserva cliente' : 'Backoffice'}
+                Reservada desde:{' '}
+                {appointmentOrigin === 'booking_page' ? 'Web (cliente)' : 'Backoffice'}
               </p>
             )}
           </div>

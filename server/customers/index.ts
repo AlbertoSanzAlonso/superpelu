@@ -502,7 +502,7 @@ export async function listCustomers(
       (SELECT MAX(a.appointment_date) FROM appointments a
        WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS last_appointment_date
     FROM customers c
-    ORDER BY c.updated_at DESC
+    ORDER BY lower(c.first_name), lower(COALESCE(c.last_name, '')), c.phone
     LIMIT ${limit}
   `
 

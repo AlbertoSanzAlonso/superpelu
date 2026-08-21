@@ -401,10 +401,14 @@ export function AgendaAppointmentModal({
                 <span className="ml-2 text-sm font-normal text-charcoal-muted">· Inasistencia</span>
               )}
             </h2>
-            {createdLabel && (
+            {createdLabel ? (
               <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
                 Creada {createdLabel} ·{' '}
-                {appointment.origin === 'booking_page' ? 'Reserva cliente' : 'Backoffice'}
+                {appointment.origin === 'booking_page' ? 'Web (cliente)' : 'Backoffice'}
+              </p>
+            ) : (
+              <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
+                {appointment.origin === 'booking_page' ? 'Web (cliente)' : 'Backoffice'}
               </p>
             )}
           </div>
@@ -450,6 +454,7 @@ export function AgendaAppointmentModal({
                     customerRegistered={customerRegistered}
                     showCustomerHistory={showCustomerHistory}
                     adminToken={adminToken}
+                    appointmentOrigin={appointment.origin}
                     onEditClient={() => onModeChange('edit')}
                   />
                 </section>

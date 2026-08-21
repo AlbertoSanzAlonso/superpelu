@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { cancelAppointment, deleteAppointment, fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
+import { appointmentOriginLabel } from '@/lib/customer/historyFilters'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { typography } from '@/styles/typography'
@@ -49,6 +50,7 @@ export function CustomerAppointmentDetailModal({
   if (!appointment) return null
 
   const isCancelled = appointment.status === 'cancelled'
+  const originLabel = appointmentOriginLabel(appointment.origin)
 
   async function handleConfirmDelete() {
     if (isCancelled) {
@@ -164,6 +166,12 @@ export function CustomerAppointmentDetailModal({
               <dt className={typography.label}>Estado</dt>
               <dd className="mt-1">{statusLabel(appointment.status)}</dd>
             </div>
+            {originLabel && (
+              <div>
+                <dt className={typography.label}>Origen</dt>
+                <dd className="mt-1">{originLabel}</dd>
+              </div>
+            )}
             {appointment.notes?.trim() && (
               <div>
                 <dt className={typography.label}>Observaciones de la cita</dt>

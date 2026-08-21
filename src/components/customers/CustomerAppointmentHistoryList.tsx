@@ -1,6 +1,7 @@
 import type { Appointment } from '@/types/booking'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { customerAppointmentStatusLabel } from '@/lib/customer/appointmentStatus'
+import { appointmentOriginLabel } from '@/lib/customer/historyFilters'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { truncateNotesPreview } from '@/lib/core/notes'
@@ -40,6 +41,7 @@ export function CustomerAppointmentHistoryList({
       {appointments.map((apt) => {
         const notesPreview = truncateNotesPreview(apt.notes)
         const statusLabel = customerAppointmentStatusLabel(apt)
+        const originLabel = appointmentOriginLabel(apt.origin)
         return (
           <li key={apt.id}>
             <button
@@ -80,6 +82,9 @@ export function CustomerAppointmentHistoryList({
                 <p className="font-medium">{apt.serviceName}</p>
                 {apt.staffName && (
                   <p className={`${typography.caption} mt-0.5`}>{apt.staffName}</p>
+                )}
+                {originLabel && (
+                  <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>{originLabel}</p>
                 )}
                 {statusLabel && (
                   <p

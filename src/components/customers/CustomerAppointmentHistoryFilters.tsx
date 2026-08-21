@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { CustomerAppointmentStatusFilter } from '@/lib/customer/appointmentStatus'
 import { CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS } from '@/lib/customer/appointmentStatus'
-import type { AppointmentHistoryFilters as Filters } from '@/lib/customer/historyFilters'
+import {
+  APPOINTMENT_ORIGIN_FILTER_OPTIONS,
+  type AppointmentHistoryFilters as Filters,
+  type AppointmentOriginFilter,
+} from '@/lib/customer/historyFilters'
 import { typography } from '@/styles/typography'
 
 const fieldClass =
@@ -96,7 +100,7 @@ export function CustomerAppointmentHistoryFiltersBar({
           id="customer-history-filters"
           className="mt-2 space-y-2 border-t border-gold/10 pt-2"
         >
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <label className="block text-left">
               <span className={`${typography.caption} mb-0.5 block text-[11px]`}>Estado</span>
               <select
@@ -110,6 +114,25 @@ export function CustomerAppointmentHistoryFiltersBar({
               >
                 <option value="">Todos</option>
                 {CUSTOMER_APPOINTMENT_STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-left">
+              <span className={`${typography.caption} mb-0.5 block text-[11px]`}>Origen</span>
+              <select
+                value={filters.originFilter}
+                onChange={(e) =>
+                  onPatch({
+                    originFilter: e.target.value as AppointmentOriginFilter | '',
+                  })
+                }
+                className={fieldClass}
+              >
+                <option value="">Todos</option>
+                {APPOINTMENT_ORIGIN_FILTER_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>

@@ -12,6 +12,11 @@ import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import { Button } from '@/components/ui/Button'
 import { fetchCustomers, ApiError } from '@/lib/api'
+import {
+  CUSTOMER_LIST_SORT_OPTIONS,
+  sortCustomerList,
+  type CustomerListSort,
+} from '@/lib/customer/listSort'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
@@ -21,6 +26,9 @@ import { typography } from '@/styles/typography'
 
 const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
+
+const sortFieldClass =
+  'h-9 w-full border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
 
 const CUSTOMERS_PAGE_SIZE = 15
 
@@ -83,6 +91,7 @@ export function CustomersPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
 
   const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<CustomerListSort>('name')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -109,17 +118,23 @@ export function CustomersPage() {
     if (authOk) void loadCustomers()
   }, [authOk, loadCustomers])
 
-  const totalPages = Math.max(1, Math.ceil(customers.length / CUSTOMERS_PAGE_SIZE))
+  const sortedCustomers = useMemo(() => sortCustomerList(customers, sort), [customers, sort])
+
+  const totalPages = Math.max(1, Math.ceil(sortedCustomers.length / CUSTOMERS_PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
 
   useEffect(() => {
     if (page !== safePage) setPage(safePage)
   }, [page, safePage])
 
+  useEffect(() => {
+    setPage(1)
+  }, [sort])
+
   const pagedCustomers = useMemo(() => {
     const start = (safePage - 1) * CUSTOMERS_PAGE_SIZE
-    return customers.slice(start, start + CUSTOMERS_PAGE_SIZE)
-  }, [customers, safePage])
+    return sortedCustomers.slice(start, start + CUSTOMERS_PAGE_SIZE)
+  }, [sortedCustomers, safePage])
 
   if (authOk === false) {
     return <Navigate to="/agenda" replace />
@@ -163,7 +178,7 @@ export function CustomersPage() {
           Felicitación cumpleaños
         </Button>
         <form
-          className="flex w-full min-w-0 flex-col gap-2 sm:max-w-md sm:flex-1 sm:flex-row sm:items-center"
+          className="flex w-full min-w-0 flex-col gap-2 sm:max-w-xl sm:flex-1 sm:flex-row sm:items-center"
           onSubmit={(e) => {
             e.preventDefault()
             setPage(1)
@@ -181,6 +196,20 @@ export function CustomersPage() {
             onChange={(e) => setQuery(e.target.value)}
             className={searchFieldClass}
           />
+          <label className="block shrink-0 sm:w-[11rem]">
+            <span className="sr-only">Ordenar clientes</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as CustomerListSort)}
+              className={sortFieldClass}
+            >
+              {CUSTOMER_LIST_SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <Button
             type="submit"
             variant="outline"
@@ -307,11 +336,11 @@ export function CustomersPage() {
           </>
         )}
 
-        {!loading && customers.length > 0 && (
+        {!loading && sortedCustomers.length > 0 && (
           <CustomerAppointmentHistoryPagination
             page={safePage}
             pageSize={CUSTOMERS_PAGE_SIZE}
-            totalItems={customers.length}
+            totalItems={sortedCustomers.length}
             ariaLabel="Paginación de clientes"
             onPageChange={setPage}
           />

@@ -463,5 +463,6 @@ export function rowToPublic(row: AppointmentRow & { booking_pattern?: unknown | 
     seriesId: row.series_id,
     scope: row.scope,
     bookingGroupId: row.booking_group_id,
+    origin: row.origin ?? null,
   }
 }

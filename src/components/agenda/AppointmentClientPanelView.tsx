@@ -17,6 +17,8 @@ type Props = {
   customerRegistered: boolean
   showCustomerHistory: boolean
   adminToken?: string
+  /** Origen de la reserva (`backoffice` | `booking_page`). Si se pasa, se muestra. */
+  appointmentOrigin?: string | null
   onEditClient: () => void
 }
 
@@ -25,6 +27,7 @@ export function AppointmentClientPanelView({
   customerRegistered,
   showCustomerHistory,
   adminToken,
+  appointmentOrigin,
   onEditClient,
 }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -34,6 +37,12 @@ export function AppointmentClientPanelView({
   )
   const phone = draft.customerPhone
   const showContactActions = Boolean(phone.trim()) && !isGuestCustomerPhone(phone)
+  const showOrigin = appointmentOrigin !== undefined
+  const originText = showOrigin
+    ? appointmentOrigin === 'booking_page'
+      ? 'Web (cliente)'
+      : 'Backoffice'
+    : null
 
   return (
     <div className="rounded-lg border border-gold/20 bg-charcoal/[0.04] p-4">
@@ -84,6 +93,12 @@ export function AppointmentClientPanelView({
       </div>
 
       <dl className="space-y-2.5 text-sm">
+        {originText && (
+          <div>
+            <dt className={typography.label}>Reservada desde</dt>
+            <dd className="mt-0.5">{originText}</dd>
+          </div>
+        )}
         <div>
           <dt className={typography.label}>Móvil</dt>
           <dd className="mt-0.5 tabular-nums">{formatCustomerPhoneDisplay(phone)}</dd>

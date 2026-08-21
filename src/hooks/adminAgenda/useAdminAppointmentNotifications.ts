@@ -2,7 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS,
   adminAppointmentNotifyDateRange,
+  clearAdminAppointmentNotifyStorage,
   diffAppointmentSnapshots,
+  loadAdminAppointmentNotifyInbox,
+  loadAdminAppointmentNotifyLastSeenAt,
+  pruneAdminAppointmentNotifyInbox,
+  saveAdminAppointmentNotifyInbox,
+  saveAdminAppointmentNotifyLastSeenAt,
   snapshotsFromAppointments,
   type AdminAppointmentNotificationItem,
   type AppointmentSnapshot,
@@ -10,7 +16,6 @@ import {
 import { showAdminBrowserNotifications } from '@/lib/agenda/adminBrowserNotifications'
 import { fetchAppointments } from '@/lib/api'
 import { todaySalon } from '@/lib/core/dates'
-import type { Appointment } from '@/types/booking'
 
 type ToastEntry = {
   key: string
@@ -31,10 +36,12 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   const seriesTrackingRef = useRef<Map<string, SeriesTracking>>(new Map())
   const endedSeriesNotifiedRef = useRef<Set<string>>(new Set())
 
-  const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>([])
+  const [inbox, setInbox] = useState<AdminAppointmentNotificationItem[]>(() =>
+    loadAdminAppointmentNotifyInbox(),
+  )
   const [bellOpen, setBellOpen] = useState(false)
   const [toasts, setToasts] = useState<ToastEntry[]>([])
-  const [lastSeenAt, setLastSeenAt] = useState(Date.now())
+  const [lastSeenAt, setLastSeenAt] = useState(() => loadAdminAppointmentNotifyLastSeenAt())
 
   const trackSeries = useCallback((
     seriesId: string,
@@ -43,6 +50,14 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   ) => {
     seriesTrackingRef.current.set(seriesId, { ...info, endDate })
   }, [])
+
+  useEffect(() => {
+    saveAdminAppointmentNotifyInbox(inbox)
+  }, [inbox])
+
+  useEffect(() => {
+    saveAdminAppointmentNotifyLastSeenAt(lastSeenAt)
+  }, [lastSeenAt])
 
   const ingestNewItems = useCallback((items: AdminAppointmentNotificationItem[]) => {
     if (items.length === 0) return
@@ -56,7 +71,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
         seen.add(item.key)
         merged.unshift(item)
       }
-      return merged.filter((i) => i.timestamp >= cutoff)
+      return pruneAdminAppointmentNotifyInbox(merged)
     })
     setToasts((prev) => [...items.map((item) => ({ key: item.key, item })), ...prev])
     showAdminBrowserNotifications(items)
@@ -146,6 +161,7 @@ export function useAdminAppointmentNotifications(adminToken: string) {
       initializedRef.current = false
       seriesTrackingRef.current = new Map()
       endedSeriesNotifiedRef.current = new Set()
+      clearAdminAppointmentNotifyStorage()
       setInbox([])
       setToasts([])
       setBellOpen(false)
@@ -158,7 +174,10 @@ export function useAdminAppointmentNotifications(adminToken: string) {
   }, [])
 
   const openBell = useCallback(() => {
-    setLastSeenAt(Date.now())
+    const now = Date.now()
+    setInbox((prev) => pruneAdminAppointmentNotifyInbox(prev, now))
+    setLastSeenAt(now)
+    saveAdminAppointmentNotifyLastSeenAt(now)
     setBellOpen(true)
   }, [])
 

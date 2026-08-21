@@ -1774,22 +1774,26 @@ app.get('/c/:code', async (c) => {
   }
 
   const t = cp(locale).cancel
-  const aptSuffix = activeRows.length > 1 ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
+  const multiTreatment = activeRows.length > 1
+  const aptSuffix = multiTreatment ? `&apt=${encodeURIComponent(encodeId(row.id))}` : ''
   const langSuffix = customerLangSuffix(locale)
+  const heading = multiTreatment ? t.headingTreatment : t.heading
+  const confirmLabel = multiTreatment ? t.confirmTreatmentButton : t.confirmButton
+  const hint = multiTreatment ? t.hintTreatment : t.hint
 
   return replyCustomerPage(
     c,
     t.title,
-    `<h1>${escapeHtml(t.heading)}</h1>
-     ${activeRows.length > 1 ? changeTreatmentLinkHtml(cancelBase, token ?? '', locale) : ''}
+    `<h1>${escapeHtml(heading)}</h1>
+     ${multiTreatment ? changeTreatmentLinkHtml(cancelBase, token ?? '', locale) : ''}
      ${appointmentDetailHtml(row, locale)}
      <form method="POST" action="/c/${encodeURIComponent(code)}${locale === 'en' ? '?lang=en' : ''}">
        <input type="hidden" name="t" value="${escapeHtml(token ?? '')}">
-       ${activeRows.length > 1 ? `<input type="hidden" name="apt" value="${escapeHtml(encodeId(row.id))}">` : ''}
-       <button class="btn btn-danger" type="submit">${escapeHtml(t.confirmButton)}</button>
+       ${multiTreatment ? `<input type="hidden" name="apt" value="${escapeHtml(encodeId(row.id))}">` : ''}
+       <button class="btn btn-danger" type="submit">${escapeHtml(confirmLabel)}</button>
      </form>
      ${backToManageLink(`${manageBase}?t=${encodeURIComponent(token ?? '')}${aptSuffix}${langSuffix}`, locale)}
-     <p class="muted">${escapeHtml(t.hint)}</p>`,
+     <p class="muted">${escapeHtml(hint)}</p>`,
     locale,
   )
 })
@@ -2022,12 +2026,14 @@ app.get('/m/:code', async (c) => {
   const cancelUrl = `${publicBaseUrl() || ''}${cancelBase}?t=${encodeURIComponent(token ?? '')}${aptSuffix}${langSuffix}`
   const cancelAllUrl = `${publicBaseUrl() || ''}${cancelBase}?t=${encodeURIComponent(token ?? '')}&scope=all${langSuffix}`
   const t = cp(locale).manage
+  const cancelOneLabel =
+    activeRows.length > 1 ? t.cancelTreatmentButton : t.cancelButton
   const cancelSectionHtml =
     activeRows.length > 1
-      ? `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>
+      ? `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(cancelOneLabel)}</a>
          <p class="section-label" style="margin-top:1.25rem">${escapeHtml(cp(locale).cancel.cancelAllSection)}</p>
          <a class="btn btn-danger" href="${escapeHtml(cancelAllUrl)}">${escapeHtml(t.cancelAllButton)}</a>`
-      : `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(t.cancelButton)}</a>`
+      : `<a class="btn btn-danger" href="${escapeHtml(cancelUrl)}">${escapeHtml(cancelOneLabel)}</a>`
 
   const staffOptions = await listStaffForService(row.service_id)
   let selectedStaffId = (c.req.query('staffId') ?? row.staff_id ?? '').trim()
@@ -2112,7 +2118,7 @@ app.get('/m/:code', async (c) => {
        <p>📅 ${dateLabel}</p>
        <p>🕐 ${timeRange}</p>
      </div>
-     <p class="section-label">${escapeHtml(t.modifySection)}</p>
+     <p class="section-label">${escapeHtml(activeRows.length > 1 ? t.modifyTreatmentSection : t.modifySection)}</p>
      ${staffSelectHtml}
      <p class="section-label">${escapeHtml(t.daySection)}</p>
      <form method="GET" action="${escapeHtml(manageBase)}" class="date-form">

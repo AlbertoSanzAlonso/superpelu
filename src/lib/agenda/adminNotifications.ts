@@ -45,9 +45,102 @@ export type AppointmentSnapshot = {
 
 export const ADMIN_APPOINTMENT_NOTIFY_RANGE_DAYS = 90
 export const ADMIN_APPOINTMENT_TOAST_MS = 6_000
-export const ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS = 3_600_000
+/** Novedades de la campana: se conservan (y se listan con scroll) durante 4 horas. */
+export const ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS = 4 * 3_600_000
+
+const INBOX_STORAGE_KEY = 'agenda-admin-appointment-notify-inbox'
+const LAST_SEEN_STORAGE_KEY = 'agenda-admin-appointment-notify-last-seen'
 
 const ACTIVE_STATUSES = new Set(['confirmed', 'pending'])
+
+const NOTIFY_KINDS = new Set<AdminAppointmentNotificationKind>([
+  'created',
+  'cancelled',
+  'modified',
+  'series_created',
+  'series_ended',
+])
+
+function isNotificationItem(value: unknown): value is AdminAppointmentNotificationItem {
+  if (!value || typeof value !== 'object') return false
+  const item = value as Partial<AdminAppointmentNotificationItem>
+  return (
+    typeof item.key === 'string' &&
+    typeof item.kind === 'string' &&
+    NOTIFY_KINDS.has(item.kind as AdminAppointmentNotificationKind) &&
+    typeof item.id === 'string' &&
+    typeof item.date === 'string' &&
+    typeof item.staffId === 'string' &&
+    typeof item.staffName === 'string' &&
+    typeof item.customerName === 'string' &&
+    typeof item.customerPhone === 'string' &&
+    typeof item.serviceName === 'string' &&
+    typeof item.startTime === 'string' &&
+    typeof item.timestamp === 'number'
+  )
+}
+
+export function pruneAdminAppointmentNotifyInbox(
+  items: AdminAppointmentNotificationItem[],
+  now = Date.now(),
+): AdminAppointmentNotificationItem[] {
+  const cutoff = now - ADMIN_APPOINTMENT_NOTIFY_MAX_AGE_MS
+  return items.filter((i) => i.timestamp >= cutoff)
+}
+
+export function loadAdminAppointmentNotifyInbox(): AdminAppointmentNotificationItem[] {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(INBOX_STORAGE_KEY)
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return pruneAdminAppointmentNotifyInbox(parsed.filter(isNotificationItem))
+  } catch {
+    return []
+  }
+}
+
+export function saveAdminAppointmentNotifyInbox(items: AdminAppointmentNotificationItem[]): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    const pruned = pruneAdminAppointmentNotifyInbox(items)
+    localStorage.setItem(INBOX_STORAGE_KEY, JSON.stringify(pruned))
+  } catch {
+    // Cuota o modo privado: la campana sigue en memoria.
+  }
+}
+
+export function loadAdminAppointmentNotifyLastSeenAt(): number {
+  if (typeof localStorage === 'undefined') return Date.now()
+  try {
+    const raw = localStorage.getItem(LAST_SEEN_STORAGE_KEY)
+    if (!raw) return Date.now()
+    const value = Number(raw)
+    return Number.isFinite(value) ? value : Date.now()
+  } catch {
+    return Date.now()
+  }
+}
+
+export function saveAdminAppointmentNotifyLastSeenAt(timestamp: number): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(LAST_SEEN_STORAGE_KEY, String(timestamp))
+  } catch {
+    // Silencioso.
+  }
+}
+
+export function clearAdminAppointmentNotifyStorage(): void {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.removeItem(INBOX_STORAGE_KEY)
+    localStorage.removeItem(LAST_SEEN_STORAGE_KEY)
+  } catch {
+    // Silencioso.
+  }
+}
 
 export function adminAppointmentNotifyDateRange(): { from: string; to: string } {
   const from = todaySalon()

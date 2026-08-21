@@ -138,7 +138,7 @@ export function AdminAppointmentNotificationsBell({
           </div>
           {recentInbox.length === 0 ? (
             <p className="px-3 py-4 text-center text-xs text-charcoal-muted">
-              No hay novedades desde la última vez.
+              No hay novedades en las últimas 4 horas.
             </p>
           ) : (
             <ul className="max-h-[28rem] overflow-y-auto">

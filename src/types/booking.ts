@@ -51,6 +51,8 @@ export type Appointment = {
   scope?: string | null
   /** Varias citas de la misma visita (reserva multi-tratamiento). */
   bookingGroupId?: string | null
+  /** Origen: `backoffice` (agenda) o `booking_page` (reserva web). */
+  origin?: string | null
 }
 
 export type ColorGroupLinkedPhase = {

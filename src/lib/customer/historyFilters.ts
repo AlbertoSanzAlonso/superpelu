@@ -6,12 +6,15 @@ import {
 } from '@/lib/customer/appointmentStatus'
 import type { Appointment } from '@/types/booking'
 
+export type AppointmentOriginFilter = 'backoffice' | 'booking_page'
+
 export type AppointmentHistoryFilters = {
   dateFrom: string
   dateTo: string
   serviceFilter: string
   staffFilter: string
   statusFilter: CustomerAppointmentStatusFilter | ''
+  originFilter: AppointmentOriginFilter | ''
   textQuery: string
 }
 
@@ -21,7 +24,22 @@ export const EMPTY_APPOINTMENT_HISTORY_FILTERS: AppointmentHistoryFilters = {
   serviceFilter: '',
   staffFilter: '',
   statusFilter: '',
+  originFilter: '',
   textQuery: '',
+}
+
+export const APPOINTMENT_ORIGIN_FILTER_OPTIONS: {
+  value: AppointmentOriginFilter
+  label: string
+}[] = [
+  { value: 'backoffice', label: 'Backoffice' },
+  { value: 'booking_page', label: 'Web (cliente)' },
+]
+
+export function appointmentOriginLabel(origin: string | null | undefined): string | null {
+  if (origin === 'booking_page') return 'Reserva cliente'
+  if (origin === 'backoffice') return 'Backoffice'
+  return null
 }
 
 function matchesTextQuery(apt: Appointment, query: string): boolean {
@@ -36,6 +54,7 @@ function matchesTextQuery(apt: Appointment, query: string): boolean {
     apt.date,
     apt.status,
     customerAppointmentStatusLabel(apt) ?? '',
+    appointmentOriginLabel(apt.origin) ?? '',
   ]
     .join(' ')
     .toLowerCase()
@@ -46,7 +65,8 @@ export function filterAppointmentHistory(
   appointments: Appointment[],
   filters: AppointmentHistoryFilters,
 ): Appointment[] {
-  const { dateFrom, dateTo, serviceFilter, staffFilter, statusFilter, textQuery } = filters
+  const { dateFrom, dateTo, serviceFilter, staffFilter, statusFilter, originFilter, textQuery } =
+    filters
   return appointments.filter((apt) => {
     if (isColorGroupWashRow(apt.colorGroupRole)) return false
     if (dateFrom && apt.date < dateFrom) return false
@@ -56,6 +76,7 @@ export function filterAppointmentHistory(
     if (statusFilter && !matchesCustomerAppointmentStatusFilter(apt, statusFilter)) {
       return false
     }
+    if (originFilter && (apt.origin ?? '') !== originFilter) return false
     if (!matchesTextQuery(apt, textQuery)) return false
     return true
   })
@@ -90,6 +111,7 @@ export function hasActiveAppointmentHistoryFilters(filters: AppointmentHistoryFi
       filters.serviceFilter ||
       filters.staffFilter ||
       filters.statusFilter ||
+      filters.originFilter ||
       filters.textQuery.trim(),
   )
 }
