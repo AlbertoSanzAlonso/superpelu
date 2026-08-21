@@ -173,38 +173,65 @@ export async function notifyAppointmentCancelled(
   )
 }
 
+/** Evita reenvíos si el cliente pulsa «Finalizar» varias veces mientras OpenWA responde. */
+const visitFinishInFlight = new Set<string>()
+const visitFinishSentAt = new Map<string, number>()
+const VISIT_FINISH_DEDUP_MS = 5 * 60_000
+
 /** Resumen de visita multi-tratamiento tras guardar cambios (cliente). */
 export async function notifyCustomerBookingVisitFinished(linkId: string): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return
 
-  const anchor = await getAppointmentById(linkId)
-  if (!anchor) return
+  // Bloqueo síncrono por linkId (antes de cualquier await) para clics paralelos.
+  if (visitFinishInFlight.has(linkId)) {
+    console.log(`Superpelu WhatsApp: resumen de visita en curso (${linkId}), omitido`)
+    return
+  }
+  visitFinishInFlight.add(linkId)
 
-  if (!anchor.booking_group_id) {
-    if (anchor.status === 'confirmed') {
-      const text = await buildAppointmentVisitUpdatedMessage(anchor)
-      await sendCustomerWhatsApp(anchor, text)
-    } else if (anchor.status === 'cancelled') {
-      await notifyAppointmentCancelled(anchor)
+  try {
+    const anchor = await getAppointmentById(linkId)
+    if (!anchor) return
+
+    const dedupeKey = anchor.booking_group_id ?? anchor.id
+    const now = Date.now()
+    const lastSent = visitFinishSentAt.get(dedupeKey)
+    if (lastSent && now - lastSent < VISIT_FINISH_DEDUP_MS) {
+      console.log(`Superpelu WhatsApp: resumen de visita ya enviado (${dedupeKey}), omitido`)
+      return
     }
-    return
+
+    if (!anchor.booking_group_id) {
+      if (anchor.status === 'confirmed') {
+        const text = await buildAppointmentVisitUpdatedMessage(anchor)
+        await sendCustomerWhatsApp(anchor, text)
+      } else if (anchor.status === 'cancelled') {
+        await notifyAppointmentCancelled(anchor)
+      }
+      visitFinishSentAt.set(dedupeKey, Date.now())
+      return
+    }
+
+    const allRows = await getAppointmentsByBookingGroup(anchor.booking_group_id)
+    const activeRows = filterWhatsAppBookingGroupRows(
+      allRows.filter((row) => row.status === 'confirmed'),
+    )
+
+    if (activeRows.length === 0) {
+      const visibleRows = filterWhatsAppBookingGroupRows(allRows)
+      await notifyAppointmentCancelled(anchor, visibleRows)
+      visitFinishSentAt.set(dedupeKey, Date.now())
+      return
+    }
+
+    const text = await buildAppointmentVisitUpdatedMessage(activeRows[0]!)
+    const messageId = await sendCustomerWhatsApp(activeRows[0]!, text)
+    visitFinishSentAt.set(dedupeKey, Date.now())
+    console.log(
+      `Superpelu WhatsApp: visita actualizada a ${anchor.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+    )
+  } finally {
+    visitFinishInFlight.delete(linkId)
   }
-
-  const allRows = await getAppointmentsByBookingGroup(anchor.booking_group_id)
-  const activeRows = filterWhatsAppBookingGroupRows(
-    allRows.filter((row) => row.status === 'confirmed'),
-  )
-
-  if (activeRows.length === 0) {
-    const visibleRows = filterWhatsAppBookingGroupRows(allRows)
-    await notifyAppointmentCancelled(anchor, visibleRows)
-    return
-  }
-
-  const text = await buildAppointmentVisitUpdatedMessage(activeRows[0]!)
-  const messageId = await sendCustomerWhatsApp(activeRows[0]!, text)
-  console.log(
-    `Superpelu WhatsApp: visita actualizada a ${anchor.customer_phone}${messageId ? ` (${messageId})` : ''}`,
-  )
 }

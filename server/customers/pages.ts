@@ -47,6 +47,7 @@ export function customerPageShell(
     '.detail{background:#f4efec;border-radius:10px;padding:1rem;margin:1rem 0;text-align:left}',
     '.btn{display:inline-block;border:0;border-radius:10px;padding:.85rem 1.4rem;font-size:1rem;',
     'font-weight:600;cursor:pointer;text-decoration:none;margin-top:.5rem}',
+    '.btn:disabled{opacity:.65;cursor:wait}',
     '.btn-danger{background:#c0392b;color:#fff}.btn-secondary{background:#e7e0db;color:#2b2b2b}',
     '.btn-primary{background:#1f1b18;color:#fff}',
     '.section-label{font-size:.85rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#9a8f86;margin:1.25rem 0 .5rem;text-align:left}',
@@ -238,9 +239,10 @@ export function visitChangesPromptHtml(
     activeCount > 0 ? t.continuePrompt : t.finishOnlyPrompt
   const hint = activeCount > 0 ? `<p class="muted">${escapeHtml(t.finishHint)}</p>` : ''
 
+  const submittingLabel = escapeHtml(t.finishSubmitting)
   return `<p>${escapeHtml(prompt)}</p>
     ${continueHtml}
-    <form method="POST" action="${escapeHtml(finishAction)}" style="margin-top:0.75rem">
+    <form method="POST" action="${escapeHtml(finishAction)}" style="margin-top:0.75rem" onsubmit="var b=this.querySelector('button[type=submit]');if(!b||b.disabled)return false;b.disabled=true;b.textContent='${submittingLabel}';">
       <input type="hidden" name="t" value="${escapeHtml(token)}">
       ${customerLangQueryHidden(locale)}
       <button class="btn btn-secondary" type="submit">${escapeHtml(t.finishButton)}</button>

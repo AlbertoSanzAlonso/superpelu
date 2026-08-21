@@ -2244,14 +2244,40 @@ app.post('/m/:code/finish', async (c) => {
   const { ctx } = resolved
   const { locale } = ctx
   if (!isMultiTreatmentVisit(ctx.groupRows)) {
-    return c.redirect(`/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`)
+    return c.redirect(
+      `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`,
+    )
   }
 
-  await notifyCustomerBookingVisitFinished(ctx.linkId)
+  // No esperar a OpenWA: en el navegador de WhatsApp un POST largo parece «no hacer nada»
+  // y el cliente pulsa varias veces. La página de éxito se muestra al instante.
+  void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
+    console.error('Superpelu WhatsApp: resumen de visita (cliente):', err)
+  })
 
+  const langQ = locale === 'en' ? '&lang=en' : ''
+  return c.redirect(
+    `/m/${encodeURIComponent(code)}/done?t=${encodeURIComponent(token ?? '')}${langQ}`,
+    303,
+  )
+})
+
+/** Confirmación tras finalizar cambios de una visita multi-tratamiento. */
+app.get('/m/:code/done', async (c) => {
+  const queryLang = c.req.query('lang')
+  const code = c.req.param('code')
+  const token = c.req.query('t')
+  const resolved = await resolveCustomerBookingContext(code, token, queryLang)
+  if (!resolved.ok) {
+    const page = renderInvalidLinkPage(resolved.locale, 'action')
+    return c.html(page.html, 400)
+  }
+
+  const { ctx } = resolved
+  const { locale } = ctx
   const t = cp(locale).visitChanges
-  const activeCount = ctx.activeRows.length
-  const bodyText = activeCount > 0 ? t.finishBody : t.finishAllCancelledBody
+  const bodyText =
+    ctx.activeRows.length > 0 ? t.finishBody : t.finishAllCancelledBody
 
   return replyCustomerPage(
     c,
