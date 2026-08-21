@@ -225,29 +225,12 @@ export function visitChangesPromptHtml(
   activeCount: number,
 ): string {
   const t = cp(locale).visitChanges
-  const manageBase = `/m/${encodeURIComponent(code)}`
-  const langSuffix = customerLangSuffix(locale)
-  const manageHref = `${manageBase}?t=${encodeURIComponent(token)}${langSuffix}`
-  const finishAction = `${manageBase}/finish${locale === 'en' ? '?lang=en' : ''}`
+  if (activeCount <= 0) return ''
 
-  const continueHtml =
-    activeCount > 0
-      ? `<p style="margin-top:1rem"><a class="btn btn-primary" href="${escapeHtml(manageHref)}">${escapeHtml(t.continueButton)}</a></p>`
-      : ''
-
-  const prompt =
-    activeCount > 0 ? t.continuePrompt : t.finishOnlyPrompt
-  const hint = activeCount > 0 ? `<p class="muted">${escapeHtml(t.finishHint)}</p>` : ''
-
-  const submittingLabel = escapeHtml(t.finishSubmitting)
-  return `<p>${escapeHtml(prompt)}</p>
-    ${continueHtml}
-    <form method="POST" action="${escapeHtml(finishAction)}" style="margin-top:0.75rem" onsubmit="var b=this.querySelector('button[type=submit]');if(!b||b.disabled)return false;b.disabled=true;b.textContent='${submittingLabel}';">
-      <input type="hidden" name="t" value="${escapeHtml(token)}">
-      ${customerLangQueryHidden(locale)}
-      <button class="btn btn-secondary" type="submit">${escapeHtml(t.finishButton)}</button>
-    </form>
-    ${hint}`
+  const manageHref = `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token)}${customerLangSuffix(locale)}`
+  return `<p>${escapeHtml(t.continuePrompt)}</p>
+    <p style="margin-top:1rem"><a class="btn btn-primary" href="${escapeHtml(manageHref)}">${escapeHtml(t.continueButton)}</a></p>
+    <p class="muted">${escapeHtml(t.finishHint)}</p>`
 }
 
 export function cancelAllVisitLinkHtml(

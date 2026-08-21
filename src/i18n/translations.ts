@@ -510,15 +510,7 @@ const es = {
     visitChanges: {
       continuePrompt: '¿Quieres modificar o cancelar otro tratamiento de tu visita?',
       continueButton: 'Sí, seguir gestionando',
-      finishButton: 'Listo, he terminado',
-      finishSubmitting: 'Cerrando…',
       finishHint: 'Ya te hemos enviado un WhatsApp con el resumen actualizado.',
-      finishOnlyPrompt: 'Los cambios ya están guardados. Pulsa listo para cerrar.',
-      finishTitle: 'Cambios guardados',
-      finishHeading: '✅ Visita actualizada',
-      finishBody: 'Tu visita ha quedado actualizada. Revisa el WhatsApp con el resumen.',
-      finishAllCancelledBody: 'Tu visita ha quedado cancelada. Revisa el WhatsApp de confirmación.',
-      finishFooter: 'Si quieres, puedes reservar otra cuando quieras. ¡Gracias!',
     },
     changeFailed: {
       title: 'No se pudo cambiar',
@@ -1123,15 +1115,7 @@ const en = {
     visitChanges: {
       continuePrompt: 'Would you like to change or cancel another treatment in your visit?',
       continueButton: 'Yes, keep managing',
-      finishButton: 'Done',
-      finishSubmitting: 'Closing…',
       finishHint: 'We have already sent you a WhatsApp with the updated summary.',
-      finishOnlyPrompt: 'Your changes are saved. Tap done to close.',
-      finishTitle: 'Changes saved',
-      finishHeading: '✅ Visit updated',
-      finishBody: 'Your visit has been updated. Check WhatsApp for the summary.',
-      finishAllCancelledBody: 'Your visit has been cancelled. Check WhatsApp for confirmation.',
-      finishFooter: 'If you like, you can book again whenever you want. Thank you!',
     },
     changeFailed: {
       title: 'Could not change',

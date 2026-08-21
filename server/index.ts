@@ -1856,17 +1856,27 @@ app.post('/c/:code', async (c) => {
   const remaining = activeRows.filter((row) => row.id !== cancelId)
 
   if (multiVisit) {
-    // Aviso al confirmar el cambio (no hace falta pulsar «Finalizar» para el WhatsApp).
+    // El WhatsApp sale al confirmar; no hay segundo paso de «enviar notificación».
     void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
       console.error('Superpelu WhatsApp: resumen tras cancelar tratamiento:', err)
     })
     const updated = cp(locale).updated
+    if (remaining.length > 0) {
+      return replyCustomerPage(
+        c,
+        t.successTitle,
+        `<h1>${escapeHtml(t.successHeading)}</h1>
+         <p>${escapeHtml(updated.treatmentCancelled)}</p>
+         ${visitChangesPromptHtml(code, token ?? '', locale, remaining.length)}`,
+        locale,
+      )
+    }
     return replyCustomerPage(
       c,
       t.successTitle,
       `<h1>${escapeHtml(t.successHeading)}</h1>
        <p>${escapeHtml(updated.treatmentCancelled)}</p>
-       ${visitChangesPromptHtml(code, token ?? '', locale, remaining.length)}`,
+       <p>${escapeHtml(t.successFooter)}</p>`,
       locale,
     )
   }
@@ -2207,7 +2217,8 @@ app.post('/m/:code', async (c) => {
         `<h1>${escapeHtml(t.heading)}</h1>
          <p>${escapeHtml(t.intro)}</p>
          ${detailHtml}
-         ${visitChangesPromptHtml(code, token ?? '', locale, activeCount)}`,
+         ${visitChangesPromptHtml(code, token ?? '', locale, activeCount)}
+         <p class="muted">${escapeHtml(t.closing)}</p>`,
         locale,
       )
     }
@@ -2240,60 +2251,6 @@ app.post('/m/:code', async (c) => {
       409,
     )
   }
-})
-
-/** Cierra el flujo de cambios; el WhatsApp ya se envió al cancelar/modificar cada tratamiento. */
-app.post('/m/:code/finish', async (c) => {
-  const queryLang = c.req.query('lang')
-  const code = c.req.param('code')
-  const body = await c.req.parseBody()
-  const token = typeof body.t === 'string' ? body.t : undefined
-  const resolved = await resolveCustomerBookingContext(code, token, queryLang)
-  if (!resolved.ok) {
-    const page = renderInvalidLinkPage(resolved.locale, 'action')
-    return c.html(page.html, 400)
-  }
-
-  const { ctx } = resolved
-  const { locale } = ctx
-  if (!isMultiTreatmentVisit(ctx.groupRows)) {
-    return c.redirect(
-      `/m/${encodeURIComponent(code)}?t=${encodeURIComponent(token ?? '')}${customerLangSuffix(locale)}`,
-    )
-  }
-
-  const langQ = locale === 'en' ? '&lang=en' : ''
-  return c.redirect(
-    `/m/${encodeURIComponent(code)}/done?t=${encodeURIComponent(token ?? '')}${langQ}`,
-    303,
-  )
-})
-
-/** Confirmación tras finalizar cambios de una visita multi-tratamiento. */
-app.get('/m/:code/done', async (c) => {
-  const queryLang = c.req.query('lang')
-  const code = c.req.param('code')
-  const token = c.req.query('t')
-  const resolved = await resolveCustomerBookingContext(code, token, queryLang)
-  if (!resolved.ok) {
-    const page = renderInvalidLinkPage(resolved.locale, 'action')
-    return c.html(page.html, 400)
-  }
-
-  const { ctx } = resolved
-  const { locale } = ctx
-  const t = cp(locale).visitChanges
-  const bodyText =
-    ctx.activeRows.length > 0 ? t.finishBody : t.finishAllCancelledBody
-
-  return replyCustomerPage(
-    c,
-    t.finishTitle,
-    `<h1>${escapeHtml(t.finishHeading)}</h1>
-     <p>${escapeHtml(bodyText)}</p>
-     <p>${escapeHtml(t.finishFooter)}</p>`,
-    locale,
-  )
 })
 
 /** Archivo .ics para añadir la cita al calendario nativo del móvil. */
