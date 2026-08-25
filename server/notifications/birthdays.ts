@@ -42,6 +42,8 @@ export async function processDueBirthdayWishes(): Promise<number> {
         await markBirthdayWishSent(customer.phone, year)
         sent += 1
         console.log(`Superpelu cumpleaños: felicitación enviada a ${customer.phone}`)
+        // Pausa entre envíos para no saturar Chromium (además de la cola en openwa).
+        await new Promise((r) => setTimeout(r, 1_500))
       } catch (err) {
         console.error(`Superpelu cumpleaños: fallo con ${customer.phone}:`, err)
       }

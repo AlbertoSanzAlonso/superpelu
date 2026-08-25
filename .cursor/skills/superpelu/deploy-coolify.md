@@ -124,6 +124,8 @@ OPENWA_SESSION_ID=sess_...
 
 Requiere **Connect To Predefined Network** (misma red que el stack OpenWA) y volumen `/app/data` en OpenWA. La API **no** debe tener dominio público.
 
+Ante `ProtocolError` / Chromium colgado: `POST https://TU-DOMINIO/api/admin/whatsapp/reconnect` (Bearer `ADMIN_SECRET`) o Restart del recurso OpenWA en Coolify. No meter scripts `.sh` en el volumen del contenedor (se pierden al redeploy); Custom Start Command de locks va **inline** en Coolify.
+
 ## Email (aviso al administrador)
 
 En cada cita nueva o cancelada el servidor envía un email al administrador (SMTP vía `nodemailer`, `server/appointmentEmail.ts`). Variables en la app **Superpelu** (runtime); como `NODE_ENV=production` **no** carga `.env`, hay que ponerlas en el panel de Coolify y **Redeploy**:

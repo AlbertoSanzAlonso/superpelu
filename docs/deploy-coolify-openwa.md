@@ -89,10 +89,19 @@ DATABASE_SYNCHRONIZE=false
 ENGINE_TYPE=whatsapp-web.js
 SESSION_DATA_PATH=/app/data/sessions
 PUPPETEER_HEADLESS=true
-PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu,--disable-software-rasterizer
 STORAGE_TYPE=local
 STORAGE_LOCAL_PATH=/app/data/media
 ```
+
+**Recursos del contenedor (muy recomendado):** en Coolify → OpenWA → **Resource Limits** / Advanced (esto vive en la config de Coolify, no en un fichero del contenedor):
+
+| Ajuste | Valor | Por qué |
+|--------|-------|---------|
+| Memory limit | **2 GB** | Chromium ~300–500 MB; sin techo el OOM cuelga Puppeteer |
+| Shared memory | **256 MB** si Coolify/compose lo permite (`shm_size`) | `/dev/shm` pequeño → crashes de Chrome |
+
+Referencia de compose en el repo: `deploy/openwa-coolify.compose.yml` (incluye `mem_limit` + `shm_size`). Si el recurso es **Build Pack Dockerfile** (no Compose), aplica los mismos límites en la UI de Coolify; el YAML del repo no se aplica solo.
 
 ### Volumen persistente (obligatorio)
 
@@ -276,21 +285,44 @@ Chromium has locked the profile so that it doesn't get corrupted.
 find /app/data -name "Singleton*" -print -delete
 ```
 
-**Arreglo permanente (que no vuelva a pasar):** en Coolify → OpenWA → **General → Custom Start Command** (Build Pack Dockerfile), pon:
+**Arreglo permanente (que no vuelva a pasar):** en Coolify → OpenWA → **General → Custom Start Command** (Build Pack Dockerfile), pega **inline** (no un `.sh` en `/app/data` ni en la imagen: se pierde al redeploy):
 
 ```bash
 sh -c "find /app/data -name 'Singleton*' -delete 2>/dev/null; node dist/main"
 ```
 
+Coolify guarda ese comando en la config del recurso; el volumen solo debe tener sesión/DB (`/app/data`), no scripts de arranque.
+
 Como el `ENTRYPOINT` del Dockerfile es `dumb-init --`, el contenedor ejecutará `dumb-init -- sh -c "borra locks; node dist/main"` en cada arranque, limpiando el lock automáticamente. **Redeploy** para aplicarlo.
 
-> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada 5 min (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo.
+> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada 5 min (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo. Ante `ProtocolError` / timeout de Puppeteer, Superpelu hace **stop→start** automático (y puedes forzar `POST /api/admin/whatsapp/reconnect` contra el dominio público).
+
+### WhatsApp deja de enviar: `ProtocolError: Runtime.callFunctionOn timed out`
+
+Síntoma en logs de OpenWA: avisos de `typing` y luego ERROR en `Client.sendMessage` / `WwebjsMessaging.sendTextMessage`.
+
+**Causa:** Chromium (WhatsApp Web) está colgado o saturado. La API puede seguir respondiendo `ready` aunque Puppeteer ya no ejecute JS.
+
+**Arreglo inmediato (Coolify / prod):**
+
+```bash
+# Desde tu PC — API pública de Superpelu (recomendado)
+curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  https://superpelubenalmadena.es/api/admin/whatsapp/reconnect
+```
+
+O en Coolify → recurso **OpenWA** → **Restart** (no hace falta meter scripts en el contenedor).
+
+Si tras reconnect sigue mal: limpia locks `Singleton*` (sección anterior) y reinicia OpenWA. En Coolify → Resource Limits: **≥2 GB** RAM para OpenWA. Comprueba espacio libre en el VPS.
+
+**Qué hace Superpelu solo** (código desplegado en la app; sobrevive a redeploys): cola serial de mensajes, hasta 3 reintentos, y recuperación stop→start con cooldown de 2 min.
 
 ---
 
 | Síntoma | Qué revisar |
 |---------|-------------|
 | `connected: false` | QR no escaneado o sesión caída; reiniciar sesión en dashboard |
+| `ProtocolError` / `callFunctionOn timed out` | Chromium colgado → `POST …/whatsapp/reconnect` o Restart OpenWA; sube RAM/`shm` |
 | `fetch failed` / timeout en logs Superpelu | Red: Superpelu no está en la red de OpenWA o `OPENWA_API_URL` incorrecta |
 | `OPENWA_ENABLED` pero no envía | Faltan `OPENWA_API_KEY` o `OPENWA_SESSION_ID` en runtime |
 | Pierde WhatsApp tras deploy | Volumen `/app/data` no montado en OpenWA |

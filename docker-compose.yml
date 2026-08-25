@@ -39,6 +39,8 @@ services:
     build: ./openwa
     container_name: openwa
     restart: unless-stopped
+    mem_limit: 2g
+    shm_size: '256mb'
     expose:
       - '2785'
     environment:
@@ -50,7 +52,7 @@ services:
       ENGINE_TYPE: whatsapp-web.js
       SESSION_DATA_PATH: /app/data/sessions
       PUPPETEER_HEADLESS: 'true'
-      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu,--disable-software-rasterizer
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/data/media
       API_MASTER_KEY: ${OPENWA_API_MASTER_KEY:-}

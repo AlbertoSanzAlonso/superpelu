@@ -1,4 +1,4 @@
-/** Cliente HTTP para la API de OpenWA (WhatsApp). */
+/** Cliente HTTP para la API de OpenWA (WhatsApp), con reintentos y recuperación. */
 
 export type OpenWaConfig = {
   enabled: true
@@ -14,9 +14,37 @@ type OpenWaApiResponse<T> = {
   error?: { message?: string; code?: string }
 }
 
+/** Opciones por envío (logo usa intentos cortos; texto usa recuperación completa). */
+export type OpenWaSendOptions = {
+  /** Intentos totales (default 3 para texto, 1 si se indica). */
+  attempts?: number
+  /** Timeout HTTP por intento (ms). */
+  timeoutMs?: number
+  /** Si true, ante fallo transitorio hace stop→start de la sesión (con cooldown). */
+  allowRecovery?: boolean
+}
+
+const DEFAULT_SEND_TIMEOUT_MS = 45_000
+const DEFAULT_SEND_ATTEMPTS = 3
+const ADMIN_TIMEOUT_MS = 20_000
+const RECOVERY_COOLDOWN_MS = 2 * 60_000
+const READY_POLL_MS = 2_000
+const READY_WAIT_MS = 60_000
+const RETRY_BASE_DELAY_MS = 1_500
+
+/** Serializa envíos: Chromium/Puppeteer no aguanta evaluate concurrentes. */
+let sendQueue: Promise<unknown> = Promise.resolve()
+
+let lastRecoveryAt = 0
+let recoveryInFlight: Promise<boolean> | null = null
+
 function envFlag(name: string): boolean {
   const v = (process.env[name] ?? '').trim().toLowerCase()
   return v === '1' || v === 'true' || v === 'yes'
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 export function getOpenWaConfig(): OpenWaConfig | null {
@@ -71,23 +99,54 @@ export function phoneToWhatsAppChatId(phoneE164: string): string {
   return `${digits}@c.us`
 }
 
+function errorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message
+  return String(err)
+}
+
+/** Fallos típicos de Chromium/Puppeteer colgado o red inestable. */
+export function isTransientOpenWaError(err: unknown): boolean {
+  const msg = errorMessage(err).toLowerCase()
+  return (
+    msg.includes('protocol') ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('fetch failed') ||
+    msg.includes('socket') ||
+    msg.includes('503') ||
+    msg.includes('502') ||
+    msg.includes('504') ||
+    msg.includes('service unavailable') ||
+    msg.includes('execution context') ||
+    msg.includes('target closed') ||
+    msg.includes('session closed') ||
+    msg.includes('browser') ||
+    msg.includes('navigat') ||
+    msg.includes('frame was detached') ||
+    msg.includes('page crashed')
+  )
+}
+
 async function openWaFetch<T>(
   path: string,
-  init?: RequestInit,
+  init?: RequestInit & { timeoutMs?: number },
 ): Promise<T> {
   const config = getOpenWaConfig()
   if (!config) throw new Error('OPENWA_NO_CONFIG')
 
+  const { timeoutMs = ADMIN_TIMEOUT_MS, ...rest } = init ?? {}
   const url = `${config.apiUrl}${path.startsWith('/') ? path : `/${path}`}`
   const res = await fetch(url, {
-    ...init,
+    ...rest,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       'X-API-Key': config.apiKey,
-      ...(init?.headers ?? {}),
+      ...(rest.headers ?? {}),
     },
-    signal: init?.signal ?? AbortSignal.timeout(20_000),
+    signal: rest.signal ?? AbortSignal.timeout(timeoutMs),
   })
 
   const body = (await res.json().catch(() => ({}))) as OpenWaApiResponse<T>
@@ -105,40 +164,201 @@ async function openWaFetch<T>(
   return (body.data ?? body) as T
 }
 
-export async function openWaSendText(chatId: string, text: string): Promise<string | undefined> {
+async function openWaAdminFetch<T>(
+  path: string,
+  init?: RequestInit & { timeoutMs?: number },
+): Promise<T> {
+  const config = getOpenWaAdminConfig()
+  if (!config) throw new Error('OPENWA_NO_CONFIG')
+
+  const { timeoutMs = ADMIN_TIMEOUT_MS, ...rest } = init ?? {}
+  const url = `${config.apiUrl}${path.startsWith('/') ? path : `/${path}`}`
+  const res = await fetch(url, {
+    ...rest,
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'X-API-Key': config.apiKey,
+      ...(rest.headers ?? {}),
+    },
+    signal: rest.signal ?? AbortSignal.timeout(timeoutMs),
+  })
+
+  const body = (await res.json().catch(() => ({}))) as OpenWaApiResponse<T>
+  if (!res.ok) {
+    const msg =
+      body.error?.message ??
+      (typeof body === 'object' && body !== null && 'message' in body
+        ? String((body as { message: unknown }).message)
+        : res.statusText)
+    throw new Error(`OpenWA ${res.status}: ${msg}`)
+  }
+  return (body.data ?? body) as T
+}
+
+function enqueueSend<T>(fn: () => Promise<T>): Promise<T> {
+  const run = sendQueue.then(fn, fn)
+  sendQueue = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
+
+async function waitUntilSessionReady(sessionId: string, maxMs: number): Promise<boolean> {
+  const deadline = Date.now() + maxMs
+  while (Date.now() < deadline) {
+    const session = await openWaGetSessionById(sessionId)
+    if (isOpenWaSessionConnected(session?.status)) return true
+    await sleep(READY_POLL_MS)
+  }
+  return false
+}
+
+/** Para la sesión Chromium (no hace logout del móvil). */
+export async function openWaStopSession(id: string): Promise<void> {
+  try {
+    await openWaAdminFetch(`/sessions/${encodeURIComponent(id)}/stop`, {
+      method: 'POST',
+      timeoutMs: 30_000,
+    })
+  } catch (err) {
+    console.warn('Superpelu OpenWA stop:', errorMessage(err))
+  }
+}
+
+/**
+ * Recupera un Chromium colgado: stop → start → espera `ready`.
+ * Cooldown global para no martillar OpenWA si fallan muchos envíos a la vez.
+ */
+export async function openWaRecoverSession(force = false): Promise<boolean> {
+  const config = getOpenWaConfig()
+  if (!config) return false
+
+  if (recoveryInFlight) return recoveryInFlight
+
+  const now = Date.now()
+  if (!force && now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
+    console.warn(
+      `Superpelu OpenWA: recuperación omitida (cooldown ${Math.ceil((RECOVERY_COOLDOWN_MS - (now - lastRecoveryAt)) / 1000)}s)`,
+    )
+    return false
+  }
+
+  recoveryInFlight = (async () => {
+    lastRecoveryAt = Date.now()
+    console.warn('Superpelu OpenWA: recuperando sesión (stop → start)…')
+    try {
+      await openWaStopSession(config.sessionId)
+      await sleep(2_000)
+      await openWaStartSession(config.sessionId)
+      const ready = await waitUntilSessionReady(config.sessionId, READY_WAIT_MS)
+      if (ready) {
+        console.log('Superpelu OpenWA: sesión recuperada (ready)')
+        return true
+      }
+      console.error('Superpelu OpenWA: tras stop/start la sesión no llegó a ready')
+      return false
+    } catch (err) {
+      console.error('Superpelu OpenWA recuperación:', err)
+      return false
+    } finally {
+      recoveryInFlight = null
+    }
+  })()
+
+  return recoveryInFlight
+}
+
+async function withSendResilience<T>(
+  label: string,
+  run: () => Promise<T>,
+  options?: OpenWaSendOptions,
+): Promise<T> {
+  const attempts = Math.max(1, options?.attempts ?? DEFAULT_SEND_ATTEMPTS)
+  const allowRecovery = options?.allowRecovery !== false
+  let lastErr: unknown
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await run()
+    } catch (err) {
+      lastErr = err
+      const transient = isTransientOpenWaError(err)
+      console.warn(
+        `Superpelu OpenWA ${label}: intento ${attempt}/${attempts} falló${transient ? ' (transitorio)' : ''}: ${errorMessage(err)}`,
+      )
+
+      if (!transient || attempt >= attempts) break
+
+      if (allowRecovery && attempt >= 2) {
+        await openWaRecoverSession()
+      } else {
+        await sleep(RETRY_BASE_DELAY_MS * attempt)
+      }
+    }
+  }
+
+  throw lastErr instanceof Error ? lastErr : new Error(errorMessage(lastErr))
+}
+
+export async function openWaSendText(
+  chatId: string,
+  text: string,
+  options?: OpenWaSendOptions,
+): Promise<string | undefined> {
   const config = getOpenWaConfig()
   if (!config) return undefined
 
-  const data = await openWaFetch<{ messageId?: string }>(
-    `/sessions/${encodeURIComponent(config.sessionId)}/messages/send-text`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ chatId, text }),
-    },
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_SEND_TIMEOUT_MS
+
+  return enqueueSend(() =>
+    withSendResilience(
+      'send-text',
+      () =>
+        openWaFetch<{ messageId?: string }>(
+          `/sessions/${encodeURIComponent(config.sessionId)}/messages/send-text`,
+          {
+            method: 'POST',
+            body: JSON.stringify({ chatId, text }),
+            timeoutMs,
+          },
+        ).then((data) => data.messageId),
+      options,
+    ),
   )
-  return data.messageId
 }
 
 export async function openWaSendImage(
   chatId: string,
   image: string,
   caption?: string,
+  options?: OpenWaSendOptions,
 ): Promise<string | undefined> {
   const config = getOpenWaConfig()
   if (!config) return undefined
 
-  const data = await openWaFetch<{ messageId?: string }>(
-    `/sessions/${encodeURIComponent(config.sessionId)}/messages/send-image`,
-    {
-      method: 'POST',
-      body: JSON.stringify({
-        chatId,
-        image,
-        ...(caption?.trim() ? { caption: caption.trim() } : {}),
-      }),
-    },
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_SEND_TIMEOUT_MS
+
+  return enqueueSend(() =>
+    withSendResilience(
+      'send-image',
+      () =>
+        openWaFetch<{ messageId?: string }>(
+          `/sessions/${encodeURIComponent(config.sessionId)}/messages/send-image`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              chatId,
+              image,
+              ...(caption?.trim() ? { caption: caption.trim() } : {}),
+            }),
+            timeoutMs,
+          },
+        ).then((data) => data.messageId),
+      options,
+    ),
   )
-  return data.messageId
 }
 
 export type OpenWaSessionStatus = {
@@ -165,34 +385,6 @@ export async function openWaGetSessionStatus(): Promise<OpenWaSessionStatus | nu
   }
 }
 
-async function openWaAdminFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const config = getOpenWaAdminConfig()
-  if (!config) throw new Error('OPENWA_NO_CONFIG')
-
-  const url = `${config.apiUrl}${path.startsWith('/') ? path : `/${path}`}`
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-API-Key': config.apiKey,
-      ...(init?.headers ?? {}),
-    },
-    signal: init?.signal ?? AbortSignal.timeout(20_000),
-  })
-
-  const body = (await res.json().catch(() => ({}))) as OpenWaApiResponse<T>
-  if (!res.ok) {
-    const msg =
-      body.error?.message ??
-      (typeof body === 'object' && body !== null && 'message' in body
-        ? String((body as { message: unknown }).message)
-        : res.statusText)
-    throw new Error(`OpenWA ${res.status}: ${msg}`)
-  }
-  return (body.data ?? body) as T
-}
-
 /** Lista las sesiones existentes en OpenWA. */
 export async function openWaListSessions(): Promise<OpenWaSessionStatus[]> {
   const data = await openWaAdminFetch<OpenWaSessionStatus[]>('/sessions', { method: 'GET' })
@@ -213,7 +405,10 @@ export async function openWaEnsureSession(name: string): Promise<OpenWaSessionSt
 /** Arranca una sesión (genera QR). Ignora el error si ya estaba arrancada. */
 export async function openWaStartSession(id: string): Promise<void> {
   try {
-    await openWaAdminFetch(`/sessions/${encodeURIComponent(id)}/start`, { method: 'POST' })
+    await openWaAdminFetch(`/sessions/${encodeURIComponent(id)}/start`, {
+      method: 'POST',
+      timeoutMs: 30_000,
+    })
   } catch (err) {
     console.warn('Superpelu OpenWA start:', String(err))
   }
@@ -256,6 +451,7 @@ export async function openWaEnsureStarted(): Promise<void> {
     if (session && isOpenWaSessionConnected(session.status)) return
     console.log('Superpelu OpenWA: sesión no conectada, intentando reconectar…')
     await openWaStartSession(config.sessionId)
+    await waitUntilSessionReady(config.sessionId, 30_000)
   } catch (err) {
     console.error('Superpelu OpenWA reconexión:', err)
   }
@@ -274,7 +470,7 @@ export function logOpenWaStartup(): void {
     console.log(
       `Superpelu: OpenWA activo → ${config.apiUrl} (sesión ${config.sessionId})${
         config.notifyPublicOnly ? ', solo reservas públicas' : ''
-      }`,
+      } (reintentos + cola + recuperación stop/start)`,
     )
     return
   }

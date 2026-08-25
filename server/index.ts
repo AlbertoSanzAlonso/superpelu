@@ -138,6 +138,7 @@ import {
   openWaGetQr,
   openWaGetSessionById,
   openWaGetSessionStatus,
+  openWaRecoverSession,
   openWaSendText,
   openWaSessionName,
   openWaStartSession,
@@ -578,6 +579,35 @@ app.get('/api/admin/whatsapp', async (c) => {
       : null,
     connected: isOpenWaSessionConnected(session?.status),
   })
+})
+
+/**
+ * Fuerza stop→start de la sesión OpenWA (Chromium colgado / ProtocolError).
+ * No desvincula el móvil; con volumen persistente suele volver a `ready` sin QR.
+ */
+app.post('/api/admin/whatsapp/reconnect', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+
+  if (!isOpenWaConfigured()) {
+    return c.json({ error: 'OpenWA no configurado (OPENWA_ENABLED y credenciales)' }, 400)
+  }
+
+  const recovered = await openWaRecoverSession(true)
+  const session = await openWaGetSessionStatus()
+  return c.json({
+    ok: recovered,
+    recovered,
+    connected: isOpenWaSessionConnected(session?.status),
+    session: session
+      ? {
+          id: session.id,
+          status: session.status,
+          phoneNumber: session.phone ?? session.phoneNumber,
+          name: session.name,
+        }
+      : null,
+  }, recovered ? 200 : 503)
 })
 
 /** Envía un WhatsApp de prueba (solo admin). Body: { phone, text? } */

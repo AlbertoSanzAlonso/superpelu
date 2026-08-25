@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Gestión de WhatsApp (OpenWA) en el servidor de producción vía SSH.
+# Se ejecuta desde TU PC (no dentro del contenedor Coolify).
 # La API (2785) no debe estar expuesta a internet; los curl van en el propio servidor.
+#
+# No copies este script al volumen /app/data ni a la imagen: se pierde en cada
+# redeploy. Recuperación habitual desde fuera:
+#   curl -X POST -H "Authorization: Bearer $ADMIN_SECRET" \
+#     https://superpelubenalmadena.es/api/admin/whatsapp/reconnect
 #
 # Uso:
 #   ./scripts/openwa-prod.sh help
@@ -9,6 +15,7 @@
 #   ./scripts/openwa-prod.sh status
 #   ./scripts/openwa-prod.sh logout
 #   ./scripts/openwa-prod.sh start
+#   ./scripts/openwa-prod.sh recover  # stop→start (Chromium colgado / ProtocolError)
 #   ./scripts/openwa-prod.sh qr
 #   ./scripts/openwa-prod.sh relink    # logout + start + qr
 #   ./scripts/openwa-prod.sh locks     # borra Singleton* de Chromium (tras crash)
@@ -307,6 +314,20 @@ cmd_start() {
   cmd_status
 }
 
+# stop→start sin logout (no pide QR). Para ProtocolError / Chromium colgado.
+cmd_recover() {
+  need_key
+  local id
+  id="$(resolve_session_id)"
+  echo "→ Recuperando sesión ${id} (stop → start)…"
+  ssh_openwa POST "/sessions/${id}/stop" | pretty_json || true
+  sleep 2
+  ssh_openwa POST "/sessions/${id}/start" | pretty_json || true
+  echo "→ Esperando ready…"
+  sleep 8
+  cmd_status
+}
+
 cmd_qr() {
   need_key
   local id
@@ -468,6 +489,7 @@ Comandos:
   status      Estado de la sesión «${OPENWA_SESSION_NAME}»
   logout      Cierra sesión WhatsApp (desvincula)
   start       Arranca la sesión (tras logout genera QR)
+  recover     stop→start (Chromium colgado / ProtocolError; sin QR)
   qr          Descarga QR → ${QR_OUT}
   relink      logout + start + qr (flujo completo)
   locks       Borra locks Chromium (si no arranca tras redeploy)
@@ -475,6 +497,9 @@ Comandos:
   containers  Alias de discover
   superpelu   Estado vía API pública (requiere ADMIN_SECRET)
   qr-page     URL de QR en Superpelu (requiere ADMIN_SECRET)
+
+Ejemplo — Chromium colgado (sin reescanear QR):
+  npm run openwa:prod -- recover
 
 Ejemplo — volver a escanear QR:
   ./scripts/openwa-prod.sh relink
@@ -493,6 +518,7 @@ main() {
     status) cmd_status ;;
     logout) cmd_logout ;;
     start) cmd_start ;;
+    recover | revive) cmd_recover ;;
     qr) cmd_qr ;;
     relink | reconnect) cmd_relink ;;
     locks | fix-locks) cmd_locks ;;

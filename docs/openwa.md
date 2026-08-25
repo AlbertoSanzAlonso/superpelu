@@ -67,8 +67,49 @@ En desarrollo, la API key por defecto suele ser `dev-admin-key` (ver logs de `op
 Comprobar sesión:
 
 ```bash
+# Dev local
 curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
   http://localhost:3001/api/admin/whatsapp
+
+# Producción Coolify
+curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  https://superpelubenalmadena.es/api/admin/whatsapp
+```
+
+## Recuperación automática (Superpelu)
+
+El cliente en `server/notifications/openwa.ts` (código de la app; no hace falta ningún script en el contenedor):
+
+- **Cola serial** de envíos (Chromium no aguanta varios `evaluate` a la vez).
+- **Hasta 3 reintentos** con backoff ante timeouts / `ProtocolError` / errores de red.
+- Tras el 2.º fallo: **stop → start** de la sesión (cooldown 2 min) y espera a `ready`.
+- Timeout HTTP de envío: **45 s** (antes 20 s).
+
+### Producción (Coolify)
+
+Forzar recuperación a mano (desde tu PC, contra el dominio público de Superpelu):
+
+```bash
+curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  https://superpelubenalmadena.es/api/admin/whatsapp/reconnect
+```
+
+Alternativa en Coolify: **Restart** del recurso OpenWA (la sesión autenticada vive en el volumen `/app/data`; no hace falta QR salvo que se haya desvinculado el móvil).
+
+No copies scripts `.sh` dentro del contenedor OpenWA: el filesystem de la imagen se pierde en cada redeploy. Solo persiste `/app/data`. Limpieza de locks Chromium = **Custom Start Command** en el panel Coolify (inline), no un fichero en el volumen.
+
+Comprobar sesión:
+
+```bash
+curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  https://superpelubenalmadena.es/api/admin/whatsapp
+```
+
+### Desarrollo local
+
+```bash
+curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  http://localhost:3001/api/admin/whatsapp/reconnect
 ```
 
 ## Recordatorio 24h antes de la cita
@@ -90,8 +131,13 @@ Variables (todas opcionales):
 Requiere OpenWA configurado (si no, el scheduler queda inactivo). Forzar un envío manual (para pruebas):
 
 ```bash
+# Dev local
 curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
   http://localhost:3001/api/admin/whatsapp/reminders/run
+
+# Producción Coolify
+curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
+  https://superpelubenalmadena.es/api/admin/whatsapp/reminders/run
 ```
 
 ## Coolify

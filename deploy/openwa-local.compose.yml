@@ -8,6 +8,8 @@ services:
       context: ../openwa
       dockerfile: Dockerfile
     container_name: openwa-api
+    mem_limit: 2g
+    shm_size: '256mb'
     ports:
       - '127.0.0.1:2785:2785'
     environment:
@@ -19,7 +21,7 @@ services:
       ENGINE_TYPE: whatsapp-web.js
       SESSION_DATA_PATH: /app/data/sessions
       PUPPETEER_HEADLESS: 'true'
-      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      PUPPETEER_ARGS: --no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu,--disable-software-rasterizer
       STORAGE_TYPE: local
       STORAGE_LOCAL_PATH: /app/data/media
       QUEUE_ENABLED: 'false'

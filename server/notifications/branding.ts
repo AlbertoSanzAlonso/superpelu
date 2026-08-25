@@ -7,7 +7,13 @@ import { getTranslation } from '@/i18n/translations'
 import type { Locale } from '@/i18n/types'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
-const LOGO_TIMEOUT_MS = 6_000
+/** Logo es best-effort: un solo intento corto, sin stop/start (no retrasa el texto). */
+const LOGO_SEND_OPTIONS = {
+  attempts: 1,
+  timeoutMs: 8_000,
+  allowRecovery: false,
+} as const
+const LOGO_TIMEOUT_MS = 10_000
 
 let cachedLogoBase64Raw: string | null = null
 
@@ -46,7 +52,7 @@ async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {
   const caption = getTranslation(locale).whatsappAppointment.logoCaption
   try {
     const dataUrl = await readWhatsAppLogoBase64()
-    await openWaSendImage(chatId, dataUrl, caption)
+    await openWaSendImage(chatId, dataUrl, caption, LOGO_SEND_OPTIONS)
     return
   } catch (err) {
     const url = whatsappLogoImageUrl()
@@ -55,7 +61,7 @@ async function sendLogoHeader(chatId: string, locale: Locale): Promise<void> {
       return
     }
     try {
-      await openWaSendImage(chatId, url, caption)
+      await openWaSendImage(chatId, url, caption, LOGO_SEND_OPTIONS)
     } catch (urlErr) {
       console.error('Superpelu WhatsApp: cabecera con logo omitida:', urlErr)
     }
