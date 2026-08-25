@@ -76,40 +76,21 @@ curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
   https://superpelubenalmadena.es/api/admin/whatsapp
 ```
 
-## Recuperación automática (Superpelu)
+## Auto-recuperación (sin mantenimiento)
 
-El cliente en `server/notifications/openwa.ts` (código de la app; no hace falta ningún script en el contenedor):
+Si OpenWA o Chromium caen (Restart en Coolify, ProtocolError, sesión no ready), **Superpelu se recompone solo**:
 
-- **Cola serial** de envíos (Chromium no aguanta varios `evaluate` a la vez).
-- **Hasta 3 reintentos** con backoff ante timeouts / `ProtocolError` / errores de red.
-- Tras el 2.º fallo: **stop → start** de la sesión (cooldown 2 min) y espera a `ready`.
-- Timeout HTTP de envío: **45 s** (antes 20 s).
+1. **Watchdog cada 60 s** — si la sesión no está `ready`, hace `start`; si sigue caída, `stop → start`.
+2. **Antes de cada envío** — espera a `ready`; si falla el envío, reintenta y fuerza recuperación.
+3. **Zombie** — status `ready` pero fallos seguidos → `stop → start` (Chromium colgado).
 
-### Producción (Coolify)
+No hace falta cola de mensajes ni scripts en el contenedor. La sesión autenticada vive en el volumen `/app/data` de OpenWA; tras Restart suele volver sin QR.
 
-Forzar recuperación a mano (desde tu PC, contra el dominio público de Superpelu):
+Forzar a mano (raro):
 
 ```bash
 curl -s -X POST -H "Authorization: Bearer TU_ADMIN_SECRET" \
   https://superpelubenalmadena.es/api/admin/whatsapp/reconnect
-```
-
-Alternativa en Coolify: **Restart** del recurso OpenWA (la sesión autenticada vive en el volumen `/app/data`; no hace falta QR salvo que se haya desvinculado el móvil).
-
-No copies scripts `.sh` dentro del contenedor OpenWA: el filesystem de la imagen se pierde en cada redeploy. Solo persiste `/app/data`. Limpieza de locks Chromium = **Custom Start Command** en el panel Coolify (inline), no un fichero en el volumen.
-
-Comprobar sesión:
-
-```bash
-curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
-  https://superpelubenalmadena.es/api/admin/whatsapp
-```
-
-### Desarrollo local
-
-```bash
-curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
-  http://localhost:3001/api/admin/whatsapp/reconnect
 ```
 
 ## Recordatorio 24h antes de la cita

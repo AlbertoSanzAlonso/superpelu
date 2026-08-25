@@ -315,7 +315,7 @@ O en Coolify → recurso **OpenWA** → **Restart** (no hace falta meter scripts
 
 Si tras reconnect sigue mal: limpia locks `Singleton*` (sección anterior) y reinicia OpenWA. En Coolify → Resource Limits: **≥2 GB** RAM para OpenWA. Comprueba espacio libre en el VPS.
 
-**Qué hace Superpelu solo** (código desplegado en la app; sobrevive a redeploys): cola serial de mensajes, hasta 3 reintentos, y recuperación stop→start con cooldown de 2 min.
+**Qué hace Superpelu solo** (código en la app; sobrevive a redeploys): watchdog cada 60 s que arranca/recupera la sesión si cae, cola serial, reintentos, y `stop→start` si Chromium está zombie o hay ProtocolError. Objetivo: que tras un Restart de OpenWA se recomponga sin que nadie llame.
 
 ---
 

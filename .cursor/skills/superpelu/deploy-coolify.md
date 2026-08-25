@@ -124,7 +124,7 @@ OPENWA_SESSION_ID=sess_...
 
 Requiere **Connect To Predefined Network** (misma red que el stack OpenWA) y volumen `/app/data` en OpenWA. La API **no** debe tener dominio público.
 
-Ante `ProtocolError` / Chromium colgado: `POST https://TU-DOMINIO/api/admin/whatsapp/reconnect` (Bearer `ADMIN_SECRET`) o Restart del recurso OpenWA en Coolify. No meter scripts `.sh` en el volumen del contenedor (se pierden al redeploy); Custom Start Command de locks va **inline** en Coolify.
+Ante caída de OpenWA/Chromium: Superpelu **watchdog cada 60s** + reintentos + `stop→start` solos (sin mantenimiento). Manual: `POST https://TU-DOMINIO/api/admin/whatsapp/reconnect` o Restart OpenWA en Coolify. No meter scripts `.sh` en el volumen; Custom Start Command de locks va **inline** en Coolify.
 
 ## Email (aviso al administrador)
 

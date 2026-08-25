@@ -27,16 +27,25 @@ export type OpenWaSendOptions = {
 const DEFAULT_SEND_TIMEOUT_MS = 45_000
 const DEFAULT_SEND_ATTEMPTS = 3
 const ADMIN_TIMEOUT_MS = 20_000
-const RECOVERY_COOLDOWN_MS = 2 * 60_000
+/** Evita martillar stop/start; lo bastante corto para recomponerse tras Restart de Coolify. */
+const RECOVERY_COOLDOWN_MS = 90_000
 const READY_POLL_MS = 2_000
-const READY_WAIT_MS = 60_000
+const READY_WAIT_MS = 90_000
 const RETRY_BASE_DELAY_MS = 1_500
+/** Watchdog cada minuto: si OpenWA o Chromium caen, arranca/recupera solo. */
+const WATCHDOG_INTERVAL_MS = 60_000
+const WATCHDOG_BOOT_DELAY_MS = 15_000
+/** Fallos de envío seguidos con status "ready" → Chromium zombie → stop/start. */
+const ZOMBIE_FAILURE_THRESHOLD = 2
 
 /** Serializa envíos: Chromium/Puppeteer no aguanta evaluate concurrentes. */
 let sendQueue: Promise<unknown> = Promise.resolve()
 
 let lastRecoveryAt = 0
 let recoveryInFlight: Promise<boolean> | null = null
+let consecutiveSendFailures = 0
+let disconnectedWatchdogTicks = 0
+let watchdogStarted = false
 
 function envFlag(name: string): boolean {
   const v = (process.env[name] ?? '').trim().toLowerCase()
@@ -104,7 +113,7 @@ function errorMessage(err: unknown): string {
   return String(err)
 }
 
-/** Fallos típicos de Chromium/Puppeteer colgado o red inestable. */
+/** Fallos típicos de Chromium/Puppeteer colgado, sesión caída o red inestable. */
 export function isTransientOpenWaError(err: unknown): boolean {
   const msg = errorMessage(err).toLowerCase()
   return (
@@ -125,8 +134,20 @@ export function isTransientOpenWaError(err: unknown): boolean {
     msg.includes('browser') ||
     msg.includes('navigat') ||
     msg.includes('frame was detached') ||
-    msg.includes('page crashed')
+    msg.includes('page crashed') ||
+    msg.includes('not connected') ||
+    msg.includes('not ready') ||
+    msg.includes('client is not ready') ||
+    msg.includes('session is not connected')
   )
+}
+
+function noteSendSuccess(): void {
+  consecutiveSendFailures = 0
+}
+
+function noteSendFailure(): void {
+  consecutiveSendFailures += 1
 }
 
 async function openWaFetch<T>(
@@ -230,6 +251,7 @@ export async function openWaStopSession(id: string): Promise<void> {
 /**
  * Recupera un Chromium colgado: stop → start → espera `ready`.
  * Cooldown global para no martillar OpenWA si fallan muchos envíos a la vez.
+ * `force` ignora cooldown (p. ej. watchdog tras varios ticks desconectado).
  */
 export async function openWaRecoverSession(force = false): Promise<boolean> {
   const config = getOpenWaConfig()
@@ -254,6 +276,8 @@ export async function openWaRecoverSession(force = false): Promise<boolean> {
       await openWaStartSession(config.sessionId)
       const ready = await waitUntilSessionReady(config.sessionId, READY_WAIT_MS)
       if (ready) {
+        consecutiveSendFailures = 0
+        disconnectedWatchdogTicks = 0
         console.log('Superpelu OpenWA: sesión recuperada (ready)')
         return true
       }
@@ -281,9 +305,15 @@ async function withSendResilience<T>(
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      return await run()
+      if (allowRecovery) {
+        await openWaEnsureStarted()
+      }
+      const result = await run()
+      noteSendSuccess()
+      return result
     } catch (err) {
       lastErr = err
+      noteSendFailure()
       const transient = isTransientOpenWaError(err)
       console.warn(
         `Superpelu OpenWA ${label}: intento ${attempt}/${attempts} falló${transient ? ' (transitorio)' : ''}: ${errorMessage(err)}`,
@@ -291,8 +321,14 @@ async function withSendResilience<T>(
 
       if (!transient || attempt >= attempts) break
 
-      if (allowRecovery && attempt >= 2) {
-        await openWaRecoverSession()
+      if (allowRecovery) {
+        // 1.er fallo: start/espera; 2.º+: stop→start (recomponer Chromium)
+        if (attempt >= 2 || consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+          await openWaRecoverSession(attempt >= 3)
+        } else {
+          await openWaEnsureStarted()
+          await sleep(RETRY_BASE_DELAY_MS * attempt)
+        }
       } else {
         await sleep(RETRY_BASE_DELAY_MS * attempt)
       }
@@ -439,29 +475,122 @@ export async function openWaGetSessionById(id: string): Promise<OpenWaSessionSta
 }
 
 /**
- * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA), intenta
- * arrancarla. Como la autenticación persiste en el volumen, reconecta a
- * `ready` sin pedir QR nuevo.
+ * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA en Coolify),
+ * la arranca y espera `ready`. Si no entra, hace stop→start.
+ * Si está "ready" pero hubo fallos recientes de envío, también recupera (zombie).
  */
 export async function openWaEnsureStarted(): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return
   try {
+    if (recoveryInFlight) {
+      await recoveryInFlight
+      return
+    }
+
     const session = await openWaGetSessionStatus()
-    if (session && isOpenWaSessionConnected(session.status)) return
-    console.log('Superpelu OpenWA: sesión no conectada, intentando reconectar…')
+    if (session && isOpenWaSessionConnected(session.status)) {
+      if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+        console.warn(
+          `Superpelu OpenWA: ready pero ${consecutiveSendFailures} fallos seguidos → stop/start`,
+        )
+        await openWaRecoverSession()
+      }
+      return
+    }
+
+    console.log(
+      `Superpelu OpenWA: sesión no conectada (${session?.status ?? 'sin respuesta'}), arrancando…`,
+    )
     await openWaStartSession(config.sessionId)
-    await waitUntilSessionReady(config.sessionId, 30_000)
+    const ready = await waitUntilSessionReady(config.sessionId, 45_000)
+    if (ready) {
+      disconnectedWatchdogTicks = 0
+      return
+    }
+
+    console.warn('Superpelu OpenWA: no llegó a ready tras start → recuperación completa')
+    await openWaRecoverSession(true)
   } catch (err) {
     console.error('Superpelu OpenWA reconexión:', err)
   }
 }
 
-/** Mantiene viva la conexión: reconecta al arrancar y cada pocos minutos. */
+/**
+ * Watchdog: cada minuto comprueba si OpenWA/sesión están vivos y los recompondrá solo.
+ * Cubre Restart del contenedor OpenWA sin que nadie toque nada.
+ */
+export async function openWaWatchdogTick(): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+
+  try {
+    if (recoveryInFlight) {
+      await recoveryInFlight
+      return
+    }
+
+    const session = await openWaGetSessionStatus()
+
+    if (!session) {
+      disconnectedWatchdogTicks += 1
+      console.warn('Superpelu OpenWA watchdog: no hay sesión / API caída — intentando start')
+      await openWaStartSession(config.sessionId)
+      if (disconnectedWatchdogTicks >= 2) {
+        await openWaRecoverSession(true)
+      }
+      return
+    }
+
+    if (!isOpenWaSessionConnected(session.status)) {
+      disconnectedWatchdogTicks += 1
+      console.warn(
+        `Superpelu OpenWA watchdog: status=${session.status} (tick ${disconnectedWatchdogTicks}) — reconectando`,
+      )
+      await openWaStartSession(config.sessionId)
+      const ready = await waitUntilSessionReady(config.sessionId, 45_000)
+      if (ready) {
+        disconnectedWatchdogTicks = 0
+        consecutiveSendFailures = 0
+        return
+      }
+      // Tras 2 ticks sin ready (p. ej. Chromium lock / colgado tras Restart Coolify)
+      if (disconnectedWatchdogTicks >= 2) {
+        await openWaRecoverSession(true)
+      }
+      return
+    }
+
+    disconnectedWatchdogTicks = 0
+
+    if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+      console.warn(
+        `Superpelu OpenWA watchdog: Chromium zombie (${consecutiveSendFailures} fallos) → stop/start`,
+      )
+      await openWaRecoverSession()
+    }
+  } catch (err) {
+    disconnectedWatchdogTicks += 1
+    console.warn(
+      `Superpelu OpenWA watchdog: error (${errorMessage(err)})${
+        disconnectedWatchdogTicks >= 3 ? ' — forzar recuperación' : ''
+      }`,
+    )
+    if (disconnectedWatchdogTicks >= 3) {
+      await openWaRecoverSession(true)
+    }
+  }
+}
+
+/** Mantiene viva la conexión: watchdog al arrancar y cada minuto. */
 export function startOpenWaKeepAlive(): void {
-  if (!getOpenWaConfig()) return
-  setTimeout(() => void openWaEnsureStarted(), 20_000)
-  setInterval(() => void openWaEnsureStarted(), 5 * 60_000)
+  if (!getOpenWaConfig() || watchdogStarted) return
+  watchdogStarted = true
+  setTimeout(() => void openWaWatchdogTick(), WATCHDOG_BOOT_DELAY_MS)
+  setInterval(() => void openWaWatchdogTick(), WATCHDOG_INTERVAL_MS)
+  console.log(
+    'Superpelu OpenWA: watchdog activo (cada 60s; auto stop→start si cae Chromium o el contenedor)',
+  )
 }
 
 export function logOpenWaStartup(): void {
@@ -470,7 +599,7 @@ export function logOpenWaStartup(): void {
     console.log(
       `Superpelu: OpenWA activo → ${config.apiUrl} (sesión ${config.sessionId})${
         config.notifyPublicOnly ? ', solo reservas públicas' : ''
-      } (reintentos + cola + recuperación stop/start)`,
+      } (auto-recuperación: watchdog + reintentos + stop/start)`,
     )
     return
   }
