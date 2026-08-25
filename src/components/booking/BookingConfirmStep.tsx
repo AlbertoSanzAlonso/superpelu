@@ -25,6 +25,7 @@ type BookingConfirmStepProps = {
     returningCustomerNo: string
     returningLookupHint: string
     returningGreeting: (name: string) => string
+    returningForSomeoneElseHint: string
     returningNotFound: string
     lookupCustomer: string
     lookingUpCustomer: string
@@ -118,6 +119,9 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             disabled
             autoComplete="tel"
           />
+          <p className={`${typography.caption} text-charcoal-muted`} role="note">
+            {labels.returningForSomeoneElseHint}
+          </p>
           <Textarea
             label={labels.notesOptional}
             value={form.notes}

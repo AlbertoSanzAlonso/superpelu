@@ -232,6 +232,7 @@ export function AppointmentForm({
                   returningCustomerNo: b.returningCustomerNo,
                   returningLookupHint: b.returningLookupHint,
                   returningGreeting: b.returningGreeting,
+                  returningForSomeoneElseHint: b.returningForSomeoneElseHint,
                   returningNotFound: b.returningNotFound,
                   lookupCustomer: b.lookupCustomer,
                   lookingUpCustomer: b.lookingUpCustomer,

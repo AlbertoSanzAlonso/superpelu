@@ -326,6 +326,8 @@ const es = {
     returningCustomerNo: 'No, es mi primera vez',
     returningLookupHint: 'Introduce tu móvil y te reconocemos.',
     returningGreeting: (name: string) => `Hola ${name}, ¡encantados de verte de nuevo!`,
+    returningForSomeoneElseHint:
+      'Si la cita es para otra persona, indícalo en comentarios.',
     returningNotFound:
       'No encontramos ese móvil. Completa tus datos como cliente nuevo o prueba otro número.',
     lookupCustomer: 'Continuar',
@@ -931,6 +933,8 @@ const en = {
     returningCustomerNo: 'No, this is my first visit',
     returningLookupHint: 'Enter your mobile number and we will recognise you.',
     returningGreeting: (name: string) => `Hi ${name}, lovely to see you again!`,
+    returningForSomeoneElseHint:
+      'If the appointment is for someone else, please note it in the comments.',
     returningNotFound:
       'We could not find that mobile number. Fill in your details as a new client or try another number.',
     lookupCustomer: 'Continue',
