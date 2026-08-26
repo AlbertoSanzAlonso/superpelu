@@ -224,9 +224,25 @@ export function StaffAppointmentFormFields({
   const addService = useCallback(() => {
     const next = [...serviceIds.filter((s) => s !== ''), '']
     const newTimes = normalizeStartTimes(next, draft.serviceStartTimes)
-    const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments)
-    onDraftChange({ serviceIds: next, serviceDurations: draft.serviceDurations, serviceStartTimes: newTimes, staffAssignments: newAssignments })
-  }, [serviceIds, draft.serviceDurations, draft.serviceStartTimes, draft.staffAssignments, onDraftChange, normalizeStartTimes, normalizeStaffAssignments])
+    const newAssignments = normalizeStaffAssignments(next, draft.staffAssignments).map(
+      (id) => id || defaultStaffId || '',
+    )
+    onDraftChange({
+      serviceIds: next,
+      serviceDurations: draft.serviceDurations,
+      serviceStartTimes: newTimes,
+      staffAssignments: newAssignments,
+    })
+  }, [
+    serviceIds,
+    draft.serviceDurations,
+    draft.serviceStartTimes,
+    draft.staffAssignments,
+    defaultStaffId,
+    onDraftChange,
+    normalizeStartTimes,
+    normalizeStaffAssignments,
+  ])
 
   const removeService = useCallback(
     (index: number) => {

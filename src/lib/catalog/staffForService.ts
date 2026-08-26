@@ -38,12 +38,12 @@ export function filterStaffForService(
     .map((member) => ({ id: member.id, name: member.name }))
 }
 
-/** Opciones de especialista para un tratamiento (conserva asignación actual si hace falta). */
+/** Opciones de especialista para un tratamiento (solo quienes tienen esa especialidad). */
 export function staffOptionsForService(
   serviceId: string,
   services: readonly BookableService[],
   staffWithCategories: readonly StaffWithCategories[] | undefined,
-  assignedStaffId: string,
+  _assignedStaffId: string,
   fallbackStaff: readonly { id: string; name: string }[],
 ): { id: string; name: string }[] {
   const eligible =
@@ -51,39 +51,33 @@ export function staffOptionsForService(
       ? filterStaffForService(serviceId, services, staffWithCategories)
       : [...fallbackStaff]
 
-  if (assignedStaffId && !eligible.some((member) => member.id === assignedStaffId)) {
-    const assigned = fallbackStaff.find((member) => member.id === assignedStaffId)
-    if (assigned) return [assigned, ...eligible]
-  }
   return eligible.length > 0 ? eligible : [...fallbackStaff]
 }
 
-/** Asigna el profesional más adecuado al elegir un tratamiento. */
+/**
+ * Asigna el profesional al elegir un tratamiento.
+ * Solo elige entre quienes pueden hacer el servicio (especialidad).
+ * Prioridad: asignación actual elegible → profesional de la cita (si es elegible) → primero elegible.
+ */
 export function resolveStaffAssignmentForService(
   serviceId: string,
-  serviceIndex: number,
+  _serviceIndex: number,
   currentAssignment: string | undefined,
   defaultStaffId: string | undefined,
   services: readonly BookableService[],
   staffWithCategories: readonly StaffWithCategories[] | undefined,
   fallbackStaff: readonly { id: string; name: string }[],
 ): string {
-  const options = staffOptionsForService(
-    serviceId,
-    services,
-    staffWithCategories,
-    currentAssignment ?? '',
-    fallbackStaff,
-  )
-  if (currentAssignment && options.some((member) => member.id === currentAssignment)) {
+  const eligible =
+    staffWithCategories && staffWithCategories.length > 0
+      ? filterStaffForService(serviceId, services, staffWithCategories)
+      : [...fallbackStaff]
+
+  if (currentAssignment && eligible.some((member) => member.id === currentAssignment)) {
     return currentAssignment
   }
-  if (
-    serviceIndex === 0 &&
-    defaultStaffId &&
-    options.some((member) => member.id === defaultStaffId)
-  ) {
+  if (defaultStaffId && eligible.some((member) => member.id === defaultStaffId)) {
     return defaultStaffId
   }
-  return options[0]?.id ?? defaultStaffId ?? ''
+  return eligible[0]?.id ?? ''
 }
