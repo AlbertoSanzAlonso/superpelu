@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react'
 import {
   clampCalendarSlotHeightPx,
   currentTimeLineTopPx,
@@ -82,26 +89,17 @@ function StaffInitial({ name }: { name: string }) {
 function TimeGutterColumn({
   range,
   windows,
-  compact = false,
-  stickyLeft = false,
 }: {
   range: CalendarDayRange
   windows: WorkTimeWindow[]
-  compact?: boolean
-  stickyLeft?: boolean
 }) {
   return (
-    <div
-      className={[
-        'relative flex shrink-0 flex-col bg-cream',
-        stickyLeft ? 'sticky left-0 z-20' : '',
-      ].join(' ')}
-    >
+    <div className="relative sticky left-0 z-20 flex shrink-0 flex-col bg-cream">
       <div
         className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
         aria-hidden
       />
-      <TimeGutter range={range} windows={windows} compact={compact} />
+      <TimeGutter range={range} windows={windows} />
     </div>
   )
 }
@@ -109,17 +107,13 @@ function TimeGutterColumn({
 function TimeGutter({
   range,
   windows,
-  compact = false,
 }: {
   range: CalendarDayRange
   windows: WorkTimeWindow[]
-  compact?: boolean
 }) {
   return (
     <div
-      className={`relative shrink-0 border-r border-gold/20 bg-cream ${
-        compact ? 'w-[4rem] min-w-[4rem]' : 'w-[4.5rem] min-w-[4.5rem]'
-      }`}
+      className="relative w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream"
       style={{ height: range.totalHeightPx }}
     >
       {range.timeLabels.map((time) => {
@@ -128,16 +122,39 @@ function TimeGutter({
           <div
             key={time}
             className={[
-              `${typography.caption} flex items-start overflow-hidden whitespace-nowrap bg-cream pt-0.5 tabular-nums`,
-              compact ? 'justify-center px-2' : 'justify-end px-2',
+              `${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap bg-cream px-2 pt-0.5 tabular-nums`,
               closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10',
             ].join(' ')}
             style={{ height: range.slotHeightPx }}
           >
-            {compact ? time.slice(0, 5) : time}
+            {time}
           </div>
         )
       })}
+    </div>
+  )
+}
+
+const STAFF_COLUMN_MIN_WIDTH_PX = 176
+
+function StaffColumnResizeHandle({
+  onResizeStart,
+}: {
+  onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void
+}) {
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Redimensionar columna"
+      title="Arrastra para cambiar el ancho"
+      onPointerDown={onResizeStart}
+      className="group absolute inset-y-0 right-0 z-30 w-3 translate-x-1/2 cursor-col-resize touch-none"
+    >
+      <span
+        className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gold/35 transition-[width,background-color] group-hover:w-0.5 group-hover:bg-gold/70 group-active:w-0.5 group-active:bg-gold"
+        aria-hidden
+      />
     </div>
   )
 }
@@ -443,7 +460,7 @@ function StaffColumn({
       data-staff-column-id={schedule.staffId}
       data-staff-column-working={columnWindows.length > 0 ? 'true' : 'false'}
       className={[
-        'relative w-full min-w-[11rem] overflow-hidden border-l border-gold/20 transition-colors duration-150',
+        'relative h-full w-full overflow-hidden border-l border-gold/20 transition-colors duration-150',
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
@@ -551,6 +568,8 @@ export function AdminSalonDayCalendar({
   onSelectStaff,
 }: Props) {
   const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
+  /** null = columnas iguales repartiendo el ancho disponible (estado al abrir la agenda). */
+  const [columnWidthsPx, setColumnWidthsPx] = useState<number[] | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const slotHeightRef = useRef(slotHeightPx)
   const range = useMemo(
@@ -561,11 +580,16 @@ export function AdminSalonDayCalendar({
   const gutterWindows = salonWindows
   const nowLineTop = useMemo(() => currentTimeLineTopPx(date, range), [date, range])
   const columnRefs = useRef(new Map<string, HTMLDivElement>())
+  const staffIdsKey = schedules.map((s) => s.staffId).join(',')
 
   useEffect(() => {
     slotHeightRef.current = slotHeightPx
     storeCalendarSlotHeightPx(slotHeightPx)
   }, [slotHeightPx])
+
+  useEffect(() => {
+    setColumnWidthsPx(null)
+  }, [staffIdsKey])
 
   useEffect(() => {
     if (schedules.length === 0) return
@@ -611,6 +635,50 @@ export function AdminSalonDayCalendar({
 
   const dragEnabled = !moveBusy
 
+  const startColumnResize = useCallback(
+    (columnIndex: number, event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0) return
+      event.preventDefault()
+      event.stopPropagation()
+
+      const measured = schedules.map((schedule) => {
+        const el = columnRefs.current.get(schedule.staffId)
+        return el?.getBoundingClientRect().width ?? STAFF_COLUMN_MIN_WIDTH_PX
+      })
+      const startWidths = columnWidthsPx ?? measured
+      const startX = event.clientX
+      const startWidth = startWidths[columnIndex] ?? STAFF_COLUMN_MIN_WIDTH_PX
+      const handle = event.currentTarget
+
+      handle.setPointerCapture(event.pointerId)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+
+      const onPointerMove = (moveEvent: PointerEvent) => {
+        const delta = moveEvent.clientX - startX
+        const nextWidth = Math.max(STAFF_COLUMN_MIN_WIDTH_PX, startWidth + delta)
+        const next = startWidths.map((width, index) =>
+          index === columnIndex ? nextWidth : width,
+        )
+        setColumnWidthsPx(next)
+      }
+
+      const onPointerUp = (upEvent: PointerEvent) => {
+        handle.releasePointerCapture(upEvent.pointerId)
+        handle.removeEventListener('pointermove', onPointerMove)
+        handle.removeEventListener('pointerup', onPointerUp)
+        handle.removeEventListener('pointercancel', onPointerUp)
+        document.body.style.cursor = ''
+        document.body.style.userSelect = ''
+      }
+
+      handle.addEventListener('pointermove', onPointerMove)
+      handle.addEventListener('pointerup', onPointerUp)
+      handle.addEventListener('pointercancel', onPointerUp)
+    },
+    [columnWidthsPx, schedules],
+  )
+
   const handleClickWithoutDrag = useCallback(
     (appointmentId: string) => {
       for (const s of schedules) {
@@ -647,15 +715,27 @@ export function AdminSalonDayCalendar({
         title="Ctrl + rueda para zoom"
       >
         <div className="flex w-max min-w-full">
-          <TimeGutterColumn range={range} windows={gutterWindows} stickyLeft />
+          <TimeGutterColumn range={range} windows={gutterWindows} />
 
-          <div className="flex min-w-0 flex-1">
-            {schedules.map((schedule, index) => (
-              <div key={schedule.staffId} className="flex min-w-0 flex-1 overflow-hidden">
-                {index > 0 && (
-                  <TimeGutterColumn range={range} windows={gutterWindows} compact />
-                )}
-                <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-max flex-1">
+            {schedules.map((schedule, index) => {
+              const explicitWidth = columnWidthsPx?.[index]
+              return (
+                <div
+                  key={schedule.staffId}
+                  className={[
+                    'relative',
+                    explicitWidth == null ? 'min-w-0 flex-1' : 'shrink-0 grow-0',
+                  ].join(' ')}
+                  style={
+                    explicitWidth != null
+                      ? {
+                          width: explicitWidth,
+                          minWidth: STAFF_COLUMN_MIN_WIDTH_PX,
+                        }
+                      : { minWidth: STAFF_COLUMN_MIN_WIDTH_PX }
+                  }
+                >
                   <StaffColumn
                     schedule={schedule}
                     date={date}
@@ -676,9 +756,14 @@ export function AdminSalonDayCalendar({
                     onResizeBlock={onResizeBlock}
                     onSelectStaff={onSelectStaff}
                   />
+                  {index < schedules.length - 1 && (
+                    <StaffColumnResizeHandle
+                      onResizeStart={(event) => startColumnResize(index, event)}
+                    />
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
