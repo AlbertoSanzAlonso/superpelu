@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -6,6 +7,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   clampCalendarSlotHeightPx,
   currentTimeLineTopPx,
@@ -71,7 +73,6 @@ type Props = {
     endTime: string,
   ) => void
   onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
-  onSelectStaff: (staffId: string, staffName: string) => void
 }
 
 function StaffInitial({ name }: { name: string }) {
@@ -89,17 +90,26 @@ function StaffInitial({ name }: { name: string }) {
 function TimeGutterColumn({
   range,
   windows,
+  compact = false,
+  stickyLeft = false,
 }: {
   range: CalendarDayRange
   windows: WorkTimeWindow[]
+  compact?: boolean
+  stickyLeft?: boolean
 }) {
   return (
-    <div className="relative sticky left-0 z-20 flex shrink-0 flex-col bg-cream">
+    <div
+      className={[
+        'relative flex shrink-0 flex-col bg-cream',
+        stickyLeft ? 'sticky left-0 z-20' : '',
+      ].join(' ')}
+    >
       <div
         className={`sticky top-0 z-40 ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 border-b border-r border-gold/20 bg-cream`}
         aria-hidden
       />
-      <TimeGutter range={range} windows={windows} />
+      <TimeGutter range={range} windows={windows} compact={compact} />
     </div>
   )
 }
@@ -107,13 +117,17 @@ function TimeGutterColumn({
 function TimeGutter({
   range,
   windows,
+  compact = false,
 }: {
   range: CalendarDayRange
   windows: WorkTimeWindow[]
+  compact?: boolean
 }) {
   return (
     <div
-      className="relative w-[4.5rem] min-w-[4.5rem] shrink-0 border-r border-gold/20 bg-cream"
+      className={`relative shrink-0 border-r border-gold/20 bg-cream ${
+        compact ? 'w-[4rem] min-w-[4rem]' : 'w-[4.5rem] min-w-[4.5rem]'
+      }`}
       style={{ height: range.totalHeightPx }}
     >
       {range.timeLabels.map((time) => {
@@ -122,12 +136,13 @@ function TimeGutter({
           <div
             key={time}
             className={[
-              `${typography.caption} flex items-start justify-end overflow-hidden whitespace-nowrap bg-cream px-2 pt-0.5 tabular-nums`,
+              `${typography.caption} flex items-start overflow-hidden whitespace-nowrap bg-cream pt-0.5 tabular-nums`,
+              compact ? 'justify-center px-2' : 'justify-end px-2',
               closed ? `${agendaClosedSlotClassName} text-charcoal-muted/80` : 'border-b border-gold/10',
             ].join(' ')}
             style={{ height: range.slotHeightPx }}
           >
-            {time}
+            {compact ? time.slice(0, 5) : time}
           </div>
         )
       })}
@@ -139,8 +154,10 @@ const STAFF_COLUMN_MIN_WIDTH_PX = 176
 
 function StaffColumnResizeHandle({
   onResizeStart,
+  edge = 'right',
 }: {
   onResizeStart: (event: ReactPointerEvent<HTMLDivElement>) => void
+  edge?: 'left' | 'right'
 }) {
   return (
     <div
@@ -149,7 +166,10 @@ function StaffColumnResizeHandle({
       aria-label="Redimensionar columna"
       title="Arrastra para cambiar el ancho"
       onPointerDown={onResizeStart}
-      className="group absolute inset-y-0 right-0 z-30 w-3 translate-x-1/2 cursor-col-resize touch-none"
+      className={[
+        'group absolute inset-y-0 z-50 w-3 cursor-col-resize touch-none',
+        edge === 'right' ? 'right-0 translate-x-1/2' : 'left-0 -translate-x-1/2',
+      ].join(' ')}
     >
       <span
         className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-gold/35 transition-[width,background-color] group-hover:w-0.5 group-hover:bg-gold/70 group-active:w-0.5 group-active:bg-gold"
@@ -300,21 +320,28 @@ const STAFF_HEADER_HEIGHT_CLASS = 'h-[3.25rem]'
 
 function StaffColumnHeader({
   schedule,
-  onSelectStaff,
+  onResizeLeft,
+  onResizeRight,
 }: {
   schedule: StaffDaySchedule
-  onSelectStaff: (staffId: string, staffName: string) => void
+  onResizeLeft?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onResizeRight?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }) {
+  const navigate = useNavigate()
+
   return (
     <div
-      className={`sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3 backdrop-blur-none`}
+      className={`relative sticky top-0 z-40 flex ${STAFF_HEADER_HEIGHT_CLASS} shrink-0 items-center gap-2 border-b border-gold/20 bg-cream px-3 backdrop-blur-none`}
     >
       <StaffInitial name={schedule.staffName} />
       <button
         type="button"
-        onClick={() => onSelectStaff(schedule.staffId, schedule.staffName)}
+        onClick={() =>
+          navigate(`/personal?edit=${encodeURIComponent(schedule.staffId)}`)
+        }
         className="min-w-0 cursor-pointer text-left transition-colors hover:text-gold"
-        aria-label={`Seleccionar ${schedule.staffName}`}
+        aria-label={`Editar a ${schedule.staffName}`}
+        title={`Editar a ${schedule.staffName}`}
       >
         {schedule.working && schedule.windows.length > 0 ? (
           <div className="min-w-0">
@@ -327,6 +354,12 @@ function StaffColumnHeader({
           <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
         )}
       </button>
+      {onResizeLeft && (
+        <StaffColumnResizeHandle edge="left" onResizeStart={onResizeLeft} />
+      )}
+      {onResizeRight && (
+        <StaffColumnResizeHandle edge="right" onResizeStart={onResizeRight} />
+      )}
     </div>
   )
 }
@@ -349,7 +382,8 @@ function StaffColumn({
   onEditAppointment,
   onOpenBlock,
   onResizeBlock,
-  onSelectStaff,
+  onResizeLeft,
+  onResizeRight,
 }: {
   schedule: StaffDaySchedule
   date: string
@@ -373,7 +407,8 @@ function StaffColumn({
     startTime: string,
     endTime: string,
   ) => void
-  onSelectStaff: (staffId: string, staffName: string) => void
+  onResizeLeft?: (event: ReactPointerEvent<HTMLDivElement>) => void
+  onResizeRight?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }) {
   const { activeDrag, isDragSessionActive } = useAppointmentDrag()
   const isDropTarget = activeDrag?.targetStaffId === schedule.staffId
@@ -464,7 +499,11 @@ function StaffColumn({
         isDropTarget ? 'bg-gold/[0.06] ring-2 ring-inset ring-gold/25' : '',
       ].join(' ')}
     >
-      <StaffColumnHeader schedule={schedule} onSelectStaff={onSelectStaff} />
+      <StaffColumnHeader
+        schedule={schedule}
+        onResizeLeft={onResizeLeft}
+        onResizeRight={onResizeRight}
+      />
 
       <div
         className="relative w-full min-w-0 contain-paint select-none overflow-hidden"
@@ -565,7 +604,6 @@ export function AdminSalonDayCalendar({
   onOpenBlock,
   onResizeBlock,
   onProposeAppointmentMove,
-  onSelectStaff,
 }: Props) {
   const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
   /** null = columnas iguales repartiendo el ancho disponible (estado al abrir la agenda). */
@@ -715,53 +753,66 @@ export function AdminSalonDayCalendar({
         title="Ctrl + rueda para zoom"
       >
         <div className="flex w-max min-w-full">
-          <TimeGutterColumn range={range} windows={gutterWindows} />
+          <TimeGutterColumn range={range} windows={gutterWindows} stickyLeft />
 
           <div className="flex min-w-max flex-1">
             {schedules.map((schedule, index) => {
               const explicitWidth = columnWidthsPx?.[index]
               return (
-                <div
-                  key={schedule.staffId}
-                  className={[
-                    'relative',
-                    explicitWidth == null ? 'min-w-0 flex-1' : 'shrink-0 grow-0',
-                  ].join(' ')}
-                  style={
-                    explicitWidth != null
-                      ? {
-                          width: explicitWidth,
-                          minWidth: STAFF_COLUMN_MIN_WIDTH_PX,
-                        }
-                      : { minWidth: STAFF_COLUMN_MIN_WIDTH_PX }
-                  }
-                >
-                  <StaffColumn
-                    schedule={schedule}
-                    date={date}
-                    range={range}
-                    nowLineTop={nowLineTop}
-                    selection={selection}
-                    formSlotTime={formSlotTime}
-                    formStaffId={formStaffId}
-                    pendingMoveSummary={pendingMoveSummary}
-                    gridInteractionsLocked={gridInteractionsLocked}
-                    dragEnabled={dragEnabled}
-                    columnRef={(el) => setColumnRef(schedule.staffId, el)}
-                    columnTopFromClientY={columnTopFromClientY}
-                    onToggleSlot={onToggleSlot}
-                    onPaintSlots={onPaintSlots}
-                    onEditAppointment={onEditAppointment}
-                    onOpenBlock={onOpenBlock}
-                    onResizeBlock={onResizeBlock}
-                    onSelectStaff={onSelectStaff}
-                  />
-                  {index < schedules.length - 1 && (
-                    <StaffColumnResizeHandle
-                      onResizeStart={(event) => startColumnResize(index, event)}
+                <Fragment key={schedule.staffId}>
+                  <div
+                    className={[
+                      'relative',
+                      explicitWidth == null ? 'min-w-0 flex-1' : 'shrink-0 grow-0',
+                    ].join(' ')}
+                    style={
+                      explicitWidth != null
+                        ? {
+                            width: explicitWidth,
+                            minWidth: STAFF_COLUMN_MIN_WIDTH_PX,
+                          }
+                        : { minWidth: STAFF_COLUMN_MIN_WIDTH_PX }
+                    }
+                  >
+                    <StaffColumn
+                      schedule={schedule}
+                      date={date}
+                      range={range}
+                      nowLineTop={nowLineTop}
+                      selection={selection}
+                      formSlotTime={formSlotTime}
+                      formStaffId={formStaffId}
+                      pendingMoveSummary={pendingMoveSummary}
+                      gridInteractionsLocked={gridInteractionsLocked}
+                      dragEnabled={dragEnabled}
+                      columnRef={(el) => setColumnRef(schedule.staffId, el)}
+                      columnTopFromClientY={columnTopFromClientY}
+                      onToggleSlot={onToggleSlot}
+                      onPaintSlots={onPaintSlots}
+                      onEditAppointment={onEditAppointment}
+                      onOpenBlock={onOpenBlock}
+                      onResizeBlock={onResizeBlock}
+                      onResizeLeft={
+                        index > 0
+                          ? (event) => startColumnResize(index - 1, event)
+                          : undefined
+                      }
+                      onResizeRight={
+                        index < schedules.length - 1
+                          ? (event) => startColumnResize(index, event)
+                          : undefined
+                      }
                     />
+                    {index < schedules.length - 1 && (
+                      <StaffColumnResizeHandle
+                        onResizeStart={(event) => startColumnResize(index, event)}
+                      />
+                    )}
+                  </div>
+                  {index < schedules.length - 1 && (
+                    <TimeGutterColumn range={range} windows={gutterWindows} compact />
                   )}
-                </div>
+                </Fragment>
               )
             })}
           </div>

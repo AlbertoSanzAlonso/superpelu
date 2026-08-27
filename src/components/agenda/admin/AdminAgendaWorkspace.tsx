@@ -124,7 +124,6 @@ export function AdminAgendaWorkspace({
                     void agenda.resizeBlock(staffId, block, startTime, endTime)
                   }
                   onProposeAppointmentMove={agenda.proposeAppointmentMove}
-                  onSelectStaff={agenda.selectStaff}
                 />
               </div>
             </div>

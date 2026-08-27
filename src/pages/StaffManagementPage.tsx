@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
-import { Link, Navigate } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Link, Navigate, useSearchParams } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
 import {
@@ -334,6 +334,9 @@ function StaffListRow({
 export function StaffManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
   const compact = useCompactServicesList()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const editStaffIdParam = searchParams.get('edit')
+  const openedEditFromUrl = useRef<string | null>(null)
 
   const [staff, setStaff] = useState<AdminStaffMember[]>([])
   const [categories, setCategories] = useState<{ id: string; nameEs: string }[]>([])
@@ -347,6 +350,24 @@ export function StaffManagementPage() {
   }>({ open: false, mode: 'create', member: null })
 
   const [confirmDelete, setConfirmDelete] = useState<AdminStaffMember | null>(null)
+
+  const clearEditParam = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        if (!prev.has('edit')) return prev
+        const next = new URLSearchParams(prev)
+        next.delete('edit')
+        return next
+      },
+      { replace: true },
+    )
+  }, [setSearchParams])
+
+  const closeModal = useCallback(() => {
+    setModal({ open: false, mode: 'create', member: null })
+    openedEditFromUrl.current = null
+    clearEditParam()
+  }, [clearEditParam])
 
   const categoryNameById = useCallback(
     (id: string) => categories.find((c) => c.id === id)?.nameEs ?? id,
@@ -379,6 +400,20 @@ export function StaffManagementPage() {
     if (authOk) void loadData()
   }, [authOk, loadData])
 
+  useEffect(() => {
+    if (!editStaffIdParam || loading || staff.length === 0) return
+    if (openedEditFromUrl.current === editStaffIdParam) return
+
+    const member = staff.find((s) => s.id === editStaffIdParam) ?? null
+    if (!member) {
+      clearEditParam()
+      return
+    }
+
+    openedEditFromUrl.current = editStaffIdParam
+    setModal({ open: true, mode: 'edit', member })
+  }, [editStaffIdParam, loading, staff, clearEditParam])
+
   const handleSave = async (data: {
     name: string
     role: string | null
@@ -403,7 +438,7 @@ export function StaffManagementPage() {
           categoryIds: data.categoryIds,
         })
       }
-      setModal({ open: false, mode: 'create', member: null })
+      closeModal()
       await loadData()
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Error al guardar')
@@ -576,7 +611,7 @@ export function StaffManagementPage() {
               initial={modal.member}
               categories={categories}
               onSave={handleSave}
-              onCancel={() => setModal({ open: false, mode: 'create', member: null })}
+              onCancel={closeModal}
               busy={busy}
             />
           </div>

@@ -28,7 +28,7 @@ const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
 const sortFieldClass =
-  'h-9 w-full border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
+  'h-9 w-full cursor-pointer border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
 
 const CUSTOMERS_PAGE_SIZE = 15
 
