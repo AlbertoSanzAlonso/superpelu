@@ -10,14 +10,19 @@ import {
 } from '@/components/customers/CustomersWorkspaceHeader'
 import {
   fetchFullSchedule,
+  fetchSalonSpecialSchedule,
   updateSalonSchedule,
+  updateSalonSpecialSchedule,
   updateStaffSchedule,
 } from '@/lib/api/admin'
 import type { FullScheduleData } from '@/types/schedule'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
+import { SalonScheduleExpandModal } from '@/components/schedule/SalonScheduleExpandModal'
 import { SpecialScheduleSection } from '@/components/schedule/SpecialScheduleSection'
-import { DAY_ORDER, emptyWeeklyWindows } from '@/components/schedule/constants'
+import { DAY_NAMES, DAY_ORDER, emptyWeeklyWindows } from '@/components/schedule/constants'
 import type { WeeklyWindows } from '@/components/schedule/constants'
+import { detectWeeklyStaffSalonConflicts } from '@/lib/schedule/salonBounds'
+import type { WeeklySalonConflict } from '@/lib/schedule/salonBounds'
 
 export function ScheduleManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
@@ -30,6 +35,13 @@ export function ScheduleManagementPage() {
   const [staffWindowsMap, setStaffWindowsMap] = useState<Record<string, WeeklyWindows>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [salonSpecialDays, setSalonSpecialDays] = useState<Record<string, { start: string; end: string }[]>>({})
+  const [expandModalOpen, setExpandModalOpen] = useState(false)
+  const [pendingConflicts, setPendingConflicts] = useState<WeeklySalonConflict[]>([])
+  const [pendingStaffSave, setPendingStaffSave] = useState<{
+    staffId: string
+    windows: WeeklyWindows
+  } | null>(null)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -50,6 +62,8 @@ export function ScheduleManagementPage() {
         )
       }
       setStaffWindowsMap(map)
+      const salonSpecial = await fetchSalonSpecialSchedule(adminToken)
+      setSalonSpecialDays(salonSpecial.specialDays)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -79,12 +93,43 @@ export function ScheduleManagementPage() {
     [activeTab],
   )
 
-  const handleSave = async () => {
+  const persistStaffWeekly = async (staffId: string, windows: WeeklyWindows, expandSalon: boolean) => {
     if (!adminToken) return
     setSaving(true)
     setSaved(false)
+    setError('')
     try {
-      if (activeTab === 'salon') {
+      if (expandSalon && pendingConflicts.length > 0) {
+        const nextSalon = { ...salonWindows }
+        for (const conflict of pendingConflicts) {
+          nextSalon[conflict.dayOfWeek] = conflict.proposedSalonRanges.map((r) => ({ ...r }))
+        }
+        await updateSalonSchedule(adminToken, nextSalon)
+        setSalonWindows(nextSalon)
+        setData((prev) =>
+          prev ? { ...prev, salon: { ...prev.salon, weeklyWindows: nextSalon } } : prev,
+        )
+      }
+      await updateStaffSchedule(adminToken, staffId, windows)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setSaving(false)
+      setExpandModalOpen(false)
+      setPendingConflicts([])
+      setPendingStaffSave(null)
+    }
+  }
+
+  const handleSave = async () => {
+    if (!adminToken) return
+    if (activeTab === 'salon') {
+      setSaving(true)
+      setSaved(false)
+      setError('')
+      try {
         await updateSalonSchedule(adminToken, salonWindows)
         const synced = Object.fromEntries(
           DAY_ORDER.map((d) => [d, salonWindows[d]?.map((r) => ({ ...r })) ?? []]),
@@ -96,16 +141,28 @@ export function ScheduleManagementPage() {
           }
           return next
         })
-      } else if (activeTab !== 'especiales') {
-        await updateStaffSchedule(adminToken, activeTab, staffWindowsMap[activeTab] ?? {})
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setSaving(false)
       }
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setSaving(false)
+      return
     }
+
+    if (activeTab === 'especiales') return
+
+    const windows = staffWindowsMap[activeTab] ?? {}
+    const conflicts = detectWeeklyStaffSalonConflicts(windows, salonWindows, DAY_NAMES)
+    if (conflicts.length > 0) {
+      setPendingConflicts(conflicts)
+      setPendingStaffSave({ staffId: activeTab, windows })
+      setExpandModalOpen(true)
+      return
+    }
+
+    await persistStaffWeekly(activeTab, windows, false)
   }
 
   if (authOk === null || loading) {
@@ -240,6 +297,9 @@ export function ScheduleManagementPage() {
                   scope="staff"
                   staffList={data?.staff ?? []}
                   adminToken={adminToken!}
+                  salonWeeklyWindows={salonWindows}
+                  salonSpecialDays={salonSpecialDays}
+                  onSalonSpecialDaysChange={setSalonSpecialDays}
                 />
               </section>
             </div>
@@ -270,6 +330,30 @@ export function ScheduleManagementPage() {
           )}
         </div>
       </div>
+
+      <SalonScheduleExpandModal
+        open={expandModalOpen}
+        staffName={activeStaffMember?.staffName ?? ''}
+        conflicts={pendingConflicts.map((c) => ({
+          ...c,
+          label: c.dayLabel,
+        }))}
+        busy={saving}
+        onClose={() => {
+          if (saving) return
+          setExpandModalOpen(false)
+          setPendingConflicts([])
+          setPendingStaffSave(null)
+        }}
+        onConfirmExpand={() => {
+          if (!pendingStaffSave) return
+          void persistStaffWeekly(pendingStaffSave.staffId, pendingStaffSave.windows, true)
+        }}
+        onSaveWithoutExpand={() => {
+          if (!pendingStaffSave) return
+          void persistStaffWeekly(pendingStaffSave.staffId, pendingStaffSave.windows, false)
+        }}
+      />
     </AgendaWorkspaceShell>
   )
 }

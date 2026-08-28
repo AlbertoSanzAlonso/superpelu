@@ -11,19 +11,29 @@ import {
 } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
+import { SalonScheduleExpandModal } from './SalonScheduleExpandModal'
 import { DAY_NAMES } from './constants'
 import type { ScheduleTimeRange } from '@/types/schedule'
+import {
+  detectSpecialStaffSalonConflicts,
+  type SpecialSalonConflict,
+} from '@/lib/schedule/salonBounds'
 
-type SpecialScheduleSectionProps =
-  | {
-      scope: 'salon'
-      adminToken: string
-    }
-  | {
-      scope: 'staff'
-      adminToken: string
-      staffList: { staffId: string; staffName: string }[]
-    }
+type StaffSpecialProps = {
+  scope: 'staff'
+  adminToken: string
+  staffList: { staffId: string; staffName: string }[]
+  salonWeeklyWindows: Record<number, ScheduleTimeRange[]>
+  salonSpecialDays: Record<string, ScheduleTimeRange[]>
+  onSalonSpecialDaysChange: (days: Record<string, ScheduleTimeRange[]>) => void
+}
+
+type SalonSpecialProps = {
+  scope: 'salon'
+  adminToken: string
+}
+
+type SpecialScheduleSectionProps = StaffSpecialProps | SalonSpecialProps
 
 export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const { adminToken, scope } = props
@@ -35,6 +45,15 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const [newDate, setNewDate] = useState('')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [expandModalOpen, setExpandModalOpen] = useState(false)
+  const [pendingConflicts, setPendingConflicts] = useState<SpecialSalonConflict[]>([])
+  const [pendingSpecialDays, setPendingSpecialDays] = useState<Record<string, ScheduleTimeRange[]> | null>(
+    null,
+  )
+
+  const salonWeeklyWindows = scope === 'staff' ? props.salonWeeklyWindows : {}
+  const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
+  const onSalonSpecialDaysChange = scope === 'staff' ? props.onSalonSpecialDaysChange : () => {}
 
   useEffect(() => {
     if (scope === 'staff' && staffList.length > 0 && !selectedStaffId) {
@@ -101,16 +120,24 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     }
   }
 
-  const handleSave = async () => {
-    if (scope === 'staff' && !selectedStaffId) return
+  const persistStaffSpecial = async (
+    specialDays: Record<string, ScheduleTimeRange[]>,
+    expandSalon: boolean,
+  ) => {
+    if (!selectedStaffId) return
     setSaving(true)
     setSaved(false)
     setError('')
     try {
-      const res =
-        scope === 'salon'
-          ? await updateSalonSpecialSchedule(adminToken, specialDays)
-          : await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
+      if (expandSalon && pendingConflicts.length > 0) {
+        const nextSalonSpecial = { ...salonSpecialDays }
+        for (const conflict of pendingConflicts) {
+          nextSalonSpecial[conflict.date] = conflict.proposedSalonRanges.map((r) => ({ ...r }))
+        }
+        const res = await updateSalonSpecialSchedule(adminToken, nextSalonSpecial)
+        onSalonSpecialDaysChange(res.specialDays)
+      }
+      const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
       setSpecialDays(res.specialDays)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -118,10 +145,49 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSaving(false)
+      setExpandModalOpen(false)
+      setPendingConflicts([])
+      setPendingSpecialDays(null)
     }
   }
 
+  const handleSave = async () => {
+    if (scope === 'staff' && !selectedStaffId) return
+    if (scope === 'salon') {
+      setSaving(true)
+      setSaved(false)
+      setError('')
+      try {
+        const res = await updateSalonSpecialSchedule(adminToken, specialDays)
+        setSpecialDays(res.specialDays)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err))
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    const conflicts = detectSpecialStaffSalonConflicts(
+      specialDays,
+      salonWeeklyWindows,
+      salonSpecialDays,
+    )
+    if (conflicts.length > 0) {
+      setPendingConflicts(conflicts)
+      setPendingSpecialDays(specialDays)
+      setExpandModalOpen(true)
+      return
+    }
+
+    await persistStaffSpecial(specialDays, false)
+  }
+
   const sortedDates = Object.keys(specialDays).sort()
+  const activeStaffName =
+    scope === 'staff' ? staffList.find((s) => s.staffId === selectedStaffId)?.staffName ?? '' : ''
 
   return (
     <div>
@@ -261,6 +327,32 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
             )}
           </div>
         </>
+      )}
+
+      {scope === 'staff' && (
+        <SalonScheduleExpandModal
+          open={expandModalOpen}
+          staffName={activeStaffName}
+          conflicts={pendingConflicts.map((c) => ({
+            ...c,
+            label: c.dateLabel,
+          }))}
+          busy={saving}
+          onClose={() => {
+            if (saving) return
+            setExpandModalOpen(false)
+            setPendingConflicts([])
+            setPendingSpecialDays(null)
+          }}
+          onConfirmExpand={() => {
+            if (!pendingSpecialDays) return
+            void persistStaffSpecial(pendingSpecialDays, true)
+          }}
+          onSaveWithoutExpand={() => {
+            if (!pendingSpecialDays) return
+            void persistStaffSpecial(pendingSpecialDays, false)
+          }}
+        />
       )}
     </div>
   )
