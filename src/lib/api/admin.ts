@@ -541,8 +541,9 @@ export function updateStaffSchedule(
 }
 
 export type StatsResponse = {
-  totalAppointments: number
-  appointmentsThisMonth: number
+  period: { from: string; to: string } | null
+  appointmentCount: number
+  appointmentsThisMonth: number | null
   newCustomers: number
   topServices: { id: string; name: string; count: number }[]
   topStaff: { id: string; name: string; count: number }[]
@@ -551,8 +552,12 @@ export type StatsResponse = {
   originDistribution: { origin: string; count: number; percentage: number }[]
 }
 
-export function fetchStats(adminToken: string) {
-  return request<StatsResponse>('/admin/stats', {
+export function fetchStats(adminToken: string, from?: string, to?: string) {
+  const params = new URLSearchParams()
+  if (from) params.set('from', from)
+  if (to) params.set('to', to)
+  const qs = params.toString()
+  return request<StatsResponse>(`/admin/stats${qs ? `?${qs}` : ''}`, {
     headers: adminHeaders(adminToken),
   })
 }

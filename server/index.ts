@@ -80,6 +80,7 @@ import { normalizeLocale, type Locale } from '@/i18n/types'
 import {
   addDaysToDateString,
   formatDisplayDate,
+  isValidDateString,
   isWithinSalonBookingWindow,
   todaySalon,
 } from '@/lib/core/dates'
@@ -1179,7 +1180,23 @@ app.get('/api/schedule/range', async (c) => {
 app.get('/api/admin/stats', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const stats = await getStats()
+
+  const from = c.req.query('from')?.trim() ?? ''
+  const to = c.req.query('to')?.trim() ?? ''
+
+  if (from || to) {
+    if (!from || !to) {
+      return c.json({ error: 'Indica fecha de inicio y fin' }, 400)
+    }
+    if (!isValidDateString(from) || !isValidDateString(to)) {
+      return c.json({ error: 'Fecha no válida' }, 400)
+    }
+    if (from > to) {
+      return c.json({ error: 'La fecha inicial no puede ser posterior a la final' }, 400)
+    }
+  }
+
+  const stats = await getStats(from && to ? { from, to } : undefined)
   return c.json(stats)
 })
 

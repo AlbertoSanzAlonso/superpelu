@@ -1,16 +1,36 @@
 import { sql } from '@server/db.js'
+import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
 
-export async function getStats() {
-  const today = new Date()
-  const todayStr = today.toISOString().slice(0, 10)
-  const firstDayMonth = `${todayStr.slice(0, 7)}-01`
-  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+export type StatsFilter = {
+  from: string
+  to: string
+}
 
-  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1)
-    .toISOString().slice(0, 10)
+export async function getStats(filter?: StatsFilter) {
+  const today = todaySalon()
+  const firstDayMonth = `${today.slice(0, 7)}-01`
+  const thirtyDaysAgo = addDaysToDateString(today, -30)
+  const sixMonthsAgo = new Date(
+    Number(today.slice(0, 4)),
+    Number(today.slice(5, 7)) - 1 - 5,
+    1,
+  )
+    .toISOString()
+    .slice(0, 10)
+
+  const hasFilter = Boolean(filter?.from && filter?.to)
+  const from = filter?.from ?? ''
+  const to = filter?.to ?? ''
+
+  const apptWhere = hasFilter
+    ? sql`status != 'cancelled' AND appointment_date >= ${from} AND appointment_date <= ${to}`
+    : sql`status != 'cancelled'`
+
+  const dayFrom = hasFilter ? from : thirtyDaysAgo
+  const dayTo = hasFilter ? to : today
 
   const [
-    totalAppointments,
+    appointmentCount,
     appointmentsThisMonth,
     newCustomers,
     topServices,
@@ -19,22 +39,30 @@ export async function getStats() {
     appointmentsByMonth,
     originDistribution,
   ] = await Promise.all([
-    sql`SELECT COUNT(*)::int AS count FROM appointments WHERE status != 'cancelled'`
+    sql`SELECT COUNT(*)::int AS count FROM appointments WHERE ${apptWhere}`
       .then((r) => r[0]?.count ?? 0),
 
-    sql`SELECT COUNT(*)::int AS count FROM appointments
-        WHERE status != 'cancelled' AND appointment_date >= ${firstDayMonth}
-          AND appointment_date <= ${todayStr}`
-      .then((r) => r[0]?.count ?? 0),
+    hasFilter
+      ? Promise.resolve(null)
+      : sql`SELECT COUNT(*)::int AS count FROM appointments
+            WHERE status != 'cancelled' AND appointment_date >= ${firstDayMonth}
+              AND appointment_date <= ${today}`
+          .then((r) => r[0]?.count ?? 0),
 
-    sql`SELECT COUNT(*)::int AS count FROM customers
-        WHERE created_at >= ${thirtyDaysAgo}`
-      .then((r) => r[0]?.count ?? 0),
+    hasFilter
+      ? sql`
+          SELECT COUNT(*)::int AS count FROM customers
+          WHERE (created_at AT TIME ZONE 'Europe/Madrid')::date >= ${from}
+            AND (created_at AT TIME ZONE 'Europe/Madrid')::date <= ${to}
+        `.then((r) => r[0]?.count ?? 0)
+      : sql`SELECT COUNT(*)::int AS count FROM customers
+            WHERE created_at >= ${thirtyDaysAgo}`
+          .then((r) => r[0]?.count ?? 0),
 
     sql`
       SELECT service_id AS id, service_name AS name, COUNT(*)::int AS count
       FROM appointments
-      WHERE status != 'cancelled'
+      WHERE ${apptWhere}
       GROUP BY service_id, service_name
       ORDER BY count DESC
       LIMIT 10
@@ -43,7 +71,7 @@ export async function getStats() {
     sql`
       SELECT staff_id AS id, staff_name AS name, COUNT(*)::int AS count
       FROM appointments
-      WHERE status != 'cancelled' AND staff_id IS NOT NULL
+      WHERE ${apptWhere} AND staff_id IS NOT NULL
       GROUP BY staff_id, staff_name
       ORDER BY count DESC
       LIMIT 10
@@ -52,28 +80,40 @@ export async function getStats() {
     sql`
       SELECT appointment_date AS date, COUNT(*)::int AS count
       FROM appointments
-      WHERE status != 'cancelled' AND appointment_date >= ${thirtyDaysAgo}
+      WHERE status != 'cancelled'
+        AND appointment_date >= ${dayFrom}
+        AND appointment_date <= ${dayTo}
       GROUP BY appointment_date
       ORDER BY appointment_date ASC
     `,
 
-    sql`
-      SELECT
-        to_char(date_trunc('month', created_at::timestamptz AT TIME ZONE 'Europe/Madrid'), 'YYYY-MM') AS month,
-        COUNT(*)::int AS count
-      FROM appointments
-      WHERE status != 'cancelled'
-        AND created_at >= ${sixMonthsAgo}
-      GROUP BY month
-      ORDER BY month ASC
-    `,
+    hasFilter
+      ? sql`
+          SELECT
+            to_char(date_trunc('month', appointment_date::date), 'YYYY-MM') AS month,
+            COUNT(*)::int AS count
+          FROM appointments
+          WHERE ${apptWhere}
+          GROUP BY month
+          ORDER BY month ASC
+        `
+      : sql`
+          SELECT
+            to_char(date_trunc('month', created_at::timestamptz AT TIME ZONE 'Europe/Madrid'), 'YYYY-MM') AS month,
+            COUNT(*)::int AS count
+          FROM appointments
+          WHERE status != 'cancelled'
+            AND created_at >= ${sixMonthsAgo}
+          GROUP BY month
+          ORDER BY month ASC
+        `,
 
     sql`
       SELECT
         COALESCE(origin, 'unknown') AS origin,
         COUNT(*)::int AS count
       FROM appointments
-      WHERE status != 'cancelled'
+      WHERE ${apptWhere}
       GROUP BY origin
       ORDER BY count DESC
     `,
@@ -83,7 +123,8 @@ export async function getStats() {
   const totalOrigin = originList.reduce((sum, r) => sum + r.count, 0)
 
   return {
-    totalAppointments,
+    period: hasFilter ? { from, to } : null,
+    appointmentCount,
     appointmentsThisMonth,
     newCustomers,
     topServices,
