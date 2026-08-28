@@ -24,6 +24,62 @@ import type { WeeklyWindows } from '@/components/schedule/constants'
 import { detectWeeklyStaffSalonConflicts } from '@/lib/schedule/salonBounds'
 import type { WeeklySalonConflict } from '@/lib/schedule/salonBounds'
 
+function SectionChevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      className={`h-4 w-4 shrink-0 text-gold transition-transform ${expanded ? 'rotate-180' : ''}`}
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  )
+}
+
+function CollapsibleSpecialSection({
+  id,
+  title,
+  description,
+  expanded,
+  onToggle,
+  bordered,
+  children,
+}: {
+  id: string
+  title: string
+  description: string
+  expanded: boolean
+  onToggle: () => void
+  bordered?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <section className={bordered ? 'border-t border-gold/15 pt-4' : ''}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls={id}
+        className="-mx-1 flex w-full cursor-pointer items-center gap-2 px-1 py-1.5 text-left hover:bg-gold/5"
+      >
+        <SectionChevron expanded={expanded} />
+        <span className={typography.label}>{title}</span>
+      </button>
+      {expanded && (
+        <div id={id} className="mt-2">
+          <p className="mb-4 text-xs text-charcoal-muted">{description}</p>
+          {children}
+        </div>
+      )}
+    </section>
+  )
+}
+
 export function ScheduleManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
   const navigate = useNavigate()
@@ -42,6 +98,8 @@ export function ScheduleManagementPage() {
     staffId: string
     windows: WeeklyWindows
   } | null>(null)
+  const [salonSpecialExpanded, setSalonSpecialExpanded] = useState(false)
+  const [staffSpecialExpanded, setStaffSpecialExpanded] = useState(false)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -277,22 +335,25 @@ export function ScheduleManagementPage() {
           </div>
 
           {activeTab === 'especiales' ? (
-            <div className="mb-4 space-y-8">
-              <section>
-                <p className={`${typography.label} mb-2`}>Salon</p>
-                <p className="mb-4 text-xs text-charcoal-muted">
-                  Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.).
-                  Tiene prioridad sobre el horario semanal habitual.
-                </p>
+            <div className="mb-4 space-y-4">
+              <CollapsibleSpecialSection
+                id="special-salon-section"
+                title="Centro"
+                description="Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.). Tiene prioridad sobre el horario semanal habitual."
+                expanded={salonSpecialExpanded}
+                onToggle={() => setSalonSpecialExpanded((open) => !open)}
+              >
                 <SpecialScheduleSection scope="salon" adminToken={adminToken!} />
-              </section>
+              </CollapsibleSpecialSection>
 
-              <section className="border-t border-gold/15 pt-6">
-                <p className={`${typography.label} mb-2`}>Personal</p>
-                <p className="mb-4 text-xs text-charcoal-muted">
-                  Horario excepcional de una profesional concreta. Tiene prioridad sobre su horario semanal
-                  y sobre el del salon ese dia.
-                </p>
+              <CollapsibleSpecialSection
+                id="special-staff-section"
+                title="Personal"
+                description="Horario excepcional de una profesional concreta. Tiene prioridad sobre su horario semanal y sobre el del salon ese dia."
+                expanded={staffSpecialExpanded}
+                onToggle={() => setStaffSpecialExpanded((open) => !open)}
+                bordered
+              >
                 <SpecialScheduleSection
                   scope="staff"
                   staffList={data?.staff ?? []}
@@ -301,7 +362,7 @@ export function ScheduleManagementPage() {
                   salonSpecialDays={salonSpecialDays}
                   onSalonSpecialDaysChange={setSalonSpecialDays}
                 />
-              </section>
+              </CollapsibleSpecialSection>
             </div>
           ) : (
             <>
