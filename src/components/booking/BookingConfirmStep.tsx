@@ -8,6 +8,7 @@ import { formatDisplayDate } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
 const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`
+const forSomeoneElseHintClass = `${typography.caption} rounded border border-red-300 bg-red-50 px-3 py-2.5 text-center text-red-800`
 
 type BookingConfirmStepProps = {
   form: AppointmentFormApi
@@ -119,10 +120,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             disabled
             autoComplete="tel"
           />
-          <p
-            className={`${typography.caption} rounded border border-red-300 bg-red-50 px-3 py-2.5 text-center text-red-800`}
-            role="note"
-          >
+          <p className={forSomeoneElseHintClass} role="note">
             {labels.returningForSomeoneElseHint}
           </p>
           <Textarea
@@ -170,6 +168,9 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             onChange={(e) => form.setBirthdate(e.target.value)}
             autoComplete="bday"
           />
+          <p className={forSomeoneElseHintClass} role="note">
+            {labels.returningForSomeoneElseHint}
+          </p>
           <Textarea
             label={labels.notesOptional}
             value={form.notes}
