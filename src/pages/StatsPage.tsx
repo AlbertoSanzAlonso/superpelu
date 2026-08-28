@@ -18,7 +18,7 @@ const MONTH_LABELS: Record<string, string> = {
 }
 
 const fieldClass =
-  'h-9 w-full border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
+  'h-9 w-full cursor-pointer border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
 const selectClass = `${fieldClass} cursor-pointer`
 
