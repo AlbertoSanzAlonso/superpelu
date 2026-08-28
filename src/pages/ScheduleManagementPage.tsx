@@ -52,7 +52,7 @@ function CollapsibleSpecialSection({
 }: {
   id: string
   title: string
-  description: string
+  description?: string
   expanded: boolean
   onToggle: () => void
   bordered?: boolean
@@ -71,8 +71,10 @@ function CollapsibleSpecialSection({
         <span className={typography.label}>{title}</span>
       </button>
       {expanded && (
-        <div id={id} className="mt-2">
-          <p className="mb-4 text-xs text-charcoal-muted">{description}</p>
+        <div id={id} className={description ? 'mt-2' : 'mt-1'}>
+          {description && (
+            <p className="mb-4 text-xs text-charcoal-muted">{description}</p>
+          )}
           {children}
         </div>
       )}
@@ -375,7 +377,6 @@ export function ScheduleManagementPage() {
               <CollapsibleSpecialSection
                 id="special-staff-section"
                 title="Personal"
-                description="Horario excepcional de una profesional concreta. Tiene prioridad sobre su horario semanal y sobre el del salon ese dia."
                 expanded={staffSpecialExpanded}
                 onToggle={() => setStaffSpecialExpanded((open) => !open)}
                 bordered

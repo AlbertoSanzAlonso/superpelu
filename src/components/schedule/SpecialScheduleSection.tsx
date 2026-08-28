@@ -221,24 +221,21 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       )}
 
       {scope === 'staff' && (
-        <div className="mb-4">
-          <p className={`${typography.label} mb-2`}>Profesional</p>
-          <div className="flex flex-wrap gap-1.5">
-            {staffList.map((s) => (
-              <button
-                key={s.staffId}
-                type="button"
-                onClick={() => setSelectedStaffId(s.staffId)}
-                className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
-                  selectedStaffId === s.staffId
-                    ? 'border-gold bg-gold/15 text-gold-dark'
-                    : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
-                }`}
-              >
-                {s.staffName}
-              </button>
-            ))}
-          </div>
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {staffList.map((s) => (
+            <button
+              key={s.staffId}
+              type="button"
+              onClick={() => setSelectedStaffId(s.staffId)}
+              className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
+                selectedStaffId === s.staffId
+                  ? 'border-gold bg-gold/15 text-gold-dark'
+                  : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
+              }`}
+            >
+              {s.staffName}
+            </button>
+          ))}
         </div>
       )}
 
