@@ -80,13 +80,24 @@ function CollapsibleSpecialSection({
   )
 }
 
+type ScheduleTab = 'salon' | 'personal' | 'especiales'
+
+function tabButtonClass(active: boolean) {
+  return `cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
+    active
+      ? 'border-gold bg-gold/15 text-gold-dark'
+      : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
+  }`
+}
+
 export function ScheduleManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
   const navigate = useNavigate()
   const [data, setData] = useState<FullScheduleData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState<'salon' | 'especiales' | string>('salon')
+  const [activeTab, setActiveTab] = useState<ScheduleTab>('salon')
+  const [selectedStaffId, setSelectedStaffId] = useState('')
   const [salonWindows, setSalonWindows] = useState<WeeklyWindows>(emptyWeeklyWindows())
   const [staffWindowsMap, setStaffWindowsMap] = useState<Record<string, WeeklyWindows>>({})
   const [saving, setSaving] = useState(false)
@@ -120,6 +131,11 @@ export function ScheduleManagementPage() {
         )
       }
       setStaffWindowsMap(map)
+      if (full.staff.length > 0) {
+        setSelectedStaffId((current) =>
+          current && full.staff.some((s) => s.staffId === current) ? current : full.staff[0].staffId,
+        )
+      }
       const salonSpecial = await fetchSalonSpecialSchedule(adminToken)
       setSalonSpecialDays(salonSpecial.specialDays)
     } catch (err) {
@@ -136,19 +152,22 @@ export function ScheduleManagementPage() {
   const currentWindows = useMemo(() => {
     if (activeTab === 'salon') return salonWindows
     if (activeTab === 'especiales') return emptyWeeklyWindows()
-    return staffWindowsMap[activeTab] ?? emptyWeeklyWindows()
-  }, [activeTab, salonWindows, staffWindowsMap])
+    if (activeTab === 'personal' && selectedStaffId) {
+      return staffWindowsMap[selectedStaffId] ?? emptyWeeklyWindows()
+    }
+    return emptyWeeklyWindows()
+  }, [activeTab, salonWindows, staffWindowsMap, selectedStaffId])
 
   const setCurrentWindows = useCallback(
     (w: WeeklyWindows) => {
       if (activeTab === 'salon') {
         setSalonWindows(w)
-      } else if (activeTab !== 'especiales') {
-        setStaffWindowsMap((prev) => ({ ...prev, [activeTab]: w }))
+      } else if (activeTab === 'personal' && selectedStaffId) {
+        setStaffWindowsMap((prev) => ({ ...prev, [selectedStaffId]: w }))
       }
       setSaved(false)
     },
-    [activeTab],
+    [activeTab, selectedStaffId],
   )
 
   const persistStaffWeekly = async (staffId: string, windows: WeeklyWindows, expandSalon: boolean) => {
@@ -211,16 +230,18 @@ export function ScheduleManagementPage() {
 
     if (activeTab === 'especiales') return
 
-    const windows = staffWindowsMap[activeTab] ?? {}
+    if (activeTab !== 'personal' || !selectedStaffId) return
+
+    const windows = staffWindowsMap[selectedStaffId] ?? {}
     const conflicts = detectWeeklyStaffSalonConflicts(windows, salonWindows, DAY_NAMES)
     if (conflicts.length > 0) {
       setPendingConflicts(conflicts)
-      setPendingStaffSave({ staffId: activeTab, windows })
+      setPendingStaffSave({ staffId: selectedStaffId, windows })
       setExpandModalOpen(true)
       return
     }
 
-    await persistStaffWeekly(activeTab, windows, false)
+    await persistStaffWeekly(selectedStaffId, windows, false)
   }
 
   if (authOk === null || loading) {
@@ -238,7 +259,7 @@ export function ScheduleManagementPage() {
     return null
   }
 
-  const activeStaffMember = data?.staff.find((s) => s.staffId === activeTab)
+  const activeStaffMember = data?.staff.find((s) => s.staffId === selectedStaffId)
 
   return (
     <AgendaWorkspaceShell>
@@ -299,40 +320,45 @@ export function ScheduleManagementPage() {
             <button
               type="button"
               onClick={() => setActiveTab('salon')}
-              className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
-                activeTab === 'salon'
-                  ? 'border-gold bg-gold/15 text-gold-dark'
-                  : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
-              }`}
+              className={tabButtonClass(activeTab === 'salon')}
             >
               Salon
             </button>
             <button
               type="button"
+              onClick={() => {
+                setActiveTab('personal')
+                if (!selectedStaffId && data?.staff[0]) {
+                  setSelectedStaffId(data.staff[0].staffId)
+                }
+              }}
+              className={tabButtonClass(activeTab === 'personal')}
+            >
+              Personal
+            </button>
+            <button
+              type="button"
               onClick={() => setActiveTab('especiales')}
-              className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
-                activeTab === 'especiales'
-                  ? 'border-gold bg-gold/15 text-gold-dark'
-                  : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
-              }`}
+              className={tabButtonClass(activeTab === 'especiales')}
             >
               Especiales
             </button>
-            {data?.staff.map((s) => (
-              <button
-                key={s.staffId}
-                type="button"
-                onClick={() => setActiveTab(s.staffId)}
-                className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
-                  activeTab === s.staffId
-                    ? 'border-gold bg-gold/15 text-gold-dark'
-                    : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
-                }`}
-              >
-                {s.staffName}
-              </button>
-            ))}
           </div>
+
+          {activeTab === 'personal' && (
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {data?.staff.map((s) => (
+                <button
+                  key={s.staffId}
+                  type="button"
+                  onClick={() => setSelectedStaffId(s.staffId)}
+                  className={tabButtonClass(selectedStaffId === s.staffId)}
+                >
+                  {s.staffName}
+                </button>
+              ))}
+            </div>
+          )}
 
           {activeTab === 'especiales' ? (
             <div className="mb-4 space-y-4">
@@ -368,25 +394,31 @@ export function ScheduleManagementPage() {
             <>
               <div className="mb-4">
                 <p className={`${typography.label} mb-3`}>
-                  {activeTab === 'salon' ? 'Horario del salon' : `Horario de ${activeStaffMember?.staffName ?? ''}`}
+                  {activeTab === 'salon'
+                    ? 'Horario del salon'
+                    : `Horario de ${activeStaffMember?.staffName ?? ''}`}
                 </p>
-                <ScheduleEditor weeklyWindows={currentWindows} onChange={setCurrentWindows} />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Button
-                  type="button"
-                  variant="solid"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={saving}
-                >
-                  {saving ? 'Guardando...' : 'Guardar cambios'}
-                </Button>
-                {saved && (
-                  <span className="text-xs text-green-600">Guardado correctamente</span>
+                {(activeTab === 'salon' || selectedStaffId) && (
+                  <ScheduleEditor weeklyWindows={currentWindows} onChange={setCurrentWindows} />
                 )}
               </div>
+
+              {(activeTab === 'salon' || selectedStaffId) && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="solid"
+                    size="sm"
+                    onClick={handleSave}
+                    disabled={saving}
+                  >
+                    {saving ? 'Guardando...' : 'Guardar cambios'}
+                  </Button>
+                  {saved && (
+                    <span className="text-xs text-green-600">Guardado correctamente</span>
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>

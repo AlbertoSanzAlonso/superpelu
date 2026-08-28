@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
 import {
@@ -35,6 +35,15 @@ type SalonSpecialProps = {
 
 type SpecialScheduleSectionProps = StaffSpecialProps | SalonSpecialProps
 
+type SpecialDateFilterMode = 'all' | 'default' | 'month'
+
+const filterFieldClass =
+  'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs text-charcoal outline-none focus:border-gold'
+
+function filterDatesByMonth(dates: string[], month: string): string[] {
+  return dates.filter((date) => date.startsWith(month))
+}
+
 export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const { adminToken, scope } = props
   const staffList = scope === 'staff' ? props.staffList : []
@@ -50,6 +59,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const [pendingSpecialDays, setPendingSpecialDays] = useState<Record<string, ScheduleTimeRange[]> | null>(
     null,
   )
+  const [filterMode, setFilterMode] = useState<SpecialDateFilterMode>('default')
+  const [selectedMonth, setSelectedMonth] = useState(() => todaySalon().slice(0, 7))
 
   const salonWeeklyWindows = scope === 'staff' ? props.salonWeeklyWindows : {}
   const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
@@ -186,6 +197,11 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   }
 
   const sortedDates = Object.keys(specialDays).sort()
+  const filteredDates = useMemo(() => {
+    if (filterMode === 'all') return sortedDates
+    const month = filterMode === 'default' ? todaySalon().slice(0, 7) : selectedMonth
+    return filterDatesByMonth(sortedDates, month)
+  }, [sortedDates, filterMode, selectedMonth])
   const activeStaffName =
     scope === 'staff' ? staffList.find((s) => s.staffId === selectedStaffId)?.staffName ?? '' : ''
 
@@ -251,17 +267,47 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
             </Button>
           </div>
 
+          {!loading && sortedDates.length > 0 && (
+            <div className="mb-4 flex flex-wrap items-end gap-3">
+              <label className="block min-w-[9rem]">
+                <span className={`${typography.label} mb-1 block`}>Filtrar</span>
+                <select
+                  value={filterMode}
+                  onChange={(e) => setFilterMode(e.target.value as SpecialDateFilterMode)}
+                  className={filterFieldClass}
+                >
+                  <option value="default">Mes actual</option>
+                  <option value="month">Mes concreto</option>
+                  <option value="all">Todos</option>
+                </select>
+              </label>
+              {filterMode === 'month' && (
+                <label className="block min-w-[10rem]">
+                  <span className={`${typography.label} mb-1 block`}>Mes</span>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className={filterFieldClass}
+                  />
+                </label>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <p className={`${typography.body} text-charcoal-muted`}>Cargando horarios especiales...</p>
-          ) : sortedDates.length === 0 ? (
+          ) : filteredDates.length === 0 ? (
             <p className={`${typography.body} text-charcoal-muted`}>
-              {scope === 'salon'
-                ? 'No hay dias especiales del salon.'
-                : 'No hay horarios especiales para esta profesional.'}
+              {sortedDates.length === 0
+                ? scope === 'salon'
+                  ? 'No hay dias especiales del salon.'
+                  : 'No hay horarios especiales para esta profesional.'
+                : 'No hay dias especiales en este periodo.'}
             </p>
           ) : (
             <div className="mb-4 space-y-4">
-              {sortedDates.map((date) => {
+              {filteredDates.map((date) => {
                 const d = new Date(date + 'T12:00:00')
                 const dayName = DAY_NAMES[d.getDay()]
                 const displayDate = d.toLocaleDateString('es-ES', {
