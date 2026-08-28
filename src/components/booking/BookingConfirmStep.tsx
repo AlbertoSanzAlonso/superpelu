@@ -119,7 +119,10 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             disabled
             autoComplete="tel"
           />
-          <p className={`${typography.caption} text-charcoal-muted`} role="note">
+          <p
+            className={`${typography.caption} rounded border border-red-300 bg-red-50 px-3 py-2.5 text-center text-red-800`}
+            role="note"
+          >
             {labels.returningForSomeoneElseHint}
           </p>
           <Textarea
