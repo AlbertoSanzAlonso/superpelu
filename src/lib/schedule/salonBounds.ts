@@ -156,6 +156,33 @@ export function resolveSalonRangesForDate(
   return salonWeeklyWindows[dayOfWeek] ?? []
 }
 
+function specialRangesEqual(
+  a: ScheduleTimeRange[] | undefined,
+  b: ScheduleTimeRange[] | undefined,
+): boolean {
+  const left = a ?? []
+  const right = b ?? []
+  if (left.length !== right.length) return false
+  return left.every((range, index) => {
+    const other = right[index]
+    return range.start === other.start && range.end === other.end
+  })
+}
+
+/** Días especiales distintos del snapshot guardado (altas o ediciones). */
+export function pickChangedSpecialDays(
+  current: Record<string, ScheduleTimeRange[]>,
+  baseline: Record<string, ScheduleTimeRange[]>,
+): Record<string, ScheduleTimeRange[]> {
+  const changed: Record<string, ScheduleTimeRange[]> = {}
+  for (const [date, ranges] of Object.entries(current)) {
+    if (!specialRangesEqual(ranges, baseline[date])) {
+      changed[date] = ranges
+    }
+  }
+  return changed
+}
+
 export function detectSpecialStaffSalonConflicts(
   staffSpecialDays: Record<string, ScheduleTimeRange[]>,
   salonWeeklyWindows: Record<number, ScheduleTimeRange[]>,

@@ -16,6 +16,7 @@ import { DAY_NAMES } from './constants'
 import type { ScheduleTimeRange } from '@/types/schedule'
 import {
   detectSpecialStaffSalonConflicts,
+  pickChangedSpecialDays,
   type SpecialSalonConflict,
 } from '@/lib/schedule/salonBounds'
 
@@ -49,6 +50,10 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const staffList = scope === 'staff' ? props.staffList : []
   const [selectedStaffId, setSelectedStaffId] = useState(staffList[0]?.staffId ?? '')
   const [specialDays, setSpecialDays] = useState<Record<string, ScheduleTimeRange[]>>({})
+  /** Snapshot del último load/guardado: el aviso de ampliación solo mira días tocados desde entonces. */
+  const [baselineSpecialDays, setBaselineSpecialDays] = useState<
+    Record<string, ScheduleTimeRange[]>
+  >({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [newDate, setNewDate] = useState('')
@@ -82,6 +87,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
           ? await fetchSalonSpecialSchedule(adminToken)
           : await fetchStaffSpecialSchedule(adminToken, selectedStaffId)
       setSpecialDays(res.specialDays)
+      setBaselineSpecialDays(res.specialDays)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -126,6 +132,11 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
         delete next[date]
         return next
       })
+      setBaselineSpecialDays((prev) => {
+        const next = { ...prev }
+        delete next[date]
+        return next
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
@@ -150,6 +161,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       }
       const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
       setSpecialDays(res.specialDays)
+      setBaselineSpecialDays(res.specialDays)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
@@ -171,6 +183,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       try {
         const res = await updateSalonSpecialSchedule(adminToken, specialDays)
         setSpecialDays(res.specialDays)
+        setBaselineSpecialDays(res.specialDays)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
       } catch (err) {
@@ -181,8 +194,9 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       return
     }
 
+    const changedDays = pickChangedSpecialDays(specialDays, baselineSpecialDays)
     const conflicts = detectSpecialStaffSalonConflicts(
-      specialDays,
+      changedDays,
       salonWeeklyWindows,
       salonSpecialDays,
     )
