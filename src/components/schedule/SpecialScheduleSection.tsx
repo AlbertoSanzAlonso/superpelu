@@ -269,50 +269,54 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
 
       {(scope === 'salon' || selectedStaffId) && (
         <>
-          <div className="mb-4 flex flex-wrap items-end gap-3">
-            <label className="block min-w-[9rem]">
-              <span className={`${typography.label} mb-1 block`}>Filtrar</span>
-              <select
-                value={filterMode}
-                onChange={(e) => setFilterMode(e.target.value as SpecialDateFilterMode)}
-                className={filterFieldClass}
-              >
-                <option value="default">Mes actual</option>
-                <option value="month">Mes concreto</option>
-                <option value="all">Todos</option>
-              </select>
-            </label>
-            {filterMode === 'month' && (
-              <label className="block min-w-[10rem]">
-                <span className={`${typography.label} mb-1 block`}>Mes</span>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block min-w-[9rem]">
+                <span className={`${typography.label} mb-1 block`}>Filtrar</span>
+                <select
+                  value={filterMode}
+                  onChange={(e) => setFilterMode(e.target.value as SpecialDateFilterMode)}
+                  className={filterFieldClass}
+                >
+                  <option value="default">Mes actual</option>
+                  <option value="month">Mes concreto</option>
+                  <option value="all">Todos</option>
+                </select>
+              </label>
+              {filterMode === 'month' && (
+                <label className="block min-w-[10rem]">
+                  <span className={`${typography.label} mb-1 block`}>Mes</span>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className={filterFieldClass}
+                  />
+                </label>
+              )}
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block">
+                <span className={`${typography.label} mb-1 block`}>Dia</span>
                 <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  type="date"
+                  value={newDate}
+                  onChange={(e) => setNewDate(e.target.value)}
+                  min={todaySalon()}
                   className={filterFieldClass}
                 />
               </label>
-            )}
-            <label className="block">
-              <span className={`${typography.label} mb-1 block`}>Dia</span>
-              <input
-                type="date"
-                value={newDate}
-                onChange={(e) => setNewDate(e.target.value)}
-                min={todaySalon()}
-                className={filterFieldClass}
-              />
-            </label>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-              onClick={addDate}
-              disabled={!newDate || !!specialDays[newDate]}
-            >
-              Añadir
-            </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                onClick={addDate}
+                disabled={!newDate || !!specialDays[newDate]}
+              >
+                Añadir
+              </Button>
+            </div>
           </div>
 
           {loading ? (
