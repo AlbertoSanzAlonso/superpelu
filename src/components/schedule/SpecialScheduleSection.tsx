@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
+import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import {
   deleteSalonSpecialDate,
   deleteStaffSpecialDate,
@@ -38,6 +39,8 @@ type SpecialScheduleSectionProps = StaffSpecialProps | SalonSpecialProps
 
 type SpecialDateFilterMode = 'all' | 'default' | 'month'
 
+const SPECIAL_DATES_PAGE_SIZE = 5
+
 const filterFieldClass =
   'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs text-charcoal outline-none focus:border-gold'
 
@@ -66,6 +69,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   )
   const [filterMode, setFilterMode] = useState<SpecialDateFilterMode>('default')
   const [selectedMonth, setSelectedMonth] = useState(() => todaySalon().slice(0, 7))
+  const [page, setPage] = useState(1)
 
   const salonWeeklyWindows = scope === 'staff' ? props.salonWeeklyWindows : {}
   const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
@@ -76,6 +80,10 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       setSelectedStaffId(staffList[0].staffId)
     }
   }, [scope, staffList, selectedStaffId])
+
+  useEffect(() => {
+    setPage(1)
+  }, [selectedStaffId, filterMode, selectedMonth])
 
   const load = useCallback(async () => {
     if (scope === 'staff' && !selectedStaffId) return
@@ -216,6 +224,12 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     const month = filterMode === 'default' ? todaySalon().slice(0, 7) : selectedMonth
     return filterDatesByMonth(sortedDates, month)
   }, [sortedDates, filterMode, selectedMonth])
+  const totalPages = Math.max(1, Math.ceil(filteredDates.length / SPECIAL_DATES_PAGE_SIZE))
+  const safePage = Math.min(page, totalPages)
+  const paginatedDates = useMemo(() => {
+    const start = (safePage - 1) * SPECIAL_DATES_PAGE_SIZE
+    return filteredDates.slice(start, start + SPECIAL_DATES_PAGE_SIZE)
+  }, [filteredDates, safePage])
   const activeStaffName =
     scope === 'staff' ? staffList.find((s) => s.staffId === selectedStaffId)?.staffName ?? '' : ''
 
@@ -255,17 +269,40 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
 
       {(scope === 'salon' || selectedStaffId) && (
         <>
-          <div className="mb-4 flex items-end gap-3">
-            <div>
-              <p className={`${typography.label} mb-1`}>Añadir dia especial</p>
+          <div className="mb-4 flex flex-wrap items-end gap-3">
+            <label className="block min-w-[9rem]">
+              <span className={`${typography.label} mb-1 block`}>Filtrar</span>
+              <select
+                value={filterMode}
+                onChange={(e) => setFilterMode(e.target.value as SpecialDateFilterMode)}
+                className={filterFieldClass}
+              >
+                <option value="default">Mes actual</option>
+                <option value="month">Mes concreto</option>
+                <option value="all">Todos</option>
+              </select>
+            </label>
+            {filterMode === 'month' && (
+              <label className="block min-w-[10rem]">
+                <span className={`${typography.label} mb-1 block`}>Mes</span>
+                <input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className={filterFieldClass}
+                />
+              </label>
+            )}
+            <label className="block">
+              <span className={`${typography.label} mb-1 block`}>Dia</span>
               <input
                 type="date"
                 value={newDate}
                 onChange={(e) => setNewDate(e.target.value)}
                 min={todaySalon()}
-                className="h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs text-charcoal outline-none focus:border-gold"
+                className={filterFieldClass}
               />
-            </div>
+            </label>
             <Button
               type="button"
               variant="outline"
@@ -278,34 +315,6 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
             </Button>
           </div>
 
-          {!loading && sortedDates.length > 0 && (
-            <div className="mb-4 flex flex-wrap items-end gap-3">
-              <label className="block min-w-[9rem]">
-                <span className={`${typography.label} mb-1 block`}>Filtrar</span>
-                <select
-                  value={filterMode}
-                  onChange={(e) => setFilterMode(e.target.value as SpecialDateFilterMode)}
-                  className={filterFieldClass}
-                >
-                  <option value="default">Mes actual</option>
-                  <option value="month">Mes concreto</option>
-                  <option value="all">Todos</option>
-                </select>
-              </label>
-              {filterMode === 'month' && (
-                <label className="block min-w-[10rem]">
-                  <span className={`${typography.label} mb-1 block`}>Mes</span>
-                  <input
-                    type="month"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className={filterFieldClass}
-                  />
-                </label>
-              )}
-            </div>
-          )}
-
           {loading ? (
             <p className={`${typography.body} text-charcoal-muted`}>Cargando horarios especiales...</p>
           ) : filteredDates.length === 0 ? (
@@ -317,55 +326,68 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
                 : 'No hay dias especiales en este periodo.'}
             </p>
           ) : (
-            <div className="mb-4 space-y-4">
-              {filteredDates.map((date) => {
-                const d = new Date(date + 'T12:00:00')
-                const dayName = DAY_NAMES[d.getDay()]
-                const displayDate = d.toLocaleDateString('es-ES', {
-                  day: 'numeric',
-                  month: 'long',
-                  year: 'numeric',
-                })
-                const isClosed = specialDays[date].length === 0
-                return (
-                  <div key={date} className="border border-gold/15 bg-cream/60 p-3">
-                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className={typography.label}>
-                          {dayName}, {displayDate}
-                        </span>
-                        {isClosed && (
-                          <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
-                            Cerrado
+            <div className="mb-4">
+              <div className="space-y-4">
+                {paginatedDates.map((date) => {
+                  const d = new Date(date + 'T12:00:00')
+                  const dayName = DAY_NAMES[d.getDay()]
+                  const displayDate = d.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  })
+                  const isClosed = specialDays[date].length === 0
+                  return (
+                    <div key={date} className="border border-gold/15 bg-cream/60 p-3">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={typography.label}>
+                            {dayName}, {displayDate}
                           </span>
-                        )}
+                          {isClosed && (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
+                              Cerrado
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleClosed(date)}
+                            className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                          >
+                            {isClosed ? 'Abrir dia' : 'Cerrar dia'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeDate(date)}
+                            className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => toggleClosed(date)}
-                          className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
-                        >
-                          {isClosed ? 'Abrir dia' : 'Cerrar dia'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => removeDate(date)}
-                          className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                      {!isClosed && (
+                        <DateRangeEditor
+                          ranges={specialDays[date]}
+                          onChange={(ranges) => updateDateRanges(date, ranges)}
+                        />
+                      )}
                     </div>
-                    {!isClosed && (
-                      <DateRangeEditor
-                        ranges={specialDays[date]}
-                        onChange={(ranges) => updateDateRanges(date, ranges)}
-                      />
-                    )}
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+              <CustomerAppointmentHistoryPagination
+                page={safePage}
+                pageSize={SPECIAL_DATES_PAGE_SIZE}
+                totalItems={filteredDates.length}
+                onPageChange={setPage}
+                ariaLabel={
+                  scope === 'salon'
+                    ? 'Paginación de dias especiales del salon'
+                    : 'Paginación de dias especiales del personal'
+                }
+              />
             </div>
           )}
 
