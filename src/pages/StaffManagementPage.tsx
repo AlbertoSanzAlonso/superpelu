@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button'
 import {
   customersWorkspaceButtonClass,
   customersWorkspaceLinkClass,
+  customersWorkspaceNavRowClass,
 } from '@/components/customers/CustomersWorkspaceHeader'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import { useCompactServicesList } from '@/hooks/useCompactServicesList'
@@ -522,11 +523,11 @@ export function StaffManagementPage() {
   return (
     <AgendaWorkspaceShell>
       <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className={customersWorkspaceNavRowClass}>
           <Link to="/agenda" className={customersWorkspaceLinkClass}>
             ← Agenda
           </Link>
-          <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Personal</h1>
+          <h1 className={`${typography.label} shrink-0 text-gold`}>Personal</h1>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <Link to="/servicios" className={customersWorkspaceLinkClass}>
               Servicios

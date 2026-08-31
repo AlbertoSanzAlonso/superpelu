@@ -7,6 +7,7 @@ import { typography } from '@/styles/typography'
 import {
   customersWorkspaceButtonClass,
   customersWorkspaceLinkClass,
+  customersWorkspaceNavRowClass,
 } from '@/components/customers/CustomersWorkspaceHeader'
 import {
   fetchFullSchedule,
@@ -267,7 +268,7 @@ export function ScheduleManagementPage() {
     <AgendaWorkspaceShell>
       <div className="flex flex-1 flex-col overflow-hidden">
         <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
-          <div className="flex min-w-0 items-center gap-2">
+          <div className={customersWorkspaceNavRowClass}>
             <a
               href="/agenda"
               className={customersWorkspaceLinkClass}
@@ -275,7 +276,7 @@ export function ScheduleManagementPage() {
             >
               ← Agenda
             </a>
-            <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Horarios</h1>
+            <h1 className={`${typography.label} shrink-0 text-gold`}>Horarios</h1>
             <div className="ml-auto flex shrink-0 items-center gap-2">
               <a
                 href="/servicios"

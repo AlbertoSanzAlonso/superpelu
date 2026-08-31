@@ -5,6 +5,7 @@ import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { typography } from '@/styles/typography'
 import {
   customersWorkspaceLinkClass,
+  customersWorkspaceNavRowClass,
 } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchStats, type StatsResponse } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
@@ -130,7 +131,7 @@ export default function StatsPage() {
   return (
     <AgendaWorkspaceShell>
       <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className={customersWorkspaceNavRowClass}>
           <a
             href="/agenda"
             className={customersWorkspaceLinkClass}
@@ -138,7 +139,7 @@ export default function StatsPage() {
           >
             ← Agenda
           </a>
-          <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Estadísticas</h1>
+          <h1 className={`${typography.label} shrink-0 text-gold`}>Estadísticas</h1>
           <div className="ml-auto flex shrink-0 items-center gap-2">
             <a
               href="/servicios"

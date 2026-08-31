@@ -14,6 +14,10 @@ export const customersWorkspaceLinkClass =
 
 export const customersWorkspaceButtonClass = 'h-9 shrink-0 px-3 py-0'
 
+/** Fila de navegación del workspace admin: deslizable en móvil si no cabe. */
+export const customersWorkspaceNavRowClass =
+  'flex min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+
 const headerLinkClass = customersWorkspaceLinkClass
 
 export function CustomersWorkspaceHeader({
@@ -24,13 +28,13 @@ export function CustomersWorkspaceHeader({
 }: Props) {
   return (
     <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
-      <div className="flex min-w-0 items-center gap-2">
+      <div className={customersWorkspaceNavRowClass}>
         {backTo ? (
           <Link to={backTo.href} className={headerLinkClass}>
             ← {backTo.label}
           </Link>
         ) : null}
-        <h1 className={`${typography.label} min-w-0 truncate text-gold`}>{title}</h1>
+        <h1 className={`${typography.label} shrink-0 text-gold`}>{title}</h1>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <Link to="/agenda" className={headerLinkClass}>
             Agenda

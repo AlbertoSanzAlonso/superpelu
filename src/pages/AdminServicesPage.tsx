@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
-import { customersWorkspaceButtonClass, customersWorkspaceLinkClass } from '@/components/customers/CustomersWorkspaceHeader'
+import {
+  customersWorkspaceButtonClass,
+  customersWorkspaceLinkClass,
+  customersWorkspaceNavRowClass,
+} from '@/components/customers/CustomersWorkspaceHeader'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import { useCompactServicesList } from '@/hooks/useCompactServicesList'
 import {
@@ -902,31 +906,31 @@ export function AdminServicesPage() {
   return (
     <AgendaWorkspaceShell>
       <header className="shrink-0 border-b border-gold/15 bg-cream/55 px-3 py-2 backdrop-blur-[2px]">
-        <div className="flex min-w-0 items-center gap-2">
+        <div className={customersWorkspaceNavRowClass}>
           <Link to="/agenda" className={customersWorkspaceLinkClass}>
             ← Agenda
           </Link>
-          <h1 className={`${typography.label} min-w-0 truncate text-gold`}>Servicios</h1>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          <Link to="/personal" className={customersWorkspaceLinkClass}>
-            Personal
-          </Link>
-          <Link to="/horarios" className={customersWorkspaceLinkClass}>
-            Horarios
-          </Link>
-          <Link to="/clientes" className={customersWorkspaceLinkClass}>
-            Clientes
-          </Link>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={customersWorkspaceButtonClass}
-            onClick={handleLogout}
-          >
-            Salir
-          </Button>
+          <h1 className={`${typography.label} shrink-0 text-gold`}>Servicios</h1>
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <Link to="/personal" className={customersWorkspaceLinkClass}>
+              Personal
+            </Link>
+            <Link to="/horarios" className={customersWorkspaceLinkClass}>
+              Horarios
+            </Link>
+            <Link to="/clientes" className={customersWorkspaceLinkClass}>
+              Clientes
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={customersWorkspaceButtonClass}
+              onClick={handleLogout}
+            >
+              Salir
+            </Button>
+          </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="services-search">
