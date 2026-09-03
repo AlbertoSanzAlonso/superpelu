@@ -406,13 +406,22 @@ async function withSendResilience<T>(
       return result
     } catch (err) {
       lastErr = err
-      noteSendFailure()
-      const transient = isTransientOpenWaError(err)
+      const msg = errorMessage(err)
+      // Número inválido / no en WA: no es fallo de Chromium; no contar para zombie ni recuperar.
+      const recipientError =
+        msg.toLowerCase().includes('could not resolve the recipient') ||
+        msg.toLowerCase().includes('not on whatsapp')
+      if (allowRecovery && !recipientError) {
+        noteSendFailure()
+      }
+      const transient = !recipientError && isTransientOpenWaError(err)
       console.warn(
-        `Superpelu OpenWA ${label}: intento ${attempt}/${attempts} falló${transient ? ' (transitorio)' : ''}: ${errorMessage(err)}`,
+        `Superpelu OpenWA ${label}: intento ${attempt}/${attempts} falló${
+          recipientError ? ' (destinatario)' : transient ? ' (transitorio)' : ''
+        }: ${msg}`,
       )
 
-      if (!transient || attempt >= attempts) break
+      if (recipientError || !transient || attempt >= attempts) break
 
       if (allowRecovery) {
         const current = await openWaGetSessionStatus()
