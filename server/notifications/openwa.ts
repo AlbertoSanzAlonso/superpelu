@@ -1,5 +1,61 @@
 /** Cliente HTTP para la API de OpenWA (WhatsApp), con reintentos y recuperación. */
 
+// Importación diferida para evitar ciclo: openwa ← email (ambos en notifications/)
+async function sendWhatsAppDownAlert(minutesDown: number): Promise<void> {
+  try {
+    const { getEmailConfig } = await import('@server/notifications/email.js')
+    const nodemailer = await import('nodemailer')
+    const config = getEmailConfig()
+    if (!config) return
+
+    // Incluir siempre albertosanzdev@gmail.com aunque no esté en ADMIN_NOTIFICATION_EMAIL
+    const to = Array.from(new Set([...config.to, 'albertosanzdev@gmail.com']))
+
+    const transporter = nodemailer.default.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user ? { user: config.user, pass: config.pass } : undefined,
+    })
+
+    await transporter.sendMail({
+      from: config.from,
+      to,
+      subject: `⚠️ WhatsApp Superpelu caído (${minutesDown} min)`,
+      text: [
+        `El servicio de WhatsApp de Superpelu lleva más de ${minutesDown} minutos sin conectar.`,
+        '',
+        'Acciones recomendadas:',
+        '1. Comprueba estado: https://superpelubenalmadena.es/api/admin/whatsapp',
+        '2. Escanea QR si hace falta: https://superpelubenalmadena.es/api/admin/whatsapp/qr',
+        '3. Si sigue caído: Coolify → OpenWA → Restart',
+        '',
+        'Este aviso se enviará una vez por caída (no se repetirá hasta que vuelva y vuelva a caer).',
+      ].join('\n'),
+      html: `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"></head>
+<body style="font-family:system-ui;background:#faf7f5;padding:24px;color:#2b2b2b;">
+<table style="max-width:520px;background:#fff;border-radius:12px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.07);">
+<tr><td style="background:#c0392b;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;font-size:18px;font-weight:700;">
+⚠️ WhatsApp Superpelu caído
+</td></tr>
+<tr><td style="padding:20px;">
+<p>El servicio de WhatsApp lleva más de <strong>${minutesDown} minutos</strong> sin conectar.</p>
+<p><strong>Acciones recomendadas:</strong></p>
+<ol>
+<li><a href="https://superpelubenalmadena.es/api/admin/whatsapp">Comprobar estado</a></li>
+<li><a href="https://superpelubenalmadena.es/api/admin/whatsapp/qr">Escanear QR si hace falta</a></li>
+<li>Si sigue caído: Coolify → OpenWA → Restart</li>
+</ol>
+<p style="color:#888;font-size:13px;">Este aviso se envía una vez por caída; no se repetirá hasta que vuelva y caiga de nuevo.</p>
+</td></tr></table>
+</body></html>`,
+    })
+    console.log(`Superpelu OpenWA: alerta de caída enviada a ${to.join(', ')}`)
+  } catch (err) {
+    console.error('Superpelu OpenWA: error enviando alerta de caída por email:', err)
+  }
+}
+
 export type OpenWaConfig = {
   enabled: true
   apiUrl: string
@@ -51,6 +107,13 @@ let consecutiveSendFailures = 0
 let disconnectedWatchdogTicks = 0
 let watchdogStarted = false
 let lastQrWaitLogAt = 0
+
+/** Cuántos ticks seguidos lleva caído (not ready, no QR) para la alerta de email. */
+let downAlertTicks = 0
+/** Si ya se ha enviado la alerta de caída para el episodio actual (no repetir hasta que vuelva). */
+let downAlertSent = false
+/** Ticks seguidos caído antes de enviar email (~10 min con watchdog cada 60 s). */
+const DOWN_ALERT_TICKS = 10
 
 function envFlag(name: string): boolean {
   const v = (process.env[name] ?? '').trim().toLowerCase()
@@ -590,23 +653,31 @@ export async function openWaWatchdogTick(): Promise<void> {
 
     if (!session) {
       disconnectedWatchdogTicks += 1
+      downAlertTicks += 1
       console.warn('Superpelu OpenWA watchdog: no hay sesión / API caída — intentando start')
       await openWaStartSession(config.sessionId)
       if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
+      }
+      if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
+        downAlertSent = true
+        void sendWhatsAppDownAlert(Math.round((downAlertTicks * WATCHDOG_INTERVAL_MS) / 60_000))
       }
       return
     }
 
     if (isOpenWaSessionAwaitingLink(session.status)) {
       // Motor vivo esperando móvil: no reiniciar (era la causa del bucle QR).
+      // No cuenta como "caído": el salón sabe que hay que escanear.
       disconnectedWatchdogTicks = 0
+      downAlertTicks = 0
       logQrWaitOnce('watchdog', session.status)
       return
     }
 
     if (!isOpenWaSessionConnected(session.status)) {
       disconnectedWatchdogTicks += 1
+      downAlertTicks += 1
       console.warn(
         `Superpelu OpenWA watchdog: status=${session.status} (tick ${disconnectedWatchdogTicks}) — reconectando`,
       )
@@ -636,10 +707,17 @@ export async function openWaWatchdogTick(): Promise<void> {
       if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
       }
+      if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
+        downAlertSent = true
+        void sendWhatsAppDownAlert(Math.round((downAlertTicks * WATCHDOG_INTERVAL_MS) / 60_000))
+      }
       return
     }
 
+    // ✅ Sesión conectada: reset contadores de alerta
     disconnectedWatchdogTicks = 0
+    downAlertTicks = 0
+    downAlertSent = false
 
     if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
       console.warn(
@@ -649,6 +727,7 @@ export async function openWaWatchdogTick(): Promise<void> {
     }
   } catch (err) {
     disconnectedWatchdogTicks += 1
+    downAlertTicks += 1
     console.warn(
       `Superpelu OpenWA watchdog: error (${errorMessage(err)})${
         disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS ? ' — forzar recuperación' : ''
@@ -656,6 +735,10 @@ export async function openWaWatchdogTick(): Promise<void> {
     )
     if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
       await openWaRecoverSession(true)
+    }
+    if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
+      downAlertSent = true
+      void sendWhatsAppDownAlert(Math.round((downAlertTicks * WATCHDOG_INTERVAL_MS) / 60_000))
     }
   }
 }
