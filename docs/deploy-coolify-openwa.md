@@ -295,7 +295,11 @@ Coolify guarda ese comando en la config del recurso; el volumen solo debe tener 
 
 Como el `ENTRYPOINT` del Dockerfile es `dumb-init --`, el contenedor ejecutará `dumb-init -- sh -c "borra locks; node dist/main"` en cada arranque, limpiando el lock automáticamente. **Redeploy** para aplicarlo.
 
-> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada 5 min (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo. Ante `ProtocolError` / timeout de Puppeteer, Superpelu hace **stop→start** automático (y puedes forzar `POST /api/admin/whatsapp/reconnect` contra el dominio público).
+> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada minuto (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo. Ante `ProtocolError` / timeout de Puppeteer, Superpelu hace **stop→start** automático (y puedes forzar `POST /api/admin/whatsapp/reconnect` contra el dominio público).
+>
+> **Importante:** si OpenWA está en `qr_ready` / `authenticating`, Superpelu **no** hace stop→start (eso invalidaba el QR y forzaba re-vínculos en bucle). Escanea el QR en `/api/admin/whatsapp/qr?secret=…` y deja la sesión llegar a `ready`.
+>
+> En Coolify → OpenWA → Environment Variables, fija `NODE_ID=openwa-superpelu-prod` para que los redeploy no se comporten como “otro nodo” (`Session is held by another node`).
 
 ### WhatsApp deja de enviar: `ProtocolError: Runtime.callFunctionOn timed out`
 
@@ -321,8 +325,10 @@ Si tras reconnect sigue mal: limpia locks `Singleton*` (sección anterior) y rei
 
 | Síntoma | Qué revisar |
 |---------|-------------|
+| `connected: false` + `qr_ready` | Escanear QR en `/api/admin/whatsapp/qr`; **no** llamar a reconnect (rompe el QR) |
 | `connected: false` | QR no escaneado o sesión caída; reiniciar sesión en dashboard |
 | `ProtocolError` / `callFunctionOn timed out` | Chromium colgado → `POST …/whatsapp/reconnect` o Restart OpenWA; sube RAM/`shm` |
+| `Session is held by another node` | Fija `NODE_ID=openwa-superpelu-prod`; limpia claim en SQLite si hace falta |
 | `fetch failed` / timeout en logs Superpelu | Red: Superpelu no está en la red de OpenWA o `OPENWA_API_URL` incorrecta |
 | `OPENWA_ENABLED` pero no envía | Faltan `OPENWA_API_KEY` o `OPENWA_SESSION_ID` en runtime |
 | Pierde WhatsApp tras deploy | Volumen `/app/data` no montado en OpenWA |

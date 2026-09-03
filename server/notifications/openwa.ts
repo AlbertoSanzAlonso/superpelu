@@ -37,6 +37,10 @@ const WATCHDOG_INTERVAL_MS = 60_000
 const WATCHDOG_BOOT_DELAY_MS = 15_000
 /** Fallos de envío seguidos con status "ready" → Chromium zombie → stop/start. */
 const ZOMBIE_FAILURE_THRESHOLD = 2
+/** Ticks sin ready (no QR) antes de stop→start: da margen a Chromium tras Restart. */
+const DISCONNECTED_RECOVER_TICKS = 3
+/** Log de “esperando QR” como máximo cada N ms (evita spam). */
+const QR_WAIT_LOG_COOLDOWN_MS = 5 * 60_000
 
 /** Serializa envíos: Chromium/Puppeteer no aguanta evaluate concurrentes. */
 let sendQueue: Promise<unknown> = Promise.resolve()
@@ -46,6 +50,7 @@ let recoveryInFlight: Promise<boolean> | null = null
 let consecutiveSendFailures = 0
 let disconnectedWatchdogTicks = 0
 let watchdogStarted = false
+let lastQrWaitLogAt = 0
 
 function envFlag(name: string): boolean {
   const v = (process.env[name] ?? '').trim().toLowerCase()
@@ -99,6 +104,31 @@ export function isOpenWaSessionConnected(status: string | undefined): boolean {
   if (!status) return false
   const s = status.toLowerCase()
   return s === 'ready' || s === 'connected'
+}
+
+/**
+ * Sesión viva esperando emparejar el móvil (QR) o autenticando.
+ * Hacer stop→start aquí invalida el QR y puede forzar re-vínculos innecesarios.
+ */
+export function isOpenWaSessionAwaitingLink(status: string | undefined): boolean {
+  if (!status) return false
+  const s = status.toLowerCase()
+  return (
+    s === 'qr_ready' ||
+    s === 'authenticating' ||
+    s === 'initializing' ||
+    s === 'action_required'
+  )
+}
+
+function logQrWaitOnce(context: string, status: string): void {
+  const now = Date.now()
+  if (now - lastQrWaitLogAt < QR_WAIT_LOG_COOLDOWN_MS) return
+  lastQrWaitLogAt = now
+  console.warn(
+    `Superpelu OpenWA ${context}: status=${status} — esperando escanear QR ` +
+      `(/api/admin/whatsapp/qr). No se hace stop→start para no invalidar el vínculo.`,
+  )
 }
 
 /** E.164 (+34…) → chatId de WhatsApp (34600…@c.us). */
@@ -322,6 +352,11 @@ async function withSendResilience<T>(
       if (!transient || attempt >= attempts) break
 
       if (allowRecovery) {
+        const current = await openWaGetSessionStatus()
+        if (current && isOpenWaSessionAwaitingLink(current.status)) {
+          logQrWaitOnce('send', current.status)
+          break
+        }
         // 1.er fallo: start/espera; 2.º+: stop→start (recomponer Chromium)
         if (attempt >= 2 || consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
           await openWaRecoverSession(attempt >= 3)
@@ -476,7 +511,8 @@ export async function openWaGetSessionById(id: string): Promise<OpenWaSessionSta
 
 /**
  * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA en Coolify),
- * la arranca y espera `ready`. Si no entra, hace stop→start.
+ * la arranca y espera `ready`. Si no entra, hace stop→start
+ * (salvo si está esperando QR: ahí no se toca).
  * Si está "ready" pero hubo fallos recientes de envío, también recupera (zombie).
  */
 export async function openWaEnsureStarted(): Promise<void> {
@@ -499,13 +535,32 @@ export async function openWaEnsureStarted(): Promise<void> {
       return
     }
 
+    if (session && isOpenWaSessionAwaitingLink(session.status)) {
+      logQrWaitOnce('ensureStarted', session.status)
+      return
+    }
+
     console.log(
       `Superpelu OpenWA: sesión no conectada (${session?.status ?? 'sin respuesta'}), arrancando…`,
     )
     await openWaStartSession(config.sessionId)
+
+    // Tras start puede pasar a qr_ready: no forzar stop→start (rompe el emparejado).
+    const afterStart = await openWaGetSessionById(config.sessionId)
+    if (afterStart && isOpenWaSessionAwaitingLink(afterStart.status)) {
+      logQrWaitOnce('ensureStarted', afterStart.status)
+      return
+    }
+
     const ready = await waitUntilSessionReady(config.sessionId, 45_000)
     if (ready) {
       disconnectedWatchdogTicks = 0
+      return
+    }
+
+    const still = await openWaGetSessionById(config.sessionId)
+    if (still && isOpenWaSessionAwaitingLink(still.status)) {
+      logQrWaitOnce('ensureStarted', still.status)
       return
     }
 
@@ -519,6 +574,7 @@ export async function openWaEnsureStarted(): Promise<void> {
 /**
  * Watchdog: cada minuto comprueba si OpenWA/sesión están vivos y los recompondrá solo.
  * Cubre Restart del contenedor OpenWA sin que nadie toque nada.
+ * Si pide QR (`qr_ready`), solo espera: stop→start invalidaría el vínculo.
  */
 export async function openWaWatchdogTick(): Promise<void> {
   const config = getOpenWaConfig()
@@ -536,9 +592,16 @@ export async function openWaWatchdogTick(): Promise<void> {
       disconnectedWatchdogTicks += 1
       console.warn('Superpelu OpenWA watchdog: no hay sesión / API caída — intentando start')
       await openWaStartSession(config.sessionId)
-      if (disconnectedWatchdogTicks >= 2) {
+      if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
       }
+      return
+    }
+
+    if (isOpenWaSessionAwaitingLink(session.status)) {
+      // Motor vivo esperando móvil: no reiniciar (era la causa del bucle QR).
+      disconnectedWatchdogTicks = 0
+      logQrWaitOnce('watchdog', session.status)
       return
     }
 
@@ -548,14 +611,29 @@ export async function openWaWatchdogTick(): Promise<void> {
         `Superpelu OpenWA watchdog: status=${session.status} (tick ${disconnectedWatchdogTicks}) — reconectando`,
       )
       await openWaStartSession(config.sessionId)
+
+      const afterStart = await openWaGetSessionById(config.sessionId)
+      if (afterStart && isOpenWaSessionAwaitingLink(afterStart.status)) {
+        disconnectedWatchdogTicks = 0
+        logQrWaitOnce('watchdog', afterStart.status)
+        return
+      }
+
       const ready = await waitUntilSessionReady(config.sessionId, 45_000)
       if (ready) {
         disconnectedWatchdogTicks = 0
         consecutiveSendFailures = 0
         return
       }
-      // Tras 2 ticks sin ready (p. ej. Chromium lock / colgado tras Restart Coolify)
-      if (disconnectedWatchdogTicks >= 2) {
+
+      const still = await openWaGetSessionById(config.sessionId)
+      if (still && isOpenWaSessionAwaitingLink(still.status)) {
+        disconnectedWatchdogTicks = 0
+        logQrWaitOnce('watchdog', still.status)
+        return
+      }
+
+      if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
       }
       return
@@ -573,10 +651,10 @@ export async function openWaWatchdogTick(): Promise<void> {
     disconnectedWatchdogTicks += 1
     console.warn(
       `Superpelu OpenWA watchdog: error (${errorMessage(err)})${
-        disconnectedWatchdogTicks >= 3 ? ' — forzar recuperación' : ''
+        disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS ? ' — forzar recuperación' : ''
       }`,
     )
-    if (disconnectedWatchdogTicks >= 3) {
+    if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
       await openWaRecoverSession(true)
     }
   }
@@ -589,7 +667,8 @@ export function startOpenWaKeepAlive(): void {
   setTimeout(() => void openWaWatchdogTick(), WATCHDOG_BOOT_DELAY_MS)
   setInterval(() => void openWaWatchdogTick(), WATCHDOG_INTERVAL_MS)
   console.log(
-    'Superpelu OpenWA: watchdog activo (cada 60s; auto stop→start si cae Chromium o el contenedor)',
+    'Superpelu OpenWA: watchdog activo (cada 60s; stop→start si cae Chromium; ' +
+      'no reinicia mientras espera QR)',
   )
 }
 
