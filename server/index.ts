@@ -669,7 +669,10 @@ app.get('/api/admin/whatsapp/qr', async (c) => {
   }
 
   const name = openWaSessionName()
-  const refresh = '<meta http-equiv="refresh" content="15">'
+  // Recarga suave: 15 s era demasiado agresivo para escanear a distancia.
+  // WhatsApp puede caducar el QR ~20–60 s; 45 s da margen sin martillar la API.
+  const qrPageRefreshSec = 45
+  const refresh = `<meta http-equiv="refresh" content="${qrPageRefreshSec}">`
   const style =
     '<style>body{font-family:system-ui;text-align:center;padding:2rem;background:#111;color:#eee}' +
     'img{max-width:340px;background:#fff;padding:12px;border-radius:8px}code{background:#222;padding:2px 6px;border-radius:4px}</style>'
@@ -704,7 +707,7 @@ app.get('/api/admin/whatsapp/qr', async (c) => {
         `<body><h1>WhatsApp — Superpelu</h1>` +
         `<p>Escanea con el móvil del salón: WhatsApp → Dispositivos vinculados → Vincular dispositivo</p>` +
         `<img src="${qr}" alt="QR">` +
-        `<p style="opacity:.6">La página se recarga sola cada 15 s</p>` +
+        `<p style="opacity:.6">La página se recarga sola cada ${qrPageRefreshSec} s (si falla, recarga y escanea al momento)</p>` +
         `<p>Session ID:<br><code>${session.id}</code></p>` +
         `<p>Cuando conecte, pon ese id en <code>OPENWA_SESSION_ID</code> y haz Redeploy.</p></body></html>`,
     )
