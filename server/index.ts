@@ -221,6 +221,24 @@ app.get('/api/health', async (c) => {
   }
 })
 
+/**
+ * Estado público de WhatsApp — sin autenticación, sin datos sensibles.
+ * Solo indica si la sesión está conectada (ok: true/false).
+ * Diseñado para monitores externos gratuitos (UptimeRobot, BetterUptime, etc.).
+ */
+app.get('/api/status/whatsapp', async (c) => {
+  if (!isOpenWaConfigured()) {
+    return c.json({ ok: false, reason: 'not_configured' })
+  }
+  try {
+    const session = await openWaGetSessionStatus()
+    const connected = isOpenWaSessionConnected(session?.status)
+    return c.json({ ok: connected }, connected ? 200 : 503)
+  } catch {
+    return c.json({ ok: false, reason: 'unreachable' }, 503)
+  }
+})
+
 app.get('/api/auth/verify', (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) {
