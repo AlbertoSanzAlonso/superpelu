@@ -83,20 +83,29 @@ export type OpenWaSendOptions = {
 const DEFAULT_SEND_TIMEOUT_MS = 45_000
 const DEFAULT_SEND_ATTEMPTS = 3
 const ADMIN_TIMEOUT_MS = 20_000
-/** Evita martillar stop/start; lo bastante corto para recomponerse tras Restart de Coolify. */
+/** Evita martillar stop/start; solo aplica si OPENWA_AUTO_STOP_START=true. */
 const RECOVERY_COOLDOWN_MS = 90_000
 const READY_POLL_MS = 2_000
 const READY_WAIT_MS = 90_000
 const RETRY_BASE_DELAY_MS = 1_500
-/** Watchdog cada minuto: si OpenWA o Chromium caen, arranca/recupera solo. */
+/** Watchdog cada minuto: arranca si hace falta; no hace stop→start por defecto. */
 const WATCHDOG_INTERVAL_MS = 60_000
 const WATCHDOG_BOOT_DELAY_MS = 15_000
-/** Fallos de envío seguidos con status "ready" → Chromium zombie → stop/start. */
-const ZOMBIE_FAILURE_THRESHOLD = 2
-/** Ticks sin ready (no QR) antes de stop→start: da margen a Chromium tras Restart. */
+/** Fallos de envío seguidos (solo diagnóstico; ya no disparan stop→start automático). */
+const ZOMBIE_FAILURE_THRESHOLD = 3
+/** Ticks sin ready antes de reintentar solo `start` (sin stop). */
 const DISCONNECTED_RECOVER_TICKS = 3
 /** Log de “esperando QR” como máximo cada N ms (evita spam). */
 const QR_WAIT_LOG_COOLDOWN_MS = 5 * 60_000
+
+/**
+ * stop→start automático invalida a menudo el vínculo de WhatsApp.
+ * Por defecto OFF: solo `start` suave + alerta email; stop→start solo vía
+ * POST /api/admin/whatsapp/reconnect o OPENWA_AUTO_STOP_START=true.
+ */
+function autoStopStartEnabled(): boolean {
+  return envFlag('OPENWA_AUTO_STOP_START')
+}
 
 /** Serializa envíos: Chromium/Puppeteer no aguanta evaluate concurrentes. */
 let sendQueue: Promise<unknown> = Promise.resolve()
@@ -342,15 +351,31 @@ export async function openWaStopSession(id: string): Promise<void> {
 }
 
 /**
- * Recupera un Chromium colgado: stop → start → espera `ready`.
- * Cooldown global para no martillar OpenWA si fallan muchos envíos a la vez.
- * `force` ignora cooldown (p. ej. watchdog tras varios ticks desconectado).
+ * Recupera sesión.
+ * - Por defecto: solo `start` suave (no rompe el vínculo).
+ * - stop→start solo si OPENWA_AUTO_STOP_START=true o hard=true
+ *   (hard=true desde POST /api/admin/whatsapp/reconnect).
+ * - force=true: ignora cooldown entre recuperaciones duras.
  */
-export async function openWaRecoverSession(force = false): Promise<boolean> {
+export async function openWaRecoverSession(force = false, hard = false): Promise<boolean> {
   const config = getOpenWaConfig()
   if (!config) return false
 
   if (recoveryInFlight) return recoveryInFlight
+
+  const allowHardRecover = hard || autoStopStartEnabled()
+  if (!allowHardRecover) {
+    console.warn(
+      'Superpelu OpenWA: stop→start omitido (OPENWA_AUTO_STOP_START off). Solo start suave.',
+    )
+    try {
+      await openWaStartSession(config.sessionId)
+      return waitUntilSessionReady(config.sessionId, READY_WAIT_MS)
+    } catch (err) {
+      console.error('Superpelu OpenWA start suave:', err)
+      return false
+    }
+  }
 
   const now = Date.now()
   if (!force && now - lastRecoveryAt < RECOVERY_COOLDOWN_MS) {
@@ -429,11 +454,11 @@ async function withSendResilience<T>(
           logQrWaitOnce('send', current.status)
           break
         }
-        // 1.er fallo: start/espera; 2.º+: stop→start (recomponer Chromium)
-        if (attempt >= 2 || consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+        // Solo start suave + espera. stop→start solo si OPENWA_AUTO_STOP_START=true.
+        await openWaEnsureStarted()
+        if (autoStopStartEnabled() && attempt >= 2) {
           await openWaRecoverSession(attempt >= 3)
         } else {
-          await openWaEnsureStarted()
           await sleep(RETRY_BASE_DELAY_MS * attempt)
         }
       } else {
@@ -583,9 +608,8 @@ export async function openWaGetSessionById(id: string): Promise<OpenWaSessionSta
 
 /**
  * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA en Coolify),
- * la arranca y espera `ready`. Si no entra, hace stop→start
- * (salvo si está esperando QR: ahí no se toca).
- * Si está "ready" pero hubo fallos recientes de envío, también recupera (zombie).
+ * la arranca y espera `ready`. No hace stop→start salvo OPENWA_AUTO_STOP_START.
+ * Si pide QR, no se toca.
  */
 export async function openWaEnsureStarted(): Promise<void> {
   const config = getOpenWaConfig()
@@ -600,9 +624,14 @@ export async function openWaEnsureStarted(): Promise<void> {
     if (session && isOpenWaSessionConnected(session.status)) {
       if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
         console.warn(
-          `Superpelu OpenWA: ready pero ${consecutiveSendFailures} fallos seguidos → stop/start`,
+          `Superpelu OpenWA: ready pero ${consecutiveSendFailures} fallos seguidos` +
+            (autoStopStartEnabled()
+              ? ' → stop/start (OPENWA_AUTO_STOP_START)'
+              : ' (sin stop/start; OPENWA_AUTO_STOP_START off)'),
         )
-        await openWaRecoverSession()
+        if (autoStopStartEnabled()) {
+          await openWaRecoverSession()
+        }
       }
       return
     }
@@ -617,7 +646,6 @@ export async function openWaEnsureStarted(): Promise<void> {
     )
     await openWaStartSession(config.sessionId)
 
-    // Tras start puede pasar a qr_ready: no forzar stop→start (rompe el emparejado).
     const afterStart = await openWaGetSessionById(config.sessionId)
     if (afterStart && isOpenWaSessionAwaitingLink(afterStart.status)) {
       logQrWaitOnce('ensureStarted', afterStart.status)
@@ -636,17 +664,24 @@ export async function openWaEnsureStarted(): Promise<void> {
       return
     }
 
-    console.warn('Superpelu OpenWA: no llegó a ready tras start → recuperación completa')
-    await openWaRecoverSession(true)
+    if (autoStopStartEnabled()) {
+      console.warn('Superpelu OpenWA: no llegó a ready tras start → stop/start (AUTO_STOP_START)')
+      await openWaRecoverSession(true)
+    } else {
+      console.warn(
+        'Superpelu OpenWA: no llegó a ready tras start — no se hace stop/start ' +
+          '(OPENWA_AUTO_STOP_START off; escanear QR o POST …/whatsapp/reconnect)',
+      )
+    }
   } catch (err) {
     console.error('Superpelu OpenWA reconexión:', err)
   }
 }
 
 /**
- * Watchdog: cada minuto comprueba si OpenWA/sesión están vivos y los recompondrá solo.
- * Cubre Restart del contenedor OpenWA sin que nadie toque nada.
- * Si pide QR (`qr_ready`), solo espera: stop→start invalidaría el vínculo.
+ * Watchdog: cada minuto comprueba si OpenWA/sesión están vivos.
+ * Por defecto solo hace `start` (nunca stop→start): reiniciar Chromium
+ * invalidaba el vínculo de WhatsApp casi a diario.
  */
 export async function openWaWatchdogTick(): Promise<void> {
   const config = getOpenWaConfig()
@@ -665,7 +700,7 @@ export async function openWaWatchdogTick(): Promise<void> {
       downAlertTicks += 1
       console.warn('Superpelu OpenWA watchdog: no hay sesión / API caída — intentando start')
       await openWaStartSession(config.sessionId)
-      if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
+      if (autoStopStartEnabled() && disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
       }
       if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
@@ -676,11 +711,13 @@ export async function openWaWatchdogTick(): Promise<void> {
     }
 
     if (isOpenWaSessionAwaitingLink(session.status)) {
-      // Motor vivo esperando móvil: no reiniciar (era la causa del bucle QR).
-      // No cuenta como "caído": el salón sabe que hay que escanear.
       disconnectedWatchdogTicks = 0
-      downAlertTicks = 0
+      downAlertTicks += 1
       logQrWaitOnce('watchdog', session.status)
+      if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
+        downAlertSent = true
+        void sendWhatsAppDownAlert(Math.round((downAlertTicks * WATCHDOG_INTERVAL_MS) / 60_000))
+      }
       return
     }
 
@@ -688,7 +725,7 @@ export async function openWaWatchdogTick(): Promise<void> {
       disconnectedWatchdogTicks += 1
       downAlertTicks += 1
       console.warn(
-        `Superpelu OpenWA watchdog: status=${session.status} (tick ${disconnectedWatchdogTicks}) — reconectando`,
+        `Superpelu OpenWA watchdog: status=${session.status} (tick ${disconnectedWatchdogTicks}) — start suave`,
       )
       await openWaStartSession(config.sessionId)
 
@@ -713,7 +750,7 @@ export async function openWaWatchdogTick(): Promise<void> {
         return
       }
 
-      if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
+      if (autoStopStartEnabled() && disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
         await openWaRecoverSession(true)
       }
       if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
@@ -723,26 +760,31 @@ export async function openWaWatchdogTick(): Promise<void> {
       return
     }
 
-    // ✅ Sesión conectada: reset contadores de alerta
     disconnectedWatchdogTicks = 0
     downAlertTicks = 0
     downAlertSent = false
 
     if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
       console.warn(
-        `Superpelu OpenWA watchdog: Chromium zombie (${consecutiveSendFailures} fallos) → stop/start`,
+        `Superpelu OpenWA watchdog: ${consecutiveSendFailures} fallos de envío con status ready` +
+          (autoStopStartEnabled()
+            ? ' → stop/start (OPENWA_AUTO_STOP_START)'
+            : ' (sin stop/start automático)'),
       )
-      await openWaRecoverSession()
+      if (autoStopStartEnabled()) {
+        await openWaRecoverSession()
+      }
     }
   } catch (err) {
     disconnectedWatchdogTicks += 1
     downAlertTicks += 1
-    console.warn(
-      `Superpelu OpenWA watchdog: error (${errorMessage(err)})${
-        disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS ? ' — forzar recuperación' : ''
-      }`,
-    )
-    if (disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
+    console.warn(`Superpelu OpenWA watchdog: error (${errorMessage(err)}) — start suave`)
+    try {
+      await openWaStartSession(config.sessionId)
+    } catch {
+      /* ignore */
+    }
+    if (autoStopStartEnabled() && disconnectedWatchdogTicks >= DISCONNECTED_RECOVER_TICKS) {
       await openWaRecoverSession(true)
     }
     if (!downAlertSent && downAlertTicks >= DOWN_ALERT_TICKS) {
@@ -759,8 +801,8 @@ export function startOpenWaKeepAlive(): void {
   setTimeout(() => void openWaWatchdogTick(), WATCHDOG_BOOT_DELAY_MS)
   setInterval(() => void openWaWatchdogTick(), WATCHDOG_INTERVAL_MS)
   console.log(
-    'Superpelu OpenWA: watchdog activo (cada 60s; stop→start si cae Chromium; ' +
-      'no reinicia mientras espera QR)',
+    'Superpelu OpenWA: watchdog activo (cada 60s; solo start suave; ' +
+      `stop→start auto=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
   )
 }
 
@@ -770,7 +812,7 @@ export function logOpenWaStartup(): void {
     console.log(
       `Superpelu: OpenWA activo → ${config.apiUrl} (sesión ${config.sessionId})${
         config.notifyPublicOnly ? ', solo reservas públicas' : ''
-      } (auto-recuperación: watchdog + reintentos + stop/start)`,
+      } (watchdog: start suave; stop→start auto=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
     )
     return
   }

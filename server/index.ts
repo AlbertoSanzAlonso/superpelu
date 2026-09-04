@@ -612,7 +612,7 @@ app.post('/api/admin/whatsapp/reconnect', async (c) => {
     return c.json({ error: 'OpenWA no configurado (OPENWA_ENABLED y credenciales)' }, 400)
   }
 
-  const recovered = await openWaRecoverSession(true)
+  const recovered = await openWaRecoverSession(true, true)
   const session = await openWaGetSessionStatus()
   return c.json({
     ok: recovered,

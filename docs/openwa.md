@@ -80,14 +80,15 @@ curl -s -H "Authorization: Bearer TU_ADMIN_SECRET" \
 
 Si OpenWA o Chromium caen (Restart en Coolify, ProtocolError, sesión no ready), **Superpelu se recompone solo**:
 
-1. **Watchdog cada 60 s** — si la sesión no está `ready`, hace `start`; si sigue caída (y **no** está esperando QR), `stop → start`.
-2. **Antes de cada envío** — espera a `ready`; si falla el envío, reintenta y fuerza recuperación (salvo `qr_ready`).
-3. **Zombie** — status `ready` pero fallos seguidos → `stop → start` (Chromium colgado).
-4. **Esperando QR** (`qr_ready` / `authenticating`) — **no** reinicia: hay que escanear en `/api/admin/whatsapp/qr?secret=…`. Reiniciar ahí invalidaba el QR y forzaba re-vínculos en bucle.
+1. **Watchdog cada 60 s** — si la sesión no está `ready`, hace **solo `start`** (no stop→start).
+2. **Antes de cada envío** — espera a `ready`; reintenta sin reiniciar Chromium.
+3. **Esperando QR** (`qr_ready` / `authenticating`) — no reinicia; escanear en `/api/admin/whatsapp/qr?secret=…`.
+4. **stop→start automático** — **desactivado por defecto** (invalidaba el vínculo casi a diario). Solo con `OPENWA_AUTO_STOP_START=true` o a mano: `POST /api/admin/whatsapp/reconnect`.
+5. **Alerta email** — si lleva ~10 min caído, avisa a `ADMIN_NOTIFICATION_EMAIL` (+ albertosanzdev@gmail.com).
 
 No hace falta cola de mensajes ni scripts en el contenedor. La sesión autenticada vive en el volumen `/app/data` de OpenWA; tras Restart suele volver sin QR.
 
-**En Coolify (OpenWA):** fija `NODE_ID=openwa-superpelu-prod` y asegúrate de que el volumen `/app/data` persiste entre redeploys. No desvincules el dispositivo en el móvil salvo que quieras un QR nuevo a propósito.
+**En Coolify (OpenWA):** fija `NODE_ID=openwa-superpelu-prod` y asegúrate de que el volumen `/app/data` persiste entre redeploys. No desvincules el dispositivo en el móvil salvo que quieras un QR nuevo a propósito. No pongas `OPENWA_AUTO_STOP_START=true` salvo diagnóstico puntual.
 
 Forzar a mano (raro):
 
