@@ -147,7 +147,7 @@ import {
   phoneToWhatsAppChatId,
   startOpenWaKeepAlive,
 } from '@server/notifications/openwa.js'
-import { processDueReminders, startReminderScheduler, listReminderStatus, resetDueRemindersAndSend } from '@server/notifications/reminders.js'
+import { processDueReminders, startReminderScheduler, listReminderStatus, resetReminderSentAtForIds } from '@server/notifications/reminders.js'
 import {
   processDueBirthdayWishes,
   startBirthdayWishScheduler,
@@ -568,10 +568,13 @@ app.delete('/api/admin/staff/:id', async (c) => {
 app.post('/api/admin/whatsapp/reminders/run', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json().catch(() => ({} as { reset?: boolean }))
+  const body = await c.req.json().catch(() => ({} as { resetIds?: string[] }))
+  const resetIds = Array.isArray(body?.resetIds)
+    ? body.resetIds.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+    : []
   const result =
-    body && typeof body === 'object' && body.reset === true
-      ? await resetDueRemindersAndSend()
+    resetIds.length > 0
+      ? await resetReminderSentAtForIds(resetIds)
       : await processDueReminders()
   return c.json(result)
 })

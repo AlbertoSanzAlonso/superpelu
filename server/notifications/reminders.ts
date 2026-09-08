@@ -185,38 +185,24 @@ export async function listReminderStatus(): Promise<{
 }
 
 /**
- * Reactiva recordatorios de citas en ventana (reminder_sent_at → NULL) y vuelve a intentar envío.
- * Solo admin / diagnóstico cuando se marcaron sin llegar el WhatsApp.
+ * Reactiva recordatorios solo de los IDs indicados (reminder_sent_at → NULL)
+ * y luego intenta enviar los pendientes en ventana.
+ * No toca el resto: quien ya tiene reminder_sent_at y no está en la lista no se reenvía.
  */
-export async function resetDueRemindersAndSend(): Promise<ReminderRunResult> {
-  const today = todaySalon()
-  const until = addDaysToDateString(today, 1)
-  const rows = await sql<AppointmentRow[]>`
-    SELECT *
-    FROM appointments
-    WHERE status = 'confirmed'
-      AND appointment_date >= ${today}
-      AND appointment_date <= ${until}
-      AND reminder_sent_at IS NOT NULL
-      AND (color_group_role IS NULL OR color_group_role = ${COLOR_GROUP_ROLE.color})
-  `
-  for (const row of rows) {
-    const hours = hoursUntilAppointment(
-      normalizeDate(row.appointment_date),
-      normalizeTime(row.start_time),
-    )
-    if (hours <= 0 || hours > HOURS_BEFORE) continue
+export async function resetReminderSentAtForIds(ids: string[]): Promise<ReminderRunResult> {
+  const uniqueIds = [...new Set(ids.map((id) => id.trim()).filter(Boolean))]
+  for (const id of uniqueIds) {
     await sql`
       UPDATE appointments
       SET reminder_sent_at = NULL
-      WHERE id = ${row.id}
+      WHERE id = ${id}
          OR (
               booking_group_id IS NOT NULL
-              AND booking_group_id = (SELECT booking_group_id FROM appointments WHERE id = ${row.id})
+              AND booking_group_id = (SELECT booking_group_id FROM appointments WHERE id = ${id})
             )
          OR (
               color_group_id IS NOT NULL
-              AND color_group_id = (SELECT color_group_id FROM appointments WHERE id = ${row.id})
+              AND color_group_id = (SELECT color_group_id FROM appointments WHERE id = ${id})
             )
     `
   }
