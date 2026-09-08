@@ -12,6 +12,7 @@ import { typography } from '@/styles/typography'
 
 type BookingConfirmation = {
   appointments: Appointment[]
+  manageUrl?: string | null
 }
 
 export function BookingPage() {
@@ -79,6 +80,11 @@ export function BookingPage() {
           </dl>
           <div className="mt-10 space-y-4">
             <AddToCalendarButton appointment={primary} />
+            {confirmed.manageUrl ? (
+              <Button href={confirmed.manageUrl} variant="outline" size="md" className="w-full">
+                {t.booking.manageAppointment}
+              </Button>
+            ) : null}
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
               <Button href="/" variant="outline" size="md">
                 {t.common.home}
@@ -102,9 +108,10 @@ export function BookingPage() {
       brandWatermark
     >
       <AppointmentForm
-        onConfirmed={(appointment, appointments) => {
+        onConfirmed={(appointment, appointments, manageUrl) => {
           setConfirmed({
             appointments: appointments?.length ? appointments : [appointment],
+            manageUrl,
           })
         }}
       />

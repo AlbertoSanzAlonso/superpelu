@@ -6,7 +6,6 @@ import { getStaff, listStaffForService, staffCanPerformService } from '@server/s
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from '@/lib/booking/colorCombo'
 import { upsertCustomerForBooking } from '@server/customers/index.js'
-import { notifyAppointmentCreated } from '@server/notifications/whatsapp.js'
 import { hoursUntilAppointment } from '@/lib/core/dates'
 import { getBookingSpanMinutes, usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { lockStaffDaysForBooking } from '@server/appointments/lock.js'
@@ -383,9 +382,5 @@ export async function createRecurringChainedAppointment(
 
   if (!firstId) throw new Error('SERVICIO_INVALIDO')
 
-  const row = (await getAppointmentById(firstId))!
-  void notifyAppointmentCreated(row, { forStaffPortal: true }).catch((err) => {
-    console.error('Superpelu WhatsApp (cita nueva):', err)
-  })
-  return row
+  return (await getAppointmentById(firstId))!
 }

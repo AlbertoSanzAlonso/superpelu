@@ -266,7 +266,8 @@ const es = {
     confirmedTitle: '¡Cita confirmada!',
     confirmedSubtitle: 'Te esperamos en Superpelu Hair Studio',
     confirmedBody:
-      'Hemos registrado tu cita. Si necesitas cambiarla, llámanos o escríbenos por WhatsApp.',
+      'Hemos registrado tu cita. Te enviaremos un recordatorio por WhatsApp 24 horas antes. Si necesitas cambiarla o cancelarla, usa el botón de abajo.',
+    manageAppointment: 'Cancelar / modificar cita',
     newAppointment: 'Nueva cita',
     steps: [
       '¿Qué te apetece hoy?',
@@ -873,7 +874,8 @@ const en = {
     confirmedTitle: 'Appointment confirmed!',
     confirmedSubtitle: 'We look forward to seeing you at Superpelu Hair Studio',
     confirmedBody:
-      'Your appointment has been registered. If you need to change it, call us or message us on WhatsApp.',
+      'Your appointment has been registered. We will send you a WhatsApp reminder 24 hours before. If you need to change or cancel it, use the button below.',
+    manageAppointment: 'Cancel or change appointment',
     newAppointment: 'New appointment',
     steps: [
       'What would you like today?',

@@ -7,7 +7,6 @@ import { isStaffWorkingOnDate } from "@server/staff/availability.js"
 import { getStaff, staffCanPerformService } from "@server/staff/index.js"
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
-import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
@@ -161,11 +160,7 @@ async function createRecurringStaffAppointment(
     return firstId
   })
 
-  const row = (await getAppointmentById(primaryId))!
-  void notifyAppointmentCreated(row, { forStaffPortal: true }).catch((err) => {
-    console.error('Superpelu WhatsApp (cita nueva):', err)
-  })
-  return row
+  return (await getAppointmentById(primaryId))!
 }
 
 export async function createAppointment(
@@ -417,17 +412,10 @@ export async function createAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  // Al recrear una visita editada no avisar como alta (WhatsApp ni email admin).
-  if (!input.skipCustomerWhatsApp) {
-    void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
-      (err) => {
-        console.error('Superpelu WhatsApp (cita nueva):', err)
-      },
-    )
-    // Email al admin solo en reserva pública (/reservar), no desde agenda.
-    if (!input.forStaffPortal) {
-      void notifyAdminAppointmentCreated(row)
-    }
+  // Al recrear una visita editada no avisar como alta (email admin).
+  // WhatsApp de confirmación al crear: desactivado; solo recordatorio 24h.
+  if (!input.skipCustomerWhatsApp && !input.forStaffPortal) {
+    void notifyAdminAppointmentCreated(row)
   }
   return row
 }

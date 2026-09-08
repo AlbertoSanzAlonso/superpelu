@@ -48,6 +48,7 @@ import { previewRecurringChainConflicts } from '@server/appointments/recurringCh
 import { staffPortalBookingHasCustomer } from '@server/appointments/staffBookingValidation.js'
 import {
   buildIcs,
+  buildManagePath,
   buildManageUrl,
   decodeId,
   encodeId,
@@ -897,6 +898,7 @@ app.post('/api/appointments', async (c) => {
       {
         appointment: rowToPublic(row),
         appointments: visibleGroup.map(rowToPublic),
+        manageUrl: buildManagePath(row),
       },
       201,
     )

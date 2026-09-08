@@ -176,13 +176,21 @@ export function buildCancelUrl(row: AppointmentRow): string | null {
   return appendLocaleToCustomerUrl(url, appointmentLocale(row))
 }
 
-/** Enlace para que el cliente cambie fecha/hora o cancele la cita (WhatsApp, etc.). */
+/**
+ * Ruta relativa para gestionar/cancelar cita (misma firma que WhatsApp).
+ * Ideal para la confirmación web (mismo origen; no depende de PUBLIC_BASE_URL).
+ */
+export function buildManagePath(row: AppointmentRow): string {
+  const token = appointmentCancelToken(row.id)
+  const path = `/m/${encodeId(row.id)}?t=${token}`
+  return appendLocaleToCustomerUrl(path, appointmentLocale(row))
+}
+
+/** Enlace absoluto para que el cliente cambie fecha/hora o cancele la cita (WhatsApp, etc.). */
 export function buildManageUrl(row: AppointmentRow): string | null {
   const base = publicBaseUrl()
   if (!base) return null
-  const token = appointmentCancelToken(row.id)
-  const url = `${base}/m/${encodeId(row.id)}?t=${token}`
-  return appendLocaleToCustomerUrl(url, appointmentLocale(row))
+  return `${base}${buildManagePath(row)}`
 }
 
 function pad(n: number): string {

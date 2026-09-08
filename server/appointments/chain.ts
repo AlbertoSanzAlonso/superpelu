@@ -6,7 +6,6 @@ import { getStaff, listStaffForService, type PublicStaff } from "@server/staff/i
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
-import { notifyAppointmentCreated } from "@server/notifications/whatsapp.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
@@ -477,17 +476,10 @@ export async function createChainedBookingAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  // Al recrear una visita editada (skipCustomerWhatsApp) no debe avisarse como «cita nueva».
-  if (!input.skipCustomerWhatsApp) {
-    void notifyAppointmentCreated(row, { forStaffPortal: Boolean(input.forStaffPortal) }).catch(
-      (err) => {
-        console.error('Superpelu WhatsApp (cita nueva):', err)
-      },
-    )
-    // Email al admin solo en reserva pública (/reservar), no desde agenda.
-    if (!input.forStaffPortal) {
-      void notifyAdminAppointmentCreated(row)
-    }
+  // Al recrear una visita editada (skipCustomerWhatsApp) no avisar como alta.
+  // WhatsApp de confirmación al crear: desactivado; solo recordatorio 24h.
+  if (!input.skipCustomerWhatsApp && !input.forStaffPortal) {
+    void notifyAdminAppointmentCreated(row)
   }
   return row
 }

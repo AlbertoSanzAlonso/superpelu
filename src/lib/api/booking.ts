@@ -82,7 +82,11 @@ export function lookupBookingCustomer(phone: string) {
 }
 
 export function createAppointment(payload: CreateAppointmentPayload) {
-  return request<{ appointment: Appointment; appointments?: Appointment[] }>('/appointments', {
+  return request<{
+    appointment: Appointment
+    appointments?: Appointment[]
+    manageUrl?: string | null
+  }>('/appointments', {
     method: 'POST',
     body: JSON.stringify(payload),
   })

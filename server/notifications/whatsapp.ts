@@ -25,24 +25,6 @@ async function sendCustomerWhatsApp(
   return sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
 }
 
-export async function buildAppointmentConfirmationMessage(
-  row: AppointmentRow,
-): Promise<string> {
-  const groupRows = row.booking_group_id
-    ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
-    : undefined
-  return buildWhatsAppAppointmentMessage(row, 'confirmation', {
-    manageUrl: buildManageUrl(row),
-    groupRows,
-  })
-}
-
-export function buildAppointmentRescheduledMessage(row: AppointmentRow): string {
-  return buildWhatsAppAppointmentMessage(row, 'rescheduled', {
-    manageUrl: buildManageUrl(row),
-  })
-}
-
 export async function buildAppointmentReminderMessage(row: AppointmentRow): Promise<string> {
   const groupRows = row.booking_group_id
     ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
@@ -85,27 +67,6 @@ export function buildAppointmentNoShowMessage(row: AppointmentRow): string {
   })
 }
 
-export async function notifyAppointmentCreated(
-  row: AppointmentRow,
-  options?: { forStaffPortal?: boolean },
-): Promise<void> {
-  const config = getOpenWaConfig()
-  if (!config) {
-    console.warn('Superpelu WhatsApp: OpenWA no configurado — confirmación omitida')
-    return
-  }
-
-  if (config.notifyPublicOnly && options?.forStaffPortal) return
-  if (row.status === 'cancelled' || row.status === 'no_show') return
-
-  const text = await buildAppointmentConfirmationMessage(row)
-  const messageId = await sendCustomerWhatsApp(row, text)
-  console.log(
-    `Superpelu WhatsApp: confirmación enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
-  )
-}
-
-/** Aviso al cliente tras modificar / reprogramar una cita (agenda o enlace público). */
 export async function notifyAppointmentUpdated(row: AppointmentRow): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return

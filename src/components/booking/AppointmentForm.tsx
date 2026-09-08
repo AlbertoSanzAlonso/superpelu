@@ -26,7 +26,11 @@ const bookableDatesList = getBookableDates(35)
 
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
-  onConfirmed?: (appointment: Appointment, appointments?: Appointment[]) => void
+  onConfirmed?: (
+    appointment: Appointment,
+    appointments?: Appointment[],
+    manageUrl?: string | null,
+  ) => void
 }
 
 export function AppointmentForm({
@@ -42,9 +46,9 @@ export function AppointmentForm({
 
   const form = useAppointmentForm({
     ...formOptions,
-    onSuccess: (apt, appointments) => {
-      onSuccess?.(apt, appointments)
-      onConfirmed?.(apt, appointments)
+    onSuccess: (apt, appointments, manageUrl) => {
+      onSuccess?.(apt, appointments, manageUrl)
+      onConfirmed?.(apt, appointments, manageUrl)
     },
   })
 

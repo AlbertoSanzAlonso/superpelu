@@ -27,7 +27,11 @@ export type AppointmentFormOptions = {
   initialStaffId?: string
   initialServiceId?: string
   initialStartTime?: string
-  onSuccess?: (appointment: Appointment, appointments?: Appointment[]) => void
+  onSuccess?: (
+    appointment: Appointment,
+    appointments?: Appointment[],
+    manageUrl?: string | null,
+  ) => void
 }
 
 export function useAppointmentForm(options: AppointmentFormOptions = {}) {
@@ -603,7 +607,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           )
         : undefined
       const isReturning = customerType === 'returning'
-      const { appointment, appointments } = await createAppointment({
+      const { appointment, appointments, manageUrl } = await createAppointment({
         serviceIds,
         staffId: primaryStaffId,
         staffAssignments: hasMultipleServices ? staffAssignments : undefined,
@@ -618,7 +622,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         returningCustomer: isReturning || undefined,
         birthdate: isReturning ? undefined : birthdate,
       })
-      onSuccess?.(appointment, appointments)
+      onSuccess?.(appointment, appointments, manageUrl)
       return appointment
     } catch (err) {
       if (err instanceof ApiError && err.code) {
