@@ -8,7 +8,6 @@ import { getStaff, staffCanPerformService } from "@server/staff/index.js"
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
-import { hoursUntilAppointment } from "@/lib/core/dates"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import {
   getBookingSpanMinutes,
@@ -95,8 +94,7 @@ async function createRecurringStaffAppointment(
 
     for (const day of dates) {
       await assertBookingAvailable(tx, staff.id, day, bookingSegments)
-      const reminderSentAt =
-        hoursUntilAppointment(day, input.startTime) <= 24 ? createdAt : null
+      const reminderSentAt = null
 
       const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
@@ -330,9 +328,9 @@ export async function createAppointment(
     : normalizeLocale(input.locale)
   const serviceName = serviceDisplayName(service, locale)
 
-  // Si la cita es en menos de 24h, no hay recordatorio: se marca como ya gestionado.
-  const reminderSentAt =
-    hoursUntilAppointment(input.date, input.startTime) <= 24 ? createdAt : null
+  // Recordatorio: lo envía el scheduler al entrar en la ventana de 24h (ya no hay
+  // WhatsApp de confirmación al crear; no marcar reminder_sent_at aquí).
+  const reminderSentAt = null
 
   const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 

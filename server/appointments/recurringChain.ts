@@ -6,7 +6,6 @@ import { getStaff, listStaffForService, staffCanPerformService } from '@server/s
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from '@/lib/booking/colorCombo'
 import { upsertCustomerForBooking } from '@server/customers/index.js'
-import { hoursUntilAppointment } from '@/lib/core/dates'
 import { getBookingSpanMinutes, usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { lockStaffDaysForBooking } from '@server/appointments/lock.js'
 import {
@@ -311,8 +310,7 @@ export async function createRecurringChainedAppointment(
         if (!staff?.active) throw new Error('STAFF_INVALIDO')
         const serviceStartTime = dayPlan.serviceStartTimes[i]
         const serviceName = serviceDisplayName(service, locale)
-        const reminderSentAt =
-          hoursUntilAppointment(dayPlan.date, serviceStartTime) <= 24 ? createdAt : null
+        const reminderSentAt = null
 
         if (usesColorSplitBooking(service.id)) {
           const colorGroup = await prepareColorBookingGroupIds(service.id)

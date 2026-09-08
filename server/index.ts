@@ -147,7 +147,7 @@ import {
   phoneToWhatsAppChatId,
   startOpenWaKeepAlive,
 } from '@server/notifications/openwa.js'
-import { processDueReminders, startReminderScheduler } from '@server/notifications/reminders.js'
+import { processDueReminders, startReminderScheduler, listReminderStatus, resetDueRemindersAndSend } from '@server/notifications/reminders.js'
 import {
   processDueBirthdayWishes,
   startBirthdayWishScheduler,
@@ -568,8 +568,19 @@ app.delete('/api/admin/staff/:id', async (c) => {
 app.post('/api/admin/whatsapp/reminders/run', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const sent = await processDueReminders()
-  return c.json({ sent })
+  const body = await c.req.json().catch(() => ({} as { reset?: boolean }))
+  const result =
+    body && typeof body === 'object' && body.reset === true
+      ? await resetDueRemindersAndSend()
+      : await processDueReminders()
+  return c.json(result)
+})
+
+/** Diagnóstico: citas hoy/mañana y si el recordatorio está pendiente o ya marcado. */
+app.get('/api/admin/whatsapp/reminders/status', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  return c.json(await listReminderStatus())
 })
 
 /** Estado de la sesión OpenWA (solo admin). */
