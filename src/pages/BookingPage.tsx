@@ -50,7 +50,7 @@ export function BookingPage() {
         subtitle={t.booking.confirmedSubtitle}
         brandWatermark
       >
-        <div className="mx-auto max-w-lg border border-gold/25 bg-cream p-10 text-center">
+        <div className="mx-auto max-w-lg border border-gold/25 bg-cream/35 p-10 text-center backdrop-blur-[2px]">
           <p className={`${typography.body} mb-6`}>{t.booking.confirmedBody}</p>
           <dl className={`${typography.body} space-y-3 text-left`}>
             <div>
