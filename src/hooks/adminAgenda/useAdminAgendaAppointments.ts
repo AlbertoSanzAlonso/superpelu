@@ -86,9 +86,9 @@ export function useAdminAgendaAppointments({
 
   const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
   const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
-  const [whatsAppNotifyContext, setWhatsAppNotifyContext] = useState<'edit' | 'move' | 'cancel'>(
-    'edit',
-  )
+  const [whatsAppNotifyContext, setWhatsAppNotifyContext] = useState<
+    'create' | 'edit' | 'move' | 'cancel'
+  >('edit')
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null)
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
   const [noShowBusy, setNoShowBusy] = useState(false)

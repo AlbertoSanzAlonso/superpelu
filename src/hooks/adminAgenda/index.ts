@@ -154,7 +154,10 @@ export function useAdminAgenda(adminToken: string, date: string) {
         ok = await moves.commitPendingMoves(true)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
         ok = await appointments.persistCancel(true)
-      } else if (appointments.whatsAppNotifyContext === 'edit') {
+      } else if (
+        appointments.whatsAppNotifyContext === 'edit' ||
+        appointments.whatsAppNotifyContext === 'create'
+      ) {
         ok = await appointments.persistAppointment(true)
       }
       if (!ok && appointments.whatsAppNotifyContext === 'move') {
@@ -173,7 +176,10 @@ export function useAdminAgenda(adminToken: string, date: string) {
         ok = await moves.commitPendingMoves(false)
       } else if (appointments.whatsAppNotifyContext === 'cancel') {
         ok = await appointments.persistCancel(false)
-      } else if (appointments.whatsAppNotifyContext === 'edit') {
+      } else if (
+        appointments.whatsAppNotifyContext === 'edit' ||
+        appointments.whatsAppNotifyContext === 'create'
+      ) {
         ok = await appointments.persistAppointment(false)
       }
       if (!ok && appointments.whatsAppNotifyContext === 'move') {

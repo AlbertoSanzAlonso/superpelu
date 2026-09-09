@@ -1469,6 +1469,7 @@ app.post('/api/schedule/appointments', async (c) => {
     forceSchedule?: boolean
     conflictResolutions?: { date: string; action: 'skip' | 'reassign' | 'reschedule'; staffId?: string; startTime?: string }[]
     guestCustomer?: boolean
+    notifyCustomerWhatsApp?: boolean
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (
@@ -1512,6 +1513,7 @@ app.post('/api/schedule/appointments', async (c) => {
       allowAppointmentOverlap: true,
       conflictResolutions: body.conflictResolutions,
       guestCustomer: body.guestCustomer,
+      notifyCustomerWhatsApp: body.notifyCustomerWhatsApp === true,
     })
     const grouped =
       row.booking_group_id != null

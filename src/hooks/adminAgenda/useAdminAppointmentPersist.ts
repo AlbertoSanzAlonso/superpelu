@@ -14,8 +14,14 @@ import type {
 import type { Locale } from '@/i18n/types'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
+
+function shouldAskCreateWhatsAppNotify(phone: string): boolean {
+  const trimmed = phone.trim()
+  return Boolean(trimmed) && !isGuestCustomerPhone(trimmed)
+}
 
 type PersistDeps = {
   adminToken: string
@@ -31,7 +37,7 @@ type PersistDeps = {
   load: () => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   setWhatsAppNotifyDialogOpen: (open: boolean) => void
-  setWhatsAppNotifyContext: (context: 'edit' | 'move' | 'cancel') => void
+  setWhatsAppNotifyContext: (context: 'create' | 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
   resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
 }
@@ -62,6 +68,7 @@ export function useAdminAppointmentPersist({
   const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const createLocaleRef = useRef<Locale>(aptDraft.customerLocale)
+  const pendingNotifyWhatsAppRef = useRef<boolean | undefined>(undefined)
 
   function buildAlignedServiceFields(filteredServiceIds: string[]) {
     const keptIndexes = aptDraft.serviceIds
@@ -161,6 +168,7 @@ export function useAdminAppointmentPersist({
             )
 
             if (preview.conflicts.length > 0) {
+              pendingNotifyWhatsAppRef.current = notifyCustomerWhatsApp
               setSeriesConflictPreview(preview)
               setSeriesConflictOpen(true)
               return false
@@ -190,6 +198,7 @@ export function useAdminAppointmentPersist({
                   : undefined,
               forceSchedule: true,
               ...(guestCustomer ? { guestCustomer: true } : {}),
+              ...(notifyCustomerWhatsApp === true ? { notifyCustomerWhatsApp: true } : {}),
             },
             adminToken,
           )
@@ -230,7 +239,10 @@ export function useAdminAppointmentPersist({
 
   const persistAppointment = useCallback(
     async (notifyCustomerWhatsApp?: boolean): Promise<boolean> => {
-      return doPersistAppointment(notifyCustomerWhatsApp)
+      if (notifyCustomerWhatsApp !== undefined) {
+        pendingNotifyWhatsAppRef.current = notifyCustomerWhatsApp
+      }
+      return doPersistAppointment(notifyCustomerWhatsApp, createLocaleRef.current)
     },
     [doPersistAppointment],
   )
@@ -282,6 +294,11 @@ export function useAdminAppointmentPersist({
         setForeignPhoneLocalePromptOpen(true)
         return false
       }
+      if (shouldAskCreateWhatsAppNotify(aptDraft.customerPhone)) {
+        setWhatsAppNotifyContext('create')
+        setWhatsAppNotifyDialogOpen(true)
+        return false
+      }
       return persistAppointment()
     },
     [
@@ -305,7 +322,8 @@ export function useAdminAppointmentPersist({
 
   const acceptGuestCustomer = useCallback(async () => {
     setGuestCustomerPromptOpen(false)
-    await doPersistAppointment(undefined, undefined, true)
+    pendingNotifyWhatsAppRef.current = false
+    await doPersistAppointment(false, undefined, true)
   }, [doPersistAppointment])
 
   const declineGuestCustomer = useCallback(() => {
@@ -344,15 +362,32 @@ export function useAdminAppointmentPersist({
     setGuestToCustomerPromptOpen(false)
   }, [])
 
+  const continueCreateAfterLocale = useCallback(
+    async (locale: Locale) => {
+      setForeignPhoneLocalePromptOpen(false)
+      createLocaleRef.current = locale
+      if (shouldAskCreateWhatsAppNotify(aptDraft.customerPhone)) {
+        setWhatsAppNotifyContext('create')
+        setWhatsAppNotifyDialogOpen(true)
+        return
+      }
+      await doPersistAppointment(undefined, locale)
+    },
+    [
+      aptDraft.customerPhone,
+      doPersistAppointment,
+      setWhatsAppNotifyContext,
+      setWhatsAppNotifyDialogOpen,
+    ],
+  )
+
   const acceptForeignPhoneLocale = useCallback(async () => {
-    setForeignPhoneLocalePromptOpen(false)
-    await doPersistAppointment(undefined, 'en')
-  }, [doPersistAppointment])
+    await continueCreateAfterLocale('en')
+  }, [continueCreateAfterLocale])
 
   const declineForeignPhoneLocale = useCallback(async () => {
-    setForeignPhoneLocalePromptOpen(false)
-    await doPersistAppointment(undefined, 'es')
-  }, [doPersistAppointment])
+    await continueCreateAfterLocale('es')
+  }, [continueCreateAfterLocale])
 
   const closeForeignPhoneLocalePrompt = useCallback(() => {
     setForeignPhoneLocalePromptOpen(false)
@@ -390,6 +425,9 @@ export function useAdminAppointmentPersist({
             endDate: aptDraft.recurrenceEndDate || undefined,
             forceSchedule: true,
             conflictResolutions: resolutions,
+            ...(pendingNotifyWhatsAppRef.current === true
+              ? { notifyCustomerWhatsApp: true }
+              : {}),
           },
           adminToken,
         )
