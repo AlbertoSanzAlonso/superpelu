@@ -1,6 +1,6 @@
 import {
+  claimBirthdayWishSent,
   listCustomersWithBirthdayToday,
-  markBirthdayWishSent,
 } from '@server/customers/index.js'
 import { buildBirthdayWishText } from '@server/customers/birthdayMessage.js'
 import { normalizeLocale } from '@/i18n/types'
@@ -14,6 +14,11 @@ import { sendWhatsAppWithLogoHeader } from '@server/notifications/branding.js'
 
 const BIRTHDAY_SEND_AFTER_MINUTES = 10 * 60 // 10:00 Europe/Madrid
 const POLL_MINUTES = 10
+/** Un solo intento: si OpenWA encola y la HTTP falla, no reenviar el mismo texto. */
+const BIRTHDAY_TEXT_SEND_OPTIONS = {
+  attempts: 1,
+  allowRecovery: true,
+} as const
 
 function envFlag(name: string, fallback: boolean): boolean {
   const raw = (process.env[name] ?? '').trim().toLowerCase()
@@ -33,19 +38,25 @@ export async function processDueBirthdayWishes(): Promise<number> {
     const year = Number(todaySalon().slice(0, 4))
     const customers = await listCustomersWithBirthdayToday()
     for (const customer of customers) {
+      // Reservar antes de llamar a OpenWA: si el mensaje se encola pero la API
+      // hace timeout, el siguiente poll no volverá a spamear al cliente.
+      const claimed = await claimBirthdayWishSent(customer.phone, year)
+      if (!claimed) continue
+
       try {
         await openWaEnsureStarted()
         const locale = normalizeLocale(customer.locale)
         const text = await buildBirthdayWishText(customer.first_name, locale)
         const chatId = phoneToWhatsAppChatId(customer.phone)
-        await sendWhatsAppWithLogoHeader(chatId, text, locale)
-        await markBirthdayWishSent(customer.phone, year)
+        await sendWhatsAppWithLogoHeader(chatId, text, locale, BIRTHDAY_TEXT_SEND_OPTIONS)
         sent += 1
         console.log(`Superpelu cumpleaños: felicitación enviada a ${customer.phone}`)
-        // Pausa entre envíos para no saturar Chromium (además de la cola en openwa).
         await new Promise((r) => setTimeout(r, 1_500))
       } catch (err) {
-        console.error(`Superpelu cumpleaños: fallo con ${customer.phone}:`, err)
+        console.error(
+          `Superpelu cumpleaños: fallo con ${customer.phone} (ya marcado ${year}; no se reintenta hoy):`,
+          err,
+        )
       }
     }
   } catch (err) {

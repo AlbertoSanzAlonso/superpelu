@@ -6,7 +6,7 @@ import { getStaff, listStaffForService, type PublicStaff } from "@server/staff/i
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
-import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
+import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
 import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
@@ -474,10 +474,6 @@ export async function createChainedBookingAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  // Al recrear una visita editada (skipCustomerWhatsApp) no avisar como alta.
-  // WhatsApp de confirmación al crear: desactivado; solo recordatorio 24h.
-  if (!input.skipCustomerWhatsApp && !input.forStaffPortal) {
-    void notifyAdminAppointmentCreated(row)
-  }
+  afterAppointmentCreated(input, row)
   return row
 }

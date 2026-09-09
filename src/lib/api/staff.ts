@@ -143,6 +143,7 @@ export function createMyAppointment(
     forceSchedule?: boolean
     conflictResolutions?: SeriesConflictResolution[]
     guestCustomer?: boolean
+    notifyCustomerWhatsApp?: boolean
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -171,6 +172,7 @@ export function updateMyAppointment(
     customerLocale?: 'es' | 'en'
     forceSchedule?: boolean
     guestCustomer?: boolean
+    notifyCustomerWhatsApp?: boolean
   }>,
 ) {
   return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}`, token, {

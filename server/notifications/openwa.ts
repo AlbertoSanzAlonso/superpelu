@@ -56,6 +56,55 @@ async function sendWhatsAppDownAlert(minutesDown: number): Promise<void> {
   }
 }
 
+/** Tras stop→start por zombi, si pide QR: avisar y no insistir en auto-recover. */
+async function sendWhatsAppNeedsQrAlert(): Promise<void> {
+  try {
+    const { getEmailConfig } = await import('@server/notifications/email.js')
+    const nodemailer = await import('nodemailer')
+    const config = getEmailConfig()
+    if (!config) return
+
+    const to = Array.from(new Set([...config.to, 'albertosanzdev@gmail.com']))
+    const transporter = nodemailer.default.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.user ? { user: config.user, pass: config.pass } : undefined,
+    })
+
+    await transporter.sendMail({
+      from: config.from,
+      to,
+      subject: '⚠️ WhatsApp Superpelu: hay que escanear el QR',
+      text: [
+        'Se detectó una sesión zombi (OpenWA decía ready pero Chromium no enviaba) y se reinició Chromium.',
+        'Tras el reinicio la sesión pide escanear el QR otra vez.',
+        '',
+        'Escanea el QR: https://superpelubenalmadena.es/api/admin/whatsapp/qr',
+        'Estado: https://superpelubenalmadena.es/api/admin/whatsapp',
+        '',
+        'No se volverá a hacer stop→start automático hasta que la sesión vuelva a ready.',
+      ].join('\n'),
+      html: `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"></head>
+<body style="font-family:system-ui;background:#faf7f5;padding:24px;color:#2b2b2b;">
+<table style="max-width:520px;background:#fff;border-radius:12px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.07);">
+<tr><td style="background:#c0392b;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;font-size:18px;font-weight:700;">
+⚠️ WhatsApp: escanear QR
+</td></tr>
+<tr><td style="padding:20px;">
+<p>Tras recuperar una sesión zombi, OpenWA pide <strong>escanear el QR</strong>.</p>
+<p><a href="https://superpelubenalmadena.es/api/admin/whatsapp/qr">Abrir QR</a> ·
+<a href="https://superpelubenalmadena.es/api/admin/whatsapp">Estado</a></p>
+<p style="color:#888;font-size:13px;">No se insistirá con stop→start hasta que vuelva a <code>ready</code>.</p>
+</td></tr></table>
+</body></html>`,
+    })
+    console.log(`Superpelu OpenWA: alerta QR enviada a ${to.join(', ')}`)
+  } catch (err) {
+    console.error('Superpelu OpenWA: error enviando alerta QR por email:', err)
+  }
+}
+
 export type OpenWaConfig = {
   enabled: true
   apiUrl: string
@@ -83,15 +132,17 @@ export type OpenWaSendOptions = {
 const DEFAULT_SEND_TIMEOUT_MS = 45_000
 const DEFAULT_SEND_ATTEMPTS = 3
 const ADMIN_TIMEOUT_MS = 20_000
-/** Evita martillar stop/start; solo aplica si OPENWA_AUTO_STOP_START=true. */
+/** Evita martillar stop/start agresivo (OPENWA_AUTO_STOP_START). */
 const RECOVERY_COOLDOWN_MS = 90_000
+/** Cooldown largo para stop→start por zombi (ready muerto): como máx. ~1 vez / 45 min. */
+const ZOMBIE_HARD_RECOVERY_COOLDOWN_MS = 45 * 60_000
 const READY_POLL_MS = 2_000
 const READY_WAIT_MS = 90_000
 const RETRY_BASE_DELAY_MS = 1_500
 /** Watchdog cada minuto: arranca si hace falta; no hace stop→start por defecto. */
 const WATCHDOG_INTERVAL_MS = 60_000
 const WATCHDOG_BOOT_DELAY_MS = 15_000
-/** Fallos de envío seguidos (solo diagnóstico; ya no disparan stop→start automático). */
+/** Fallos Chromium (timeout/ProtocolError) seguidos → stop→start zombi. */
 const ZOMBIE_FAILURE_THRESHOLD = 3
 /** Ticks sin ready antes de reintentar solo `start` (sin stop). */
 const DISCONNECTED_RECOVER_TICKS = 3
@@ -99,9 +150,9 @@ const DISCONNECTED_RECOVER_TICKS = 3
 const QR_WAIT_LOG_COOLDOWN_MS = 5 * 60_000
 
 /**
- * stop→start automático invalida a menudo el vínculo de WhatsApp.
- * Por defecto OFF: solo `start` suave + alerta email; stop→start solo vía
- * POST /api/admin/whatsapp/reconnect o OPENWA_AUTO_STOP_START=true.
+ * stop→start agresivo (cualquier caída) invalida a menudo el vínculo.
+ * Por defecto OFF. El zombi (ready + timeouts) sí se recupera solo, con cooldown largo.
+ * OPENWA_AUTO_STOP_START=true o POST /api/admin/whatsapp/reconnect = hard manual/agresivo.
  */
 function autoStopStartEnabled(): boolean {
   return envFlag('OPENWA_AUTO_STOP_START')
@@ -111,8 +162,14 @@ function autoStopStartEnabled(): boolean {
 let sendQueue: Promise<unknown> = Promise.resolve()
 
 let lastRecoveryAt = 0
+let lastZombieHardRecoveryAt = 0
 let recoveryInFlight: Promise<boolean> | null = null
 let consecutiveSendFailures = 0
+/** Solo señales tipo Chromium colgado (timeout / ProtocolError / …). */
+let consecutiveZombieSignals = 0
+/** Tras zombi→QR: no más stop→start auto hasta volver a ready. */
+let suppressZombieAutoRecover = false
+let zombieQrAlertSent = false
 let disconnectedWatchdogTicks = 0
 let watchdogStarted = false
 let lastQrWaitLogAt = 0
@@ -244,12 +301,95 @@ export function isTransientOpenWaError(err: unknown): boolean {
   )
 }
 
-function noteSendSuccess(): void {
-  consecutiveSendFailures = 0
+/**
+ * Señales de sesión zombi: status suele ser `ready` pero Chromium no responde.
+ * Más estricto que isTransient (no cuenta ECONNREFUSED / 503 de la API caída).
+ */
+export function isZombieChromiumError(err: unknown): boolean {
+  const msg = errorMessage(err).toLowerCase()
+  return (
+    msg.includes('protocol') ||
+    msg.includes('timeout') ||
+    msg.includes('timed out') ||
+    msg.includes('execution context') ||
+    msg.includes('target closed') ||
+    msg.includes('session closed') ||
+    msg.includes('page crashed') ||
+    msg.includes('callfunctionon') ||
+    msg.includes('frame was detached') ||
+    msg.includes('browser has disconnected') ||
+    msg.includes('browser disconnected')
+  )
 }
 
-function noteSendFailure(): void {
+function noteSendSuccess(): void {
+  consecutiveSendFailures = 0
+  consecutiveZombieSignals = 0
+  suppressZombieAutoRecover = false
+  zombieQrAlertSent = false
+}
+
+function noteSendFailure(err?: unknown): void {
   consecutiveSendFailures += 1
+  if (err && isZombieChromiumError(err)) {
+    consecutiveZombieSignals += 1
+  }
+}
+
+/**
+ * stop→start solo ante zombi claro (N señales Chromium), con cooldown 45 min.
+ * Si tras recuperar pide QR → email y suppress hasta volver a ready.
+ */
+async function maybeAutoRecoverZombie(reason: string): Promise<boolean> {
+  if (suppressZombieAutoRecover) {
+    console.warn(
+      `Superpelu OpenWA: zombi auto-recover omitido (${reason}) — esperando QR tras intento anterior`,
+    )
+    return false
+  }
+  if (consecutiveZombieSignals < ZOMBIE_FAILURE_THRESHOLD) return false
+
+  const now = Date.now()
+  if (now - lastZombieHardRecoveryAt < ZOMBIE_HARD_RECOVERY_COOLDOWN_MS) {
+    const waitSec = Math.ceil(
+      (ZOMBIE_HARD_RECOVERY_COOLDOWN_MS - (now - lastZombieHardRecoveryAt)) / 1000,
+    )
+    console.warn(
+      `Superpelu OpenWA: zombi detectado (${reason}, ${consecutiveZombieSignals} señales) ` +
+        `pero cooldown ${waitSec}s — no stop→start`,
+    )
+    return false
+  }
+
+  const current = await openWaGetSessionStatus()
+  if (current && isOpenWaSessionAwaitingLink(current.status)) {
+    logQrWaitOnce('zombie-recover', current.status)
+    return false
+  }
+
+  console.warn(
+    `Superpelu OpenWA: zombi detectado (${reason}, ${consecutiveZombieSignals} señales ` +
+      `Chromium con status=${current?.status ?? '?'}) → stop→start (máx. 1 / 45 min)`,
+  )
+  lastZombieHardRecoveryAt = now
+  const recovered = await openWaRecoverSession(true, true)
+
+  const after = await openWaGetSessionStatus()
+  if (after && isOpenWaSessionAwaitingLink(after.status)) {
+    suppressZombieAutoRecover = true
+    if (!zombieQrAlertSent) {
+      zombieQrAlertSent = true
+      void sendWhatsAppNeedsQrAlert()
+    }
+    logQrWaitOnce('zombie-after-recover', after.status)
+    return false
+  }
+
+  if (recovered) {
+    consecutiveZombieSignals = 0
+    consecutiveSendFailures = 0
+  }
+  return recovered
 }
 
 async function openWaFetch<T>(
@@ -353,9 +493,8 @@ export async function openWaStopSession(id: string): Promise<void> {
 /**
  * Recupera sesión.
  * - Por defecto: solo `start` suave (no rompe el vínculo).
- * - stop→start solo si OPENWA_AUTO_STOP_START=true o hard=true
- *   (hard=true desde POST /api/admin/whatsapp/reconnect).
- * - force=true: ignora cooldown entre recuperaciones duras.
+ * - stop→start si hard=true (reconnect admin / zombi auto) o OPENWA_AUTO_STOP_START=true.
+ * - force=true: ignora cooldown corto entre recuperaciones duras.
  */
 export async function openWaRecoverSession(force = false, hard = false): Promise<boolean> {
   const config = getOpenWaConfig()
@@ -366,7 +505,7 @@ export async function openWaRecoverSession(force = false, hard = false): Promise
   const allowHardRecover = hard || autoStopStartEnabled()
   if (!allowHardRecover) {
     console.warn(
-      'Superpelu OpenWA: stop→start omitido (OPENWA_AUTO_STOP_START off). Solo start suave.',
+      'Superpelu OpenWA: stop→start omitido (sin hard / OPENWA_AUTO_STOP_START off). Solo start suave.',
     )
     try {
       await openWaStartSession(config.sessionId)
@@ -395,7 +534,10 @@ export async function openWaRecoverSession(force = false, hard = false): Promise
       const ready = await waitUntilSessionReady(config.sessionId, READY_WAIT_MS)
       if (ready) {
         consecutiveSendFailures = 0
+        consecutiveZombieSignals = 0
         disconnectedWatchdogTicks = 0
+        suppressZombieAutoRecover = false
+        zombieQrAlertSent = false
         console.log('Superpelu OpenWA: sesión recuperada (ready)')
         return true
       }
@@ -437,7 +579,7 @@ async function withSendResilience<T>(
         msg.toLowerCase().includes('could not resolve the recipient') ||
         msg.toLowerCase().includes('not on whatsapp')
       if (allowRecovery && !recipientError) {
-        noteSendFailure()
+        noteSendFailure(err)
       }
       const transient = !recipientError && isTransientOpenWaError(err)
       console.warn(
@@ -454,10 +596,12 @@ async function withSendResilience<T>(
           logQrWaitOnce('send', current.status)
           break
         }
-        // Solo start suave + espera. stop→start solo si OPENWA_AUTO_STOP_START=true.
         await openWaEnsureStarted()
         if (autoStopStartEnabled() && attempt >= 2) {
           await openWaRecoverSession(attempt >= 3)
+        } else if (attempt >= 2) {
+          const recovered = await maybeAutoRecoverZombie(`${label}-retry`)
+          if (!recovered) await sleep(RETRY_BASE_DELAY_MS * attempt)
         } else {
           await sleep(RETRY_BASE_DELAY_MS * attempt)
         }
@@ -465,6 +609,10 @@ async function withSendResilience<T>(
         await sleep(RETRY_BASE_DELAY_MS * attempt)
       }
     }
+  }
+
+  if (allowRecovery) {
+    await maybeAutoRecoverZombie(`${label}-exhausted`)
   }
 
   throw lastErr instanceof Error ? lastErr : new Error(errorMessage(lastErr))
@@ -608,7 +756,8 @@ export async function openWaGetSessionById(id: string): Promise<OpenWaSessionSta
 
 /**
  * Si la sesión no está conectada (p. ej. tras reiniciar OpenWA en Coolify),
- * la arranca y espera `ready`. No hace stop→start salvo OPENWA_AUTO_STOP_START.
+ * la arranca y espera `ready`. Ante zombi (ready + timeouts Chromium) hace
+ * stop→start con cooldown largo. OPENWA_AUTO_STOP_START = stop→start agresivo.
  * Si pide QR, no se toca.
  */
 export async function openWaEnsureStarted(): Promise<void> {
@@ -622,16 +771,13 @@ export async function openWaEnsureStarted(): Promise<void> {
 
     const session = await openWaGetSessionStatus()
     if (session && isOpenWaSessionConnected(session.status)) {
-      if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+      if (consecutiveZombieSignals >= ZOMBIE_FAILURE_THRESHOLD) {
+        await maybeAutoRecoverZombie('ensureStarted')
+      } else if (autoStopStartEnabled() && consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
         console.warn(
-          `Superpelu OpenWA: ready pero ${consecutiveSendFailures} fallos seguidos` +
-            (autoStopStartEnabled()
-              ? ' → stop/start (OPENWA_AUTO_STOP_START)'
-              : ' (sin stop/start; OPENWA_AUTO_STOP_START off)'),
+          `Superpelu OpenWA: ready pero ${consecutiveSendFailures} fallos seguidos → stop/start (AUTO_STOP_START)`,
         )
-        if (autoStopStartEnabled()) {
-          await openWaRecoverSession()
-        }
+        await openWaRecoverSession()
       }
       return
     }
@@ -669,7 +815,7 @@ export async function openWaEnsureStarted(): Promise<void> {
       await openWaRecoverSession(true)
     } else {
       console.warn(
-        'Superpelu OpenWA: no llegó a ready tras start — no se hace stop/start ' +
+        'Superpelu OpenWA: no llegó a ready tras start — no se hace stop/start agresivo ' +
           '(OPENWA_AUTO_STOP_START off; escanear QR o POST …/whatsapp/reconnect)',
       )
     }
@@ -763,17 +909,16 @@ export async function openWaWatchdogTick(): Promise<void> {
     disconnectedWatchdogTicks = 0
     downAlertTicks = 0
     downAlertSent = false
+    suppressZombieAutoRecover = false
+    zombieQrAlertSent = false
 
-    if (consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
+    if (consecutiveZombieSignals >= ZOMBIE_FAILURE_THRESHOLD) {
+      await maybeAutoRecoverZombie('watchdog')
+    } else if (autoStopStartEnabled() && consecutiveSendFailures >= ZOMBIE_FAILURE_THRESHOLD) {
       console.warn(
-        `Superpelu OpenWA watchdog: ${consecutiveSendFailures} fallos de envío con status ready` +
-          (autoStopStartEnabled()
-            ? ' → stop/start (OPENWA_AUTO_STOP_START)'
-            : ' (sin stop/start automático)'),
+        `Superpelu OpenWA watchdog: ${consecutiveSendFailures} fallos de envío con status ready → stop/start (AUTO_STOP_START)`,
       )
-      if (autoStopStartEnabled()) {
-        await openWaRecoverSession()
-      }
+      await openWaRecoverSession()
     }
   } catch (err) {
     disconnectedWatchdogTicks += 1
@@ -801,8 +946,8 @@ export function startOpenWaKeepAlive(): void {
   setTimeout(() => void openWaWatchdogTick(), WATCHDOG_BOOT_DELAY_MS)
   setInterval(() => void openWaWatchdogTick(), WATCHDOG_INTERVAL_MS)
   console.log(
-    'Superpelu OpenWA: watchdog activo (cada 60s; solo start suave; ' +
-      `stop→start auto=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
+    'Superpelu OpenWA: watchdog activo (cada 60s; start suave; ' +
+      `zombi auto stop→start=ON cooldown 45min; AUTO_STOP_START=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
   )
 }
 
@@ -812,7 +957,7 @@ export function logOpenWaStartup(): void {
     console.log(
       `Superpelu: OpenWA activo → ${config.apiUrl} (sesión ${config.sessionId})${
         config.notifyPublicOnly ? ', solo reservas públicas' : ''
-      } (watchdog: start suave; stop→start auto=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
+      } (zombi auto-recover ON; AUTO_STOP_START=${autoStopStartEnabled() ? 'ON' : 'OFF'})`,
     )
     return
   }

@@ -7,8 +7,8 @@ import { isStaffWorkingOnDate } from "@server/staff/availability.js"
 import { getStaff, staffCanPerformService } from "@server/staff/index.js"
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
-import { notifyAdminAppointmentCreated } from "@server/notifications/email.js"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
+import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
 import {
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
@@ -190,11 +190,13 @@ export async function createAppointment(
 
     const scope = input.scope ?? 'single'
     if (input.forStaffPortal && scope === 'weekly') {
-      return createRecurringChainedAppointment(
+      const row = await createRecurringChainedAppointment(
         input,
         serviceIds,
         input.conflictResolutions ?? [],
       )
+      afterAppointmentCreated(input, row)
+      return row
     }
 
     if (!input.forceSchedule) {
@@ -306,7 +308,9 @@ export async function createAppointment(
 
   const scope = input.scope ?? 'single'
   if (input.forStaffPortal && scope !== 'single') {
-    return createRecurringStaffAppointment(input, service, staff)
+    const row = await createRecurringStaffAppointment(input, service, staff)
+    afterAppointmentCreated(input, row)
+    return row
   }
 
   const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
@@ -410,10 +414,6 @@ export async function createAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  // Al recrear una visita editada no avisar como alta (email admin).
-  // WhatsApp de confirmación al crear: desactivado; solo recordatorio 24h.
-  if (!input.skipCustomerWhatsApp && !input.forStaffPortal) {
-    void notifyAdminAppointmentCreated(row)
-  }
+  afterAppointmentCreated(input, row)
   return row
 }

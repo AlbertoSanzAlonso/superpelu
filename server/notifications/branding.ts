@@ -2,7 +2,12 @@ import { access, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { publicBaseUrl, WHATSAPP_LOGO_IMAGE_PATH } from '@server/appointments/links.js'
-import { getOpenWaConfig, openWaSendImage, openWaSendText } from '@server/notifications/openwa.js'
+import {
+  getOpenWaConfig,
+  openWaSendImage,
+  openWaSendText,
+  type OpenWaSendOptions,
+} from '@server/notifications/openwa.js'
 import { getTranslation } from '@/i18n/translations'
 import type { Locale } from '@/i18n/types'
 
@@ -88,6 +93,7 @@ export async function sendWhatsAppWithLogoHeader(
   chatId: string,
   text: string,
   locale: Locale,
+  textOptions?: OpenWaSendOptions,
 ): Promise<string | undefined> {
   const config = getOpenWaConfig()
   if (!config) return undefined
@@ -98,5 +104,5 @@ export async function sendWhatsAppWithLogoHeader(
     console.warn('Superpelu WhatsApp: cabecera con logo omitida:', err)
   }
 
-  return openWaSendText(chatId, text)
+  return openWaSendText(chatId, text, textOptions)
 }

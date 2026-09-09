@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
+import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { GuestCustomerConfirmDialog } from '@/components/customers/GuestCustomerConfirmDialog'
 import { GuestToCustomerConfirmDialog } from '@/components/customers/GuestToCustomerConfirmDialog'
@@ -247,13 +248,31 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         onDecline={agenda.declineGuestToCustomer}
       />
 
+      <WhatsAppNotifyDialog
+        open={agenda.whatsAppNotifyDialogOpen}
+        context={agenda.whatsAppNotifyContext}
+        busy={agenda.whatsAppNotifyBusy}
+        onClose={agenda.closeWhatsAppNotifyDialog}
+        onNotify={async () => {
+          const ok = await agenda.confirmSaveWithWhatsAppNotify()
+          if (ok) closeAppointmentForm()
+        }}
+        onSaveWithoutNotify={async () => {
+          const ok = await agenda.confirmSaveWithoutWhatsAppNotify()
+          if (ok) closeAppointmentForm()
+        }}
+      />
+
       {agenda.seriesConflictOpen && agenda.seriesConflictPreview && (
         <SeriesConflictModal
           open={agenda.seriesConflictOpen}
           conflicts={agenda.seriesConflictPreview.conflicts}
           totalDates={agenda.seriesConflictPreview.dates.length}
           okDatesCount={agenda.seriesConflictPreview.okDates.length}
-          onResolve={(resolutions) => void agenda.resolveSeriesConflicts(resolutions)}
+          onResolve={async (resolutions) => {
+            const ok = await agenda.resolveSeriesConflicts(resolutions)
+            if (ok) closeAppointmentForm()
+          }}
           onClose={agenda.closeSeriesConflictModal}
         />
       )}

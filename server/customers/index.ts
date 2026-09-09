@@ -551,6 +551,29 @@ export async function markBirthdayWishSent(phone: string, year: number): Promise
   `
 }
 
+/**
+ * Reserva el envío de cumpleaños de este año (atómico).
+ * Evita spam si OpenWA encola el mensaje pero la API hace timeout/reintento.
+ * Devuelve true solo si este proceso ha reclamado el envío.
+ */
+export async function claimBirthdayWishSent(phone: string, year: number): Promise<boolean> {
+  const normalized = normalizePhone(phone)
+  if (!normalized) return false
+  const now = new Date().toISOString()
+  const rows = await sql<{ phone: string }[]>`
+    UPDATE customers SET
+      birthday_wish_sent_year = ${year},
+      updated_at = ${now}
+    WHERE phone = ${normalized}
+      AND (
+        birthday_wish_sent_year IS NULL
+        OR birthday_wish_sent_year <> ${year}
+      )
+    RETURNING phone
+  `
+  return rows.length > 0
+}
+
 export async function listCustomersWithBirthdayToday(): Promise<CustomerRow[]> {
   return sql<CustomerRow[]>`
     SELECT *

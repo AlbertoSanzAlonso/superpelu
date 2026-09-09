@@ -295,7 +295,7 @@ Coolify guarda ese comando en la config del recurso; el volumen solo debe tener 
 
 Como el `ENTRYPOINT` del Dockerfile es `dumb-init --`, el contenedor ejecutará `dumb-init -- sh -c "borra locks; node dist/main"` en cada arranque, limpiando el lock automáticamente. **Redeploy** para aplicarlo.
 
-> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada minuto (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo. Ante `ProtocolError` / timeout de Puppeteer, Superpelu hace **stop→start** automático (y puedes forzar `POST /api/admin/whatsapp/reconnect` contra el dominio público).
+> Reconexión: Superpelu reintenta arrancar la sesión al iniciar y cada minuto (`startOpenWaKeepAlive`). Con la sesión ya autenticada y el lock limpio, reconecta a `ready` sin pedir QR nuevo. Ante zombi (`ready` + timeout/ProtocolError ×3) hace **un** stop→start (cooldown 45 min); si pide QR, avisa por email y no insiste. Manual: `POST /api/admin/whatsapp/reconnect`.
 >
 > **Importante:** si OpenWA está en `qr_ready` / `authenticating`, Superpelu **no** hace stop→start (eso invalidaba el QR y forzaba re-vínculos en bucle). Escanea el QR en `/api/admin/whatsapp/qr?secret=…` y deja la sesión llegar a `ready`.
 >
@@ -319,7 +319,7 @@ O en Coolify → recurso **OpenWA** → **Restart** (no hace falta meter scripts
 
 Si tras reconnect sigue mal: limpia locks `Singleton*` (sección anterior) y reinicia OpenWA. En Coolify → Resource Limits: **≥2 GB** RAM para OpenWA. Comprueba espacio libre en el VPS.
 
-**Qué hace Superpelu solo** (código en la app; sobrevive a redeploys): watchdog cada 60 s que arranca/recupera la sesión si cae, cola serial, reintentos, y `stop→start` si Chromium está zombie o hay ProtocolError. Objetivo: que tras un Restart de OpenWA se recomponga sin que nadie llame.
+**Qué hace Superpelu solo** (código en la app; sobrevive a redeploys): watchdog cada 60 s (`start` suave), cola serial, reintentos, y stop→start solo ante zombi Chromium (máx. ~1/45 min). Objetivo: recompenerse tras Restart de OpenWA sin desvincular a diario.
 
 ---
 

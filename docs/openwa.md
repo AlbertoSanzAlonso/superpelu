@@ -83,8 +83,9 @@ Si OpenWA o Chromium caen (Restart en Coolify, ProtocolError, sesión no ready),
 1. **Watchdog cada 60 s** — si la sesión no está `ready`, hace **solo `start`** (no stop→start).
 2. **Antes de cada envío** — espera a `ready`; reintenta sin reiniciar Chromium.
 3. **Esperando QR** (`qr_ready` / `authenticating`) — no reinicia; escanear en `/api/admin/whatsapp/qr?secret=…`.
-4. **stop→start automático** — **desactivado por defecto** (invalidaba el vínculo casi a diario). Solo con `OPENWA_AUTO_STOP_START=true` o a mano: `POST /api/admin/whatsapp/reconnect`.
-5. **Alerta email** — si lleva ~10 min caído, avisa a `ADMIN_NOTIFICATION_EMAIL` (+ albertosanzdev@gmail.com).
+4. **Sesión zombi** (`ready` pero Chromium timeout / ProtocolError ×3) — **un** stop→start automático con cooldown de **45 min**. Si tras eso pide QR → email al admin y no insiste.
+5. **stop→start agresivo** — solo con `OPENWA_AUTO_STOP_START=true` (no recomendado en prod) o a mano: `POST /api/admin/whatsapp/reconnect`.
+6. **Alerta email** — si lleva ~10 min caído, o si el zombi-recover pide QR.
 
 No hace falta cola de mensajes ni scripts en el contenedor. La sesión autenticada vive en el volumen `/app/data` de OpenWA; tras Restart suele volver sin QR.
 

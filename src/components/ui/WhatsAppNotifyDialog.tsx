@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
-export type WhatsAppNotifyContext = 'edit' | 'move' | 'cancel'
+export type WhatsAppNotifyContext = 'create' | 'edit' | 'move' | 'cancel'
 
 type Props = {
   open: boolean
@@ -22,6 +22,13 @@ const copy: Record<
     back: string
   }
 > = {
+  create: {
+    body: 'Se creará la cita en la agenda. ¿Quieres enviar al cliente el WhatsApp de reserva (confirmación de cita), el mismo de antes?',
+    primary: 'Guardar y enviar WhatsApp de reserva',
+    secondary: 'Guardar sin avisar',
+    busyPrimary: 'Guardando…',
+    back: 'Volver a la cita',
+  },
   edit: {
     body: 'Se guardarán los cambios de día, hora o profesional. ¿Quieres enviar un WhatsApp al cliente informando de la modificación?',
     primary: 'Guardar y avisar por WhatsApp',

@@ -215,6 +215,7 @@ me.post('/me/appointments', async (c) => {
     forceSchedule?: boolean
     conflictResolutions?: import('@server/appointments/recurringChain.js').SeriesConflictResolution[]
     guestCustomer?: boolean
+    notifyCustomerWhatsApp?: boolean
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (ids.length === 0 || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
@@ -249,6 +250,7 @@ me.post('/me/appointments', async (c) => {
       forceSchedule: body.forceSchedule,
       conflictResolutions: body.conflictResolutions,
       guestCustomer: body.guestCustomer,
+      notifyCustomerWhatsApp: body.notifyCustomerWhatsApp === true,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -278,6 +280,7 @@ me.patch('/me/appointments/:id', async (c) => {
     customerLocale?: 'es' | 'en'
     forceSchedule?: boolean
     guestCustomer?: boolean
+    notifyCustomerWhatsApp?: boolean
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)

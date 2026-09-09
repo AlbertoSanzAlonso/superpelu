@@ -67,6 +67,18 @@ export function buildAppointmentNoShowMessage(row: AppointmentRow): string {
   })
 }
 
+export async function buildAppointmentConfirmationMessage(
+  row: AppointmentRow,
+): Promise<string> {
+  const groupRows = row.booking_group_id
+    ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
+    : undefined
+  return buildWhatsAppAppointmentMessage(row, 'confirmation', {
+    manageUrl: buildManageUrl(row),
+    groupRows,
+  })
+}
+
 export async function notifyAppointmentUpdated(row: AppointmentRow): Promise<void> {
   const config = getOpenWaConfig()
   if (!config) return
@@ -78,6 +90,24 @@ export async function notifyAppointmentUpdated(row: AppointmentRow): Promise<voi
   const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: modificación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
+  )
+}
+
+/**
+ * WhatsApp de reserva/confirmación (el mismo de antes al crear).
+ * Solo se llama desde agenda cuando el staff elige avisar; /reservar ya no lo envía.
+ */
+export async function notifyAppointmentCreated(row: AppointmentRow): Promise<void> {
+  const config = getOpenWaConfig()
+  if (!config) return
+  if (row.status === 'cancelled' || row.status === 'no_show') return
+  if (isColorGroupWashRow(row.color_group_role)) return
+  if (isGuestCustomerPhone(row.customer_phone)) return
+
+  const text = await buildAppointmentConfirmationMessage(row)
+  const messageId = await sendCustomerWhatsApp(row, text)
+  console.log(
+    `Superpelu WhatsApp: confirmación de reserva a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )
 }
 

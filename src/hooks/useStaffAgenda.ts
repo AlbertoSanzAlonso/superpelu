@@ -42,6 +42,14 @@ import type {
   StaffDaySchedule,
 } from '@/types/booking'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
+import type { WhatsAppNotifyContext } from '@/components/ui/WhatsAppNotifyDialog'
+
+function shouldAskCustomerWhatsAppNotify(phone: string, asGuest: boolean): boolean {
+  if (asGuest) return false
+  const trimmed = phone.trim()
+  if (!trimmed || isGuestCustomerPhone(trimmed)) return false
+  return true
+}
 
 export function useStaffAgenda(token: string) {
   const { date, setDate } = useAgendaDate()
@@ -60,6 +68,11 @@ export function useStaffAgenda(token: string) {
 
   const [aptDraft, setAptDraft] = useState<AppointmentDraft>({ ...EMPTY_APPOINTMENT_DRAFT })
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [whatsAppNotifyDialogOpen, setWhatsAppNotifyDialogOpen] = useState(false)
+  const [whatsAppNotifyBusy, setWhatsAppNotifyBusy] = useState(false)
+  const [whatsAppNotifyContext] = useState<WhatsAppNotifyContext>('create')
+  const pendingNotifyWhatsAppRef = useRef<boolean | undefined>(undefined)
+  const pendingGuestCustomerRef = useRef(false)
   const [noShowDialogOpen, setNoShowDialogOpen] = useState(false)
   const [noShowBusy, setNoShowBusy] = useState(false)
   const [pendingNoShowId, setPendingNoShowId] = useState<string | null>(null)
@@ -149,6 +162,9 @@ export function useStaffAgenda(token: string) {
   const resetAppointmentForm = useCallback((keepServiceIds = true) => {
     setEditingId(null)
     setEditingGuestPhone(null)
+    setWhatsAppNotifyDialogOpen(false)
+    pendingNotifyWhatsAppRef.current = undefined
+    pendingGuestCustomerRef.current = false
     setError('')
     setAptDraft((d) => ({
       ...EMPTY_APPOINTMENT_DRAFT,
@@ -172,9 +188,9 @@ export function useStaffAgenda(token: string) {
         }
       }
 
-      setAptDraft(appointmentToDraft(apt, undefined, siblings))
+      setAptDraft(appointmentToDraft(apt, undefined, siblings, date))
     },
-    [schedule],
+    [schedule, date],
   )
 
   const selectFreeSlot = useCallback(
@@ -282,10 +298,16 @@ export function useStaffAgenda(token: string) {
       conflictResolutions?: SeriesConflictResolution[],
       customerLocaleOverride?: Locale,
       guestCustomer = false,
+      notifyCustomerWhatsApp?: boolean,
     ): Promise<boolean> => {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
       createLocaleRef.current = customerLocale
+      const notifyFlag =
+        notifyCustomerWhatsApp !== undefined
+          ? notifyCustomerWhatsApp
+          : pendingNotifyWhatsAppRef.current
+      const asGuest = guestCustomer || pendingGuestCustomerRef.current
       try {
         const keptIndexes = aptDraft.serviceIds
           .map((id, index) => (id ? index : -1))
@@ -336,7 +358,7 @@ export function useStaffAgenda(token: string) {
             notes: aptDraft.notes || null,
             customerLocale,
             forceSchedule: true,
-            ...(guestCustomer || (editingGuestPhone && !aptDraft.customerPhone.trim())
+            ...(asGuest || (editingGuestPhone && !aptDraft.customerPhone.trim())
               ? { guestCustomer: true }
               : {}),
           })
@@ -352,15 +374,17 @@ export function useStaffAgenda(token: string) {
               startTime: visitStartTime,
               customerFirstName: aptDraft.customerFirstName,
               customerLastName: aptDraft.customerLastName,
-              customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
+              customerPhone: asGuest ? '' : aptDraft.customerPhone,
               customerEmail: aptDraft.customerEmail || undefined,
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
               customerLocale,
               endDate: aptDraft.recurrenceEndDate || undefined,
-              ...(guestCustomer ? { guestCustomer: true } : {}),
+              ...(asGuest ? { guestCustomer: true } : {}),
             })
             if (preview.conflicts.length > 0) {
+              pendingNotifyWhatsAppRef.current = notifyFlag
+              pendingGuestCustomerRef.current = asGuest
               setSeriesConflictPreview(preview)
               setSeriesConflictOpen(true)
               return false
@@ -376,7 +400,7 @@ export function useStaffAgenda(token: string) {
             startTime: visitStartTime,
             customerFirstName: aptDraft.customerFirstName,
             customerLastName: aptDraft.customerLastName,
-            customerPhone: guestCustomer ? '' : aptDraft.customerPhone,
+            customerPhone: asGuest ? '' : aptDraft.customerPhone,
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
@@ -388,9 +412,11 @@ export function useStaffAgenda(token: string) {
                 : undefined,
             forceSchedule,
             ...(conflictResolutions ? { conflictResolutions } : {}),
-            ...(guestCustomer ? { guestCustomer: true } : {}),
+            ...(asGuest ? { guestCustomer: true } : {}),
+            ...(notifyFlag === true ? { notifyCustomerWhatsApp: true } : {}),
           })
         }
+        setWhatsAppNotifyDialogOpen(false)
         resetAppointmentForm()
         await load()
         return true
@@ -400,6 +426,8 @@ export function useStaffAgenda(token: string) {
           err instanceof ApiError &&
           /horario no disponible|no está disponible/i.test(err.message)
         ) {
+          pendingNotifyWhatsAppRef.current = notifyFlag
+          pendingGuestCustomerRef.current = asGuest
           confirmUi.setConfirmDialog({
             title: 'El horario no está disponible',
             message:
@@ -408,7 +436,7 @@ export function useStaffAgenda(token: string) {
             destructive: false,
             onConfirm: async () => {
               confirmUi.closeConfirmDialog()
-              await doSave(true, undefined, customerLocale)
+              await doSave(true, undefined, customerLocale, asGuest, notifyFlag)
             },
           })
           return false
@@ -419,6 +447,10 @@ export function useStaffAgenda(token: string) {
     },
     [aptDraft, date, editingId, editingGuestPhone, load, resetAppointmentForm, token, confirmUi, schedule?.staffId],
   )
+
+  const openWhatsAppNotifyForCreate = useCallback(() => {
+    setWhatsAppNotifyDialogOpen(true)
+  }, [])
 
   const saveAppointment = useCallback(
     async (e: React.FormEvent): Promise<boolean> => {
@@ -456,6 +488,13 @@ export function useStaffAgenda(token: string) {
         setForeignPhoneLocalePromptOpen(true)
         return false
       }
+      if (editingId) {
+        return doSave()
+      }
+      if (shouldAskCustomerWhatsAppNotify(aptDraft.customerPhone, false)) {
+        openWhatsAppNotifyForCreate()
+        return false
+      }
       return doSave()
     },
     [
@@ -465,12 +504,51 @@ export function useStaffAgenda(token: string) {
       aptDraft.customerPhone,
       aptDraft.customerLocale,
       aptDraft.customerFirstName,
+      openWhatsAppNotifyForCreate,
     ],
   )
 
+  const closeWhatsAppNotifyDialog = useCallback(() => {
+    if (whatsAppNotifyBusy) return
+    setWhatsAppNotifyDialogOpen(false)
+  }, [whatsAppNotifyBusy])
+
+  const confirmSaveWithWhatsAppNotify = useCallback(async () => {
+    setWhatsAppNotifyBusy(true)
+    try {
+      pendingNotifyWhatsAppRef.current = true
+      return await doSave(
+        false,
+        undefined,
+        createLocaleRef.current,
+        pendingGuestCustomerRef.current,
+        true,
+      )
+    } finally {
+      setWhatsAppNotifyBusy(false)
+    }
+  }, [doSave])
+
+  const confirmSaveWithoutWhatsAppNotify = useCallback(async () => {
+    setWhatsAppNotifyBusy(true)
+    try {
+      pendingNotifyWhatsAppRef.current = false
+      return await doSave(
+        false,
+        undefined,
+        createLocaleRef.current,
+        pendingGuestCustomerRef.current,
+        false,
+      )
+    } finally {
+      setWhatsAppNotifyBusy(false)
+    }
+  }, [doSave])
+
   const acceptGuestCustomer = useCallback(async () => {
     setGuestCustomerPromptOpen(false)
-    await doSave(false, undefined, undefined, true)
+    pendingGuestCustomerRef.current = true
+    await doSave(false, undefined, undefined, true, false)
   }, [doSave])
 
   const declineGuestCustomer = useCallback(() => {
@@ -486,15 +564,27 @@ export function useStaffAgenda(token: string) {
     setGuestToCustomerPromptOpen(false)
   }, [])
 
+  const continueCreateAfterLocale = useCallback(
+    async (locale: Locale) => {
+      setForeignPhoneLocalePromptOpen(false)
+      if (shouldAskCustomerWhatsAppNotify(aptDraft.customerPhone, false)) {
+        createLocaleRef.current = locale
+        setAptDraft((d) => ({ ...d, customerLocale: locale }))
+        openWhatsAppNotifyForCreate()
+        return
+      }
+      await doSave(false, undefined, locale)
+    },
+    [aptDraft.customerPhone, doSave, openWhatsAppNotifyForCreate],
+  )
+
   const acceptForeignPhoneLocale = useCallback(async () => {
-    setForeignPhoneLocalePromptOpen(false)
-    await doSave(false, undefined, 'en')
-  }, [doSave])
+    await continueCreateAfterLocale('en')
+  }, [continueCreateAfterLocale])
 
   const declineForeignPhoneLocale = useCallback(async () => {
-    setForeignPhoneLocalePromptOpen(false)
-    await doSave(false, undefined, 'es')
-  }, [doSave])
+    await continueCreateAfterLocale('es')
+  }, [continueCreateAfterLocale])
 
   const closeForeignPhoneLocalePrompt = useCallback(() => {
     setForeignPhoneLocalePromptOpen(false)
@@ -673,6 +763,12 @@ export function useStaffAgenda(token: string) {
     setAptDraft,
     editingId,
     saveAppointment,
+    whatsAppNotifyDialogOpen,
+    whatsAppNotifyBusy,
+    whatsAppNotifyContext,
+    closeWhatsAppNotifyDialog,
+    confirmSaveWithWhatsAppNotify,
+    confirmSaveWithoutWhatsAppNotify,
     foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,
@@ -733,11 +829,21 @@ export function useStaffAgenda(token: string) {
     resolveSeriesConflicts: async (resolutions: SeriesConflictResolution[]) => {
       setSeriesConflictBusy(true)
       try {
-        await doSave(false, resolutions, createLocaleRef.current)
-        setSeriesConflictOpen(false)
-        setSeriesConflictPreview(null)
+        const ok = await doSave(
+          false,
+          resolutions,
+          createLocaleRef.current,
+          pendingGuestCustomerRef.current,
+          pendingNotifyWhatsAppRef.current,
+        )
+        if (ok) {
+          setSeriesConflictOpen(false)
+          setSeriesConflictPreview(null)
+        }
+        return ok
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
+        return false
       } finally {
         setSeriesConflictBusy(false)
       }
