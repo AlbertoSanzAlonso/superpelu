@@ -217,6 +217,7 @@ export function AdminAgendaWorkspace({
           showCustomerHistory
           adminToken={adminToken}
           reviewRequestSentAt={agenda.detailReviewRequestSentAt}
+          onCustomerLocaleTouched={agenda.markCustomerLocaleTouched}
           onReviewRequestSent={agenda.setDetailReviewRequestSentAt}
           onCustomerRegisteredChange={(registered, reviewSentAt) => {
             agenda.setDetailCustomerRegistered(registered)
@@ -253,6 +254,7 @@ export function AdminAgendaWorkspace({
           onClose={closeAppointmentForm}
           adminToken={adminToken}
           isSubmitting={agenda.isSubmitting}
+          onCustomerLocaleTouched={agenda.markCustomerLocaleTouched}
         />
       )}
 

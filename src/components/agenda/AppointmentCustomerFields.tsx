@@ -15,6 +15,8 @@ type Props = {
   guestWithoutProfile?: boolean
   /** Agenda: se puede reservar sin móvil (con confirmación al guardar). */
   allowOptionalPhone?: boolean
+  /** El personal cambió el idioma del cliente a propósito. */
+  onCustomerLocaleTouched?: () => void
 }
 
 export function AppointmentCustomerFields({
@@ -25,6 +27,7 @@ export function AppointmentCustomerFields({
   phoneLabel = 'Teléfono',
   guestWithoutProfile = false,
   allowOptionalPhone = false,
+  onCustomerLocaleTouched,
 }: Props) {
   const phoneOptional = guestWithoutProfile || allowOptionalPhone
 
@@ -86,7 +89,10 @@ export function AppointmentCustomerFields({
       <CustomerLocaleSelect
         compact
         value={draft.customerLocale}
-        onChange={(locale) => onDraftChange({ customerLocale: locale })}
+        onChange={(locale) => {
+          onDraftChange({ customerLocale: locale })
+          onCustomerLocaleTouched?.()
+        }}
       />
     </div>
   )

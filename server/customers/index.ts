@@ -14,6 +14,41 @@ import {
 import { generateGuestCustomerPhone } from '@server/customers/guest.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
 
+/** Móvil español (+34): no pasar a inglés sin confirmación explícita. */
+function isSpanishStoredPhone(phone: string): boolean {
+  return normalizePhone(phone).startsWith('+34')
+}
+
+/**
+ * Idioma a persistir en ficha.
+ * - Con confirmación (`updateCustomerLocale`): se respeta el idioma pedido.
+ * - Móvil +34 sin confirmación: siempre español (también sanea fichas pasadas a EN).
+ * - Extranjero existente sin confirmación: no se toca el idioma.
+ */
+function localeForCustomerUpsert(input: {
+  phone: string
+  requested?: Locale
+  existing: boolean
+  updateCustomerLocale?: boolean
+}): Locale | undefined {
+  const requested =
+    input.requested !== undefined ? normalizeLocale(input.requested) : undefined
+
+  if (input.updateCustomerLocale === true && requested !== undefined) {
+    return requested
+  }
+
+  if (isSpanishStoredPhone(input.phone)) {
+    return 'es'
+  }
+
+  if (!input.existing) {
+    return requested ?? 'es'
+  }
+
+  return undefined
+}
+
 export type CustomerInput = {
   firstName: string
   lastName?: string
@@ -349,6 +384,13 @@ export async function upsertCustomerForBooking(input: {
     const existing = await getCustomer(phone)
     if (!existing) throw new Error('CLIENTE_NO_ENCONTRADO')
 
+    const locale = localeForCustomerUpsert({
+      phone: existing.phone,
+      requested: input.locale,
+      existing: true,
+      updateCustomerLocale: input.updateCustomerLocale,
+    })
+
     await upsertCustomer({
       firstName: existing.first_name,
       lastName: existing.last_name ?? '',
@@ -357,9 +399,7 @@ export async function upsertCustomerForBooking(input: {
       ...(input.customerNotes !== undefined
         ? { notes: input.customerNotes.trim() || null }
         : {}),
-      ...(input.locale !== undefined && input.updateCustomerLocale
-        ? { locale: normalizeLocale(input.locale) }
-        : {}),
+      ...(locale !== undefined ? { locale } : {}),
       updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
     const profile = (await getCustomer(phone))!
@@ -379,6 +419,13 @@ export async function upsertCustomerForBooking(input: {
       customerName: input.customerName,
       phone: input.customerPhone,
     })
+    const existingBefore = await getCustomer(customer.phone)
+    const locale = localeForCustomerUpsert({
+      phone: customer.phone,
+      requested: input.locale ?? 'es',
+      existing: existingBefore != null,
+      updateCustomerLocale: input.updateCustomerLocale,
+    })
     await upsertCustomer({
       firstName: customer.firstName,
       lastName: customer.lastName,
@@ -387,7 +434,7 @@ export async function upsertCustomerForBooking(input: {
       ...(input.customerNotes !== undefined
         ? { notes: input.customerNotes.trim() || null }
         : {}),
-      locale: normalizeLocale(input.locale ?? 'es'),
+      ...(locale !== undefined ? { locale } : {}),
       birthdate,
       updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
@@ -421,8 +468,13 @@ export async function upsertCustomerForBooking(input: {
     customerName: input.customerName,
     phone: input.customerPhone,
   })
-  const customerLocaleForUpsert =
-    input.locale !== undefined ? normalizeLocale(input.locale) : undefined
+  const existingBefore = await getCustomer(customer.phone)
+  const customerLocaleForUpsert = localeForCustomerUpsert({
+    phone: customer.phone,
+    requested: input.locale,
+    existing: existingBefore != null,
+    updateCustomerLocale: input.updateCustomerLocale,
+  })
   await upsertCustomer({
     firstName: customer.firstName,
     lastName: customer.lastName,
@@ -452,6 +504,8 @@ export async function resolveStaffPortalCustomerPatch(input: {
   customerEmail?: string | null
   customerNotes?: string | null
   customerLocale?: Locale
+  /** Solo actualizar idioma de ficha si el personal lo cambió a propósito. */
+  updateCustomerLocale?: boolean
   guestCustomer?: boolean
   existingName: string
   existingPhone: string
@@ -465,7 +519,8 @@ export async function resolveStaffPortalCustomerPatch(input: {
     input.customerLastName !== undefined ||
     input.customerPhone !== undefined ||
     input.customerEmail !== undefined ||
-    input.customerNotes !== undefined
+    input.customerNotes !== undefined ||
+    (input.updateCustomerLocale === true && input.customerLocale !== undefined)
 
   if (!hasCustomerPatch) {
     return { nameSnapshot: input.existingName, customerPhone: input.existingPhone }
@@ -509,7 +564,7 @@ export async function resolveStaffPortalCustomerPatch(input: {
       input.customerNotes !== undefined
         ? input.customerNotes
         : (profile?.notes ?? null),
-    ...(input.customerLocale !== undefined
+    ...(input.customerLocale !== undefined && input.updateCustomerLocale === true
       ? { locale: normalizeLocale(input.customerLocale) }
       : {}),
     updateSource: CUSTOMER_UPDATE_SOURCES.agenda,

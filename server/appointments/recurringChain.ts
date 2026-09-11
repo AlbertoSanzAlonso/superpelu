@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { sql, type AppointmentRow } from '@server/db.js'
 import { serviceDisplayName } from '@/i18n/localeHelpers'
-import { normalizeLocale } from '@/i18n/types'
 import { getStaff, listStaffForService, staffCanPerformService } from '@server/staff/index.js'
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from '@/lib/booking/colorCombo'
 import { upsertCustomerForBooking } from '@server/customers/index.js'
+import { resolveAppointmentLocaleForCreate } from '@server/appointments/bookingLocale.js'
 import { getBookingSpanMinutes, usesColorSplitBooking } from '@/lib/booking/occupancy'
 import { lockStaffDaysForBooking } from '@server/appointments/lock.js'
 import {
@@ -216,13 +216,17 @@ export async function createRecurringChainedAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     locale: input.customerLocale,
+    updateCustomerLocale: input.updateCustomerLocale,
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
     guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
+  const locale = resolveAppointmentLocaleForCreate(
+    { ...input, forStaffPortal: true },
+    profile,
+  )
   const seriesId = randomUUID()
 
   const datesToCreate: {

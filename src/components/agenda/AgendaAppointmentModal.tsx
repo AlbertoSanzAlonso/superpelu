@@ -65,6 +65,7 @@ type Props = {
   onCustomerRegisteredChange?: (registered: boolean, reviewRequestSentAt?: string | null) => void
   error?: string
   guestWithoutProfile?: boolean
+  onCustomerLocaleTouched?: () => void
 }
 
 export function AgendaAppointmentModal({
@@ -102,6 +103,7 @@ export function AgendaAppointmentModal({
   onCustomerRegisteredChange,
   error,
   guestWithoutProfile = false,
+  onCustomerLocaleTouched,
 }: Props) {
   const [unsavedWarningOpen, setUnsavedWarningOpen] = useState(false)
   const draftAtEditStart = useRef<string | null>(null)
@@ -663,6 +665,7 @@ export function AgendaAppointmentModal({
                     onDraftChange={onDraftChange}
                     onCustomerRegisteredChange={onCustomerRegisteredChange}
                     guestWithoutProfile={guestWithoutProfile}
+                    onCustomerLocaleTouched={onCustomerLocaleTouched}
                   />
                 </section>
               </div>

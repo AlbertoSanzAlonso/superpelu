@@ -28,8 +28,10 @@ export type CreateAppointmentInput = {
   forStaffPortal?: boolean
   locale?: Locale
   /**
-   * Reserva pública: confirma actualizar `customers.locale` al idioma de la cita.
-   * Sin esto, cliente habitual conserva el idioma de ficha.
+   * Confirma actualizar `customers.locale`.
+   * - Reserva pública (cliente habitual): tras el aviso de cambio de idioma.
+   * - Agenda: solo si el personal cambia el selector a propósito.
+   * Sin esto, ficha existente conserva su idioma.
    */
   updateCustomerLocale?: boolean
   /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
@@ -80,6 +82,8 @@ export type UpdateAppointmentInput = {
   customerNotes?: string | null
   notes?: string | null
   customerLocale?: Locale
+  /** Solo actualizar idioma de ficha si el personal lo cambió a propósito. */
+  updateCustomerLocale?: boolean
   /** Si es `false`, no se envía WhatsApp de reprogramación (p. ej. elección del admin). */
   notifyCustomerWhatsApp?: boolean
   /** Agenda fuera de horario / salta comprobación de disponibilidad (solo backoffice). */

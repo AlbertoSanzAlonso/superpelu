@@ -7,6 +7,7 @@ import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
+import { resolveAppointmentLocaleForCreate } from "@server/appointments/bookingLocale.js"
 import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
@@ -341,16 +342,14 @@ export async function createChainedBookingAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     locale: input.forStaffPortal ? input.customerLocale : normalizeLocale(input.locale),
-    updateCustomerLocale: input.forStaffPortal ? undefined : input.updateCustomerLocale,
+    updateCustomerLocale: input.updateCustomerLocale,
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
     guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = input.forStaffPortal
-    ? normalizeLocale(profile?.locale ?? input.customerLocale)
-    : normalizeLocale(input.locale)
+  const locale = resolveAppointmentLocaleForCreate(input, profile)
   const reminderSentAt = null
   const bookingGroupId = randomUUID()
   // Si hay horas manuales, calcular el encadenado con esos overrides para que los índices

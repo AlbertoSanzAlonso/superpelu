@@ -66,7 +66,7 @@ export function CustomersWorkspaceHeader({
         </div>
       </div>
       {children ? (
-        <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="mt-2 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           {children}
         </div>
       ) : null}

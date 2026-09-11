@@ -1477,6 +1477,7 @@ app.post('/api/schedule/appointments', async (c) => {
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     scope?: BlockScope
     endDate?: string
     forceSchedule?: boolean
@@ -1518,6 +1519,7 @@ app.post('/api/schedule/appointments', async (c) => {
       customerNotes: body.customerNotes,
       notes: body.notes,
       customerLocale: body.customerLocale,
+      updateCustomerLocale: body.updateCustomerLocale === true,
       scope,
       endDate: body.endDate,
       forStaffPortal: true,
@@ -1566,12 +1568,16 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     customerNotes?: string | null
     notes?: string | null
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     notifyCustomerWhatsApp?: boolean
     forceSchedule?: boolean
     guestCustomer?: boolean
   }>()
   try {
-    const row = await updateAppointmentForAdmin(c.req.param('id'), body)
+    const row = await updateAppointmentForAdmin(c.req.param('id'), {
+      ...body,
+      updateCustomerLocale: body.updateCustomerLocale === true,
+    })
     return c.json({ appointment: rowToPublic(row) })
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'

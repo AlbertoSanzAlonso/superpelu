@@ -35,6 +35,7 @@ type Props = {
   draft: AppointmentDraft
   onDraftChange: (patch: Partial<AppointmentDraft>) => void
   compact?: boolean
+  onCustomerLocaleTouched?: () => void
 }
 
 export function AppointmentCustomerEntry({
@@ -42,6 +43,7 @@ export function AppointmentCustomerEntry({
   draft,
   onDraftChange,
   compact = false,
+  onCustomerLocaleTouched,
 }: Props) {
   const [mode, setMode] = useState<'search' | 'manual'>('search')
 
@@ -121,6 +123,7 @@ export function AppointmentCustomerEntry({
         onDraftChange={onDraftChange}
         compact={compact}
         allowOptionalPhone
+        onCustomerLocaleTouched={onCustomerLocaleTouched}
       />
     </div>
   )

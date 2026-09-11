@@ -2,16 +2,11 @@ import { salonSchedule } from '@/data/schedule'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { addDaysToDateString, todaySalon } from '@/lib/core/dates'
 import { normalizePhone } from '@/lib/customer/phone'
-import {
-  normalizeCustomerUpdateSource,
-  type CustomerUpdateSource,
-} from '@/lib/customer/updateSource'
 import type { Customer } from '@/types/customers'
 
 export type CustomerLocaleFilter = 'all' | Locale
 export type CustomerPhoneRegionFilter = 'all' | 'es' | 'intl'
 export type CustomerUpdatedFilter = 'all' | 'today' | '7d' | '30d'
-export type CustomerUpdateSourceFilter = 'all' | CustomerUpdateSource
 
 export const CUSTOMER_LOCALE_FILTER_OPTIONS: {
   value: CustomerLocaleFilter
@@ -39,18 +34,6 @@ export const CUSTOMER_UPDATED_FILTER_OPTIONS: {
   { value: 'today', label: 'Actualizados hoy' },
   { value: '7d', label: 'Últimos 7 días' },
   { value: '30d', label: 'Últimos 30 días' },
-]
-
-export const CUSTOMER_UPDATE_SOURCE_FILTER_OPTIONS: {
-  value: CustomerUpdateSourceFilter
-  label: string
-}[] = [
-  { value: 'all', label: 'Origen: todos' },
-  { value: 'booking_page', label: 'Reserva web' },
-  { value: 'agenda', label: 'Agenda' },
-  { value: 'customers', label: 'Panel clientes' },
-  { value: 'review_request', label: 'Valoración WhatsApp' },
-  { value: 'birthday', label: 'Cumpleaños' },
 ]
 
 /** Número español guardado (E.164 con +34), incl. fijos/invitados internos. */
@@ -91,13 +74,11 @@ export function filterCustomerList(
     locale?: CustomerLocaleFilter
     phoneRegion?: CustomerPhoneRegionFilter
     updated?: CustomerUpdatedFilter
-    updateSource?: CustomerUpdateSourceFilter
   } = {},
 ): Customer[] {
   const locale = options.locale ?? 'all'
   const phoneRegion = options.phoneRegion ?? 'all'
   const updated = options.updated ?? 'all'
-  const updateSource = options.updateSource ?? 'all'
 
   return customers.filter((customer) => {
     if (locale !== 'all' && normalizeLocale(customer.locale) !== locale) {
@@ -111,10 +92,6 @@ export function filterCustomerList(
     }
     if (updated !== 'all' && !isCustomerUpdatedRecently(customer.updatedAt, updated)) {
       return false
-    }
-    if (updateSource !== 'all') {
-      const source = normalizeCustomerUpdateSource(customer.lastUpdateSource)
-      if (source !== updateSource) return false
     }
     return true
   })

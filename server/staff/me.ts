@@ -210,6 +210,7 @@ me.post('/me/appointments', async (c) => {
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     scope?: SeriesScope
     endDate?: string
     forceSchedule?: boolean
@@ -244,6 +245,7 @@ me.post('/me/appointments', async (c) => {
       customerNotes: body.customerNotes,
       notes: body.notes,
       customerLocale: body.customerLocale,
+      updateCustomerLocale: body.updateCustomerLocale === true,
       scope,
       endDate: body.endDate,
       forStaffPortal: true,
@@ -278,12 +280,16 @@ me.patch('/me/appointments/:id', async (c) => {
     customerNotes?: string | null
     notes?: string | null
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     forceSchedule?: boolean
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
   }>()
   try {
-    const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, body)
+    const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, {
+      ...body,
+      updateCustomerLocale: body.updateCustomerLocale === true,
+    })
     return c.json({ appointment: rowToPublic(row) })
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'

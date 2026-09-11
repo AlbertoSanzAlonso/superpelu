@@ -108,7 +108,8 @@ export async function updateAppointmentForStaff(
     input.customerLastName !== undefined ||
     input.customerPhone !== undefined ||
     input.customerEmail !== undefined ||
-    input.customerNotes !== undefined
+    input.customerNotes !== undefined ||
+    (input.updateCustomerLocale === true && input.customerLocale !== undefined)
 
   let nameSnapshot = existing.customer_name
   let customerPhone = existing.customer_phone
@@ -122,6 +123,7 @@ export async function updateAppointmentForStaff(
       customerEmail: input.customerEmail,
       customerNotes: input.customerNotes,
       customerLocale: input.customerLocale,
+      updateCustomerLocale: input.updateCustomerLocale,
       guestCustomer: input.guestCustomer,
       existingName: existing.customer_name,
       existingPhone: existing.customer_phone,
@@ -146,7 +148,7 @@ export async function updateAppointmentForStaff(
   const staff = staffMember
 
   const locale =
-    input.customerLocale !== undefined
+    input.updateCustomerLocale === true && input.customerLocale !== undefined
       ? normalizeLocale(input.customerLocale)
       : normalizeLocale(existing.locale)
   const serviceName = serviceDisplayName(service, locale)
@@ -280,6 +282,7 @@ async function replaceAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     customerLocale: input.customerLocale,
+    updateCustomerLocale: input.updateCustomerLocale,
     guestCustomer: input.guestCustomer,
     existingName: existing.customer_name,
     existingPhone: existing.customer_phone,
@@ -321,6 +324,7 @@ async function replaceAppointment(
       input.customerNotes !== undefined ? (input.customerNotes ?? undefined) : undefined,
     notes: input.notes !== undefined ? (input.notes ?? undefined) : undefined,
     customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
+    updateCustomerLocale: input.updateCustomerLocale,
     forStaffPortal: true,
     forceSchedule: true,
     guestCustomer: input.guestCustomer,

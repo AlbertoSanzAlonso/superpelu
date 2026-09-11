@@ -88,8 +88,13 @@ export function useStaffAgenda(token: string) {
   const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
   const [editingGuestPhone, setEditingGuestPhone] = useState<string | null>(null)
   const createLocaleRef = useRef<Locale>('es')
+  const updateCustomerLocaleRef = useRef(false)
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [pendingRemoveSuccess, setPendingRemoveSuccess] = useState<(() => void) | undefined>()
+
+  const markCustomerLocaleTouched = useCallback(() => {
+    updateCustomerLocaleRef.current = true
+  }, [])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -303,6 +308,10 @@ export function useStaffAgenda(token: string) {
       const filteredIds = aptDraft.serviceIds.filter(Boolean)
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
       createLocaleRef.current = customerLocale
+      if (customerLocaleOverride != null) {
+        updateCustomerLocaleRef.current = true
+      }
+      const updateCustomerLocale = updateCustomerLocaleRef.current
       const notifyFlag =
         notifyCustomerWhatsApp !== undefined
           ? notifyCustomerWhatsApp
@@ -357,6 +366,7 @@ export function useStaffAgenda(token: string) {
             customerNotes: aptDraft.customerNotes || null,
             notes: aptDraft.notes || null,
             customerLocale,
+            ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
             forceSchedule: true,
             ...(asGuest || (editingGuestPhone && !aptDraft.customerPhone.trim())
               ? { guestCustomer: true }
@@ -379,6 +389,7 @@ export function useStaffAgenda(token: string) {
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
               customerLocale,
+              ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
               endDate: aptDraft.recurrenceEndDate || undefined,
               ...(asGuest ? { guestCustomer: true } : {}),
             })
@@ -405,6 +416,7 @@ export function useStaffAgenda(token: string) {
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
             customerLocale,
+            ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
             scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
             endDate:
               aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
@@ -417,6 +429,7 @@ export function useStaffAgenda(token: string) {
           })
         }
         setWhatsAppNotifyDialogOpen(false)
+        updateCustomerLocaleRef.current = false
         resetAppointmentForm()
         await load()
         return true
@@ -773,6 +786,7 @@ export function useStaffAgenda(token: string) {
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,
     closeForeignPhoneLocalePrompt,
+    markCustomerLocaleTouched,
     guestCustomerPromptOpen,
     acceptGuestCustomer,
     declineGuestCustomer,

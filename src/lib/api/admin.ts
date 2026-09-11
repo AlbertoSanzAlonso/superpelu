@@ -122,6 +122,8 @@ export type AdminAppointmentPayload = {
   customerNotes?: string
   notes?: string
   customerLocale?: 'es' | 'en'
+  /** Solo actualizar idioma de ficha si el personal lo cambió a propósito. */
+  updateCustomerLocale?: boolean
   notifyCustomerWhatsApp?: boolean
   scope?: BlockScope
   endDate?: string

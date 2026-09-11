@@ -9,6 +9,7 @@ import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { isBookingDateAllowed } from "@server/schedule/salonDay.js"
 import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
+import { resolveAppointmentLocaleForCreate } from "@server/appointments/bookingLocale.js"
 import {
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
@@ -66,13 +67,17 @@ async function createRecurringStaffAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     locale: input.customerLocale,
+    updateCustomerLocale: input.updateCustomerLocale,
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
     guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = normalizeLocale(profile?.locale ?? input.customerLocale)
+  const locale = resolveAppointmentLocaleForCreate(
+    { ...input, forStaffPortal: true },
+    profile,
+  )
   const serviceName = serviceDisplayName(service, locale)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
@@ -321,16 +326,14 @@ export async function createAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     locale: input.forStaffPortal ? input.customerLocale : normalizeLocale(input.locale),
-    updateCustomerLocale: input.forStaffPortal ? undefined : input.updateCustomerLocale,
+    updateCustomerLocale: input.updateCustomerLocale,
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
     guestCustomer: input.guestCustomer,
   })
   const createdAt = new Date().toISOString()
-  const locale = input.forStaffPortal
-    ? normalizeLocale(profile?.locale ?? input.customerLocale)
-    : normalizeLocale(input.locale)
+  const locale = resolveAppointmentLocaleForCreate(input, profile)
   const serviceName = serviceDisplayName(service, locale)
 
   // Recordatorio: lo envía el scheduler al entrar en la ventana de 24h (ya no hay

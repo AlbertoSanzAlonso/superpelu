@@ -277,6 +277,8 @@ export function useAdminAgenda(adminToken: string, date: string) {
     seriesConflictBusy: appointments.seriesConflictBusy,
     closeSeriesConflictModal: appointments.closeSeriesConflictModal,
     resolveSeriesConflicts: appointments.resolveSeriesConflicts,
+    markCustomerLocaleTouched: appointments.markCustomerLocaleTouched,
+    resetCustomerLocaleTouched: appointments.resetCustomerLocaleTouched,
     noShowDialogOpen: appointments.noShowDialogOpen,
     noShowBusy: appointments.noShowBusy,
     closeNoShowDialog: appointments.closeNoShowDialog,

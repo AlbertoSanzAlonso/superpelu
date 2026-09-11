@@ -11,18 +11,17 @@ import {
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import { Button } from '@/components/ui/Button'
-import { fetchCustomers, ApiError } from '@/lib/api'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { deleteCustomer, fetchCustomers, updateCustomer, ApiError } from '@/lib/api'
 import {
   CUSTOMER_LOCALE_FILTER_OPTIONS,
   CUSTOMER_PHONE_REGION_FILTER_OPTIONS,
   CUSTOMER_UPDATED_FILTER_OPTIONS,
-  CUSTOMER_UPDATE_SOURCE_FILTER_OPTIONS,
   filterCustomerList,
   salonDateFromIso,
   type CustomerLocaleFilter,
   type CustomerPhoneRegionFilter,
   type CustomerUpdatedFilter,
-  type CustomerUpdateSourceFilter,
 } from '@/lib/customer/listFilters'
 import {
   CUSTOMER_LIST_SORT_OPTIONS,
@@ -32,8 +31,8 @@ import {
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
-import { customerUpdateSourceLabel } from '@/lib/customer/updateSource'
 import { useAdminSession } from '@/hooks/useAdminSession'
+import type { Locale } from '@/i18n/types'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
@@ -41,8 +40,11 @@ import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect
 const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
-const sortFieldClass =
-  'h-9 w-full cursor-pointer border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
+const selectFieldClass =
+  'h-9 w-full cursor-pointer appearance-none border border-gold/30 bg-cream/40 bg-[length:12px] bg-[position:right_0.65rem_center] bg-no-repeat py-0 pl-2.5 pr-9 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
+
+const selectChevronBg =
+  "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22 fill=%22none%22%3E%3Cpath d=%22M1 1.5L6 6.5L11 1.5%22 stroke=%22%236B5E4E%22 stroke-width=%221.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E')]"
 
 const CUSTOMERS_PAGE_SIZE = 15
 
@@ -110,8 +112,6 @@ export function CustomersPage() {
   const [phoneRegionFilter, setPhoneRegionFilter] =
     useState<CustomerPhoneRegionFilter>('all')
   const [updatedFilter, setUpdatedFilter] = useState<CustomerUpdatedFilter>('all')
-  const [updateSourceFilter, setUpdateSourceFilter] =
-    useState<CustomerUpdateSourceFilter>('all')
   const [customers, setCustomers] = useState<Customer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -119,6 +119,10 @@ export function CustomersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [birthdayMessageOpen, setBirthdayMessageOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [selectedPhones, setSelectedPhones] = useState<Set<string>>(() => new Set())
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkLocaleConfirm, setBulkLocaleConfirm] = useState<Locale | null>(null)
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
@@ -127,6 +131,7 @@ export function CustomersPage() {
     try {
       const { customers: rows } = await fetchCustomers(adminToken, query)
       setCustomers(rows)
+      setSelectedPhones(new Set())
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar la lista')
     } finally {
@@ -144,9 +149,8 @@ export function CustomersPage() {
         locale: localeFilter,
         phoneRegion: phoneRegionFilter,
         updated: updatedFilter,
-        updateSource: updateSourceFilter,
       }),
-    [customers, localeFilter, phoneRegionFilter, updatedFilter, updateSourceFilter],
+    [customers, localeFilter, phoneRegionFilter, updatedFilter],
   )
 
   const sortedCustomers = useMemo(
@@ -163,7 +167,8 @@ export function CustomersPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [sort, localeFilter, phoneRegionFilter, updatedFilter, updateSourceFilter])
+    setSelectedPhones(new Set())
+  }, [sort, localeFilter, phoneRegionFilter, updatedFilter])
 
   useEffect(() => {
     if (updatedFilter !== 'all' && sort === 'name') {
@@ -176,11 +181,126 @@ export function CustomersPage() {
     return sortedCustomers.slice(start, start + CUSTOMERS_PAGE_SIZE)
   }, [sortedCustomers, safePage])
 
+  const pagePhones = useMemo(() => pagedCustomers.map((c) => c.phone), [pagedCustomers])
+  const allPageSelected =
+    pagePhones.length > 0 && pagePhones.every((phone) => selectedPhones.has(phone))
+  const somePageSelected = pagePhones.some((phone) => selectedPhones.has(phone))
+
   const hasActiveFilters =
     localeFilter !== 'all' ||
     phoneRegionFilter !== 'all' ||
     updatedFilter !== 'all' ||
-    updateSourceFilter !== 'all'
+    Boolean(query.trim())
+
+  const togglePhone = useCallback((phone: string) => {
+    setSelectedPhones((prev) => {
+      const next = new Set(prev)
+      if (next.has(phone)) next.delete(phone)
+      else next.add(phone)
+      return next
+    })
+  }, [])
+
+  const togglePageSelection = useCallback(() => {
+    setSelectedPhones((prev) => {
+      const next = new Set(prev)
+      if (allPageSelected) {
+        for (const phone of pagePhones) next.delete(phone)
+      } else {
+        for (const phone of pagePhones) next.add(phone)
+      }
+      return next
+    })
+  }, [allPageSelected, pagePhones])
+
+  const selectAllFiltered = useCallback(() => {
+    setSelectedPhones(new Set(sortedCustomers.map((c) => c.phone)))
+  }, [sortedCustomers])
+
+  const clearSelection = useCallback(() => {
+    setSelectedPhones(new Set())
+  }, [])
+
+  const applyBulkLocale = useCallback(
+    async (locale: Locale) => {
+      if (!adminToken || selectedPhones.size === 0) return
+      setBulkBusy(true)
+      setError('')
+      try {
+        const phones = [...selectedPhones]
+        const now = new Date().toISOString()
+        await Promise.all(
+          phones.map(async (phone) => {
+            const current = customers.find((row) => row.phone === phone)
+            if (!current) return
+            await updateCustomer(adminToken, phone, {
+              firstName: current.firstName,
+              lastName: current.lastName,
+              email: current.email,
+              notes: current.notes,
+              locale,
+              birthdate: current.birthdate,
+            })
+          }),
+        )
+        setCustomers((rows) =>
+          rows.map((row) =>
+            selectedPhones.has(row.phone)
+              ? {
+                  ...row,
+                  locale,
+                  lastUpdateSource: 'customers',
+                  updatedAt: now,
+                }
+              : row,
+          ),
+        )
+        setSelectedPhones(new Set())
+        setBulkLocaleConfirm(null)
+      } catch (err) {
+        setError(
+          err instanceof ApiError
+            ? err.message
+            : 'No se pudo cambiar el idioma de los seleccionados',
+        )
+      } finally {
+        setBulkBusy(false)
+      }
+    },
+    [adminToken, customers, selectedPhones],
+  )
+
+  const applyBulkDelete = useCallback(async () => {
+    if (!adminToken || selectedPhones.size === 0) return
+    setBulkBusy(true)
+    setError('')
+    try {
+      const phones = [...selectedPhones]
+      const results = await Promise.allSettled(
+        phones.map((phone) => deleteCustomer(adminToken, phone)),
+      )
+      const deleted = new Set(
+        phones.filter((_, index) => results[index]?.status === 'fulfilled'),
+      )
+      if (deleted.size === 0) {
+        throw new Error('DELETE_FAILED')
+      }
+      setCustomers((rows) => rows.filter((row) => !deleted.has(row.phone)))
+      setSelectedPhones(new Set())
+      setBulkDeleteOpen(false)
+      if (deleted.size < phones.length) {
+        setError(`Se eliminaron ${deleted.size} de ${phones.length} fichas.`)
+      }
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : 'No se pudieron eliminar los seleccionados',
+      )
+    } finally {
+      setBulkBusy(false)
+    }
+  }, [adminToken, selectedPhones])
+
+  const selectClassName = `${selectFieldClass} ${selectChevronBg}`
 
   if (authOk === false) {
     return <Navigate to="/agenda" replace />
@@ -224,7 +344,7 @@ export function CustomersPage() {
           Felicitación cumpleaños
         </Button>
         <form
-          className="flex w-full min-w-0 flex-col gap-2 sm:max-w-3xl sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center"
+          className="flex w-full min-w-0 flex-col gap-3 sm:max-w-none sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center"
           onSubmit={(e) => {
             e.preventDefault()
             setPage(1)
@@ -240,14 +360,14 @@ export function CustomersPage() {
             placeholder="Buscar nombre, teléfono…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className={searchFieldClass}
+            className={`${searchFieldClass} sm:min-w-[12rem]`}
           />
           <label className="block shrink-0 sm:w-[10.5rem]">
             <span className="sr-only">Filtrar por idioma</span>
             <select
               value={localeFilter}
               onChange={(e) => setLocaleFilter(e.target.value as CustomerLocaleFilter)}
-              className={sortFieldClass}
+              className={selectClassName}
             >
               {CUSTOMER_LOCALE_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -263,7 +383,7 @@ export function CustomersPage() {
               onChange={(e) =>
                 setPhoneRegionFilter(e.target.value as CustomerPhoneRegionFilter)
               }
-              className={sortFieldClass}
+              className={selectClassName}
             >
               {CUSTOMER_PHONE_REGION_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -277,25 +397,9 @@ export function CustomersPage() {
             <select
               value={updatedFilter}
               onChange={(e) => setUpdatedFilter(e.target.value as CustomerUpdatedFilter)}
-              className={sortFieldClass}
+              className={selectClassName}
             >
               {CUSTOMER_UPDATED_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block shrink-0 sm:w-[12.5rem]">
-            <span className="sr-only">Filtrar por origen de actualización</span>
-            <select
-              value={updateSourceFilter}
-              onChange={(e) =>
-                setUpdateSourceFilter(e.target.value as CustomerUpdateSourceFilter)
-              }
-              className={sortFieldClass}
-            >
-              {CUSTOMER_UPDATE_SOURCE_FILTER_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
@@ -307,7 +411,7 @@ export function CustomersPage() {
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as CustomerListSort)}
-              className={sortFieldClass}
+              className={selectClassName}
             >
               {CUSTOMER_LIST_SORT_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -336,6 +440,79 @@ export function CustomersPage() {
         </p>
       )}
 
+      {!loading && customers.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gold/10 bg-cream/35 px-3 py-2">
+          <p className={`${typography.caption} text-charcoal-muted`}>
+            {sortedCustomers.length === 1
+              ? '1 cliente'
+              : `${sortedCustomers.length} clientes`}
+            {hasActiveFilters ? ' con los filtros actuales' : ''}
+            {customers.length !== sortedCustomers.length
+              ? ` · ${customers.length} en la búsqueda`
+              : ''}
+          </p>
+          {selectedPhones.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`${typography.caption} text-charcoal`}>
+                {selectedPhones.size} seleccionado{selectedPhones.size === 1 ? '' : 's'}
+              </span>
+              {selectedPhones.size < sortedCustomers.length && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={customersWorkspaceButtonClass}
+                  disabled={bulkBusy}
+                  onClick={selectAllFiltered}
+                >
+                  Seleccionar todos ({sortedCustomers.length})
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={customersWorkspaceButtonClass}
+                disabled={bulkBusy}
+                onClick={() => setBulkLocaleConfirm('es')}
+              >
+                Español
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={customersWorkspaceButtonClass}
+                disabled={bulkBusy}
+                onClick={() => setBulkLocaleConfirm('en')}
+              >
+                English
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={`${customersWorkspaceButtonClass} text-red-800`}
+                disabled={bulkBusy}
+                onClick={() => setBulkDeleteOpen(true)}
+              >
+                Eliminar
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={customersWorkspaceButtonClass}
+                disabled={bulkBusy}
+                onClick={clearSelection}
+              >
+                Quitar selección
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       <main className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
@@ -353,31 +530,44 @@ export function CustomersPage() {
               {pagedCustomers.map((c) => {
                 const label = formatCustomerDisplayName(c.firstName, c.lastName)
                 const historyHref = `/clientes/${encodeURIComponent(c.phone)}`
+                const selected = selectedPhones.has(c.phone)
                 return (
                   <li key={c.phone} className="px-3 py-3">
-                    <button
-                      type="button"
-                      className="w-full min-w-0 text-left"
-                      onClick={() => navigate(historyHref)}
-                    >
-                      <p className="font-medium">{label}</p>
-                      <p className="mt-0.5 tabular-nums text-sm text-charcoal-muted">
-                        {formatPhoneDisplay(c.phone)}
-                      </p>
-                      <p className={`${typography.caption} mt-1 text-charcoal-muted`}>
-                        {customerLocaleLabel(c.locale)}
-                        {' · '}
-                        {c.appointmentCount} cita{c.appointmentCount === 1 ? '' : 's'}
-                        {c.lastAppointmentDate
-                          ? ` · última ${formatDisplayDate(c.lastAppointmentDate)}`
-                          : ''}
-                      </p>
-                      <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
-                        Actualizado {formatDisplayDate(salonDateFromIso(c.updatedAt))}
-                        {' · '}
-                        {customerUpdateSourceLabel(c.lastUpdateSource)}
-                      </p>
-                    </button>
+                    <div className="flex items-start gap-3">
+                      <label
+                        className="mt-1 shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="sr-only">Seleccionar {label}</span>
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => togglePhone(c.phone)}
+                          className="size-4 accent-gold"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 text-left"
+                        onClick={() => navigate(historyHref)}
+                      >
+                        <p className="font-medium">{label}</p>
+                        <p className="mt-0.5 tabular-nums text-sm text-charcoal-muted">
+                          {formatPhoneDisplay(c.phone)}
+                        </p>
+                        <p className={`${typography.caption} mt-1 text-charcoal-muted`}>
+                          {customerLocaleLabel(c.locale)}
+                          {' · '}
+                          {c.appointmentCount} cita{c.appointmentCount === 1 ? '' : 's'}
+                          {c.lastAppointmentDate
+                            ? ` · última ${formatDisplayDate(c.lastAppointmentDate)}`
+                            : ''}
+                        </p>
+                        <p className={`${typography.caption} mt-0.5 text-charcoal-muted`}>
+                          Actualizado {formatDisplayDate(salonDateFromIso(c.updatedAt))}
+                        </p>
+                      </button>
+                    </div>
                     <CustomerListActions
                       customer={c}
                       adminToken={adminToken}
@@ -406,6 +596,20 @@ export function CustomersPage() {
             <table className="hidden w-full text-left text-sm md:table">
               <thead className="sticky top-0 border-b border-gold/15 bg-cream/55 backdrop-blur-[2px]">
                 <tr className={typography.caption}>
+                  <th className="w-10 px-3 py-2 font-normal">
+                    <label className="inline-flex items-center">
+                      <span className="sr-only">Seleccionar página</span>
+                      <input
+                        type="checkbox"
+                        checked={allPageSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = somePageSelected && !allPageSelected
+                        }}
+                        onChange={togglePageSelection}
+                        className="size-4 accent-gold"
+                      />
+                    </label>
+                  </th>
                   <th className="px-3 py-2 font-normal">Cliente</th>
                   <th className="px-3 py-2 font-normal">Teléfono</th>
                   <th className="hidden px-3 py-2 font-normal lg:table-cell">Idioma</th>
@@ -419,34 +623,63 @@ export function CustomersPage() {
                 {pagedCustomers.map((c) => {
                   const label = formatCustomerDisplayName(c.firstName, c.lastName)
                   const historyHref = `/clientes/${encodeURIComponent(c.phone)}`
+                  const selected = selectedPhones.has(c.phone)
                   return (
                     <tr
                       key={c.phone}
-                      className="cursor-pointer border-b border-gold/10 hover:bg-gold/5"
-                      onClick={() => navigate(historyHref)}
+                      className={`border-b border-gold/10 hover:bg-gold/5 ${
+                        selected ? 'bg-gold/5' : ''
+                      }`}
                     >
-                      <td className="px-3 py-2 font-medium">{label}</td>
-                      <td className="px-3 py-2 tabular-nums text-charcoal-muted">
+                      <td
+                        className="px-3 py-2"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={() => togglePhone(c.phone)}
+                          aria-label={`Seleccionar ${label}`}
+                          className="size-4 accent-gold"
+                        />
+                      </td>
+                      <td
+                        className="cursor-pointer px-3 py-2 font-medium"
+                        onClick={() => navigate(historyHref)}
+                      >
+                        {label}
+                      </td>
+                      <td
+                        className="cursor-pointer px-3 py-2 tabular-nums text-charcoal-muted"
+                        onClick={() => navigate(historyHref)}
+                      >
                         {formatPhoneDisplay(c.phone)}
                       </td>
-                      <td className="hidden px-3 py-2 text-charcoal-muted lg:table-cell">
+                      <td
+                        className="hidden cursor-pointer px-3 py-2 text-charcoal-muted lg:table-cell"
+                        onClick={() => navigate(historyHref)}
+                      >
                         {customerLocaleLabel(c.locale)}
                       </td>
-                      <td className="hidden px-3 py-2 tabular-nums sm:table-cell">
+                      <td
+                        className="hidden cursor-pointer px-3 py-2 tabular-nums sm:table-cell"
+                        onClick={() => navigate(historyHref)}
+                      >
                         {c.appointmentCount}
                       </td>
-                      <td className="hidden px-3 py-2 capitalize xl:table-cell">
+                      <td
+                        className="hidden cursor-pointer px-3 py-2 capitalize xl:table-cell"
+                        onClick={() => navigate(historyHref)}
+                      >
                         {c.lastAppointmentDate
                           ? formatDisplayDate(c.lastAppointmentDate)
                           : '—'}
                       </td>
-                      <td className="hidden px-3 py-2 text-charcoal-muted md:table-cell">
-                        <span className="block capitalize">
-                          {formatDisplayDate(salonDateFromIso(c.updatedAt))}
-                        </span>
-                        <span className={`${typography.caption} block`}>
-                          {customerUpdateSourceLabel(c.lastUpdateSource)}
-                        </span>
+                      <td
+                        className="hidden cursor-pointer px-3 py-2 capitalize text-charcoal-muted md:table-cell"
+                        onClick={() => navigate(historyHref)}
+                      >
+                        {formatDisplayDate(salonDateFromIso(c.updatedAt))}
                       </td>
                       <td className="px-3 py-2 text-right">
                         <CustomerListActions
@@ -529,7 +762,46 @@ export function CustomersPage() {
         }}
         onDeleted={(deletedPhone) => {
           setCustomers((rows) => rows.filter((row) => row.phone !== deletedPhone))
+          setSelectedPhones((prev) => {
+            if (!prev.has(deletedPhone)) return prev
+            const next = new Set(prev)
+            next.delete(deletedPhone)
+            return next
+          })
         }}
+      />
+
+      <ConfirmDialog
+        open={bulkLocaleConfirm != null}
+        busy={bulkBusy}
+        title="Cambiar idioma"
+        message={
+          bulkLocaleConfirm === 'en'
+            ? `¿Poner English en ${selectedPhones.size} cliente${selectedPhones.size === 1 ? '' : 's'}? Los WhatsApp y avisos usarán ese idioma.`
+            : `¿Poner Español en ${selectedPhones.size} cliente${selectedPhones.size === 1 ? '' : 's'}? Los WhatsApp y avisos usarán ese idioma.`
+        }
+        confirmLabel={bulkLocaleConfirm === 'en' ? 'Usar English' : 'Usar español'}
+        cancelLabel="Cancelar"
+        onClose={() => {
+          if (!bulkBusy) setBulkLocaleConfirm(null)
+        }}
+        onConfirm={() => {
+          if (bulkLocaleConfirm) void applyBulkLocale(bulkLocaleConfirm)
+        }}
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        busy={bulkBusy}
+        destructive
+        title="Eliminar fichas"
+        message={`Se eliminarán ${selectedPhones.size} ficha${selectedPhones.size === 1 ? '' : 's'} de cliente. Las citas del historial se conservan.`}
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        onClose={() => {
+          if (!bulkBusy) setBulkDeleteOpen(false)
+        }}
+        onConfirm={() => void applyBulkDelete()}
       />
 
       {adminToken && (

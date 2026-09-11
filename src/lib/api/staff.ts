@@ -138,6 +138,7 @@ export function createMyAppointment(
     customerNotes?: string
     notes?: string
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     scope?: BlockScope
     endDate?: string
     forceSchedule?: boolean
@@ -170,6 +171,7 @@ export function updateMyAppointment(
     customerNotes?: string | null
     notes: string | null
     customerLocale?: 'es' | 'en'
+    updateCustomerLocale?: boolean
     forceSchedule?: boolean
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean

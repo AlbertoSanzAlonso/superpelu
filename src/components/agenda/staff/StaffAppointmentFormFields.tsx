@@ -71,6 +71,7 @@ type Props = {
   hideVisitTime?: boolean
   isSubmitting?: boolean
   guestWithoutProfile?: boolean
+  onCustomerLocaleTouched?: () => void
 }
 
 export function StaffAppointmentFormFields({
@@ -102,6 +103,7 @@ export function StaffAppointmentFormFields({
   hideVisitTime = false,
   isSubmitting = false,
   guestWithoutProfile = false,
+  onCustomerLocaleTouched,
 }: Props) {
   const isAdmin = Boolean(adminToken)
   const timeOptions = useMemo(() => {
@@ -723,6 +725,7 @@ export function StaffAppointmentFormFields({
           draft={draft}
           onDraftChange={onDraftChange}
           compact={compact}
+          onCustomerLocaleTouched={onCustomerLocaleTouched}
         />
       ) : (
         <AppointmentCustomerFields
@@ -731,6 +734,7 @@ export function StaffAppointmentFormFields({
           compact={compact}
           guestWithoutProfile={guestWithoutProfile}
           allowOptionalPhone
+          onCustomerLocaleTouched={onCustomerLocaleTouched}
         />
       )}
 

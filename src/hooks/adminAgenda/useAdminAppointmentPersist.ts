@@ -68,7 +68,17 @@ export function useAdminAppointmentPersist({
   const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const createLocaleRef = useRef<Locale>(aptDraft.customerLocale)
+  /** Idioma tocado a propósito (selector o aviso de número extranjero). */
+  const updateCustomerLocaleRef = useRef(false)
   const pendingNotifyWhatsAppRef = useRef<boolean | undefined>(undefined)
+
+  const markCustomerLocaleTouched = useCallback(() => {
+    updateCustomerLocaleRef.current = true
+  }, [])
+
+  const resetCustomerLocaleTouched = useCallback(() => {
+    updateCustomerLocaleRef.current = false
+  }, [])
 
   function buildAlignedServiceFields(filteredServiceIds: string[]) {
     const keptIndexes = aptDraft.serviceIds
@@ -110,6 +120,10 @@ export function useAdminAppointmentPersist({
       setIsSubmitting(true)
       const customerLocale = customerLocaleOverride ?? aptDraft.customerLocale
       createLocaleRef.current = customerLocale
+      if (customerLocaleOverride != null) {
+        updateCustomerLocaleRef.current = true
+      }
+      const updateCustomerLocale = updateCustomerLocaleRef.current
       setError('')
       try {
         const filteredServiceIds = aptDraft.serviceIds.filter((s) => s !== '')
@@ -133,6 +147,7 @@ export function useAdminAppointmentPersist({
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
             customerLocale,
+            ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
             notifyCustomerWhatsApp,
             forceSchedule: true,
             ...(guestCustomer || (editingGuestPhone && !aptDraft.customerPhone.trim())
@@ -160,6 +175,7 @@ export function useAdminAppointmentPersist({
                 customerNotes: aptDraft.customerNotes || undefined,
                 notes: aptDraft.notes || undefined,
                 customerLocale,
+                ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
                 scope: 'weekly',
                 endDate: aptDraft.recurrenceEndDate || undefined,
                 ...(guestCustomer ? { guestCustomer: true } : {}),
@@ -191,6 +207,7 @@ export function useAdminAppointmentPersist({
               customerNotes: aptDraft.customerNotes || undefined,
               notes: aptDraft.notes || undefined,
               customerLocale,
+              ...(updateCustomerLocale ? { updateCustomerLocale: true } : {}),
               scope: aptDraft.recurrenceScope === 'weekly' ? 'weekly' : undefined,
               endDate:
                 aptDraft.recurrenceScope === 'weekly' && aptDraft.recurrenceEndDate
@@ -209,6 +226,7 @@ export function useAdminAppointmentPersist({
         closeAppointmentDetail()
         resetAppointmentForm()
         clearSelection()
+        updateCustomerLocaleRef.current = false
         await load()
         return true
       } catch (err) {
@@ -421,6 +439,7 @@ export function useAdminAppointmentPersist({
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
             customerLocale: createLocaleRef.current,
+            ...(updateCustomerLocaleRef.current ? { updateCustomerLocale: true } : {}),
             scope: 'weekly',
             endDate: aptDraft.recurrenceEndDate || undefined,
             forceSchedule: true,
@@ -439,6 +458,7 @@ export function useAdminAppointmentPersist({
         closeAppointmentDetail()
         resetAppointmentForm()
         clearSelection()
+        updateCustomerLocaleRef.current = false
         await load()
         return true
       } catch (err) {
@@ -483,5 +503,7 @@ export function useAdminAppointmentPersist({
     seriesConflictBusy,
     closeSeriesConflictModal,
     resolveSeriesConflicts,
+    markCustomerLocaleTouched,
+    resetCustomerLocaleTouched,
   }
 }

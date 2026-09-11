@@ -150,6 +150,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         onDraftChange={(patch) => agenda.setAptDraft((d) => ({ ...d, ...patch }))}
         onSubmit={handleSubmit}
         onClose={closeAppointmentForm}
+        onCustomerLocaleTouched={agenda.markCustomerLocaleTouched}
         onCancelAppointment={
           agenda.editingId
             ? () => agenda.removeAppointment(agenda.editingId!, closeAppointmentForm)
