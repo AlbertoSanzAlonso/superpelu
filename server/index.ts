@@ -860,6 +860,8 @@ app.post('/api/appointments', async (c) => {
     customerEmail?: string
     notes?: string
     locale?: 'es' | 'en'
+    /** Cliente habitual: actualizar idioma de ficha solo si confirma el cambio. */
+    updateCustomerLocale?: boolean
     birthdate?: string | null
     returningCustomer?: boolean
   }>()
@@ -900,6 +902,7 @@ app.post('/api/appointments', async (c) => {
       customerEmail: body.customerEmail,
       notes: body.notes,
       locale: body.locale,
+      updateCustomerLocale: body.updateCustomerLocale === true,
       birthdate: body.birthdate,
       returningCustomer: body.returningCustomer,
     })
@@ -982,6 +985,7 @@ function customerToJson(customer: {
   locale?: string | null
   birthdate?: string | Date | null
   review_request_sent_at?: string | null
+  last_update_source?: string | null
   created_at: string
   updated_at: string
 }) {
@@ -1000,6 +1004,14 @@ function customerToJson(customer: {
     locale: customer.locale === 'en' ? 'en' : 'es',
     birthdate,
     reviewRequestSentAt: customer.review_request_sent_at ?? null,
+    lastUpdateSource:
+      customer.last_update_source === 'booking_page' ||
+      customer.last_update_source === 'agenda' ||
+      customer.last_update_source === 'customers' ||
+      customer.last_update_source === 'review_request' ||
+      customer.last_update_source === 'birthday'
+        ? customer.last_update_source
+        : null,
     createdAt: customer.created_at,
     updatedAt: customer.updated_at,
   }
@@ -1034,6 +1046,7 @@ app.get('/api/customers/:phone', async (c) => {
       locale: latest.locale === 'en' ? 'en' : 'es',
       birthdate: null,
       reviewRequestSentAt: null,
+      lastUpdateSource: null,
       createdAt: now,
       updatedAt: now,
     },

@@ -341,6 +341,7 @@ export async function createChainedBookingAppointment(
     customerEmail: input.customerEmail,
     customerNotes: input.customerNotes,
     locale: input.forStaffPortal ? input.customerLocale : normalizeLocale(input.locale),
+    updateCustomerLocale: input.forStaffPortal ? undefined : input.updateCustomerLocale,
     birthdate: input.birthdate,
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,

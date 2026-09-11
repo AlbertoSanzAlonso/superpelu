@@ -1,7 +1,7 @@
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import type { Customer } from '@/types/customers'
 
-export type CustomerListSort = 'name' | 'newest' | 'oldest'
+export type CustomerListSort = 'name' | 'newest' | 'oldest' | 'updated'
 
 export const CUSTOMER_LIST_SORT_OPTIONS: {
   value: CustomerListSort
@@ -10,6 +10,7 @@ export const CUSTOMER_LIST_SORT_OPTIONS: {
   { value: 'name', label: 'Alfabético' },
   { value: 'newest', label: 'Más recientes' },
   { value: 'oldest', label: 'Más antiguos' },
+  { value: 'updated', label: 'Última actualización' },
 ]
 
 function customerSortName(customer: Customer): string {
@@ -41,6 +42,13 @@ export function sortCustomerList(
     return rows.sort((a, b) => {
       const byCreated = a.createdAt.localeCompare(b.createdAt)
       if (byCreated !== 0) return byCreated
+      return compareByName(a, b)
+    })
+  }
+  if (sort === 'updated') {
+    return rows.sort((a, b) => {
+      const byUpdated = b.updatedAt.localeCompare(a.updatedAt)
+      if (byUpdated !== 0) return byUpdated
       return compareByName(a, b)
     })
   }

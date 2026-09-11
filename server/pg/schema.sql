@@ -97,6 +97,7 @@ ALTER TABLE customers ADD COLUMN IF NOT EXISTS locale TEXT NOT NULL DEFAULT 'es'
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS review_request_sent_at TIMESTAMPTZ;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthdate DATE;
 ALTER TABLE customers ADD COLUMN IF NOT EXISTS birthday_wish_sent_year INTEGER;
+ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_update_source TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_customers_name
   ON customers (last_name, first_name);
@@ -104,6 +105,9 @@ CREATE INDEX IF NOT EXISTS idx_customers_name
 CREATE INDEX IF NOT EXISTS idx_customers_birthdate
   ON customers (birthdate)
   WHERE birthdate IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_customers_updated_at
+  ON customers (updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,

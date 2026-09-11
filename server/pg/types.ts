@@ -9,6 +9,8 @@ export type CustomerRow = {
   /** YYYY-MM-DD o null. */
   birthdate: string | null
   birthday_wish_sent_year: number | null
+  /** Origen del último cambio de ficha (booking_page, agenda, …). */
+  last_update_source: string | null
   created_at: string
   updated_at: string
 }

@@ -163,6 +163,8 @@ export type CreateAppointmentPayload = {
   customerEmail?: string
   notes?: string
   locale?: 'es' | 'en'
+  /** Cliente habitual: solo actualizar idioma de ficha si el cliente confirma. */
+  updateCustomerLocale?: boolean
   birthdate?: string
   returningCustomer?: boolean
 }

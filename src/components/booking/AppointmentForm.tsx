@@ -18,11 +18,13 @@ import {
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import { serviceDisplayName } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
-import type { Locale } from '@/i18n/types'
+import { normalizeLocale, type Locale } from '@/i18n/types'
 import { getBookableDates } from '@/lib/core/dates'
 import type { Appointment } from '@/types/booking'
 
 const bookableDatesList = getBookableDates(35)
+
+type LocalePrompt = 'foreign-phone' | 'saved-mismatch'
 
 type AppointmentFormProps = AppointmentFormOptions & {
   submitLabel?: string
@@ -42,7 +44,7 @@ export function AppointmentForm({
   const { locale, t } = useTranslation()
   const bookingSteps = t.booking.steps
   const b = t.booking
-  const [awaitingLocaleChoice, setAwaitingLocaleChoice] = useState(false)
+  const [localePrompt, setLocalePrompt] = useState<LocalePrompt | null>(null)
 
   const form = useAppointmentForm({
     ...formOptions,
@@ -54,35 +56,71 @@ export function AppointmentForm({
 
   const wizard = useBookingWizardSteps(form)
 
+  const needsSavedLocaleMismatch = useCallback(
+    (pendingLocale: Locale) =>
+      form.customerType === 'returning' &&
+      form.returningVerified &&
+      form.returningLocale != null &&
+      form.returningLocale !== normalizeLocale(pendingLocale),
+    [form.customerType, form.returningVerified, form.returningLocale],
+  )
+
+  const submitKeepingOrUpdating = useCallback(
+    async (pendingLocale: Locale) => {
+      if (needsSavedLocaleMismatch(pendingLocale)) {
+        form.setNotificationLocale(pendingLocale)
+        setLocalePrompt('saved-mismatch')
+        return
+      }
+      setLocalePrompt(null)
+      await form.submit({ locale: pendingLocale })
+    },
+    [form.setNotificationLocale, form.submit, needsSavedLocaleMismatch],
+  )
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.canSubmit || form.submitting) return
-    // Web en inglés → avisos ya van en inglés; no preguntar.
+    // Web en inglés → avisos ya van en inglés; no preguntar por número extranjero.
     if (
       locale !== 'en' &&
-      !awaitingLocaleChoice &&
+      localePrompt !== 'foreign-phone' &&
       shouldAskForeignPhoneLocale(form.customerPhone, form.notificationLocale)
     ) {
-      setAwaitingLocaleChoice(true)
+      setLocalePrompt('foreign-phone')
       return
     }
-    await form.submit()
+    await submitKeepingOrUpdating(form.notificationLocale)
   }
 
-  const finishWithLocale = useCallback(
+  const finishForeignPhone = useCallback(
     async (nextLocale: Locale) => {
-      await form.submit({ locale: nextLocale })
+      await submitKeepingOrUpdating(nextLocale)
     },
-    [form.submit],
+    [submitKeepingOrUpdating],
+  )
+
+  const finishSavedLocaleMismatch = useCallback(
+    async (accept: boolean) => {
+      const webLocale = form.notificationLocale
+      const saved = form.returningLocale ?? 'es'
+      if (accept) {
+        await form.submit({ locale: webLocale, updateCustomerLocale: true })
+      } else {
+        await form.submit({ locale: saved, updateCustomerLocale: false })
+      }
+      setLocalePrompt(null)
+    },
+    [form.notificationLocale, form.returningLocale, form.submit],
   )
 
   const handleBack = useCallback(() => {
-    if (awaitingLocaleChoice) {
-      setAwaitingLocaleChoice(false)
+    if (localePrompt) {
+      setLocalePrompt(null)
       return
     }
     wizard.goPrev()
-  }, [awaitingLocaleChoice, wizard.goPrev])
+  }, [localePrompt, wizard.goPrev])
 
   const bookingServiceLines = useMemo(
     () =>
@@ -128,12 +166,18 @@ export function AppointmentForm({
   }
 
   const confirmLabel = submitLabel ?? b.confirm
-  const progressStep = awaitingLocaleChoice ? CONFIRM_STEP : wizard.step
-  const progressLabels = awaitingLocaleChoice
+  const progressStep = localePrompt ? CONFIRM_STEP : wizard.step
+  const progressLabels = localePrompt
     ? bookingSteps.map((label, index) =>
-        index === CONFIRM_STEP ? b.foreignPhoneLocaleTitle : label,
+        index === CONFIRM_STEP
+          ? localePrompt === 'foreign-phone'
+            ? b.foreignPhoneLocaleTitle
+            : b.savedLocaleMismatchTitle
+          : label,
       )
     : bookingSteps
+
+  const mismatchTarget = form.notificationLocale === 'en' ? 'en' : 'es'
 
   return (
     <form onSubmit={handleSubmit} className="relative mx-auto max-w-lg md:max-w-4xl">
@@ -145,16 +189,28 @@ export function AppointmentForm({
         onBack={handleBack}
       />
 
-      <div key={awaitingLocaleChoice ? 'locale' : wizard.step} className="booking-step-enter">
-        {awaitingLocaleChoice ? (
+      <div key={localePrompt ?? wizard.step} className="booking-step-enter">
+        {localePrompt === 'foreign-phone' ? (
           <BookingForeignLocaleStep
             title={b.foreignPhoneLocaleTitle}
             message={b.foreignPhoneLocaleMessage}
             acceptLabel={b.foreignPhoneLocaleAccept}
             declineLabel={b.foreignPhoneLocaleDecline}
             busy={form.submitting}
-            onAccept={() => void finishWithLocale('en')}
-            onDecline={() => void finishWithLocale('es')}
+            onAccept={() => void finishForeignPhone('en')}
+            onDecline={() => void finishForeignPhone('es')}
+          />
+        ) : localePrompt === 'saved-mismatch' ? (
+          <BookingForeignLocaleStep
+            title={b.savedLocaleMismatchTitle}
+            message={
+              mismatchTarget === 'en' ? b.savedLocaleMismatchToEn : b.savedLocaleMismatchToEs
+            }
+            acceptLabel={b.savedLocaleMismatchAccept}
+            declineLabel={b.savedLocaleMismatchDecline}
+            busy={form.submitting}
+            onAccept={() => void finishSavedLocaleMismatch(true)}
+            onDecline={() => void finishSavedLocaleMismatch(false)}
           />
         ) : (
           <>
@@ -254,7 +310,7 @@ export function AppointmentForm({
         </p>
       )}
 
-      {!awaitingLocaleChoice &&
+      {!localePrompt &&
         wizard.step === bookingSteps.length - 1 &&
         form.customerType != null &&
         !(form.customerType === 'returning' && !form.returningVerified) && (

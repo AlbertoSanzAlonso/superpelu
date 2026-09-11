@@ -27,6 +27,11 @@ export type CreateAppointmentInput = {
   returningCustomer?: boolean
   forStaffPortal?: boolean
   locale?: Locale
+  /**
+   * Reserva pública: confirma actualizar `customers.locale` al idioma de la cita.
+   * Sin esto, cliente habitual conserva el idioma de ficha.
+   */
+  updateCustomerLocale?: boolean
   /** Idioma en ficha del cliente (agenda); si no se envía, se usa el guardado o español. */
   customerLocale?: Locale
   /** Repetición periódica (agenda, uno o varios tratamientos). */

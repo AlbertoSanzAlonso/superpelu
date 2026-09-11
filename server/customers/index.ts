@@ -6,6 +6,11 @@ import {
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { normalizePhone, isValidPhone } from '@/lib/customer/phone'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import {
+  CUSTOMER_UPDATE_SOURCES,
+  normalizeCustomerUpdateSource,
+  type CustomerUpdateSource,
+} from '@/lib/customer/updateSource'
 import { generateGuestCustomerPhone } from '@server/customers/guest.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
 
@@ -23,6 +28,8 @@ export type CustomerInput = {
    * `YYYY-MM-DD` = guardar.
    */
   birthdate?: string | null
+  /** Origen del cambio de ficha (reserva, agenda, panel…). */
+  updateSource?: CustomerUpdateSource
 }
 
 export type PublicCustomer = {
@@ -34,6 +41,7 @@ export type PublicCustomer = {
   locale: Locale
   birthdate: string | null
   reviewRequestSentAt: string | null
+  lastUpdateSource: CustomerUpdateSource | null
   appointmentCount: number
   lastAppointmentDate: string | null
   createdAt: string
@@ -71,6 +79,7 @@ function rowToPublic(row: CustomerRow, stats?: { count: number; lastDate: string
     locale: normalizeLocale(row.locale),
     birthdate: birthdateToIso(row.birthdate),
     reviewRequestSentAt: row.review_request_sent_at ?? null,
+    lastUpdateSource: normalizeCustomerUpdateSource(row.last_update_source),
     appointmentCount: stats?.count ?? 0,
     lastAppointmentDate: stats?.lastDate ?? null,
     createdAt: row.created_at,
@@ -112,6 +121,9 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   const localeForInsert = normalizeLocale(input.locale ?? 'es')
   const localeOnConflict =
     input.locale !== undefined ? localeForInsert : sql`customers.locale`
+  const updateSource = input.updateSource ?? null
+  const updateSourceOnConflict =
+    updateSource != null ? updateSource : sql`customers.last_update_source`
 
   const birthdateProvided = input.birthdate !== undefined
   const birthdate = birthdateProvided ? normalizeBirthdate(input.birthdate) : null
@@ -119,11 +131,12 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   if (birthdateProvided) {
     await sql`
       INSERT INTO customers (
-        phone, first_name, last_name, email, notes, locale, birthdate, created_at, updated_at
+        phone, first_name, last_name, email, notes, locale, birthdate,
+        last_update_source, created_at, updated_at
       )
       VALUES (
         ${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes},
-        ${localeForInsert}, ${birthdate}, ${now}, ${now}
+        ${localeForInsert}, ${birthdate}, ${updateSource}, ${now}, ${now}
       )
       ON CONFLICT (phone) DO UPDATE SET
         first_name = EXCLUDED.first_name,
@@ -132,16 +145,18 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
         notes = COALESCE(EXCLUDED.notes, customers.notes),
         locale = ${localeOnConflict},
         birthdate = EXCLUDED.birthdate,
+        last_update_source = ${updateSourceOnConflict},
         updated_at = EXCLUDED.updated_at
     `
   } else {
     await sql`
       INSERT INTO customers (
-        phone, first_name, last_name, email, notes, locale, created_at, updated_at
+        phone, first_name, last_name, email, notes, locale,
+        last_update_source, created_at, updated_at
       )
       VALUES (
         ${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes},
-        ${localeForInsert}, ${now}, ${now}
+        ${localeForInsert}, ${updateSource}, ${now}, ${now}
       )
       ON CONFLICT (phone) DO UPDATE SET
         first_name = EXCLUDED.first_name,
@@ -149,6 +164,7 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
         email = COALESCE(EXCLUDED.email, customers.email),
         notes = COALESCE(EXCLUDED.notes, customers.notes),
         locale = ${localeOnConflict},
+        last_update_source = ${updateSourceOnConflict},
         updated_at = EXCLUDED.updated_at
     `
   }
@@ -171,14 +187,16 @@ export async function createCustomer(input: CustomerInput): Promise<CustomerRow>
   const locale = normalizeLocale(input.locale ?? 'es')
   const birthdate =
     input.birthdate !== undefined ? normalizeBirthdate(input.birthdate) : null
+  const updateSource = input.updateSource ?? CUSTOMER_UPDATE_SOURCES.customers
 
   await sql`
     INSERT INTO customers (
-      phone, first_name, last_name, email, notes, locale, birthdate, created_at, updated_at
+      phone, first_name, last_name, email, notes, locale, birthdate,
+      last_update_source, created_at, updated_at
     )
     VALUES (
       ${phone}, ${firstName}, ${lastName || null}, ${email}, ${notes},
-      ${locale}, ${birthdate}, ${now}, ${now}
+      ${locale}, ${birthdate}, ${updateSource}, ${now}, ${now}
     )
   `
 
@@ -195,6 +213,7 @@ export type CustomerUpdateInput = {
   notes?: string | null
   locale?: Locale
   birthdate?: string | null
+  updateSource?: CustomerUpdateSource
 }
 
 /** Actualiza ficha existente (el teléfono / PK no cambia). */
@@ -221,6 +240,7 @@ export async function updateCustomer(
       ? birthdateToIso(existing.birthdate)
       : normalizeBirthdate(input.birthdate)
   const now = new Date().toISOString()
+  const updateSource = input.updateSource ?? CUSTOMER_UPDATE_SOURCES.customers
 
   await sql`
     UPDATE customers SET
@@ -230,6 +250,7 @@ export async function updateCustomer(
       notes = ${notes},
       locale = ${locale},
       birthdate = ${birthdate},
+      last_update_source = ${updateSource},
       updated_at = ${now}
     WHERE phone = ${normalized}
   `
@@ -252,10 +273,14 @@ export async function getCustomer(phone: string): Promise<CustomerRow | undefine
 /** Lookup público mínimo para reserva (sin filtrar PII extra). */
 export async function lookupCustomerForBooking(
   phone: string,
-): Promise<{ found: true; firstName: string } | { found: false }> {
+): Promise<{ found: true; firstName: string; locale: Locale } | { found: false }> {
   const customer = await getCustomer(phone)
   if (!customer) return { found: false }
-  return { found: true, firstName: customer.first_name }
+  return {
+    found: true,
+    firstName: customer.first_name,
+    locale: normalizeLocale(customer.locale),
+  }
 }
 
 export function customerNameSnapshot(firstName: string, lastName: string): string {
@@ -276,6 +301,11 @@ export async function upsertCustomerForBooking(input: {
   customerEmail?: string
   customerNotes?: string
   locale?: Locale
+  /**
+   * Reserva pública de cliente habitual: solo actualiza `customers.locale`
+   * si el cliente confirma el cambio de idioma en el asistente.
+   */
+  updateCustomerLocale?: boolean
   birthdate?: string | null
   returningCustomer?: boolean
   forStaffPortal?: boolean
@@ -327,7 +357,10 @@ export async function upsertCustomerForBooking(input: {
       ...(input.customerNotes !== undefined
         ? { notes: input.customerNotes.trim() || null }
         : {}),
-      ...(input.locale !== undefined ? { locale: normalizeLocale(input.locale) } : {}),
+      ...(input.locale !== undefined && input.updateCustomerLocale
+        ? { locale: normalizeLocale(input.locale) }
+        : {}),
+      updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
     const profile = (await getCustomer(phone))!
     return {
@@ -356,6 +389,7 @@ export async function upsertCustomerForBooking(input: {
         : {}),
       locale: normalizeLocale(input.locale ?? 'es'),
       birthdate,
+      updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
     const profile = (await getCustomer(customer.phone))!
     return {
@@ -399,6 +433,7 @@ export async function upsertCustomerForBooking(input: {
       : {}),
     ...(customerLocaleForUpsert !== undefined ? { locale: customerLocaleForUpsert } : {}),
     ...(input.birthdate !== undefined ? { birthdate: input.birthdate } : {}),
+    updateSource: CUSTOMER_UPDATE_SOURCES.agenda,
   })
   const profile = (await getCustomer(customer.phone))!
   return {
@@ -477,6 +512,7 @@ export async function resolveStaffPortalCustomerPatch(input: {
     ...(input.customerLocale !== undefined
       ? { locale: normalizeLocale(input.customerLocale) }
       : {}),
+    updateSource: CUSTOMER_UPDATE_SOURCES.agenda,
   })
   return {
     nameSnapshot: customerNameSnapshot(split.firstName, split.lastName),
@@ -533,7 +569,10 @@ export async function markCustomerReviewRequestSent(phone: string): Promise<stri
   if (!normalized) throw new Error('TELEFONO_INVALIDO')
   const now = new Date().toISOString()
   await sql`
-    UPDATE customers SET review_request_sent_at = ${now}, updated_at = ${now}
+    UPDATE customers SET
+      review_request_sent_at = ${now},
+      last_update_source = ${CUSTOMER_UPDATE_SOURCES.review_request},
+      updated_at = ${now}
     WHERE phone = ${normalized}
   `
   return now
@@ -546,6 +585,7 @@ export async function markBirthdayWishSent(phone: string, year: number): Promise
   await sql`
     UPDATE customers SET
       birthday_wish_sent_year = ${year},
+      last_update_source = ${CUSTOMER_UPDATE_SOURCES.birthday},
       updated_at = ${now}
     WHERE phone = ${normalized}
   `
@@ -563,6 +603,7 @@ export async function claimBirthdayWishSent(phone: string, year: number): Promis
   const rows = await sql<{ phone: string }[]>`
     UPDATE customers SET
       birthday_wish_sent_year = ${year},
+      last_update_source = ${CUSTOMER_UPDATE_SOURCES.birthday},
       updated_at = ${now}
     WHERE phone = ${normalized}
       AND (

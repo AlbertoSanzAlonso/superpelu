@@ -79,6 +79,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [birthdate, setBirthdateState] = useState('')
   const [returningVerified, setReturningVerified] = useState(false)
   const [returningFirstName, setReturningFirstName] = useState('')
+  /** Idioma guardado en ficha tras el lookup de cliente habitual. */
+  const [returningLocale, setReturningLocale] = useState<Locale | null>(null)
   const [lookingUpCustomer, setLookingUpCustomer] = useState(false)
   const [returningLookupError, setReturningLookupError] = useState('')
   /** Idioma de WhatsApp/avisos de la cita (puede diferir del idioma de la web). */
@@ -118,6 +120,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerTypeState(value)
     setReturningVerified(false)
     setReturningFirstName('')
+    setReturningLocale(null)
     setReturningLookupError('')
     setCustomerNameState('')
     setBirthdateState('')
@@ -128,6 +131,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerTypeState(null)
     setReturningVerified(false)
     setReturningFirstName('')
+    setReturningLocale(null)
     setReturningLookupError('')
     setCustomerNameState('')
     setCustomerPhoneState('')
@@ -500,6 +504,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerTypeState(null)
     setReturningVerified(false)
     setReturningFirstName('')
+    setReturningLocale(null)
     setReturningLookupError('')
     setNotificationLocale(normalizeLocale(locale))
   }, [resetChainSelection, locale])
@@ -520,14 +525,17 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       if (!result.found || !result.firstName) {
         setReturningLookupError('not_found')
         setReturningVerified(false)
+        setReturningLocale(null)
         return
       }
       setReturningFirstName(capitalizePersonName(result.firstName))
       setCustomerNameState(capitalizePersonName(result.firstName))
+      setReturningLocale(normalizeLocale(result.locale))
       setReturningVerified(true)
     } catch {
       setReturningLookupError(errors.serverConnection)
       setReturningVerified(false)
+      setReturningLocale(null)
     } finally {
       setLookingUpCustomer(false)
     }
@@ -582,7 +590,10 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.customerTypeRequired,
   ])
 
-  const submit = useCallback(async (opts?: { locale?: Locale }) => {
+  const submit = useCallback(async (opts?: {
+    locale?: Locale
+    updateCustomerLocale?: boolean
+  }) => {
     setError('')
     if (!validateCustomerFields()) return null
     if (!canSubmit) return null
@@ -619,6 +630,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         customerEmail: isReturning ? undefined : customerEmail || undefined,
         notes: notes || undefined,
         locale: localeForNotifications,
+        ...(isReturning && opts?.updateCustomerLocale
+          ? { updateCustomerLocale: true }
+          : {}),
         returningCustomer: isReturning || undefined,
         birthdate: isReturning ? undefined : birthdate,
       })
@@ -698,6 +712,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     resetCustomerType,
     returningVerified,
     returningFirstName,
+    returningLocale,
     lookingUpCustomer,
     returningLookupError,
     lookupReturningCustomer,

@@ -339,6 +339,13 @@ const es = {
       'Tu teléfono no es de España. ¿Quieres recibir las notificaciones de la cita (WhatsApp, recordatorios) en inglés?',
     foreignPhoneLocaleAccept: 'Sí, en inglés',
     foreignPhoneLocaleDecline: 'No, en español',
+    savedLocaleMismatchTitle: 'Idioma de avisos',
+    savedLocaleMismatchToEn:
+      'Has reservado con la web en inglés, pero en tu ficha tienes el español. ¿Quieres cambiar el idioma de tus avisos (WhatsApp, recordatorios) a inglés?',
+    savedLocaleMismatchToEs:
+      'Has reservado con la web en español, pero en tu ficha tienes el inglés. ¿Quieres cambiar el idioma de tus avisos (WhatsApp, recordatorios) a español?',
+    savedLocaleMismatchAccept: 'Sí, cambiar',
+    savedLocaleMismatchDecline: 'No, dejarlo como está',
     summaryLabels: {
       service: 'Servicio',
       services: 'Tratamientos',
@@ -947,6 +954,13 @@ const en = {
       'Your phone number is not Spanish. Would you like to receive appointment notifications (WhatsApp, reminders) in English?',
     foreignPhoneLocaleAccept: 'Yes, in English',
     foreignPhoneLocaleDecline: 'No, keep Spanish',
+    savedLocaleMismatchTitle: 'Notification language',
+    savedLocaleMismatchToEn:
+      'You booked with the website in English, but your profile is set to Spanish. Would you like to change your notification language (WhatsApp, reminders) to English?',
+    savedLocaleMismatchToEs:
+      'You booked with the website in Spanish, but your profile is set to English. Would you like to change your notification language (WhatsApp, reminders) to Spanish?',
+    savedLocaleMismatchAccept: 'Yes, change it',
+    savedLocaleMismatchDecline: 'No, keep it as is',
     summaryLabels: {
       service: 'Service',
       services: 'Treatments',
