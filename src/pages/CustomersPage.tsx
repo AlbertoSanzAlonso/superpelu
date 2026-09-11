@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type SelectHTMLAttributes } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { BirthdayMessageModal } from '@/components/customers/BirthdayMessageModal'
@@ -41,10 +41,40 @@ const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
 const selectFieldClass =
-  'h-9 w-full cursor-pointer appearance-none border border-gold/30 bg-cream/40 bg-[length:12px] bg-[position:right_0.65rem_center] bg-no-repeat py-0 pl-2.5 pr-9 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:w-auto'
+  'h-9 w-full cursor-pointer appearance-none border border-gold/30 bg-cream/40 py-0 pl-2.5 pr-9 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
 
-const selectChevronBg =
-  "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22 fill=%22none%22%3E%3Cpath d=%22M1 1.5L6 6.5L11 1.5%22 stroke=%22%236B5E4E%22 stroke-width=%221.5%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E')]"
+function FilterSelect({
+  label,
+  wrapperClassName,
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & {
+  label: string
+  wrapperClassName?: string
+}) {
+  return (
+    <label className={`relative block shrink-0 ${wrapperClassName ?? ''}`}>
+      <span className="sr-only">{label}</span>
+      <select {...props} className={selectFieldClass}>
+        {children}
+      </select>
+      <span
+        className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-charcoal-muted"
+        aria-hidden
+      >
+        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" aria-hidden>
+          <path
+            d="M1 1.5L6 6.5L11 1.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </span>
+    </label>
+  )
+}
 
 const CUSTOMERS_PAGE_SIZE = 15
 
@@ -300,8 +330,6 @@ export function CustomersPage() {
     }
   }, [adminToken, selectedPhones])
 
-  const selectClassName = `${selectFieldClass} ${selectChevronBg}`
-
   if (authOk === false) {
     return <Navigate to="/agenda" replace />
   }
@@ -344,7 +372,7 @@ export function CustomersPage() {
           Felicitación cumpleaños
         </Button>
         <form
-          className="flex w-full min-w-0 flex-col gap-3 sm:max-w-none sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center"
+          className="flex w-full min-w-0 flex-col gap-3 sm:max-w-none sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-3"
           onSubmit={(e) => {
             e.preventDefault()
             setPage(1)
@@ -362,69 +390,61 @@ export function CustomersPage() {
             onChange={(e) => setQuery(e.target.value)}
             className={`${searchFieldClass} sm:min-w-[12rem]`}
           />
-          <label className="block shrink-0 sm:w-[10.5rem]">
-            <span className="sr-only">Filtrar por idioma</span>
-            <select
-              value={localeFilter}
-              onChange={(e) => setLocaleFilter(e.target.value as CustomerLocaleFilter)}
-              className={selectClassName}
-            >
-              {CUSTOMER_LOCALE_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block shrink-0 sm:w-[11.5rem]">
-            <span className="sr-only">Filtrar por teléfono</span>
-            <select
-              value={phoneRegionFilter}
-              onChange={(e) =>
-                setPhoneRegionFilter(e.target.value as CustomerPhoneRegionFilter)
-              }
-              className={selectClassName}
-            >
-              {CUSTOMER_PHONE_REGION_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block shrink-0 sm:w-[12rem]">
-            <span className="sr-only">Filtrar por actualización reciente</span>
-            <select
-              value={updatedFilter}
-              onChange={(e) => setUpdatedFilter(e.target.value as CustomerUpdatedFilter)}
-              className={selectClassName}
-            >
-              {CUSTOMER_UPDATED_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block shrink-0 sm:w-[11rem]">
-            <span className="sr-only">Ordenar clientes</span>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as CustomerListSort)}
-              className={selectClassName}
-            >
-              {CUSTOMER_LIST_SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <FilterSelect
+            label="Filtrar por idioma"
+            wrapperClassName="sm:w-[10.5rem]"
+            value={localeFilter}
+            onChange={(e) => setLocaleFilter(e.target.value as CustomerLocaleFilter)}
+          >
+            {CUSTOMER_LOCALE_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            label="Filtrar por teléfono"
+            wrapperClassName="sm:w-[11.5rem]"
+            value={phoneRegionFilter}
+            onChange={(e) =>
+              setPhoneRegionFilter(e.target.value as CustomerPhoneRegionFilter)
+            }
+          >
+            {CUSTOMER_PHONE_REGION_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            label="Filtrar por actualización reciente"
+            wrapperClassName="sm:w-[12rem]"
+            value={updatedFilter}
+            onChange={(e) => setUpdatedFilter(e.target.value as CustomerUpdatedFilter)}
+          >
+            {CUSTOMER_UPDATED_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            label="Ordenar clientes"
+            wrapperClassName="sm:w-[11rem]"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as CustomerListSort)}
+          >
+            {CUSTOMER_LIST_SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </FilterSelect>
           <Button
             type="submit"
             variant="outline"
             size="sm"
-            className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
+            className={`${customersWorkspaceButtonClass} w-full sm:ml-1 sm:w-auto`}
           >
             Buscar
           </Button>
