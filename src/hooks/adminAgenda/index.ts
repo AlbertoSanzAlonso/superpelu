@@ -304,7 +304,6 @@ export function useAdminAgenda(adminToken: string, date: string) {
     viewingBlockSeriesLoading: blocks.viewingBlockSeriesLoading,
     blockDetailBusy: blocks.blockDetailBusy,
     openBlockDetail: blocks.openBlockDetail,
-    resizeBlock: blocks.resizeBlock,
     closeBlockDetail: blocks.closeBlockDetail,
     saveBlockNote: blocks.saveBlockNote,
     deleteViewingBlock: blocks.deleteViewingBlock,

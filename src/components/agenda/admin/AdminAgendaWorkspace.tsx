@@ -120,9 +120,6 @@ export function AdminAgendaWorkspace({
                   onPaintSlots={agenda.applySlots}
                   onEditAppointment={agenda.openAppointmentDetail}
                   onOpenBlock={agenda.openBlockDetail}
-                  onResizeBlock={(staffId, block, startTime, endTime) =>
-                    void agenda.resizeBlock(staffId, block, startTime, endTime)
-                  }
                   onProposeAppointmentMove={agenda.proposeAppointmentMove}
                 />
               </div>

@@ -179,25 +179,6 @@ export function useAdminAgendaGridBlocks({
     [schedules, setSelection, blockDetail],
   )
 
-  const resizeBlock = useCallback(
-    async (_staffId: string, block: DayScheduleBlock, startTime: string, endTime: string) => {
-      if (!adminToken) return
-      if (block.startTime === startTime && block.endTime === endTime) return
-      setGridActionsBusy(true)
-      setError('')
-      try {
-        await updateAdminBlock(adminToken, block.id, { startTime, endTime, mode: 'single' })
-        await load({ silent: true })
-      } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'No se pudo ajustar el bloqueo')
-        await load({ silent: true })
-      } finally {
-        setGridActionsBusy(false)
-      }
-    },
-    [adminToken, load, setError, setGridActionsBusy],
-  )
-
   const saveBlockNote = useCallback(
     async (note: string, mode: 'single' | 'series') => {
       if (!blockDetail.viewing) return
@@ -229,7 +210,6 @@ export function useAdminAgendaGridBlocks({
     viewingBlockSeriesLoading: blockDetail.seriesLoading,
     blockDetailBusy: blockDetail.busy,
     openBlockDetail,
-    resizeBlock,
     closeBlockDetail: blockDetail.close,
     saveBlockNote,
     deleteViewingBlock,

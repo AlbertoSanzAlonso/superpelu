@@ -66,12 +66,6 @@ type Props = {
   onPaintSlots: (staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
-  onResizeBlock: (
-    staffId: string,
-    block: DayScheduleBlock,
-    startTime: string,
-    endTime: string,
-  ) => void
   onProposeAppointmentMove: (payload: AppointmentDragEndPayload) => void
 }
 
@@ -381,7 +375,6 @@ function StaffColumn({
   onPaintSlots,
   onEditAppointment,
   onOpenBlock,
-  onResizeBlock,
   onResizeLeft,
   onResizeRight,
 }: {
@@ -401,12 +394,6 @@ function StaffColumn({
   onPaintSlots: (staffId: string, staffName: string, times: Set<string>) => void
   onEditAppointment: (staffId: string, apt: DayScheduleAppointment) => void
   onOpenBlock: (staffId: string, block: DayScheduleBlock) => void
-  onResizeBlock: (
-    staffId: string,
-    block: DayScheduleBlock,
-    startTime: string,
-    endTime: string,
-  ) => void
   onResizeLeft?: (event: ReactPointerEvent<HTMLDivElement>) => void
   onResizeRight?: (event: ReactPointerEvent<HTMLDivElement>) => void
 }) {
@@ -566,13 +553,7 @@ function StaffColumn({
             block={block}
             range={range}
             interactionsLocked={slotsLocked}
-            resizeEnabled={dragEnabled && !slotsLocked}
-            staffId={schedule.staffId}
-            columnTopFromClientY={columnTopFromClientY}
             onOpen={() => onOpenBlock(schedule.staffId, block)}
-            onResizeEnd={(b, startTime, endTime) =>
-              onResizeBlock(schedule.staffId, b, startTime, endTime)
-            }
           />
         ))}
 
@@ -602,7 +583,6 @@ export function AdminSalonDayCalendar({
   onPaintSlots,
   onEditAppointment,
   onOpenBlock,
-  onResizeBlock,
   onProposeAppointmentMove,
 }: Props) {
   const [slotHeightPx, setSlotHeightPx] = useState(readStoredCalendarSlotHeightPx)
@@ -791,7 +771,6 @@ export function AdminSalonDayCalendar({
                       onPaintSlots={onPaintSlots}
                       onEditAppointment={onEditAppointment}
                       onOpenBlock={onOpenBlock}
-                      onResizeBlock={onResizeBlock}
                       onResizeLeft={
                         index > 0
                           ? (event) => startColumnResize(index - 1, event)
