@@ -9,9 +9,8 @@ function isSpanishStoredPhone(phone: string | null | undefined): boolean {
 
 /**
  * Idioma de la cita (WhatsApp, recordatorios, enlaces).
- * - Con `updateCustomerLocale`: se respeta el idioma pedido (selector / confirmación).
- * - Móvil +34 sin confirmación: siempre español (sanea fichas corruptas a EN).
- * - Resto: ficha del cliente o idioma de la web según el flujo.
+ * - Móvil +34: siempre español (no se puede colar English por la web o un flag erróneo).
+ * - Resto: confirmación explícita, ficha del cliente o idioma de la web.
  */
 export function resolveAppointmentLocaleForCreate(
   input: Pick<
@@ -27,15 +26,15 @@ export function resolveAppointmentLocaleForCreate(
 ): Locale {
   const phone = profile?.phone ?? input.customerPhone
 
+  if (isSpanishStoredPhone(phone)) {
+    return 'es'
+  }
+
   if (input.updateCustomerLocale === true) {
     if (input.forStaffPortal) {
       return normalizeLocale(input.customerLocale ?? profile?.locale)
     }
     return normalizeLocale(input.locale)
-  }
-
-  if (isSpanishStoredPhone(phone)) {
-    return 'es'
   }
 
   if (input.forStaffPortal) {

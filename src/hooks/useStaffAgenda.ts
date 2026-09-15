@@ -533,7 +533,7 @@ export function useStaffAgenda(token: string) {
       return await doSave(
         false,
         undefined,
-        createLocaleRef.current,
+        undefined,
         pendingGuestCustomerRef.current,
         true,
       )
@@ -549,7 +549,7 @@ export function useStaffAgenda(token: string) {
       return await doSave(
         false,
         undefined,
-        createLocaleRef.current,
+        undefined,
         pendingGuestCustomerRef.current,
         false,
       )
@@ -580,9 +580,10 @@ export function useStaffAgenda(token: string) {
   const continueCreateAfterLocale = useCallback(
     async (locale: Locale) => {
       setForeignPhoneLocalePromptOpen(false)
+      createLocaleRef.current = locale
+      updateCustomerLocaleRef.current = true
+      setAptDraft((d) => ({ ...d, customerLocale: locale }))
       if (shouldAskCustomerWhatsAppNotify(aptDraft.customerPhone, false)) {
-        createLocaleRef.current = locale
-        setAptDraft((d) => ({ ...d, customerLocale: locale }))
         openWhatsAppNotifyForCreate()
         return
       }
@@ -846,7 +847,7 @@ export function useStaffAgenda(token: string) {
         const ok = await doSave(
           false,
           resolutions,
-          createLocaleRef.current,
+          undefined,
           pendingGuestCustomerRef.current,
           pendingNotifyWhatsAppRef.current,
         )

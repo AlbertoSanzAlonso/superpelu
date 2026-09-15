@@ -260,7 +260,9 @@ export function useAdminAppointmentPersist({
       if (notifyCustomerWhatsApp !== undefined) {
         pendingNotifyWhatsAppRef.current = notifyCustomerWhatsApp
       }
-      return doPersistAppointment(notifyCustomerWhatsApp, createLocaleRef.current)
+      // No pasar createLocaleRef como override: eso marcaba updateCustomerLocale
+      // y podía reaplicar un idioma viejo (p. ej. English) al confirmar WhatsApp.
+      return doPersistAppointment(notifyCustomerWhatsApp)
     },
     [doPersistAppointment],
   )
@@ -313,6 +315,7 @@ export function useAdminAppointmentPersist({
         return false
       }
       if (shouldAskCreateWhatsAppNotify(aptDraft.customerPhone)) {
+        createLocaleRef.current = aptDraft.customerLocale
         setWhatsAppNotifyContext('create')
         setWhatsAppNotifyDialogOpen(true)
         return false
@@ -384,6 +387,7 @@ export function useAdminAppointmentPersist({
     async (locale: Locale) => {
       setForeignPhoneLocalePromptOpen(false)
       createLocaleRef.current = locale
+      updateCustomerLocaleRef.current = true
       if (shouldAskCreateWhatsAppNotify(aptDraft.customerPhone)) {
         setWhatsAppNotifyContext('create')
         setWhatsAppNotifyDialogOpen(true)
@@ -438,7 +442,7 @@ export function useAdminAppointmentPersist({
             customerEmail: aptDraft.customerEmail || undefined,
             customerNotes: aptDraft.customerNotes || undefined,
             notes: aptDraft.notes || undefined,
-            customerLocale: createLocaleRef.current,
+            customerLocale: aptDraft.customerLocale,
             ...(updateCustomerLocaleRef.current ? { updateCustomerLocale: true } : {}),
             scope: 'weekly',
             endDate: aptDraft.recurrenceEndDate || undefined,

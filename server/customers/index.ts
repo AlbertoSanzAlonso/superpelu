@@ -21,9 +21,10 @@ function isSpanishStoredPhone(phone: string): boolean {
 
 /**
  * Idioma a persistir en ficha.
- * - Con confirmación (`updateCustomerLocale`): se respeta el idioma pedido.
- * - Móvil +34 sin confirmación: siempre español (también sanea fichas pasadas a EN).
- * - Extranjero existente sin confirmación: no se toca el idioma.
+ * - Móvil +34: siempre español al crear/actualizar desde reserva o agenda
+ *   (el panel /clientes puede poner English a mano si hace falta).
+ * - Extranjero: con confirmación se respeta el pedido; sin ella no se toca
+ *   en fichas existentes.
  */
 function localeForCustomerUpsert(input: {
   phone: string
@@ -31,15 +32,15 @@ function localeForCustomerUpsert(input: {
   existing: boolean
   updateCustomerLocale?: boolean
 }): Locale | undefined {
+  if (isSpanishStoredPhone(input.phone)) {
+    return 'es'
+  }
+
   const requested =
     input.requested !== undefined ? normalizeLocale(input.requested) : undefined
 
   if (input.updateCustomerLocale === true && requested !== undefined) {
     return requested
-  }
-
-  if (isSpanishStoredPhone(input.phone)) {
-    return 'es'
   }
 
   if (!input.existing) {
