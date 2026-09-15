@@ -171,7 +171,7 @@ function specialEntriesEqual(
   })
 }
 
-/** Días especiales distintos del snapshot guardado (altas o ediciones). */
+/** Días especiales distintos del snapshot guardado (altas, ediciones o bajas locales). */
 export function pickChangedSpecialDays(
   current: SpecialDaysMap,
   baseline: SpecialDaysMap,
@@ -183,6 +183,14 @@ export function pickChangedSpecialDays(
     }
   }
   return changed
+}
+
+export function specialDaysAreDirty(current: SpecialDaysMap, baseline: SpecialDaysMap): boolean {
+  if (Object.keys(pickChangedSpecialDays(current, baseline)).length > 0) return true
+  for (const date of Object.keys(baseline)) {
+    if (!Object.prototype.hasOwnProperty.call(current, date)) return true
+  }
+  return false
 }
 
 export function detectSpecialStaffSalonConflicts(

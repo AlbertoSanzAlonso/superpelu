@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { typography } from '@/styles/typography'
 import {
   customersWorkspaceButtonClass,
@@ -13,13 +14,15 @@ import {
   fetchFullSchedule,
   fetchSalonSpecialSchedule,
   updateSalonSchedule,
-  updateSalonSpecialSchedule,
   updateStaffSchedule,
 } from '@/lib/api/admin'
 import type { FullScheduleData, SpecialDaysMap } from '@/types/schedule'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { SalonScheduleExpandModal } from '@/components/schedule/SalonScheduleExpandModal'
-import { SpecialScheduleSection } from '@/components/schedule/SpecialScheduleSection'
+import {
+  SpecialScheduleSection,
+  type SpecialScheduleSectionHandle,
+} from '@/components/schedule/SpecialScheduleSection'
 import { DAY_NAMES, DAY_ORDER, emptyWeeklyWindows } from '@/components/schedule/constants'
 import type { WeeklyWindows } from '@/components/schedule/constants'
 import { detectWeeklyStaffSalonConflicts } from '@/lib/schedule/salonBounds'
@@ -71,14 +74,11 @@ function CollapsibleSpecialSection({
         <SectionChevron expanded={expanded} />
         <span className={typography.label}>{title}</span>
       </button>
-      {expanded && (
-        <div id={id} className={description ? 'mt-2' : 'mt-1'}>
-          {description && (
-            <p className="mb-4 text-xs text-charcoal-muted">{description}</p>
-          )}
-          {children}
-        </div>
-      )}
+      {/* Mantener montado para no perder cambios al plegar. */}
+      <div id={id} className={`${description ? 'mt-2' : 'mt-1'} ${expanded ? '' : 'hidden'}`}>
+        {description && <p className="mb-4 text-xs text-charcoal-muted">{description}</p>}
+        {children}
+      </div>
     </section>
   )
 }
@@ -93,6 +93,24 @@ function tabButtonClass(active: boolean) {
   }`
 }
 
+function cloneWeekly(w: WeeklyWindows): WeeklyWindows {
+  return Object.fromEntries(
+    DAY_ORDER.map((d) => [d, (w[d] ?? []).map((r) => ({ ...r }))]),
+  )
+}
+
+function weeklyEqual(a: WeeklyWindows, b: WeeklyWindows): boolean {
+  for (const day of DAY_ORDER) {
+    const left = a[day] ?? []
+    const right = b[day] ?? []
+    if (left.length !== right.length) return false
+    if (!left.every((range, i) => range.start === right[i]?.start && range.end === right[i]?.end)) {
+      return false
+    }
+  }
+  return true
+}
+
 export function ScheduleManagementPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
   const navigate = useNavigate()
@@ -103,6 +121,8 @@ export function ScheduleManagementPage() {
   const [selectedStaffId, setSelectedStaffId] = useState('')
   const [salonWindows, setSalonWindows] = useState<WeeklyWindows>(emptyWeeklyWindows())
   const [staffWindowsMap, setStaffWindowsMap] = useState<Record<string, WeeklyWindows>>({})
+  const [salonBaseline, setSalonBaseline] = useState<WeeklyWindows>(emptyWeeklyWindows())
+  const [staffBaselineMap, setStaffBaselineMap] = useState<Record<string, WeeklyWindows>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [salonSpecialDays, setSalonSpecialDays] = useState<SpecialDaysMap>({})
@@ -114,6 +134,13 @@ export function ScheduleManagementPage() {
   } | null>(null)
   const [salonSpecialExpanded, setSalonSpecialExpanded] = useState(false)
   const [staffSpecialExpanded, setStaffSpecialExpanded] = useState(false)
+  const [specialSalonDirty, setSpecialSalonDirty] = useState(false)
+  const [specialStaffDirty, setSpecialStaffDirty] = useState(false)
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false)
+  const [pendingLeaveAction, setPendingLeaveAction] = useState<(() => void) | null>(null)
+
+  const salonSpecialRef = useRef<SpecialScheduleSectionHandle>(null)
+  const staffSpecialRef = useRef<SpecialScheduleSectionHandle>(null)
 
   const load = useCallback(async () => {
     if (!adminToken) return
@@ -122,18 +149,22 @@ export function ScheduleManagementPage() {
     try {
       const full = await fetchFullSchedule(adminToken)
       setData(full)
-      setSalonWindows(
-        Object.fromEntries(
-          DAY_ORDER.map((d) => [d, full.salon.weeklyWindows[d]?.map((r) => ({ ...r })) ?? []]),
-        ),
+      const salon = Object.fromEntries(
+        DAY_ORDER.map((d) => [d, full.salon.weeklyWindows[d]?.map((r) => ({ ...r })) ?? []]),
       )
+      setSalonWindows(salon)
+      setSalonBaseline(cloneWeekly(salon))
       const map: Record<string, WeeklyWindows> = {}
+      const baselineMap: Record<string, WeeklyWindows> = {}
       for (const s of full.staff) {
-        map[s.staffId] = Object.fromEntries(
+        const windows = Object.fromEntries(
           DAY_ORDER.map((d) => [d, s.weeklyWindows[d]?.map((r) => ({ ...r })) ?? []]),
         )
+        map[s.staffId] = windows
+        baselineMap[s.staffId] = cloneWeekly(windows)
       }
       setStaffWindowsMap(map)
+      setStaffBaselineMap(baselineMap)
       if (full.staff.length > 0) {
         setSelectedStaffId((current) =>
           current && full.staff.some((s) => s.staffId === current) ? current : full.staff[0].staffId,
@@ -151,6 +182,32 @@ export function ScheduleManagementPage() {
   useEffect(() => {
     if (authOk === true) load()
   }, [authOk, load])
+
+  const salonWeeklyDirty = useMemo(
+    () => !weeklyEqual(salonWindows, salonBaseline),
+    [salonWindows, salonBaseline],
+  )
+
+  const staffWeeklyDirty = useMemo(() => {
+    return Object.keys(staffWindowsMap).some((staffId) => {
+      const current = staffWindowsMap[staffId] ?? emptyWeeklyWindows()
+      const baseline = staffBaselineMap[staffId] ?? emptyWeeklyWindows()
+      return !weeklyEqual(current, baseline)
+    })
+  }, [staffWindowsMap, staffBaselineMap])
+
+  const pageDirty =
+    salonWeeklyDirty || staffWeeklyDirty || specialSalonDirty || specialStaffDirty
+
+  useEffect(() => {
+    if (!pageDirty) return
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [pageDirty])
 
   const currentWindows = useMemo(() => {
     if (activeTab === 'salon') return salonWindows
@@ -173,28 +230,37 @@ export function ScheduleManagementPage() {
     [activeTab, selectedStaffId],
   )
 
-  const persistStaffWeekly = async (staffId: string, windows: WeeklyWindows, expandSalon: boolean) => {
-    if (!adminToken) return
+  const persistStaffWeekly = async (
+    staffId: string,
+    windows: WeeklyWindows,
+    expandSalon: boolean,
+  ): Promise<boolean> => {
+    if (!adminToken) return false
     setSaving(true)
     setSaved(false)
     setError('')
     try {
+      let nextSalon = salonWindows
       if (expandSalon && pendingConflicts.length > 0) {
-        const nextSalon = { ...salonWindows }
+        nextSalon = { ...salonWindows }
         for (const conflict of pendingConflicts) {
           nextSalon[conflict.dayOfWeek] = conflict.proposedSalonRanges.map((r) => ({ ...r }))
         }
         await updateSalonSchedule(adminToken, nextSalon)
         setSalonWindows(nextSalon)
+        setSalonBaseline(cloneWeekly(nextSalon))
         setData((prev) =>
           prev ? { ...prev, salon: { ...prev.salon, weeklyWindows: nextSalon } } : prev,
         )
       }
       await updateStaffSchedule(adminToken, staffId, windows)
+      setStaffBaselineMap((prev) => ({ ...prev, [staffId]: cloneWeekly(windows) }))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setSaving(false)
       setExpandModalOpen(false)
@@ -203,48 +269,129 @@ export function ScheduleManagementPage() {
     }
   }
 
-  const handleSave = async () => {
-    if (!adminToken) return
-    if (activeTab === 'salon') {
-      setSaving(true)
-      setSaved(false)
-      setError('')
-      try {
-        await updateSalonSchedule(adminToken, salonWindows)
-        const synced = Object.fromEntries(
-          DAY_ORDER.map((d) => [d, salonWindows[d]?.map((r) => ({ ...r })) ?? []]),
-        )
-        setStaffWindowsMap((prev) => {
-          const next: Record<string, WeeklyWindows> = {}
-          for (const staffId of Object.keys(prev)) {
-            next[staffId] = synced
-          }
-          return next
-        })
-        setSaved(true)
-        setTimeout(() => setSaved(false), 2000)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err))
-      } finally {
-        setSaving(false)
-      }
-      return
+  const saveSalonWeekly = async (): Promise<boolean> => {
+    if (!adminToken) return false
+    setSaving(true)
+    setSaved(false)
+    setError('')
+    try {
+      await updateSalonSchedule(adminToken, salonWindows)
+      const synced = cloneWeekly(salonWindows)
+      setSalonBaseline(synced)
+      setStaffWindowsMap((prev) => {
+        const next: Record<string, WeeklyWindows> = {}
+        for (const staffId of Object.keys(prev)) {
+          next[staffId] = cloneWeekly(synced)
+        }
+        return next
+      })
+      setStaffBaselineMap((prev) => {
+        const next: Record<string, WeeklyWindows> = {}
+        for (const staffId of Object.keys(prev)) {
+          next[staffId] = cloneWeekly(synced)
+        }
+        return next
+      })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+      return true
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      return false
+    } finally {
+      setSaving(false)
     }
+  }
 
-    if (activeTab === 'especiales') return
-
-    if (activeTab !== 'personal' || !selectedStaffId) return
-
-    const windows = staffWindowsMap[selectedStaffId] ?? {}
+  const savePersonalWeekly = async (staffId: string): Promise<boolean> => {
+    const windows = staffWindowsMap[staffId] ?? {}
     const conflicts = detectWeeklyStaffSalonConflicts(windows, salonWindows, DAY_NAMES)
     if (conflicts.length > 0) {
       setPendingConflicts(conflicts)
-      setPendingStaffSave({ staffId: selectedStaffId, windows })
+      setPendingStaffSave({ staffId, windows })
       setExpandModalOpen(true)
+      return false
+    }
+    return persistStaffWeekly(staffId, windows, false)
+  }
+
+  const handleSave = async (): Promise<boolean> => {
+    if (!adminToken) return false
+    if (activeTab === 'salon') return saveSalonWeekly()
+    if (activeTab === 'especiales') return true
+    if (activeTab !== 'personal' || !selectedStaffId) return false
+    return savePersonalWeekly(selectedStaffId)
+  }
+
+  const discardWeeklyChanges = () => {
+    setSalonWindows(cloneWeekly(salonBaseline))
+    setStaffWindowsMap(
+      Object.fromEntries(
+        Object.entries(staffBaselineMap).map(([id, windows]) => [id, cloneWeekly(windows)]),
+      ),
+    )
+    setSaved(false)
+  }
+
+  const saveAllDirty = async (): Promise<boolean> => {
+    if (salonWeeklyDirty) {
+      const ok = await saveSalonWeekly()
+      if (!ok) return false
+    } else {
+      for (const staffId of Object.keys(staffWindowsMap)) {
+        const current = staffWindowsMap[staffId] ?? emptyWeeklyWindows()
+        const baseline = staffBaselineMap[staffId] ?? emptyWeeklyWindows()
+        if (weeklyEqual(current, baseline)) continue
+        const ok = await savePersonalWeekly(staffId)
+        if (!ok) return false
+      }
+    }
+    if (specialSalonDirty) {
+      const ok = await salonSpecialRef.current?.save()
+      if (!ok) return false
+    }
+    if (specialStaffDirty) {
+      const ok = await staffSpecialRef.current?.save()
+      if (!ok) return false
+    }
+    return true
+  }
+
+  const discardAllDirty = () => {
+    discardWeeklyChanges()
+    salonSpecialRef.current?.discard()
+    staffSpecialRef.current?.discard()
+  }
+
+  const requestLeave = (action: () => void) => {
+    if (!pageDirty) {
+      action()
       return
     }
+    setPendingLeaveAction(() => action)
+    setLeaveDialogOpen(true)
+  }
 
-    await persistStaffWeekly(selectedStaffId, windows, false)
+  const requestTabChange = (tab: ScheduleTab) => {
+    if (tab === activeTab) return
+    requestLeave(() => {
+      setActiveTab(tab)
+      if (tab === 'personal' && !selectedStaffId && data?.staff[0]) {
+        setSelectedStaffId(data.staff[0].staffId)
+      }
+    })
+  }
+
+  const requestStaffSelect = (staffId: string) => {
+    if (staffId === selectedStaffId) return
+    const current = staffWindowsMap[selectedStaffId] ?? emptyWeeklyWindows()
+    const baseline = staffBaselineMap[selectedStaffId] ?? emptyWeeklyWindows()
+    const currentDirty = selectedStaffId ? !weeklyEqual(current, baseline) : false
+    if (!currentDirty) {
+      setSelectedStaffId(staffId)
+      return
+    }
+    requestLeave(() => setSelectedStaffId(staffId))
   }
 
   if (authOk === null || loading) {
@@ -272,7 +419,10 @@ export function ScheduleManagementPage() {
             <a
               href="/agenda"
               className={customersWorkspaceLinkClass}
-              onClick={(e) => { e.preventDefault(); navigate('/agenda') }}
+              onClick={(e) => {
+                e.preventDefault()
+                requestLeave(() => navigate('/agenda'))
+              }}
             >
               ← Agenda
             </a>
@@ -281,21 +431,30 @@ export function ScheduleManagementPage() {
               <a
                 href="/servicios"
                 className={customersWorkspaceLinkClass}
-                onClick={(e) => { e.preventDefault(); navigate('/servicios') }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  requestLeave(() => navigate('/servicios'))
+                }}
               >
                 Servicios
               </a>
               <a
                 href="/personal"
                 className={customersWorkspaceLinkClass}
-                onClick={(e) => { e.preventDefault(); navigate('/personal') }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  requestLeave(() => navigate('/personal'))
+                }}
               >
                 Personal
               </a>
               <a
                 href="/clientes"
                 className={customersWorkspaceLinkClass}
-                onClick={(e) => { e.preventDefault(); navigate('/clientes') }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  requestLeave(() => navigate('/clientes'))
+                }}
               >
                 Clientes
               </a>
@@ -304,7 +463,7 @@ export function ScheduleManagementPage() {
                 variant="outline"
                 size="sm"
                 className={customersWorkspaceButtonClass}
-                onClick={handleLogout}
+                onClick={() => requestLeave(handleLogout)}
               >
                 Salir
               </Button>
@@ -322,26 +481,21 @@ export function ScheduleManagementPage() {
           <div className="mb-4 flex flex-wrap gap-1.5">
             <button
               type="button"
-              onClick={() => setActiveTab('salon')}
+              onClick={() => requestTabChange('salon')}
               className={tabButtonClass(activeTab === 'salon')}
             >
               Salon
             </button>
             <button
               type="button"
-              onClick={() => {
-                setActiveTab('personal')
-                if (!selectedStaffId && data?.staff[0]) {
-                  setSelectedStaffId(data.staff[0].staffId)
-                }
-              }}
+              onClick={() => requestTabChange('personal')}
               className={tabButtonClass(activeTab === 'personal')}
             >
               Personal
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('especiales')}
+              onClick={() => requestTabChange('especiales')}
               className={tabButtonClass(activeTab === 'especiales')}
             >
               Especiales
@@ -354,7 +508,7 @@ export function ScheduleManagementPage() {
                 <button
                   key={s.staffId}
                   type="button"
-                  onClick={() => setSelectedStaffId(s.staffId)}
+                  onClick={() => requestStaffSelect(s.staffId)}
                   className={tabButtonClass(selectedStaffId === s.staffId)}
                 >
                   {s.staffName}
@@ -363,36 +517,44 @@ export function ScheduleManagementPage() {
             </div>
           )}
 
-          {activeTab === 'especiales' ? (
-            <div className="mb-4 space-y-4">
-              <CollapsibleSpecialSection
-                id="special-salon-section"
-                title="Centro"
-                description="Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.). Tiene prioridad sobre el horario semanal habitual."
-                expanded={salonSpecialExpanded}
-                onToggle={() => setSalonSpecialExpanded((open) => !open)}
-              >
-                <SpecialScheduleSection scope="salon" adminToken={adminToken!} />
-              </CollapsibleSpecialSection>
+          {/* Especiales siempre montados para conservar borradores y poder guardar al salir. */}
+          <div className={activeTab === 'especiales' ? 'mb-4 space-y-4' : 'hidden'}>
+            <CollapsibleSpecialSection
+              id="special-salon-section"
+              title="Centro"
+              description="Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.). Tiene prioridad sobre el horario semanal habitual."
+              expanded={salonSpecialExpanded}
+              onToggle={() => setSalonSpecialExpanded((open) => !open)}
+            >
+              <SpecialScheduleSection
+                ref={salonSpecialRef}
+                scope="salon"
+                adminToken={adminToken!}
+                onDirtyChange={setSpecialSalonDirty}
+              />
+            </CollapsibleSpecialSection>
 
-              <CollapsibleSpecialSection
-                id="special-staff-section"
-                title="Personal"
-                expanded={staffSpecialExpanded}
-                onToggle={() => setStaffSpecialExpanded((open) => !open)}
-                bordered
-              >
-                <SpecialScheduleSection
-                  scope="staff"
-                  staffList={data?.staff ?? []}
-                  adminToken={adminToken!}
-                  salonWeeklyWindows={salonWindows}
-                  salonSpecialDays={salonSpecialDays}
-                  onSalonSpecialDaysChange={setSalonSpecialDays}
-                />
-              </CollapsibleSpecialSection>
-            </div>
-          ) : (
+            <CollapsibleSpecialSection
+              id="special-staff-section"
+              title="Personal"
+              expanded={staffSpecialExpanded}
+              onToggle={() => setStaffSpecialExpanded((open) => !open)}
+              bordered
+            >
+              <SpecialScheduleSection
+                ref={staffSpecialRef}
+                scope="staff"
+                staffList={data?.staff ?? []}
+                adminToken={adminToken!}
+                salonWeeklyWindows={salonWindows}
+                salonSpecialDays={salonSpecialDays}
+                onSalonSpecialDaysChange={setSalonSpecialDays}
+                onDirtyChange={setSpecialStaffDirty}
+              />
+            </CollapsibleSpecialSection>
+          </div>
+
+          {activeTab !== 'especiales' && (
             <>
               <div className="mb-4">
                 <p className={`${typography.label} mb-3`}>
@@ -411,7 +573,7 @@ export function ScheduleManagementPage() {
                     type="button"
                     variant="solid"
                     size="sm"
-                    onClick={handleSave}
+                    onClick={() => void handleSave()}
                     disabled={saving}
                   >
                     {saving ? 'Guardando...' : 'Guardar cambios'}
@@ -447,6 +609,41 @@ export function ScheduleManagementPage() {
         onSaveWithoutExpand={() => {
           if (!pendingStaffSave) return
           void persistStaffWeekly(pendingStaffSave.staffId, pendingStaffSave.windows, false)
+        }}
+      />
+
+      <ConfirmDialog
+        open={leaveDialogOpen}
+        title="¿Salir sin guardar?"
+        message="Tienes cambios sin guardar en los horarios."
+        confirmLabel="Guardar cambios"
+        cancelLabel="Salir sin guardar"
+        secondaryLabel="Seguir editando"
+        busy={saving}
+        onClose={() => {
+          if (saving) return
+          const action = pendingLeaveAction
+          setLeaveDialogOpen(false)
+          setPendingLeaveAction(null)
+          discardAllDirty()
+          action?.()
+        }}
+        onSecondary={() => {
+          if (saving) return
+          setLeaveDialogOpen(false)
+          setPendingLeaveAction(null)
+        }}
+        onConfirm={async () => {
+          const ok = await saveAllDirty()
+          if (!ok) {
+            setLeaveDialogOpen(false)
+            setPendingLeaveAction(null)
+            return
+          }
+          const action = pendingLeaveAction
+          setLeaveDialogOpen(false)
+          setPendingLeaveAction(null)
+          action?.()
         }}
       />
     </AgendaWorkspaceShell>

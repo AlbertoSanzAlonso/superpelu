@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useState, forwardRef } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CustomerAppointmentHistoryPagination } from '@/components/customers/CustomerAppointmentHistoryPagination'
 import {
   deleteSalonSpecialDate,
@@ -24,6 +25,7 @@ import { createSpecialDayEntry, specialDayRanges } from '@/types/schedule'
 import {
   detectSpecialStaffSalonConflicts,
   pickChangedSpecialDays,
+  specialDaysAreDirty,
   type SpecialSalonConflict,
 } from '@/lib/schedule/salonBounds'
 import {
@@ -47,7 +49,15 @@ type SalonSpecialProps = {
   adminToken: string
 }
 
-type SpecialScheduleSectionProps = StaffSpecialProps | SalonSpecialProps
+type SpecialScheduleSectionProps = (StaffSpecialProps | SalonSpecialProps) & {
+  onDirtyChange?: (dirty: boolean) => void
+}
+
+export type SpecialScheduleSectionHandle = {
+  isDirty: () => boolean
+  save: () => Promise<boolean>
+  discard: () => void
+}
 
 type SpecialDateFilterMode = 'all' | 'default' | 'month'
 
@@ -73,8 +83,11 @@ function formatSpanTitle(span: SpecialDaySpan): string {
   return formatSpecialDateRangeLabel(span.start, span.end)
 }
 
-export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
-  const { adminToken, scope } = props
+export const SpecialScheduleSection = forwardRef<
+  SpecialScheduleSectionHandle,
+  SpecialScheduleSectionProps
+>(function SpecialScheduleSection(props, ref) {
+  const { adminToken, scope, onDirtyChange } = props
   const staffList = scope === 'staff' ? props.staffList : []
   const [selectedStaffId, setSelectedStaffId] = useState(staffList[0]?.staffId ?? '')
   const [specialDays, setSpecialDays] = useState<SpecialDaysMap>({})
@@ -92,6 +105,9 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const [filterMode, setFilterMode] = useState<SpecialDateFilterMode>('default')
   const [selectedMonth, setSelectedMonth] = useState(() => todaySalon().slice(0, 7))
   const [page, setPage] = useState(1)
+  const [addCalendarOpen, setAddCalendarOpen] = useState(false)
+  const [unsavedStaffOpen, setUnsavedStaffOpen] = useState(false)
+  const [pendingStaffId, setPendingStaffId] = useState<string | null>(null)
 
   const salonWeeklyWindows = scope === 'staff' ? props.salonWeeklyWindows : {}
   const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
@@ -107,7 +123,12 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     setPage(1)
     setRangeStart('')
     setRangeEnd('')
-  }, [selectedStaffId, filterMode, selectedMonth])
+    setAddCalendarOpen(false)
+  }, [selectedStaffId])
+
+  useEffect(() => {
+    setPage(1)
+  }, [filterMode, selectedMonth])
 
   const load = useCallback(async () => {
     if (scope === 'staff' && !selectedStaffId) return
@@ -157,6 +178,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     })
     setRangeStart('')
     setRangeEnd('')
+    setAddCalendarOpen(false)
     setFilterMode('month')
     setSelectedMonth(filterMonth)
     setPage(1)
@@ -164,7 +186,6 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   }
 
   const existingSpecialDates = useMemo(() => new Set(Object.keys(specialDays)), [specialDays])
-  const selectedRangeLabel = formatSpecialDateRangeLabel(rangeStart, rangeEnd)
   const datesToAddCount = rangeStart
     ? enumerateDateRange(rangeStart, rangeEnd || rangeStart).filter((d) => !specialDays[d]).length
     : 0
@@ -233,8 +254,11 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     }
   }
 
-  const persistStaffSpecial = async (specialDays: SpecialDaysMap, expandSalon: boolean) => {
-    if (!selectedStaffId) return
+  const persistStaffSpecial = async (
+    nextSpecialDays: SpecialDaysMap,
+    expandSalon: boolean,
+  ): Promise<boolean> => {
+    if (!selectedStaffId) return false
     setSaving(true)
     setSaved(false)
     setError('')
@@ -250,13 +274,15 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
         const res = await updateSalonSpecialSchedule(adminToken, nextSalonSpecial)
         onSalonSpecialDaysChange(res.specialDays)
       }
-      const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, specialDays)
+      const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, nextSpecialDays)
       setSpecialDays(res.specialDays)
       setBaselineSpecialDays(res.specialDays)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      return false
     } finally {
       setSaving(false)
       setExpandModalOpen(false)
@@ -265,8 +291,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     }
   }
 
-  const handleSave = async () => {
-    if (scope === 'staff' && !selectedStaffId) return
+  const handleSave = async (): Promise<boolean> => {
+    if (scope === 'staff' && !selectedStaffId) return false
     if (scope === 'salon') {
       setSaving(true)
       setSaved(false)
@@ -277,12 +303,13 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
         setBaselineSpecialDays(res.specialDays)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
+        return true
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err))
+        return false
       } finally {
         setSaving(false)
       }
-      return
     }
 
     const changedDays = pickChangedSpecialDays(specialDays, baselineSpecialDays)
@@ -302,10 +329,50 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       setPendingConflicts(conflicts)
       setPendingSpecialDays(specialDays)
       setExpandModalOpen(true)
-      return
+      return false
     }
 
-    await persistStaffSpecial(specialDays, false)
+    return persistStaffSpecial(specialDays, false)
+  }
+
+  const discardChanges = useCallback(() => {
+    setSpecialDays(baselineSpecialDays)
+    setRangeStart('')
+    setRangeEnd('')
+    setAddCalendarOpen(false)
+    setSaved(false)
+    setError('')
+  }, [baselineSpecialDays])
+
+  const isDirty = useMemo(
+    () => specialDaysAreDirty(specialDays, baselineSpecialDays),
+    [specialDays, baselineSpecialDays],
+  )
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty)
+  }, [isDirty, onDirtyChange])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      isDirty: () => specialDaysAreDirty(specialDays, baselineSpecialDays),
+      save: handleSave,
+      discard: discardChanges,
+    }),
+    // handleSave closes over latest state; discard/isDirty deps listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [specialDays, baselineSpecialDays, discardChanges, scope, selectedStaffId, adminToken, salonWeeklyWindows, salonSpecialDays, pendingConflicts],
+  )
+
+  const requestStaffChange = (nextStaffId: string) => {
+    if (nextStaffId === selectedStaffId) return
+    if (!isDirty) {
+      setSelectedStaffId(nextStaffId)
+      return
+    }
+    setPendingStaffId(nextStaffId)
+    setUnsavedStaffOpen(true)
   }
 
   const sortedDates = Object.keys(specialDays).sort()
@@ -345,7 +412,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
             <button
               key={s.staffId}
               type="button"
-              onClick={() => setSelectedStaffId(s.staffId)}
+              onClick={() => requestStaffChange(s.staffId)}
               className={`cursor-pointer border px-3 py-1.5 text-xs transition-colors ${
                 selectedStaffId === s.staffId
                   ? 'border-gold bg-gold/15 text-gold-dark'
@@ -387,31 +454,48 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
               )}
             </div>
             <div className="flex flex-col items-start gap-2">
-              <span className={typography.label}>Añadir dias</span>
-              <SpecialDateRangeCalendar
-                rangeStart={rangeStart}
-                rangeEnd={rangeEnd}
-                onPick={pickRangeDate}
-                existingDates={existingSpecialDates}
-                minDate={todaySalon()}
-              />
-              <p className={`${typography.caption} normal-case tracking-normal text-[11px]`}>
-                {rangeStart
-                  ? rangeEnd
-                    ? `Franja: ${selectedRangeLabel}`
-                    : `Dia: ${selectedRangeLabel} (pulsa otro dia para ampliar la franja)`
-                  : 'Pulsa un dia; opcionalmente otro para una franja.'}
-              </p>
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs"
-                onClick={addDateRange}
-                disabled={!rangeStart || datesToAddCount === 0}
+                onClick={() => {
+                  setAddCalendarOpen((open) => {
+                    if (open) {
+                      setRangeStart('')
+                      setRangeEnd('')
+                    }
+                    return !open
+                  })
+                }}
+                className={`flex h-8 cursor-pointer items-center gap-1.5 border px-3 text-xs transition-colors ${
+                  addCalendarOpen
+                    ? 'border-gold bg-gold/15 text-gold-dark'
+                    : 'border-gold/30 text-charcoal-muted hover:border-gold/60'
+                }`}
+                aria-expanded={addCalendarOpen}
               >
-                {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
-              </Button>
+                <span aria-hidden>{addCalendarOpen ? '▾' : '▸'}</span>
+                Añadir dias
+              </button>
+              {addCalendarOpen && (
+                <>
+                  <SpecialDateRangeCalendar
+                    rangeStart={rangeStart}
+                    rangeEnd={rangeEnd}
+                    onPick={pickRangeDate}
+                    existingDates={existingSpecialDates}
+                    minDate={todaySalon()}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={addDateRange}
+                    disabled={!rangeStart || datesToAddCount === 0}
+                  >
+                    {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
@@ -552,6 +636,41 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={unsavedStaffOpen}
+        title="¿Salir sin guardar?"
+        message="Tienes cambios sin guardar en los horarios especiales."
+        confirmLabel="Guardar cambios"
+        cancelLabel="Salir sin guardar"
+        secondaryLabel="Seguir editando"
+        busy={saving}
+        onClose={() => {
+          if (saving) return
+          const nextId = pendingStaffId
+          setUnsavedStaffOpen(false)
+          setPendingStaffId(null)
+          discardChanges()
+          if (nextId) setSelectedStaffId(nextId)
+        }}
+        onSecondary={() => {
+          if (saving) return
+          setUnsavedStaffOpen(false)
+          setPendingStaffId(null)
+        }}
+        onConfirm={async () => {
+          const ok = await handleSave()
+          if (!ok) {
+            setUnsavedStaffOpen(false)
+            setPendingStaffId(null)
+            return
+          }
+          const nextId = pendingStaffId
+          setUnsavedStaffOpen(false)
+          setPendingStaffId(null)
+          if (nextId) setSelectedStaffId(nextId)
+        }}
+      />
     </div>
   )
-}
+})
