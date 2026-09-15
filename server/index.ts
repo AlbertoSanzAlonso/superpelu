@@ -292,8 +292,8 @@ app.put('/api/admin/schedule/special/:staffId', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
   const staffId = c.req.param('staffId')
-  const body = await c.req.json<{ specialDays?: Record<string, ScheduleTimeRange[]> }>().catch(
-    () => ({} as { specialDays?: Record<string, ScheduleTimeRange[]> }),
+  const body = await c.req.json<{ specialDays?: Record<string, unknown> }>().catch(
+    () => ({} as { specialDays?: Record<string, unknown> }),
   )
   if (!body.specialDays || typeof body.specialDays !== 'object') {
     return c.json({ error: 'Falta specialDays' }, 400)
@@ -324,8 +324,8 @@ app.get('/api/admin/schedule/salon/special', async (c) => {
 app.put('/api/admin/schedule/salon/special', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
-  const body = await c.req.json<{ specialDays?: Record<string, ScheduleTimeRange[]> }>().catch(
-    () => ({} as { specialDays?: Record<string, ScheduleTimeRange[]> }),
+  const body = await c.req.json<{ specialDays?: Record<string, unknown> }>().catch(
+    () => ({} as { specialDays?: Record<string, unknown> }),
   )
   if (!body.specialDays || typeof body.specialDays !== 'object') {
     return c.json({ error: 'Falta specialDays' }, 400)

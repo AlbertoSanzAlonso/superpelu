@@ -19,7 +19,8 @@ import {
 } from './SpecialDateRangeCalendar'
 import { SalonScheduleExpandModal } from './SalonScheduleExpandModal'
 import { DAY_NAMES } from './constants'
-import type { ScheduleTimeRange } from '@/types/schedule'
+import type { ScheduleTimeRange, SpecialDaysMap } from '@/types/schedule'
+import { createSpecialDayEntry, specialDayRanges } from '@/types/schedule'
 import {
   detectSpecialStaffSalonConflicts,
   pickChangedSpecialDays,
@@ -27,6 +28,7 @@ import {
 } from '@/lib/schedule/salonBounds'
 import {
   groupSpecialDaySpans,
+  rangesEqual,
   spanIntersectsMonth,
   type SpecialDaySpan,
 } from '@/lib/schedule/specialDaySpans'
@@ -36,8 +38,8 @@ type StaffSpecialProps = {
   adminToken: string
   staffList: { staffId: string; staffName: string }[]
   salonWeeklyWindows: Record<number, ScheduleTimeRange[]>
-  salonSpecialDays: Record<string, ScheduleTimeRange[]>
-  onSalonSpecialDaysChange: (days: Record<string, ScheduleTimeRange[]>) => void
+  salonSpecialDays: SpecialDaysMap
+  onSalonSpecialDaysChange: (days: SpecialDaysMap) => void
 }
 
 type SalonSpecialProps = {
@@ -53,6 +55,9 @@ const SPECIAL_SPANS_PAGE_SIZE = 5
 
 const filterFieldClass =
   'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs text-charcoal outline-none focus:border-gold'
+
+const noteFieldClass =
+  'mt-2 w-full resize-y border border-gold/30 bg-cream px-2 py-1.5 text-xs text-charcoal outline-none focus:border-gold'
 
 function formatSpanTitle(span: SpecialDaySpan): string {
   if (span.start === span.end) {
@@ -72,11 +77,9 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const { adminToken, scope } = props
   const staffList = scope === 'staff' ? props.staffList : []
   const [selectedStaffId, setSelectedStaffId] = useState(staffList[0]?.staffId ?? '')
-  const [specialDays, setSpecialDays] = useState<Record<string, ScheduleTimeRange[]>>({})
+  const [specialDays, setSpecialDays] = useState<SpecialDaysMap>({})
   /** Snapshot del último load/guardado: el aviso de ampliación solo mira días tocados desde entonces. */
-  const [baselineSpecialDays, setBaselineSpecialDays] = useState<
-    Record<string, ScheduleTimeRange[]>
-  >({})
+  const [baselineSpecialDays, setBaselineSpecialDays] = useState<SpecialDaysMap>({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [rangeStart, setRangeStart] = useState('')
@@ -85,9 +88,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   const [saved, setSaved] = useState(false)
   const [expandModalOpen, setExpandModalOpen] = useState(false)
   const [pendingConflicts, setPendingConflicts] = useState<SpecialSalonConflict[]>([])
-  const [pendingSpecialDays, setPendingSpecialDays] = useState<Record<string, ScheduleTimeRange[]> | null>(
-    null,
-  )
+  const [pendingSpecialDays, setPendingSpecialDays] = useState<SpecialDaysMap | null>(null)
   const [filterMode, setFilterMode] = useState<SpecialDateFilterMode>('default')
   const [selectedMonth, setSelectedMonth] = useState(() => todaySalon().slice(0, 7))
   const [page, setPage] = useState(1)
@@ -146,15 +147,19 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     const dates = enumerateDateRange(rangeStart, rangeEnd || rangeStart)
     const toAdd = dates.filter((date) => !specialDays[date])
     if (toAdd.length === 0) return
+    const filterMonth = toAdd[0]!.slice(0, 7)
     setSpecialDays((prev) => {
       const next = { ...prev }
       for (const date of toAdd) {
-        next[date] = [{ start: '10:00', end: '14:00' }]
+        next[date] = createSpecialDayEntry()
       }
       return next
     })
     setRangeStart('')
     setRangeEnd('')
+    setFilterMode('month')
+    setSelectedMonth(filterMonth)
+    setPage(1)
     setSaved(false)
   }
 
@@ -168,7 +173,20 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     setSpecialDays((prev) => {
       const next = { ...prev }
       for (const date of dates) {
-        next[date] = ranges.map((r) => ({ ...r }))
+        const note = prev[date]?.note ?? ''
+        next[date] = createSpecialDayEntry(ranges, note)
+      }
+      return next
+    })
+    setSaved(false)
+  }
+
+  const updateSpanNote = (dates: string[], note: string) => {
+    setSpecialDays((prev) => {
+      const next = { ...prev }
+      for (const date of dates) {
+        const ranges = specialDayRanges(prev[date])
+        next[date] = createSpecialDayEntry(ranges, note)
       }
       return next
     })
@@ -177,13 +195,13 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
 
   const toggleSpanClosed = (dates: string[]) => {
     setSpecialDays((prev) => {
-      const currentlyClosed = (prev[dates[0]!]?.length ?? 0) === 0
+      const currentlyClosed = specialDayRanges(prev[dates[0]!]).length === 0
       const nextRanges: ScheduleTimeRange[] = currentlyClosed
         ? [{ start: '10:00', end: '14:00' }]
         : []
       const next = { ...prev }
       for (const date of dates) {
-        next[date] = nextRanges.map((r) => ({ ...r }))
+        next[date] = createSpecialDayEntry(nextRanges, prev[date]?.note ?? '')
       }
       return next
     })
@@ -215,10 +233,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     }
   }
 
-  const persistStaffSpecial = async (
-    specialDays: Record<string, ScheduleTimeRange[]>,
-    expandSalon: boolean,
-  ) => {
+  const persistStaffSpecial = async (specialDays: SpecialDaysMap, expandSalon: boolean) => {
     if (!selectedStaffId) return
     setSaving(true)
     setSaved(false)
@@ -227,7 +242,10 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
       if (expandSalon && pendingConflicts.length > 0) {
         const nextSalonSpecial = { ...salonSpecialDays }
         for (const conflict of pendingConflicts) {
-          nextSalonSpecial[conflict.date] = conflict.proposedSalonRanges.map((r) => ({ ...r }))
+          nextSalonSpecial[conflict.date] = createSpecialDayEntry(
+            conflict.proposedSalonRanges,
+            nextSalonSpecial[conflict.date]?.note ?? '',
+          )
         }
         const res = await updateSalonSpecialSchedule(adminToken, nextSalonSpecial)
         onSalonSpecialDaysChange(res.specialDays)
@@ -268,8 +286,15 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     }
 
     const changedDays = pickChangedSpecialDays(specialDays, baselineSpecialDays)
+    // Solo comprobar ampliación del salón si cambian las franjas horarias (no el comentario).
+    const rangeChangedDays: SpecialDaysMap = {}
+    for (const [date, entry] of Object.entries(changedDays)) {
+      if (!rangesEqual(specialDayRanges(entry), specialDayRanges(baselineSpecialDays[date]))) {
+        rangeChangedDays[date] = entry
+      }
+    }
     const conflicts = detectSpecialStaffSalonConflicts(
-      changedDays,
+      rangeChangedDays,
       salonWeeklyWindows,
       salonSpecialDays,
     )
@@ -451,6 +476,22 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
                           onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
                         />
                       )}
+                      <label className="mt-2 block">
+                        <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>
+                          Comentario
+                        </span>
+                        <textarea
+                          value={span.note}
+                          onChange={(e) => updateSpanNote(span.dates, e.target.value)}
+                          placeholder={
+                            isMultiDay
+                              ? 'Texto explicativo de la franja (opcional)'
+                              : 'Texto explicativo del dia (opcional)'
+                          }
+                          rows={2}
+                          className={noteFieldClass}
+                        />
+                      </label>
                     </div>
                   )
                 })}

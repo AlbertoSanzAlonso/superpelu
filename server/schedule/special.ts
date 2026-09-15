@@ -2,7 +2,12 @@ import { sql } from '@server/db.js'
 import type { SalonSpecialScheduleRow, StaffSpecialAvailabilityRow } from '@server/pg/types.js'
 import type { ScheduleTimeRange } from '@server/schedule/index.js'
 
-export type SpecialDaysMap = Record<string, ScheduleTimeRange[]>
+export type SpecialDayEntry = {
+  ranges: ScheduleTimeRange[]
+  note: string
+}
+
+export type SpecialDaysMap = Record<string, SpecialDayEntry>
 
 function rowToRange(row: { start_time: string; end_time: string; is_closed?: boolean }): ScheduleTimeRange | null {
   if (row.is_closed) return null
@@ -13,11 +18,51 @@ function rowsToRanges(rows: { start_time: string; end_time: string; is_closed?: 
   return rows.map(rowToRange).filter((range): range is ScheduleTimeRange => range !== null)
 }
 
+/** Acepta el formato nuevo `{ ranges, note }` o el legado (array de franjas). */
+export function normalizeSpecialDayEntry(value: unknown): SpecialDayEntry {
+  if (Array.isArray(value)) {
+    return {
+      ranges: value
+        .filter(
+          (r): r is ScheduleTimeRange =>
+            !!r && typeof r === 'object' && typeof r.start === 'string' && typeof r.end === 'string',
+        )
+        .map((r) => ({ start: r.start, end: r.end })),
+      note: '',
+    }
+  }
+  if (value && typeof value === 'object') {
+    const obj = value as { ranges?: unknown; note?: unknown }
+    const ranges = Array.isArray(obj.ranges)
+      ? obj.ranges
+          .filter(
+            (r): r is ScheduleTimeRange =>
+              !!r && typeof r === 'object' && typeof (r as ScheduleTimeRange).start === 'string' && typeof (r as ScheduleTimeRange).end === 'string',
+          )
+          .map((r) => ({ start: r.start, end: r.end }))
+      : []
+    const note = typeof obj.note === 'string' ? obj.note : ''
+    return { ranges, note }
+  }
+  return { ranges: [], note: '' }
+}
+
+export function normalizeSpecialDaysMap(input: Record<string, unknown>): SpecialDaysMap {
+  const out: SpecialDaysMap = {}
+  for (const [date, value] of Object.entries(input)) {
+    out[date] = normalizeSpecialDayEntry(value)
+  }
+  return out
+}
+
 async function persistSpecialDay(
   table: 'staff' | 'salon',
   key: { staffId?: string; date: string },
-  ranges: ScheduleTimeRange[],
+  entry: SpecialDayEntry,
 ): Promise<void> {
+  const note = entry.note ?? ''
+  const ranges = entry.ranges ?? []
+
   if (table === 'staff') {
     await sql`
       DELETE FROM staff_special_availability
@@ -30,13 +75,13 @@ async function persistSpecialDay(
   if (!ranges.length) {
     if (table === 'staff') {
       await sql`
-        INSERT INTO staff_special_availability (staff_id, special_date, start_time, end_time, is_closed)
-        VALUES (${key.staffId!}, ${key.date}, '00:00', '00:00', TRUE)
+        INSERT INTO staff_special_availability (staff_id, special_date, start_time, end_time, is_closed, note)
+        VALUES (${key.staffId!}, ${key.date}, '00:00', '00:00', TRUE, ${note})
       `
     } else {
       await sql`
-        INSERT INTO salon_special_schedule (special_date, start_time, end_time, is_closed)
-        VALUES (${key.date}, '00:00', '00:00', TRUE)
+        INSERT INTO salon_special_schedule (special_date, start_time, end_time, is_closed, note)
+        VALUES (${key.date}, '00:00', '00:00', TRUE, ${note})
       `
     }
     return
@@ -45,26 +90,28 @@ async function persistSpecialDay(
   for (const range of ranges) {
     if (table === 'staff') {
       await sql`
-        INSERT INTO staff_special_availability (staff_id, special_date, start_time, end_time, is_closed)
-        VALUES (${key.staffId!}, ${key.date}, ${range.start}, ${range.end}, FALSE)
+        INSERT INTO staff_special_availability (staff_id, special_date, start_time, end_time, is_closed, note)
+        VALUES (${key.staffId!}, ${key.date}, ${range.start}, ${range.end}, FALSE, ${note})
         ON CONFLICT (staff_id, special_date, start_time) DO UPDATE SET
           end_time = EXCLUDED.end_time,
-          is_closed = FALSE
+          is_closed = FALSE,
+          note = EXCLUDED.note
       `
     } else {
       await sql`
-        INSERT INTO salon_special_schedule (special_date, start_time, end_time, is_closed)
-        VALUES (${key.date}, ${range.start}, ${range.end}, FALSE)
+        INSERT INTO salon_special_schedule (special_date, start_time, end_time, is_closed, note)
+        VALUES (${key.date}, ${range.start}, ${range.end}, FALSE, ${note})
         ON CONFLICT (special_date, start_time) DO UPDATE SET
           end_time = EXCLUDED.end_time,
-          is_closed = FALSE
+          is_closed = FALSE,
+          note = EXCLUDED.note
       `
     }
   }
 }
 
 function buildSpecialDaysMap(
-  rows: { special_date: string; start_time: string; end_time: string; is_closed?: boolean }[],
+  rows: { special_date: string; start_time: string; end_time: string; is_closed?: boolean; note?: string | null }[],
 ): SpecialDaysMap {
   const specialDays: SpecialDaysMap = {}
   const byDate = new Map<string, typeof rows>()
@@ -76,10 +123,13 @@ function buildSpecialDaysMap(
   }
 
   for (const [date, dateRows] of byDate) {
+    const note = dateRows.find((row) => (row.note ?? '').trim())?.note
+      ?? dateRows[0]?.note
+      ?? ''
     if (dateRows.some((row) => row.is_closed)) {
-      specialDays[date] = []
+      specialDays[date] = { ranges: [], note: note ?? '' }
     } else {
-      specialDays[date] = rowsToRanges(dateRows)
+      specialDays[date] = { ranges: rowsToRanges(dateRows), note: note ?? '' }
     }
   }
 
@@ -92,7 +142,7 @@ export async function getStaffSpecialSchedule(
   dateTo?: string,
 ): Promise<SpecialDaysMap> {
   const rows = await sql<StaffSpecialAvailabilityRow[]>`
-    SELECT staff_id, special_date, start_time, end_time, is_closed
+    SELECT staff_id, special_date, start_time, end_time, is_closed, note
     FROM staff_special_availability
     WHERE staff_id = ${staffId}
     ${dateFrom ? sql` AND special_date >= ${dateFrom}` : sql``}
@@ -108,7 +158,7 @@ export async function resolveStaffSpecialSchedule(
   date: string,
 ): Promise<ScheduleTimeRange[] | null> {
   const rows = await sql<StaffSpecialAvailabilityRow[]>`
-    SELECT staff_id, special_date, start_time, end_time, is_closed
+    SELECT staff_id, special_date, start_time, end_time, is_closed, note
     FROM staff_special_availability
     WHERE staff_id = ${staffId} AND special_date = ${date}
     ORDER BY start_time ASC
@@ -128,10 +178,11 @@ export async function getSpecialScheduleForDate(
 
 export async function setStaffSpecialSchedule(
   staffId: string,
-  specialDays: SpecialDaysMap,
+  specialDays: SpecialDaysMap | Record<string, unknown>,
 ): Promise<SpecialDaysMap> {
-  for (const [date, ranges] of Object.entries(specialDays)) {
-    await persistSpecialDay('staff', { staffId, date }, ranges ?? [])
+  const normalized = normalizeSpecialDaysMap(specialDays as Record<string, unknown>)
+  for (const [date, entry] of Object.entries(normalized)) {
+    await persistSpecialDay('staff', { staffId, date }, entry)
   }
   return getStaffSpecialSchedule(staffId)
 }
@@ -151,7 +202,7 @@ export async function getSalonSpecialSchedule(
   dateTo?: string,
 ): Promise<SpecialDaysMap> {
   const rows = await sql<SalonSpecialScheduleRow[]>`
-    SELECT special_date, start_time, end_time, is_closed
+    SELECT special_date, start_time, end_time, is_closed, note
     FROM salon_special_schedule
     WHERE 1 = 1
     ${dateFrom ? sql` AND special_date >= ${dateFrom}` : sql``}
@@ -164,7 +215,7 @@ export async function getSalonSpecialSchedule(
 
 export async function resolveSalonSpecialSchedule(date: string): Promise<ScheduleTimeRange[] | null> {
   const rows = await sql<SalonSpecialScheduleRow[]>`
-    SELECT special_date, start_time, end_time, is_closed
+    SELECT special_date, start_time, end_time, is_closed, note
     FROM salon_special_schedule
     WHERE special_date = ${date}
     ORDER BY start_time ASC
@@ -174,15 +225,16 @@ export async function resolveSalonSpecialSchedule(date: string): Promise<Schedul
   return rowsToRanges(rows)
 }
 
-export async function getSalonSpecialScheduleForDate(date: string): Promise<SpecialDaysMap[string] | null> {
-  const resolved = await resolveSalonSpecialSchedule(date)
-  if (resolved === null) return null
-  return resolved
+export async function getSalonSpecialScheduleForDate(date: string): Promise<ScheduleTimeRange[] | null> {
+  return resolveSalonSpecialSchedule(date)
 }
 
-export async function setSalonSpecialSchedule(specialDays: SpecialDaysMap): Promise<SpecialDaysMap> {
-  for (const [date, ranges] of Object.entries(specialDays)) {
-    await persistSpecialDay('salon', { date }, ranges ?? [])
+export async function setSalonSpecialSchedule(
+  specialDays: SpecialDaysMap | Record<string, unknown>,
+): Promise<SpecialDaysMap> {
+  const normalized = normalizeSpecialDaysMap(specialDays as Record<string, unknown>)
+  for (const [date, entry] of Object.entries(normalized)) {
+    await persistSpecialDay('salon', { date }, entry)
   }
   return getSalonSpecialSchedule()
 }

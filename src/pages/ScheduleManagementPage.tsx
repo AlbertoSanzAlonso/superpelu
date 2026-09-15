@@ -16,7 +16,7 @@ import {
   updateSalonSpecialSchedule,
   updateStaffSchedule,
 } from '@/lib/api/admin'
-import type { FullScheduleData } from '@/types/schedule'
+import type { FullScheduleData, SpecialDaysMap } from '@/types/schedule'
 import { ScheduleEditor } from '@/components/schedule/ScheduleEditor'
 import { SalonScheduleExpandModal } from '@/components/schedule/SalonScheduleExpandModal'
 import { SpecialScheduleSection } from '@/components/schedule/SpecialScheduleSection'
@@ -105,7 +105,7 @@ export function ScheduleManagementPage() {
   const [staffWindowsMap, setStaffWindowsMap] = useState<Record<string, WeeklyWindows>>({})
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [salonSpecialDays, setSalonSpecialDays] = useState<Record<string, { start: string; end: string }[]>>({})
+  const [salonSpecialDays, setSalonSpecialDays] = useState<SpecialDaysMap>({})
   const [expandModalOpen, setExpandModalOpen] = useState(false)
   const [pendingConflicts, setPendingConflicts] = useState<WeeklySalonConflict[]>([])
   const [pendingStaffSave, setPendingStaffSave] = useState<{

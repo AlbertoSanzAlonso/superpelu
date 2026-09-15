@@ -1,5 +1,6 @@
 import { addDaysToDateString } from '@/lib/core/dates'
-import type { ScheduleTimeRange } from '@/types/schedule'
+import type { ScheduleTimeRange, SpecialDaysMap } from '@/types/schedule'
+import { specialDayRanges } from '@/types/schedule'
 
 export type SpecialDaySpan = {
   /** Clave estable para React: inicio–fin. */
@@ -8,6 +9,7 @@ export type SpecialDaySpan = {
   end: string
   dates: string[]
   ranges: ScheduleTimeRange[]
+  note: string
 }
 
 export function rangesEqual(a: ScheduleTimeRange[], b: ScheduleTimeRange[]): boolean {
@@ -15,20 +17,21 @@ export function rangesEqual(a: ScheduleTimeRange[], b: ScheduleTimeRange[]): boo
   return a.every((r, i) => r.start === b[i]!.start && r.end === b[i]!.end)
 }
 
-/** Agrupa fechas consecutivas con el mismo horario en una sola franja. */
-export function groupSpecialDaySpans(
-  specialDays: Record<string, ScheduleTimeRange[]>,
-): SpecialDaySpan[] {
+/** Agrupa fechas consecutivas con el mismo horario y comentario en una sola franja. */
+export function groupSpecialDaySpans(specialDays: SpecialDaysMap): SpecialDaySpan[] {
   const dates = Object.keys(specialDays).sort()
   const spans: SpecialDaySpan[] = []
 
   for (const date of dates) {
-    const ranges = specialDays[date] ?? []
+    const entry = specialDays[date]
+    const ranges = specialDayRanges(entry)
+    const note = entry?.note ?? ''
     const last = spans[spans.length - 1]
     if (
       last &&
       addDaysToDateString(last.end, 1) === date &&
-      rangesEqual(last.ranges, ranges)
+      rangesEqual(last.ranges, ranges) &&
+      last.note === note
     ) {
       last.end = date
       last.dates.push(date)
@@ -41,6 +44,7 @@ export function groupSpecialDaySpans(
       end: date,
       dates: [date],
       ranges,
+      note,
     })
   }
 

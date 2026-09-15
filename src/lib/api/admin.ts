@@ -2,7 +2,7 @@ import type { Appointment, BookableService, StaffDaySchedule } from '@/types/boo
 import type { Customer, CustomerDetail } from '@/types/customers'
 import type { BlockScope, BlockSeriesMeta } from '@/types/blocks'
 import type { AppointmentSeriesMeta, AppointmentSeriesMode } from '@/types/appointmentSeries'
-import type { FullScheduleData, SalonScheduleData, ScheduleTimeRange } from '@/types/schedule'
+import type { FullScheduleData, SalonScheduleData, ScheduleTimeRange, SpecialDaysMap } from '@/types/schedule'
 import { request, adminHeaders, encodeServiceStartOverrides } from './request'
 
 export function verifyAdminToken(adminToken: string) {
@@ -457,7 +457,7 @@ export function fetchStaffSpecialSchedule(
   if (dateFrom) params.set('from', dateFrom)
   if (dateTo) params.set('to', dateTo)
   const qs = params.toString()
-  return request<{ staffId: string; specialDays: Record<string, ScheduleTimeRange[]> }>(
+  return request<{ staffId: string; specialDays: SpecialDaysMap }>(
     `/admin/schedule/special/${encodeURIComponent(staffId)}${qs ? `?${qs}` : ''}`,
     { headers: adminHeaders(adminToken) },
   )
@@ -466,9 +466,9 @@ export function fetchStaffSpecialSchedule(
 export function updateStaffSpecialSchedule(
   adminToken: string,
   staffId: string,
-  specialDays: Record<string, ScheduleTimeRange[]>,
+  specialDays: SpecialDaysMap,
 ) {
-  return request<{ staffId: string; specialDays: Record<string, ScheduleTimeRange[]> }>(
+  return request<{ staffId: string; specialDays: SpecialDaysMap }>(
     `/admin/schedule/special/${encodeURIComponent(staffId)}`,
     {
       method: 'PUT',
@@ -499,7 +499,7 @@ export function fetchSalonSpecialSchedule(
   if (dateFrom) params.set('from', dateFrom)
   if (dateTo) params.set('to', dateTo)
   const qs = params.toString()
-  return request<{ specialDays: Record<string, ScheduleTimeRange[]> }>(
+  return request<{ specialDays: SpecialDaysMap }>(
     `/admin/schedule/salon/special${qs ? `?${qs}` : ''}`,
     { headers: adminHeaders(adminToken) },
   )
@@ -507,9 +507,9 @@ export function fetchSalonSpecialSchedule(
 
 export function updateSalonSpecialSchedule(
   adminToken: string,
-  specialDays: Record<string, ScheduleTimeRange[]>,
+  specialDays: SpecialDaysMap,
 ) {
-  return request<{ specialDays: Record<string, ScheduleTimeRange[]> }>(
+  return request<{ specialDays: SpecialDaysMap }>(
     '/admin/schedule/salon/special',
     {
       method: 'PUT',

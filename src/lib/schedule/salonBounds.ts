@@ -1,4 +1,5 @@
-import type { ScheduleTimeRange } from '@/types/schedule'
+import type { ScheduleTimeRange, SpecialDayEntry, SpecialDaysMap } from '@/types/schedule'
+import { specialDayRanges } from '@/types/schedule'
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number)
@@ -147,51 +148,53 @@ export type SpecialSalonConflict = SalonBoundsConflict & {
 export function resolveSalonRangesForDate(
   date: string,
   salonWeeklyWindows: Record<number, ScheduleTimeRange[]>,
-  salonSpecialDays: Record<string, ScheduleTimeRange[]>,
+  salonSpecialDays: SpecialDaysMap,
 ): ScheduleTimeRange[] {
   if (Object.prototype.hasOwnProperty.call(salonSpecialDays, date)) {
-    return salonSpecialDays[date] ?? []
+    return specialDayRanges(salonSpecialDays[date])
   }
   const dayOfWeek = new Date(`${date}T12:00:00`).getDay()
   return salonWeeklyWindows[dayOfWeek] ?? []
 }
 
-function specialRangesEqual(
-  a: ScheduleTimeRange[] | undefined,
-  b: ScheduleTimeRange[] | undefined,
+function specialEntriesEqual(
+  a: SpecialDayEntry | undefined,
+  b: SpecialDayEntry | undefined,
 ): boolean {
-  const left = a ?? []
-  const right = b ?? []
-  if (left.length !== right.length) return false
-  return left.every((range, index) => {
-    const other = right[index]
-    return range.start === other.start && range.end === other.end
+  const left = a ?? { ranges: [], note: '' }
+  const right = b ?? { ranges: [], note: '' }
+  if ((left.note ?? '') !== (right.note ?? '')) return false
+  if (left.ranges.length !== right.ranges.length) return false
+  return left.ranges.every((range, index) => {
+    const other = right.ranges[index]
+    return range.start === other?.start && range.end === other?.end
   })
 }
 
 /** Días especiales distintos del snapshot guardado (altas o ediciones). */
 export function pickChangedSpecialDays(
-  current: Record<string, ScheduleTimeRange[]>,
-  baseline: Record<string, ScheduleTimeRange[]>,
-): Record<string, ScheduleTimeRange[]> {
-  const changed: Record<string, ScheduleTimeRange[]> = {}
-  for (const [date, ranges] of Object.entries(current)) {
-    if (!specialRangesEqual(ranges, baseline[date])) {
-      changed[date] = ranges
+  current: SpecialDaysMap,
+  baseline: SpecialDaysMap,
+): SpecialDaysMap {
+  const changed: SpecialDaysMap = {}
+  for (const [date, entry] of Object.entries(current)) {
+    if (!specialEntriesEqual(entry, baseline[date])) {
+      changed[date] = entry
     }
   }
   return changed
 }
 
 export function detectSpecialStaffSalonConflicts(
-  staffSpecialDays: Record<string, ScheduleTimeRange[]>,
+  staffSpecialDays: SpecialDaysMap,
   salonWeeklyWindows: Record<number, ScheduleTimeRange[]>,
-  salonSpecialDays: Record<string, ScheduleTimeRange[]>,
+  salonSpecialDays: SpecialDaysMap,
 ): SpecialSalonConflict[] {
   const conflicts: SpecialSalonConflict[] = []
 
-  for (const [date, staffRanges] of Object.entries(staffSpecialDays)) {
-    if ((staffRanges ?? []).length === 0) continue
+  for (const [date, entry] of Object.entries(staffSpecialDays)) {
+    const staffRanges = specialDayRanges(entry)
+    if (staffRanges.length === 0) continue
 
     const salonRanges = resolveSalonRangesForDate(date, salonWeeklyWindows, salonSpecialDays)
     const conflict = detectSalonBoundsConflict(staffRanges, salonRanges)

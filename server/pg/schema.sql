@@ -191,6 +191,7 @@ CREATE TABLE IF NOT EXISTS staff_special_availability (
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
   is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  note TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (staff_id, special_date, start_time)
 );
@@ -201,17 +202,24 @@ CREATE INDEX IF NOT EXISTS idx_staff_special_staff_date
 ALTER TABLE staff_special_availability
   ADD COLUMN IF NOT EXISTS is_closed BOOLEAN NOT NULL DEFAULT FALSE;
 
+ALTER TABLE staff_special_availability
+  ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT '';
+
 CREATE TABLE IF NOT EXISTS salon_special_schedule (
   special_date TEXT NOT NULL,
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
   is_closed BOOLEAN NOT NULL DEFAULT FALSE,
+  note TEXT NOT NULL DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (special_date, start_time)
 );
 
 CREATE INDEX IF NOT EXISTS idx_salon_special_date
   ON salon_special_schedule (special_date);
+
+ALTER TABLE salon_special_schedule
+  ADD COLUMN IF NOT EXISTS note TEXT NOT NULL DEFAULT '';
 
 CREATE TABLE IF NOT EXISTS staff_sessions (
   token TEXT PRIMARY KEY,
