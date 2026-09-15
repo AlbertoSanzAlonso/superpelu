@@ -12,6 +12,11 @@ import {
 } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
+import {
+  SpecialDateRangeCalendar,
+  enumerateDateRange,
+  formatSpecialDateRangeLabel,
+} from './SpecialDateRangeCalendar'
 import { SalonScheduleExpandModal } from './SalonScheduleExpandModal'
 import { DAY_NAMES } from './constants'
 import type { ScheduleTimeRange } from '@/types/schedule'
@@ -20,6 +25,11 @@ import {
   pickChangedSpecialDays,
   type SpecialSalonConflict,
 } from '@/lib/schedule/salonBounds'
+import {
+  groupSpecialDaySpans,
+  spanIntersectsMonth,
+  type SpecialDaySpan,
+} from '@/lib/schedule/specialDaySpans'
 
 type StaffSpecialProps = {
   scope: 'staff'
@@ -39,13 +49,23 @@ type SpecialScheduleSectionProps = StaffSpecialProps | SalonSpecialProps
 
 type SpecialDateFilterMode = 'all' | 'default' | 'month'
 
-const SPECIAL_DATES_PAGE_SIZE = 5
+const SPECIAL_SPANS_PAGE_SIZE = 5
 
 const filterFieldClass =
   'h-8 cursor-pointer border border-gold/30 bg-cream px-2 text-xs text-charcoal outline-none focus:border-gold'
 
-function filterDatesByMonth(dates: string[], month: string): string[] {
-  return dates.filter((date) => date.startsWith(month))
+function formatSpanTitle(span: SpecialDaySpan): string {
+  if (span.start === span.end) {
+    const d = new Date(span.start + 'T12:00:00')
+    const dayName = DAY_NAMES[d.getDay()]
+    const displayDate = d.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
+    return `${dayName}, ${displayDate}`
+  }
+  return formatSpecialDateRangeLabel(span.start, span.end)
 }
 
 export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
@@ -59,7 +79,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   >({})
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [newDate, setNewDate] = useState('')
+  const [rangeStart, setRangeStart] = useState('')
+  const [rangeEnd, setRangeEnd] = useState('')
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
   const [expandModalOpen, setExpandModalOpen] = useState(false)
@@ -83,6 +104,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
 
   useEffect(() => {
     setPage(1)
+    setRangeStart('')
+    setRangeEnd('')
   }, [selectedStaffId, filterMode, selectedMonth])
 
   const load = useCallback(async () => {
@@ -107,42 +130,84 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
     load()
   }, [load])
 
-  const addDate = () => {
-    if (!newDate || specialDays[newDate]) return
-    setSpecialDays((prev) => ({ ...prev, [newDate]: [{ start: '10:00', end: '14:00' }] }))
-    setNewDate('')
+  const pickRangeDate = (dateStr: string) => {
+    // Primer clic (o reinicio tras franja completa): un solo día.
+    // Segundo clic: cierra la franja (inicio → fin).
+    if (!rangeStart || (rangeStart && rangeEnd)) {
+      setRangeStart(dateStr)
+      setRangeEnd('')
+      return
+    }
+    setRangeEnd(dateStr)
+  }
+
+  const addDateRange = () => {
+    if (!rangeStart) return
+    const dates = enumerateDateRange(rangeStart, rangeEnd || rangeStart)
+    const toAdd = dates.filter((date) => !specialDays[date])
+    if (toAdd.length === 0) return
+    setSpecialDays((prev) => {
+      const next = { ...prev }
+      for (const date of toAdd) {
+        next[date] = [{ start: '10:00', end: '14:00' }]
+      }
+      return next
+    })
+    setRangeStart('')
+    setRangeEnd('')
     setSaved(false)
   }
 
-  const updateDateRanges = (date: string, ranges: ScheduleTimeRange[]) => {
-    setSpecialDays((prev) => ({ ...prev, [date]: ranges }))
+  const existingSpecialDates = useMemo(() => new Set(Object.keys(specialDays)), [specialDays])
+  const selectedRangeLabel = formatSpecialDateRangeLabel(rangeStart, rangeEnd)
+  const datesToAddCount = rangeStart
+    ? enumerateDateRange(rangeStart, rangeEnd || rangeStart).filter((d) => !specialDays[d]).length
+    : 0
+
+  const updateSpanRanges = (dates: string[], ranges: ScheduleTimeRange[]) => {
+    setSpecialDays((prev) => {
+      const next = { ...prev }
+      for (const date of dates) {
+        next[date] = ranges.map((r) => ({ ...r }))
+      }
+      return next
+    })
     setSaved(false)
   }
 
-  const toggleClosed = (date: string) => {
-    setSpecialDays((prev) => ({
-      ...prev,
-      [date]: (prev[date]?.length ?? 0) > 0 ? [] : [{ start: '10:00', end: '14:00' }],
-    }))
+  const toggleSpanClosed = (dates: string[]) => {
+    setSpecialDays((prev) => {
+      const currentlyClosed = (prev[dates[0]!]?.length ?? 0) === 0
+      const nextRanges: ScheduleTimeRange[] = currentlyClosed
+        ? [{ start: '10:00', end: '14:00' }]
+        : []
+      const next = { ...prev }
+      for (const date of dates) {
+        next[date] = nextRanges.map((r) => ({ ...r }))
+      }
+      return next
+    })
     setSaved(false)
   }
 
-  const removeDate = async (date: string) => {
+  const removeSpan = async (dates: string[]) => {
     setError('')
     try {
-      if (scope === 'salon') {
-        await deleteSalonSpecialDate(adminToken, date)
-      } else {
-        await deleteStaffSpecialDate(adminToken, selectedStaffId, date)
+      for (const date of dates) {
+        if (scope === 'salon') {
+          await deleteSalonSpecialDate(adminToken, date)
+        } else {
+          await deleteStaffSpecialDate(adminToken, selectedStaffId, date)
+        }
       }
       setSpecialDays((prev) => {
         const next = { ...prev }
-        delete next[date]
+        for (const date of dates) delete next[date]
         return next
       })
       setBaselineSpecialDays((prev) => {
         const next = { ...prev }
-        delete next[date]
+        for (const date of dates) delete next[date]
         return next
       })
     } catch (err) {
@@ -219,17 +284,18 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
   }
 
   const sortedDates = Object.keys(specialDays).sort()
-  const filteredDates = useMemo(() => {
-    if (filterMode === 'all') return sortedDates
+  const specialSpans = useMemo(() => groupSpecialDaySpans(specialDays), [specialDays])
+  const filteredSpans = useMemo(() => {
+    if (filterMode === 'all') return specialSpans
     const month = filterMode === 'default' ? todaySalon().slice(0, 7) : selectedMonth
-    return filterDatesByMonth(sortedDates, month)
-  }, [sortedDates, filterMode, selectedMonth])
-  const totalPages = Math.max(1, Math.ceil(filteredDates.length / SPECIAL_DATES_PAGE_SIZE))
+    return specialSpans.filter((span) => spanIntersectsMonth(span, month))
+  }, [specialSpans, filterMode, selectedMonth])
+  const totalPages = Math.max(1, Math.ceil(filteredSpans.length / SPECIAL_SPANS_PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
-  const paginatedDates = useMemo(() => {
-    const start = (safePage - 1) * SPECIAL_DATES_PAGE_SIZE
-    return filteredDates.slice(start, start + SPECIAL_DATES_PAGE_SIZE)
-  }, [filteredDates, safePage])
+  const paginatedSpans = useMemo(() => {
+    const start = (safePage - 1) * SPECIAL_SPANS_PAGE_SIZE
+    return filteredSpans.slice(start, start + SPECIAL_SPANS_PAGE_SIZE)
+  }, [filteredSpans, safePage])
   const activeStaffName =
     scope === 'staff' ? staffList.find((s) => s.staffId === selectedStaffId)?.staffName ?? '' : ''
 
@@ -269,7 +335,7 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
 
       {(scope === 'salon' || selectedStaffId) && (
         <>
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
             <div className="flex flex-wrap items-end gap-3">
               <label className="block min-w-[9rem]">
                 <span className={`${typography.label} mb-1 block`}>Filtrar</span>
@@ -295,33 +361,38 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
                 </label>
               )}
             </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <label className="block">
-                <span className={`${typography.label} mb-1 block`}>Dia</span>
-                <input
-                  type="date"
-                  value={newDate}
-                  onChange={(e) => setNewDate(e.target.value)}
-                  min={todaySalon()}
-                  className={filterFieldClass}
-                />
-              </label>
+            <div className="flex flex-col items-start gap-2">
+              <span className={typography.label}>Añadir dias</span>
+              <SpecialDateRangeCalendar
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                onPick={pickRangeDate}
+                existingDates={existingSpecialDates}
+                minDate={todaySalon()}
+              />
+              <p className={`${typography.caption} normal-case tracking-normal text-[11px]`}>
+                {rangeStart
+                  ? rangeEnd
+                    ? `Franja: ${selectedRangeLabel}`
+                    : `Dia: ${selectedRangeLabel} (pulsa otro dia para ampliar la franja)`
+                  : 'Pulsa un dia; opcionalmente otro para una franja.'}
+              </p>
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-8 text-xs"
-                onClick={addDate}
-                disabled={!newDate || !!specialDays[newDate]}
+                onClick={addDateRange}
+                disabled={!rangeStart || datesToAddCount === 0}
               >
-                Añadir
+                {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
               </Button>
             </div>
           </div>
 
           {loading ? (
             <p className={`${typography.body} text-charcoal-muted`}>Cargando horarios especiales...</p>
-          ) : filteredDates.length === 0 ? (
+          ) : filteredSpans.length === 0 ? (
             <p className={`${typography.body} text-charcoal-muted`}>
               {sortedDates.length === 0
                 ? scope === 'salon'
@@ -332,22 +403,19 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
           ) : (
             <div className="mb-4">
               <div className="space-y-4">
-                {paginatedDates.map((date) => {
-                  const d = new Date(date + 'T12:00:00')
-                  const dayName = DAY_NAMES[d.getDay()]
-                  const displayDate = d.toLocaleDateString('es-ES', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })
-                  const isClosed = specialDays[date].length === 0
+                {paginatedSpans.map((span) => {
+                  const isClosed = span.ranges.length === 0
+                  const isMultiDay = span.dates.length > 1
                   return (
-                    <div key={date} className="border border-gold/15 bg-cream/60 p-3">
+                    <div key={span.id} className="border border-gold/15 bg-cream/60 p-3">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={typography.label}>
-                            {dayName}, {displayDate}
-                          </span>
+                          <span className={typography.label}>{formatSpanTitle(span)}</span>
+                          {isMultiDay && (
+                            <span className="rounded bg-gold/15 px-1.5 py-0.5 text-[10px] text-gold-dark">
+                              {span.dates.length} dias
+                            </span>
+                          )}
                           {isClosed && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
                               Cerrado
@@ -357,14 +425,20 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => toggleClosed(date)}
+                            onClick={() => toggleSpanClosed(span.dates)}
                             className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
                           >
-                            {isClosed ? 'Abrir dia' : 'Cerrar dia'}
+                            {isClosed
+                              ? isMultiDay
+                                ? 'Abrir franja'
+                                : 'Abrir dia'
+                              : isMultiDay
+                                ? 'Cerrar franja'
+                                : 'Cerrar dia'}
                           </button>
                           <button
                             type="button"
-                            onClick={() => removeDate(date)}
+                            onClick={() => removeSpan(span.dates)}
                             className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
                           >
                             Eliminar
@@ -373,8 +447,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
                       </div>
                       {!isClosed && (
                         <DateRangeEditor
-                          ranges={specialDays[date]}
-                          onChange={(ranges) => updateDateRanges(date, ranges)}
+                          ranges={span.ranges}
+                          onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
                         />
                       )}
                     </div>
@@ -383,8 +457,8 @@ export function SpecialScheduleSection(props: SpecialScheduleSectionProps) {
               </div>
               <CustomerAppointmentHistoryPagination
                 page={safePage}
-                pageSize={SPECIAL_DATES_PAGE_SIZE}
-                totalItems={filteredDates.length}
+                pageSize={SPECIAL_SPANS_PAGE_SIZE}
+                totalItems={filteredSpans.length}
                 onPageChange={setPage}
                 ariaLabel={
                   scope === 'salon'
