@@ -462,8 +462,9 @@ export function useStaffAgenda(token: string) {
   )
 
   const openWhatsAppNotifyForCreate = useCallback(() => {
+    createLocaleRef.current = aptDraft.customerLocale
     setWhatsAppNotifyDialogOpen(true)
-  }, [])
+  }, [aptDraft.customerLocale])
 
   const saveAppointment = useCallback(
     async (e: React.FormEvent): Promise<boolean> => {
