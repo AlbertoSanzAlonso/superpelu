@@ -131,6 +131,10 @@ import {
   deleteSalonSpecialDate,
 } from '@server/schedule/special.js'
 import {
+  autoReassignSpecialAppointmentConflicts,
+  findStaffSpecialAppointmentConflicts,
+} from '@server/schedule/specialAppointmentConflicts.js'
+import {
   getOpenWaAdminConfig,
   isOpenWaConfigured,
   isOpenWaSessionConnected,
@@ -300,6 +304,40 @@ app.put('/api/admin/schedule/special/:staffId', async (c) => {
   }
   const result = await setStaffSpecialSchedule(staffId, body.specialDays!)
   return c.json({ staffId, specialDays: result })
+})
+
+app.post('/api/admin/schedule/special/:staffId/appointment-conflicts', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const body = await c
+    .req.json<{ specialDays?: Record<string, unknown>; dates?: string[] }>()
+    .catch(() => ({} as { specialDays?: Record<string, unknown>; dates?: string[] }))
+  if (!body.specialDays || typeof body.specialDays !== 'object') {
+    return c.json({ error: 'Falta specialDays' }, 400)
+  }
+  const dates = Array.isArray(body.dates)
+    ? body.dates.filter((d): d is string => typeof d === 'string')
+    : Object.keys(body.specialDays)
+  const conflicts = await findStaffSpecialAppointmentConflicts(staffId, body.specialDays, dates)
+  return c.json({ conflicts })
+})
+
+app.post('/api/admin/schedule/special/:staffId/reassign-conflicts', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const staffId = c.req.param('staffId')
+  const body = await c
+    .req.json<{ appointmentIds?: string[] }>()
+    .catch(() => ({} as { appointmentIds?: string[] }))
+  if (!Array.isArray(body.appointmentIds) || body.appointmentIds.length === 0) {
+    return c.json({ error: 'Falta appointmentIds' }, 400)
+  }
+  const result = await autoReassignSpecialAppointmentConflicts(
+    staffId,
+    body.appointmentIds.filter((id): id is string => typeof id === 'string'),
+  )
+  return c.json(result)
 })
 
 app.delete('/api/admin/schedule/special/:staffId', async (c) => {

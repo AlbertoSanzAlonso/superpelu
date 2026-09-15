@@ -9,7 +9,7 @@ type Props = {
 }
 
 const navButtonClass =
-  'border border-gold/30 px-3 py-1.5 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40'
+  'cursor-pointer border border-gold/30 px-3 py-1.5 text-xs text-charcoal-muted hover:border-gold disabled:cursor-not-allowed disabled:opacity-40'
 
 export function CustomerAppointmentHistoryPagination({
   page,

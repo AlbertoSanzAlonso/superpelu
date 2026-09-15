@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { AdminAppointmentNotificationItem } from '@/lib/agenda/adminNotifications'
 import { StaffAgendaPanel } from '@/components/agenda/StaffAgendaPanel'
 import { AdminAgendaLoginForm } from '@/components/agenda/admin/AdminAgendaLoginForm'
@@ -33,6 +33,7 @@ export function AdminAgendaPage() {
   const [loggingIn, setLoggingIn] = useState(false)
 
   const { date: selectedDate, setDate: setSelectedDate } = useAgendaDate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const isAdmin = Boolean(adminToken)
   const isStaff = Boolean(staffToken && staffUser)
@@ -48,6 +49,7 @@ export function AdminAgendaPage() {
   const { closeBell, dismissToast, toasts } = notifications
   const [pendingNotificationOpen, setPendingNotificationOpen] =
     useState<AdminAppointmentNotificationItem | null>(null)
+  const [pendingCitaOpen, setPendingCitaOpen] = useState<string | null>(null)
 
   const tryOpenPendingAppointment = useCallback(
     (item: AdminAppointmentNotificationItem, daySchedules: typeof schedules) => {
@@ -113,6 +115,49 @@ export function AdminAgendaPage() {
     })
     return () => window.cancelAnimationFrame(id)
   }, [pendingNotificationOpen, selectedDate, loadedDate, schedules, tryOpenPendingAppointment])
+
+  /** Deep-link desde horarios especiales: /agenda?fecha=YYYY-MM-DD&cita=ID */
+  useEffect(() => {
+    if (!isAdmin) return
+    const citaId = searchParams.get('cita')
+    if (!citaId) {
+      setPendingCitaOpen(null)
+      return
+    }
+    setPendingCitaOpen(citaId)
+  }, [isAdmin, searchParams])
+
+  useEffect(() => {
+    if (!pendingCitaOpen || !isAdmin) return
+    if (loadedDate !== selectedDate) return
+    let found = false
+    for (const schedule of schedules) {
+      const apt = schedule.appointments.find((a) => a.id === pendingCitaOpen)
+      if (apt) {
+        openAppointmentDetail(schedule.staffId, apt)
+        found = true
+        break
+      }
+    }
+    if (!found && schedules.length === 0) return
+    setPendingCitaOpen(null)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('cita')
+        return next
+      },
+      { replace: true },
+    )
+  }, [
+    pendingCitaOpen,
+    isAdmin,
+    loadedDate,
+    selectedDate,
+    schedules,
+    openAppointmentDetail,
+    setSearchParams,
+  ])
 
   useEffect(() => {
     if (!staffToken) return

@@ -478,6 +478,50 @@ export function updateStaffSpecialSchedule(
   )
 }
 
+export type SpecialAppointmentConflict = {
+  appointmentId: string
+  date: string
+  startTime: string
+  endTime: string
+  customerName: string
+  serviceId: string
+  serviceName: string
+  canAutoReassign: boolean
+  suggestedStaffId: string | null
+  suggestedStaffName: string | null
+}
+
+export function previewStaffSpecialAppointmentConflicts(
+  adminToken: string,
+  staffId: string,
+  specialDays: SpecialDaysMap,
+  dates: string[],
+) {
+  return request<{ conflicts: SpecialAppointmentConflict[] }>(
+    `/admin/schedule/special/${encodeURIComponent(staffId)}/appointment-conflicts`,
+    {
+      method: 'POST',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({ specialDays, dates }),
+    },
+  )
+}
+
+export function reassignStaffSpecialAppointmentConflicts(
+  adminToken: string,
+  staffId: string,
+  appointmentIds: string[],
+) {
+  return request<{
+    reassigned: { appointmentId: string; staffId: string; staffName: string }[]
+    failed: { appointmentId: string; reason: string }[]
+  }>(`/admin/schedule/special/${encodeURIComponent(staffId)}/reassign-conflicts`, {
+    method: 'POST',
+    headers: adminHeaders(adminToken),
+    body: JSON.stringify({ appointmentIds }),
+  })
+}
+
 export function deleteStaffSpecialDate(
   adminToken: string,
   staffId: string,

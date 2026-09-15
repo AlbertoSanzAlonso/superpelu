@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useState, forwardRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -8,8 +9,11 @@ import {
   deleteStaffSpecialDate,
   fetchSalonSpecialSchedule,
   fetchStaffSpecialSchedule,
+  previewStaffSpecialAppointmentConflicts,
+  reassignStaffSpecialAppointmentConflicts,
   updateSalonSpecialSchedule,
   updateStaffSpecialSchedule,
+  type SpecialAppointmentConflict,
 } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
@@ -19,6 +23,7 @@ import {
   formatSpecialDateRangeLabel,
 } from './SpecialDateRangeCalendar'
 import { SalonScheduleExpandModal } from './SalonScheduleExpandModal'
+import { SpecialAppointmentConflictModal } from './SpecialAppointmentConflictModal'
 import { DAY_NAMES } from './constants'
 import type { ScheduleTimeRange, SpecialDaysMap } from '@/types/schedule'
 import { createSpecialDayEntry, specialDayRanges } from '@/types/schedule'
@@ -83,6 +88,11 @@ function formatSpanTitle(span: SpecialDaySpan): string {
   return formatSpecialDateRangeLabel(span.start, span.end)
 }
 
+function formatRangesLabel(ranges: ScheduleTimeRange[]): string {
+  if (ranges.length === 0) return 'Cerrado'
+  return ranges.map((r) => `${r.start} – ${r.end}`).join(' · ')
+}
+
 export const SpecialScheduleSection = forwardRef<
   SpecialScheduleSectionHandle,
   SpecialScheduleSectionProps
@@ -108,6 +118,18 @@ export const SpecialScheduleSection = forwardRef<
   const [addCalendarOpen, setAddCalendarOpen] = useState(false)
   const [unsavedStaffOpen, setUnsavedStaffOpen] = useState(false)
   const [pendingStaffId, setPendingStaffId] = useState<string | null>(null)
+  const [editingSpanIds, setEditingSpanIds] = useState<Set<string>>(() => new Set())
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [pendingDeleteDates, setPendingDeleteDates] = useState<string[] | null>(null)
+  const [pendingDeleteLabel, setPendingDeleteLabel] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [appointmentConflicts, setAppointmentConflicts] = useState<SpecialAppointmentConflict[]>([])
+  const [appointmentConflictOpen, setAppointmentConflictOpen] = useState(false)
+  const [pendingSaveAfterAptConflict, setPendingSaveAfterAptConflict] = useState<{
+    specialDays: SpecialDaysMap
+    expandSalon: boolean
+  } | null>(null)
+  const navigate = useNavigate()
 
   const salonWeeklyWindows = scope === 'staff' ? props.salonWeeklyWindows : {}
   const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
@@ -124,6 +146,7 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
+    setEditingSpanIds(new Set())
   }, [selectedStaffId])
 
   useEffect(() => {
@@ -141,6 +164,7 @@ export const SpecialScheduleSection = forwardRef<
           : await fetchStaffSpecialSchedule(adminToken, selectedStaffId)
       setSpecialDays(res.specialDays)
       setBaselineSpecialDays(res.specialDays)
+      setEditingSpanIds(new Set())
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -169,11 +193,17 @@ export const SpecialScheduleSection = forwardRef<
     const toAdd = dates.filter((date) => !specialDays[date])
     if (toAdd.length === 0) return
     const filterMonth = toAdd[0]!.slice(0, 7)
+    const spanId = `${toAdd[0]!}_${toAdd[toAdd.length - 1]!}`
     setSpecialDays((prev) => {
       const next = { ...prev }
       for (const date of toAdd) {
         next[date] = createSpecialDayEntry()
       }
+      return next
+    })
+    setEditingSpanIds((prev) => {
+      const next = new Set(prev)
+      next.add(spanId)
       return next
     })
     setRangeStart('')
@@ -229,8 +259,9 @@ export const SpecialScheduleSection = forwardRef<
     setSaved(false)
   }
 
-  const removeSpan = async (dates: string[]) => {
+  const removeSpan = async (dates: string[]): Promise<boolean> => {
     setError('')
+    setDeleting(true)
     try {
       for (const date of dates) {
         if (scope === 'salon') {
@@ -249,16 +280,66 @@ export const SpecialScheduleSection = forwardRef<
         for (const date of dates) delete next[date]
         return next
       })
+      setEditingSpanIds((prev) => {
+        const next = new Set(prev)
+        const spanId = `${dates[0]!}_${dates[dates.length - 1]!}`
+        next.delete(spanId)
+        return next
+      })
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      return false
+    } finally {
+      setDeleting(false)
     }
+  }
+
+  const requestRemoveSpan = (span: SpecialDaySpan) => {
+    setPendingDeleteDates(span.dates)
+    setPendingDeleteLabel(formatSpanTitle(span))
+    setDeleteConfirmOpen(true)
   }
 
   const persistStaffSpecial = async (
     nextSpecialDays: SpecialDaysMap,
     expandSalon: boolean,
+    options?: { skipAppointmentConflictCheck?: boolean },
   ): Promise<boolean> => {
     if (!selectedStaffId) return false
+
+    if (!options?.skipAppointmentConflictCheck) {
+      const changedDays = pickChangedSpecialDays(nextSpecialDays, baselineSpecialDays)
+      const rangeChangedDates = Object.keys(changedDays).filter(
+        (date) =>
+          !rangesEqual(specialDayRanges(changedDays[date]), specialDayRanges(baselineSpecialDays[date])),
+      )
+      if (rangeChangedDates.length > 0) {
+        setSaving(true)
+        setError('')
+        try {
+          const preview = await previewStaffSpecialAppointmentConflicts(
+            adminToken,
+            selectedStaffId,
+            nextSpecialDays,
+            rangeChangedDates,
+          )
+          if (preview.conflicts.length > 0) {
+            setExpandModalOpen(false)
+            setAppointmentConflicts(preview.conflicts)
+            setPendingSaveAfterAptConflict({ specialDays: nextSpecialDays, expandSalon })
+            setAppointmentConflictOpen(true)
+            setSaving(false)
+            return false
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err))
+          setSaving(false)
+          return false
+        }
+      }
+    }
+
     setSaving(true)
     setSaved(false)
     setError('')
@@ -277,6 +358,10 @@ export const SpecialScheduleSection = forwardRef<
       const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, nextSpecialDays)
       setSpecialDays(res.specialDays)
       setBaselineSpecialDays(res.specialDays)
+      setEditingSpanIds(new Set())
+      setAppointmentConflictOpen(false)
+      setAppointmentConflicts([])
+      setPendingSaveAfterAptConflict(null)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       return true
@@ -301,6 +386,7 @@ export const SpecialScheduleSection = forwardRef<
         const res = await updateSalonSpecialSchedule(adminToken, specialDays)
         setSpecialDays(res.specialDays)
         setBaselineSpecialDays(res.specialDays)
+        setEditingSpanIds(new Set())
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
         return true
@@ -340,6 +426,7 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
+    setEditingSpanIds(new Set())
     setSaved(false)
     setError('')
   }, [baselineSpecialDays])
@@ -515,6 +602,7 @@ export const SpecialScheduleSection = forwardRef<
                 {paginatedSpans.map((span) => {
                   const isClosed = span.ranges.length === 0
                   const isMultiDay = span.dates.length > 1
+                  const isEditing = editingSpanIds.has(span.id)
                   return (
                     <div key={span.id} className="border border-gold/15 bg-cream/60 p-3">
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -532,50 +620,96 @@ export const SpecialScheduleSection = forwardRef<
                           )}
                         </div>
                         <div className="flex items-center gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => toggleSpanClosed(span.dates)}
+                                className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                              >
+                                {isClosed
+                                  ? isMultiDay
+                                    ? 'Abrir franja'
+                                    : 'Abrir dia'
+                                  : isMultiDay
+                                    ? 'Cerrar franja'
+                                    : 'Cerrar dia'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingSpanIds((prev) => {
+                                    const next = new Set(prev)
+                                    next.delete(span.id)
+                                    return next
+                                  })
+                                }}
+                                className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                              >
+                                Listo
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingSpanIds((prev) => {
+                                  const next = new Set(prev)
+                                  next.add(span.id)
+                                  return next
+                                })
+                              }}
+                              className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                            >
+                              Editar
+                            </button>
+                          )}
                           <button
                             type="button"
-                            onClick={() => toggleSpanClosed(span.dates)}
-                            className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
-                          >
-                            {isClosed
-                              ? isMultiDay
-                                ? 'Abrir franja'
-                                : 'Abrir dia'
-                              : isMultiDay
-                                ? 'Cerrar franja'
-                                : 'Cerrar dia'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => removeSpan(span.dates)}
+                            onClick={() => requestRemoveSpan(span)}
                             className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
                           >
                             Eliminar
                           </button>
                         </div>
                       </div>
-                      {!isClosed && (
-                        <DateRangeEditor
-                          ranges={span.ranges}
-                          onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
-                        />
+                      {isEditing ? (
+                        <>
+                          {!isClosed && (
+                            <DateRangeEditor
+                              ranges={span.ranges}
+                              onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
+                            />
+                          )}
+                          <label className="mt-2 block">
+                            <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>
+                              Comentario
+                            </span>
+                            <textarea
+                              value={span.note}
+                              onChange={(e) => updateSpanNote(span.dates, e.target.value)}
+                              placeholder={
+                                isMultiDay
+                                  ? 'Texto explicativo de la franja (opcional)'
+                                  : 'Texto explicativo del dia (opcional)'
+                              }
+                              rows={2}
+                              className={noteFieldClass}
+                            />
+                          </label>
+                        </>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {!isClosed && (
+                            <p className="text-xs text-charcoal">{formatRangesLabel(span.ranges)}</p>
+                          )}
+                          {span.note.trim() ? (
+                            <p className="whitespace-pre-wrap text-xs text-charcoal-muted">
+                              {span.note}
+                            </p>
+                          ) : null}
+                        </div>
                       )}
-                      <label className="mt-2 block">
-                        <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>
-                          Comentario
-                        </span>
-                        <textarea
-                          value={span.note}
-                          onChange={(e) => updateSpanNote(span.dates, e.target.value)}
-                          placeholder={
-                            isMultiDay
-                              ? 'Texto explicativo de la franja (opcional)'
-                              : 'Texto explicativo del dia (opcional)'
-                          }
-                          rows={2}
-                          className={noteFieldClass}
-                        />
-                      </label>
                     </div>
                   )
                 })}
@@ -636,6 +770,100 @@ export const SpecialScheduleSection = forwardRef<
           }}
         />
       )}
+
+      {scope === 'staff' && (
+        <SpecialAppointmentConflictModal
+          open={appointmentConflictOpen}
+          staffName={activeStaffName}
+          conflicts={appointmentConflicts}
+          busy={saving}
+          onCancel={() => {
+            if (saving) return
+            setAppointmentConflictOpen(false)
+            setAppointmentConflicts([])
+            setPendingSaveAfterAptConflict(null)
+          }}
+          onContinue={() => {
+            if (!pendingSaveAfterAptConflict) return
+            void persistStaffSpecial(
+              pendingSaveAfterAptConflict.specialDays,
+              pendingSaveAfterAptConflict.expandSalon,
+              { skipAppointmentConflictCheck: true },
+            )
+          }}
+          onAutoReassign={() => {
+            if (!pendingSaveAfterAptConflict || !selectedStaffId) return
+            void (async () => {
+              setSaving(true)
+              setError('')
+              try {
+                const result = await reassignStaffSpecialAppointmentConflicts(
+                  adminToken,
+                  selectedStaffId,
+                  appointmentConflicts.map((c) => c.appointmentId),
+                )
+                if (result.failed.length > 0) {
+                  setError(
+                    `No se pudieron reasignar ${result.failed.length} cita(s). Se guardará el horario; revisa la agenda.`,
+                  )
+                }
+                await persistStaffSpecial(
+                  pendingSaveAfterAptConflict.specialDays,
+                  pendingSaveAfterAptConflict.expandSalon,
+                  { skipAppointmentConflictCheck: true },
+                )
+              } catch (err) {
+                setError(err instanceof Error ? err.message : String(err))
+                setSaving(false)
+              }
+            })()
+          }}
+          onManual={() => {
+            if (!pendingSaveAfterAptConflict) return
+            const first = appointmentConflicts[0]
+            void (async () => {
+              const ok = await persistStaffSpecial(
+                pendingSaveAfterAptConflict.specialDays,
+                pendingSaveAfterAptConflict.expandSalon,
+                { skipAppointmentConflictCheck: true },
+              )
+              if (!ok || !first) return
+              const params = new URLSearchParams()
+              params.set('fecha', first.date)
+              params.set('cita', first.appointmentId)
+              navigate(`/agenda?${params.toString()}`)
+            })()
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title="¿Eliminar horario especial?"
+        message={
+          pendingDeleteDates && pendingDeleteDates.length > 1
+            ? `Se eliminará la franja «${pendingDeleteLabel}» (${pendingDeleteDates.length} dias). Esta acción no se puede deshacer.`
+            : `Se eliminará el dia «${pendingDeleteLabel}». Esta acción no se puede deshacer.`
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        destructive
+        busy={deleting}
+        onClose={() => {
+          if (deleting) return
+          setDeleteConfirmOpen(false)
+          setPendingDeleteDates(null)
+          setPendingDeleteLabel('')
+        }}
+        onConfirm={async () => {
+          if (!pendingDeleteDates) return
+          const ok = await removeSpan(pendingDeleteDates)
+          if (!ok) return
+          setDeleteConfirmOpen(false)
+          setPendingDeleteDates(null)
+          setPendingDeleteLabel('')
+        }}
+      />
 
       <ConfirmDialog
         open={unsavedStaffOpen}
