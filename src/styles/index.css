@@ -104,6 +104,26 @@
     animation: bookingStepEnter 520ms var(--ease-premium) forwards;
   }
 
+  /* Horarios especiales: calendario flotante al añadir días */
+  .special-add-calendar {
+    transition:
+      opacity 280ms var(--ease-premium),
+      transform 320ms var(--ease-premium);
+    will-change: opacity, transform;
+  }
+
+  .special-add-calendar-open {
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .special-add-calendar-closed {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(-0.4rem) scale(0.97);
+  }
+
   /* Agenda admin: cambio de día */
   .agenda-day-enter-next {
     animation: agendaDayEnterNext 420ms var(--ease-premium) both;

@@ -74,6 +74,45 @@ const filterFieldClass =
 const noteFieldClass =
   'mt-2 w-full resize-y border border-gold/30 bg-cream px-2 py-1.5 text-xs text-charcoal outline-none focus:border-gold'
 
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Enero' },
+  { value: '02', label: 'Febrero' },
+  { value: '03', label: 'Marzo' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Mayo' },
+  { value: '06', label: 'Junio' },
+  { value: '07', label: 'Julio' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Septiembre' },
+  { value: '10', label: 'Octubre' },
+  { value: '11', label: 'Noviembre' },
+  { value: '12', label: 'Diciembre' },
+] as const
+
+function shiftYearMonth(yearMonth: string, deltaMonths: number): string {
+  const [y, m] = yearMonth.split('-').map(Number)
+  const next = new Date(y!, m! - 1 + deltaMonths, 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`
+}
+
+function buildFilterYearOptions(selectedMonth: string, specialDates: string[]): number[] {
+  const currentYear = Number(todaySalon().slice(0, 4))
+  const selectedYear = Number(selectedMonth.slice(0, 4)) || currentYear
+  let minYear = currentYear - 1
+  let maxYear = currentYear + 5
+  for (const date of specialDates) {
+    const y = Number(date.slice(0, 4))
+    if (!Number.isFinite(y)) continue
+    minYear = Math.min(minYear, y)
+    maxYear = Math.max(maxYear, y)
+  }
+  minYear = Math.min(minYear, selectedYear)
+  maxYear = Math.max(maxYear, selectedYear)
+  const years: number[] = []
+  for (let y = minYear; y <= maxYear; y++) years.push(y)
+  return years
+}
+
 function formatSpanTitle(span: SpecialDaySpan): string {
   if (span.start === span.end) {
     const d = new Date(span.start + 'T12:00:00')
@@ -529,18 +568,61 @@ export const SpecialScheduleSection = forwardRef<
                 </select>
               </label>
               {filterMode === 'month' && (
-                <label className="block min-w-[10rem]">
-                  <span className={`${typography.label} mb-1 block`}>Mes</span>
-                  <input
-                    type="month"
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                    className={filterFieldClass}
-                  />
-                </label>
+                <div className="flex flex-wrap items-end gap-2">
+                  <label className="block">
+                    <span className={`${typography.label} mb-1 block`}>Mes</span>
+                    <select
+                      value={selectedMonth.slice(5, 7)}
+                      onChange={(e) =>
+                        setSelectedMonth(`${selectedMonth.slice(0, 4)}-${e.target.value}`)
+                      }
+                      className={`${filterFieldClass} min-w-[8.5rem]`}
+                    >
+                      {MONTH_OPTIONS.map((month) => (
+                        <option key={month.value} value={month.value}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className={`${typography.label} mb-1 block`}>Año</span>
+                    <select
+                      value={selectedMonth.slice(0, 4)}
+                      onChange={(e) =>
+                        setSelectedMonth(`${e.target.value}-${selectedMonth.slice(5, 7)}`)
+                      }
+                      className={`${filterFieldClass} min-w-[5.5rem]`}
+                    >
+                      {buildFilterYearOptions(selectedMonth, sortedDates).map((year) => (
+                        <option key={year} value={String(year)}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <div className="flex items-center gap-1 pb-0">
+                    <button
+                      type="button"
+                      aria-label="Mes anterior"
+                      onClick={() => setSelectedMonth((m) => shiftYearMonth(m, -1))}
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-sm text-charcoal-muted hover:border-gold/60"
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Mes siguiente"
+                      onClick={() => setSelectedMonth((m) => shiftYearMonth(m, 1))}
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center border border-gold/30 text-sm text-charcoal-muted hover:border-gold/60"
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
-            <div className="flex flex-col items-start gap-2">
+            <div className="relative z-20 flex flex-col items-start">
               <button
                 type="button"
                 onClick={() => {
@@ -559,11 +641,24 @@ export const SpecialScheduleSection = forwardRef<
                 }`}
                 aria-expanded={addCalendarOpen}
               >
-                <span aria-hidden>{addCalendarOpen ? '▾' : '▸'}</span>
+                <span
+                  aria-hidden
+                  className={`inline-block transition-transform duration-300 ease-out ${
+                    addCalendarOpen ? 'rotate-90' : 'rotate-0'
+                  }`}
+                >
+                  ▸
+                </span>
                 Añadir dias
               </button>
-              {addCalendarOpen && (
-                <>
+              <div
+                className={`special-add-calendar absolute right-0 top-[calc(100%+0.5rem)] z-30 origin-top-right ${
+                  addCalendarOpen ? 'special-add-calendar-open' : 'special-add-calendar-closed'
+                }`}
+                aria-hidden={!addCalendarOpen}
+                inert={!addCalendarOpen ? true : undefined}
+              >
+                <div className="border border-gold/30 bg-cream/95 p-2 shadow-[0_18px_44px_-14px_rgba(40,30,20,0.4)] backdrop-blur-[2px]">
                   <SpecialDateRangeCalendar
                     rangeStart={rangeStart}
                     rangeEnd={rangeEnd}
@@ -575,14 +670,14 @@ export const SpecialScheduleSection = forwardRef<
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs"
+                    className="mt-2 h-8 text-xs"
                     onClick={addDateRange}
                     disabled={!rangeStart || datesToAddCount === 0}
                   >
                     {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
                   </Button>
-                </>
-              )}
+                </div>
+              </div>
             </div>
           </div>
 
