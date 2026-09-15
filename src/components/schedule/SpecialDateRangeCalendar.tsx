@@ -32,10 +32,7 @@ function buildMonthCells(year: number, month: number): Array<string | null> {
   return cells
 }
 
-const WEEKDAYS = (() => {
-  const fmt = new Intl.DateTimeFormat('es-ES', { weekday: 'short' })
-  return Array.from({ length: 7 }, (_, i) => fmt.format(new Date(2024, 0, 1 + i)))
-})()
+const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const
 
 /** Lista inclusiva de fechas YYYY-MM-DD entre dos extremos (orden indiferente). */
 export function enumerateDateRange(a: string, b: string): string[] {
@@ -113,35 +110,35 @@ export function SpecialDateRangeCalendar({
   const canPrev = viewMonthKey > minMonthKey
 
   return (
-    <div className="w-full max-w-[17rem] border border-gold/30 bg-cream/40 p-2">
-      <div className="mb-2 flex items-center justify-between gap-1">
+    <div className="w-[19.5rem] border border-gold/30 bg-cream/40 p-3">
+      <div className="mb-3 flex items-center justify-between gap-1">
         <button
           type="button"
           onClick={goPrevMonth}
           disabled={!canPrev}
-          className="ui-rounded flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-sm text-gold transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-30"
+          className="ui-rounded flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-base text-gold transition-colors hover:border-gold/60 hover:bg-gold/10 disabled:cursor-not-allowed disabled:opacity-30"
           aria-label="Mes anterior"
         >
           ‹
         </button>
-        <p className={`flex-1 text-center capitalize text-gold ${typography.caption} text-xs`}>
+        <p className={`flex-1 text-center capitalize text-gold ${typography.caption} text-[11px]`}>
           {monthTitle}
         </p>
         <button
           type="button"
           onClick={goNextMonth}
-          className="ui-rounded flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-sm text-gold transition-colors hover:border-gold/60 hover:bg-gold/10"
+          className="ui-rounded flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center border border-gold/30 bg-cream/30 text-base text-gold transition-colors hover:border-gold/60 hover:bg-gold/10"
           aria-label="Mes siguiente"
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5" role="grid" aria-label={monthTitle}>
+      <div className="grid grid-cols-7 gap-1" role="grid" aria-label={monthTitle}>
         {WEEKDAYS.map((label) => (
           <div
             key={label}
-            className={`${typography.caption} py-0.5 text-center text-[9px] normal-case`}
+            className={`${typography.caption} py-1 text-center text-[10px] normal-case tracking-normal`}
             role="columnheader"
           >
             {label}
@@ -165,7 +162,7 @@ export function SpecialDateRangeCalendar({
               type="button"
               disabled={disabled}
               onClick={() => onPick(dateStr)}
-              className={`aspect-square text-xs transition-colors ${
+              className={`aspect-square text-sm transition-colors ${
                 disabled
                   ? 'cursor-not-allowed border border-transparent text-charcoal-muted/40'
                   : isEdge
