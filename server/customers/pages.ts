@@ -1,7 +1,10 @@
 import type { AppointmentRow } from '@server/pg/types.js'
+import {
+  localizeAppointmentsForCustomer,
+  resolveCustomerFacingLocale,
+} from '@server/appointments/bookingLocale.js'
 import { buildLinkPreviewMetaTags, appendLocaleToCustomerUrl, publicBaseUrl, encodeId, decodeId, verifyCancelToken } from '@server/appointments/links.js'
-import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/index.js'
-import { appointmentLocale } from '@/i18n/localeHelpers'
+import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/queries.js'
 import { publicAppointmentErrorMessage } from '@/i18n/publicAppointmentErrors'
 import { getTranslation } from '@/i18n/translations'
 import { normalizeLocale, type Locale } from '@/i18n/types'
@@ -16,11 +19,11 @@ export function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-export function resolvePageLocale(
+export async function resolvePageLocale(
   row: AppointmentRow | null | undefined,
   queryLang?: string,
-): Locale {
-  if (row) return appointmentLocale(row)
+): Promise<Locale> {
+  if (row) return resolveCustomerFacingLocale(row.customer_phone, row.locale)
   return normalizeLocale(queryLang === 'en' ? 'en' : undefined)
 }
 
@@ -128,19 +131,24 @@ export async function resolveCustomerBookingContext(
 > {
   const linkId = decodeId(code)
   if (!linkId || !verifyCancelToken(linkId, token)) {
-    return { ok: false, reason: 'invalid', locale: resolvePageLocale(null, queryLang) }
+    return { ok: false, reason: 'invalid', locale: await resolvePageLocale(null, queryLang) }
   }
 
-  const linkRow = await getAppointmentById(linkId)
-  if (!linkRow) {
-    return { ok: false, reason: 'not_found', locale: resolvePageLocale(null, queryLang) }
+  const linkRowRaw = await getAppointmentById(linkId)
+  if (!linkRowRaw) {
+    return { ok: false, reason: 'not_found', locale: await resolvePageLocale(null, queryLang) }
   }
 
-  const locale = resolvePageLocale(linkRow, queryLang)
-  const rawGroup = linkRow.booking_group_id
-    ? await getAppointmentsByBookingGroup(linkRow.booking_group_id)
-    : [linkRow]
-  const groupRows = customerVisibleBookingRows(rawGroup)
+  const locale = await resolvePageLocale(linkRowRaw, queryLang)
+  const linkRow =
+    (await localizeAppointmentsForCustomer([linkRowRaw], locale))[0] ?? linkRowRaw
+  const rawGroup = linkRowRaw.booking_group_id
+    ? await getAppointmentsByBookingGroup(linkRowRaw.booking_group_id)
+    : [linkRowRaw]
+  const groupRows = await localizeAppointmentsForCustomer(
+    customerVisibleBookingRows(rawGroup),
+    locale,
+  )
   const activeRows = groupRows.filter((row) => row.status === 'confirmed')
 
   let targetRow: AppointmentRow | null = null

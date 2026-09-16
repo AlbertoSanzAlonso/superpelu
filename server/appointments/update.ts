@@ -1,7 +1,7 @@
 import { sql, type AppointmentRow } from "@server/db.js"
 import { getService } from "@server/catalog/services.js"
 import { serviceDisplayName } from "@/i18n/localeHelpers"
-import { normalizeLocale } from "@/i18n/types"
+import { resolveCustomerFacingLocale } from "@server/appointments/bookingLocale.js"
 import { getStaff } from "@server/staff/index.js"
 import {
   resolveStaffPortalCustomerPatch,
@@ -147,10 +147,7 @@ export async function updateAppointmentForStaff(
 
   const staff = staffMember
 
-  const locale =
-    input.updateCustomerLocale === true && input.customerLocale !== undefined
-      ? normalizeLocale(input.customerLocale)
-      : normalizeLocale(existing.locale)
+  const locale = await resolveCustomerFacingLocale(customerPhone, existing.locale)
   const serviceName = serviceDisplayName(service, locale)
 
   const customerEmail =
@@ -323,7 +320,7 @@ async function replaceAppointment(
     customerNotes:
       input.customerNotes !== undefined ? (input.customerNotes ?? undefined) : undefined,
     notes: input.notes !== undefined ? (input.notes ?? undefined) : undefined,
-    customerLocale: input.customerLocale ?? normalizeLocale(existing.locale),
+    customerLocale: input.customerLocale,
     updateCustomerLocale: input.updateCustomerLocale,
     forStaffPortal: true,
     forceSchedule: true,

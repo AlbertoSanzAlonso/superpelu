@@ -1,12 +1,15 @@
 import type { AppointmentRow } from '@server/db.js'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import {
+  localizeAppointmentsForCustomer,
+  resolveCustomerFacingLocale,
+} from '@server/appointments/bookingLocale.js'
 import { getAppointmentById, getAppointmentsByBookingGroup } from '@server/appointments/queries.js'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import {
   buildWhatsAppAppointmentMessage,
   filterWhatsAppBookingGroupRows,
 } from '@/i18n/whatsappAppointment'
-import { appointmentLocale } from '@/i18n/localeHelpers'
 import {
   getOpenWaConfig,
   openWaEnsureStarted,
@@ -15,6 +18,18 @@ import {
 import { sendWhatsAppWithLogoHeader } from '@server/notifications/branding.js'
 import { buildBookingUrl, buildManageUrl } from '@server/appointments/links.js'
 
+async function localizeWhatsAppRows(
+  row: AppointmentRow,
+  groupRows?: AppointmentRow[],
+): Promise<{ row: AppointmentRow; groupRows?: AppointmentRow[] }> {
+  const locale = await resolveCustomerFacingLocale(row.customer_phone, row.locale)
+  const [localizedRow] = await localizeAppointmentsForCustomer([row], locale)
+  const localizedGroup = groupRows
+    ? await localizeAppointmentsForCustomer(groupRows, locale)
+    : undefined
+  return { row: localizedRow!, groupRows: localizedGroup }
+}
+
 async function sendCustomerWhatsApp(
   row: AppointmentRow,
   text: string,
@@ -22,26 +37,29 @@ async function sendCustomerWhatsApp(
   if (isGuestCustomerPhone(row.customer_phone)) return undefined
   await openWaEnsureStarted()
   const chatId = phoneToWhatsAppChatId(row.customer_phone)
-  return sendWhatsAppWithLogoHeader(chatId, text, appointmentLocale(row))
+  const locale = await resolveCustomerFacingLocale(row.customer_phone, row.locale)
+  return sendWhatsAppWithLogoHeader(chatId, text, locale)
 }
 
 export async function buildAppointmentReminderMessage(row: AppointmentRow): Promise<string> {
   const groupRows = row.booking_group_id
     ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
     : undefined
-  return buildWhatsAppAppointmentMessage(row, 'reminder', {
-    manageUrl: buildManageUrl(row),
-    groupRows,
+  const localized = await localizeWhatsAppRows(row, groupRows)
+  return buildWhatsAppAppointmentMessage(localized.row, 'reminder', {
+    manageUrl: buildManageUrl(localized.row),
+    groupRows: localized.groupRows,
   })
 }
 
-export function buildAppointmentCancelledMessage(
+export async function buildAppointmentCancelledMessage(
   row: AppointmentRow,
   groupRows?: AppointmentRow[],
-): string {
-  return buildWhatsAppAppointmentMessage(row, 'cancelled', {
+): Promise<string> {
+  const localized = await localizeWhatsAppRows(row, groupRows)
+  return buildWhatsAppAppointmentMessage(localized.row, 'cancelled', {
     bookingUrl: buildBookingUrl(),
-    groupRows,
+    groupRows: localized.groupRows,
   })
 }
 
@@ -55,14 +73,16 @@ export async function buildAppointmentVisitUpdatedMessage(
         ),
       )
     : undefined
-  return buildWhatsAppAppointmentMessage(row, 'updated', {
-    manageUrl: buildManageUrl(row),
-    groupRows,
+  const localized = await localizeWhatsAppRows(row, groupRows)
+  return buildWhatsAppAppointmentMessage(localized.row, 'updated', {
+    manageUrl: buildManageUrl(localized.row),
+    groupRows: localized.groupRows,
   })
 }
 
-export function buildAppointmentNoShowMessage(row: AppointmentRow): string {
-  return buildWhatsAppAppointmentMessage(row, 'no_show', {
+export async function buildAppointmentNoShowMessage(row: AppointmentRow): Promise<string> {
+  const localized = await localizeWhatsAppRows(row)
+  return buildWhatsAppAppointmentMessage(localized.row, 'no_show', {
     bookingUrl: buildBookingUrl(),
   })
 }
@@ -73,9 +93,10 @@ export async function buildAppointmentConfirmationMessage(
   const groupRows = row.booking_group_id
     ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
     : undefined
-  return buildWhatsAppAppointmentMessage(row, 'confirmation', {
-    manageUrl: buildManageUrl(row),
-    groupRows,
+  const localized = await localizeWhatsAppRows(row, groupRows)
+  return buildWhatsAppAppointmentMessage(localized.row, 'confirmation', {
+    manageUrl: buildManageUrl(localized.row),
+    groupRows: localized.groupRows,
   })
 }
 
@@ -136,7 +157,7 @@ export async function notifyAppointmentNoShow(row: AppointmentRow): Promise<void
   if (!config) return
   if (isColorGroupWashRow(row.color_group_role)) return
 
-  const text = buildAppointmentNoShowMessage(row)
+  const text = await buildAppointmentNoShowMessage(row)
   const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: inasistencia enviada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
@@ -157,7 +178,7 @@ export async function notifyAppointmentCancelled(
       ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
       : undefined)
 
-  const text = buildAppointmentCancelledMessage(row, resolvedGroupRows)
+  const text = await buildAppointmentCancelledMessage(row, resolvedGroupRows)
   const messageId = await sendCustomerWhatsApp(row, text)
   console.log(
     `Superpelu WhatsApp: cancelación confirmada a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
