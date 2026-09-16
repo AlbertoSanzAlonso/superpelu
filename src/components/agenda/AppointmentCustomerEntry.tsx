@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
+import { CustomerNotesWarningModal } from '@/components/agenda/CustomerNotesWarningModal'
 import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { markCustomerNotesAcknowledged } from '@/lib/agenda/customerNotesWarning'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { normalizeLocale } from '@/i18n/types'
@@ -46,6 +48,7 @@ export function AppointmentCustomerEntry({
   onCustomerLocaleTouched,
 }: Props) {
   const [mode, setMode] = useState<'search' | 'manual'>('search')
+  const [notesWarning, setNotesWarning] = useState<string | null>(null)
 
   const selectedLabel = formatCustomerDisplayName(
     draft.customerFirstName,
@@ -55,6 +58,8 @@ export function AppointmentCustomerEntry({
 
   function selectExisting(customer: CustomerDetail['customer']) {
     onDraftChange(customerToDraftPatch(customer))
+    const notes = customer.notes?.trim()
+    if (notes) setNotesWarning(notes)
   }
 
   function openManual() {
@@ -106,6 +111,16 @@ export function AppointmentCustomerEntry({
             </button>
           </>
         )}
+        <CustomerNotesWarningModal
+          open={notesWarning != null}
+          notes={notesWarning ?? ''}
+          onAccept={() => {
+            if (notesWarning) {
+              markCustomerNotesAcknowledged(draft.customerPhone, notesWarning)
+            }
+            setNotesWarning(null)
+          }}
+        />
       </div>
     )
   }
@@ -124,6 +139,16 @@ export function AppointmentCustomerEntry({
         compact={compact}
         allowOptionalPhone
         onCustomerLocaleTouched={onCustomerLocaleTouched}
+      />
+      <CustomerNotesWarningModal
+        open={notesWarning != null}
+        notes={notesWarning ?? ''}
+        onAccept={() => {
+          if (notesWarning) {
+            markCustomerNotesAcknowledged(draft.customerPhone, notesWarning)
+          }
+          setNotesWarning(null)
+        }}
       />
     </div>
   )

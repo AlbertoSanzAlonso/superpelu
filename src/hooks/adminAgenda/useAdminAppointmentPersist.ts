@@ -14,6 +14,10 @@ import type {
 import type { Locale } from '@/i18n/types'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
+import {
+  customerNotesNeedWarning,
+  markCustomerNotesAcknowledged,
+} from '@/lib/agenda/customerNotesWarning'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
@@ -66,6 +70,7 @@ export function useAdminAppointmentPersist({
   const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
   const [guestCustomerPromptOpen, setGuestCustomerPromptOpen] = useState(false)
   const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
+  const [customerNotesWarningOpen, setCustomerNotesWarningOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const createLocaleRef = useRef<Locale>(aptDraft.customerLocale)
   /** Idioma tocado a propósito (selector o aviso de número extranjero). */
@@ -302,6 +307,12 @@ export function useAdminAppointmentPersist({
         return persistAppointment()
       }
       if (
+        customerNotesNeedWarning(aptDraft.customerPhone, aptDraft.customerNotes)
+      ) {
+        setCustomerNotesWarningOpen(true)
+        return false
+      }
+      if (
         shouldPromptGuestCustomer({
           phone: aptDraft.customerPhone,
           firstName: aptDraft.customerFirstName,
@@ -332,6 +343,7 @@ export function useAdminAppointmentPersist({
       aptDraft.date,
       aptDraft.startTime,
       aptDraft.customerPhone,
+      aptDraft.customerNotes,
       aptDraft.customerLocale,
       aptDraft.customerFirstName,
       persistAppointment,
@@ -340,6 +352,39 @@ export function useAdminAppointmentPersist({
       setError,
     ],
   )
+
+  const acceptCustomerNotesWarning = useCallback(async () => {
+    markCustomerNotesAcknowledged(aptDraft.customerPhone, aptDraft.customerNotes)
+    setCustomerNotesWarningOpen(false)
+    if (
+      shouldPromptGuestCustomer({
+        phone: aptDraft.customerPhone,
+        firstName: aptDraft.customerFirstName,
+      })
+    ) {
+      setGuestCustomerPromptOpen(true)
+      return
+    }
+    if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
+      setForeignPhoneLocalePromptOpen(true)
+      return
+    }
+    if (shouldAskCreateWhatsAppNotify(aptDraft.customerPhone)) {
+      createLocaleRef.current = aptDraft.customerLocale
+      setWhatsAppNotifyContext('create')
+      setWhatsAppNotifyDialogOpen(true)
+      return
+    }
+    await persistAppointment()
+  }, [
+    aptDraft.customerPhone,
+    aptDraft.customerNotes,
+    aptDraft.customerFirstName,
+    aptDraft.customerLocale,
+    persistAppointment,
+    setWhatsAppNotifyContext,
+    setWhatsAppNotifyDialogOpen,
+  ])
 
   const acceptGuestCustomer = useCallback(async () => {
     setGuestCustomerPromptOpen(false)
@@ -492,6 +537,8 @@ export function useAdminAppointmentPersist({
     persistAppointment,
     saveAppointment,
     isSubmitting,
+    customerNotesWarningOpen,
+    acceptCustomerNotesWarning,
     foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale,
     declineForeignPhoneLocale,

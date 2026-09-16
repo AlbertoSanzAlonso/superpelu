@@ -6,6 +6,7 @@ import { NoShowContactDialog } from '@/components/ui/NoShowContactDialog'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { GuestCustomerConfirmDialog } from '@/components/customers/GuestCustomerConfirmDialog'
 import { GuestToCustomerConfirmDialog } from '@/components/customers/GuestToCustomerConfirmDialog'
+import { CustomerNotesWarningModal } from '@/components/agenda/CustomerNotesWarningModal'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { AdminAgendaControlBar } from '@/components/agenda/admin/AdminAgendaControlBar'
 import { AdminCalendarLegend } from '@/components/agenda/admin/AdminCalendarLegend'
@@ -298,6 +299,12 @@ export function AdminAgendaWorkspace({
         open={agenda.guestCustomerPromptOpen}
         onAccept={() => void agenda.acceptGuestCustomer()}
         onDecline={agenda.declineGuestCustomer}
+      />
+
+      <CustomerNotesWarningModal
+        open={agenda.customerNotesWarningOpen}
+        notes={agenda.aptDraft.customerNotes}
+        onAccept={() => void agenda.acceptCustomerNotesWarning()}
       />
 
       <GuestToCustomerConfirmDialog

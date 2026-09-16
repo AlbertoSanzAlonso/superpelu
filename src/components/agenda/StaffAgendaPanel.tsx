@@ -5,6 +5,7 @@ import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { GuestCustomerConfirmDialog } from '@/components/customers/GuestCustomerConfirmDialog'
 import { GuestToCustomerConfirmDialog } from '@/components/customers/GuestToCustomerConfirmDialog'
+import { CustomerNotesWarningModal } from '@/components/agenda/CustomerNotesWarningModal'
 import { canMarkAppointmentNoShow, APPOINTMENT_STATUS_NO_SHOW } from '@/lib/agenda/noShow'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { StaffAgendaControlBar } from '@/components/agenda/staff/StaffAgendaControlBar'
@@ -241,6 +242,12 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         open={agenda.guestCustomerPromptOpen}
         onAccept={() => void agenda.acceptGuestCustomer()}
         onDecline={agenda.declineGuestCustomer}
+      />
+
+      <CustomerNotesWarningModal
+        open={agenda.customerNotesWarningOpen}
+        notes={agenda.aptDraft.customerNotes}
+        onAccept={() => void agenda.acceptCustomerNotesWarning()}
       />
 
       <GuestToCustomerConfirmDialog

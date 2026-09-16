@@ -21,6 +21,7 @@ import {
 import { fetchAdminStaff, type AdminStaffMember } from '@/lib/api/admin'
 import { mapAdminServiceToBookable } from '@/lib/catalog/adminServices'
 import { buildAdminCategoryOptions } from '@/lib/catalog/servicePicker'
+import { clearCustomerNotesAcknowledgement } from '@/lib/agenda/customerNotesWarning'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type {
   BookableService,
@@ -290,6 +291,7 @@ export function useAdminAgendaAppointments({
     setEditingId(null)
     setEditingGuestPhone(null)
     setError('')
+    clearCustomerNotesAcknowledgement()
     setAptDraft({ ...EMPTY_APPOINTMENT_DRAFT })
   }, [setError])
 
@@ -669,6 +671,8 @@ export function useAdminAgendaAppointments({
     persistAppointment: persist.persistAppointment,
     saveAppointment: persist.saveAppointment,
     isSubmitting: persist.isSubmitting,
+    customerNotesWarningOpen: persist.customerNotesWarningOpen,
+    acceptCustomerNotesWarning: persist.acceptCustomerNotesWarning,
     foreignPhoneLocalePromptOpen: persist.foreignPhoneLocalePromptOpen,
     acceptForeignPhoneLocale: persist.acceptForeignPhoneLocale,
     declineForeignPhoneLocale: persist.declineForeignPhoneLocale,
@@ -679,7 +683,8 @@ export function useAdminAgendaAppointments({
     guestToCustomerPromptOpen: persist.guestToCustomerPromptOpen,
     acceptGuestToCustomer: persist.acceptGuestToCustomer,
     declineGuestToCustomer: persist.declineGuestToCustomer,
-    editingGuestPhone,
+    markCustomerLocaleTouched: persist.markCustomerLocaleTouched,
+    resetCustomerLocaleTouched: persist.resetCustomerLocaleTouched,
     whatsAppNotifyDialogOpen,
     setWhatsAppNotifyDialogOpen,
     whatsAppNotifyBusy,

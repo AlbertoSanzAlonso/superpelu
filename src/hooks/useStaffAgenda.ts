@@ -33,6 +33,11 @@ import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBloc
 import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
+import {
+  clearCustomerNotesAcknowledgement,
+  customerNotesNeedWarning,
+  markCustomerNotesAcknowledged,
+} from '@/lib/agenda/customerNotesWarning'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type { Locale } from '@/i18n/types'
 import type {
@@ -86,6 +91,7 @@ export function useStaffAgenda(token: string) {
   const [foreignPhoneLocalePromptOpen, setForeignPhoneLocalePromptOpen] = useState(false)
   const [guestCustomerPromptOpen, setGuestCustomerPromptOpen] = useState(false)
   const [guestToCustomerPromptOpen, setGuestToCustomerPromptOpen] = useState(false)
+  const [customerNotesWarningOpen, setCustomerNotesWarningOpen] = useState(false)
   const [editingGuestPhone, setEditingGuestPhone] = useState<string | null>(null)
   const createLocaleRef = useRef<Locale>('es')
   const updateCustomerLocaleRef = useRef(false)
@@ -171,6 +177,7 @@ export function useStaffAgenda(token: string) {
     pendingNotifyWhatsAppRef.current = undefined
     pendingGuestCustomerRef.current = false
     setError('')
+    clearCustomerNotesAcknowledgement()
     setAptDraft((d) => ({
       ...EMPTY_APPOINTMENT_DRAFT,
       serviceIds: keepServiceIds ? d.serviceIds : [],
@@ -487,6 +494,13 @@ export function useStaffAgenda(token: string) {
       }
       if (
         !editingId &&
+        customerNotesNeedWarning(aptDraft.customerPhone, aptDraft.customerNotes)
+      ) {
+        setCustomerNotesWarningOpen(true)
+        return false
+      }
+      if (
+        !editingId &&
         shouldPromptGuestCustomer({
           phone: aptDraft.customerPhone,
           firstName: aptDraft.customerFirstName,
@@ -516,11 +530,42 @@ export function useStaffAgenda(token: string) {
       editingId,
       editingGuestPhone,
       aptDraft.customerPhone,
+      aptDraft.customerNotes,
       aptDraft.customerLocale,
       aptDraft.customerFirstName,
       openWhatsAppNotifyForCreate,
     ],
   )
+
+  const acceptCustomerNotesWarning = useCallback(async () => {
+    markCustomerNotesAcknowledged(aptDraft.customerPhone, aptDraft.customerNotes)
+    setCustomerNotesWarningOpen(false)
+    if (
+      shouldPromptGuestCustomer({
+        phone: aptDraft.customerPhone,
+        firstName: aptDraft.customerFirstName,
+      })
+    ) {
+      setGuestCustomerPromptOpen(true)
+      return
+    }
+    if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
+      setForeignPhoneLocalePromptOpen(true)
+      return
+    }
+    if (shouldAskCustomerWhatsAppNotify(aptDraft.customerPhone, false)) {
+      openWhatsAppNotifyForCreate()
+      return
+    }
+    await doSave()
+  }, [
+    aptDraft.customerPhone,
+    aptDraft.customerNotes,
+    aptDraft.customerFirstName,
+    aptDraft.customerLocale,
+    doSave,
+    openWhatsAppNotifyForCreate,
+  ])
 
   const closeWhatsAppNotifyDialog = useCallback(() => {
     if (whatsAppNotifyBusy) return
@@ -789,6 +834,8 @@ export function useStaffAgenda(token: string) {
     declineForeignPhoneLocale,
     closeForeignPhoneLocalePrompt,
     markCustomerLocaleTouched,
+    customerNotesWarningOpen,
+    acceptCustomerNotesWarning,
     guestCustomerPromptOpen,
     acceptGuestCustomer,
     declineGuestCustomer,
