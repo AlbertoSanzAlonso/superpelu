@@ -1,10 +1,19 @@
 import { useEffect, useState } from 'react'
+import { ClockTimeInput } from '@/components/agenda/ClockTimeInput'
 import { Button } from '@/components/ui/Button'
 import { Textarea } from '@/components/ui/Input'
+import { timeToMinutes } from '@/lib/agenda/adminCalendar'
 import { formatDisplayDate } from '@/lib/core/dates'
 import type { BlockSeriesMeta } from '@/types/blocks'
 import type { DayScheduleBlock } from '@/types/booking'
 import { typography } from '@/styles/typography'
+
+export type BlockDetailSavePayload = {
+  note: string
+  startTime: string
+  endTime: string
+  mode: 'single' | 'series'
+}
 
 type Props = {
   open: boolean
@@ -15,7 +24,7 @@ type Props = {
   seriesLoading?: boolean
   busy?: boolean
   onClose: () => void
-  onSave: (note: string, mode: 'single' | 'series') => void | Promise<void>
+  onSave: (payload: BlockDetailSavePayload) => void | Promise<void>
   onDelete: (mode: 'single' | 'series') => void | Promise<void>
 }
 
@@ -32,23 +41,39 @@ export function BlockDetailModal({
   onDelete,
 }: Props) {
   const [note, setNote] = useState('')
+  const [startTime, setStartTime] = useState(block.startTime)
+  const [endTime, setEndTime] = useState(block.endTime)
   const [saveMode, setSaveMode] = useState<'single' | 'series'>('single')
   const [deleteMode, setDeleteMode] = useState<'single' | 'series'>('single')
+  const [localError, setLocalError] = useState('')
 
   const hasSeries = series != null && series.count > 1 && series.seriesId != null
 
   useEffect(() => {
     if (!open) return
     setNote(block.note ?? '')
+    setStartTime(block.startTime)
+    setEndTime(block.endTime)
     setSaveMode('single')
     setDeleteMode('single')
-  }, [open, block.id, block.note])
+    setLocalError('')
+  }, [open, block.id, block.note, block.startTime, block.endTime])
 
   if (!open) return null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    await onSave(note, hasSeries ? saveMode : 'single')
+    if (timeToMinutes(endTime) <= timeToMinutes(startTime)) {
+      setLocalError('La hora final debe ser posterior al comienzo')
+      return
+    }
+    setLocalError('')
+    await onSave({
+      note,
+      startTime,
+      endTime,
+      mode: hasSeries ? saveMode : 'single',
+    })
   }
 
   return (
@@ -67,7 +92,7 @@ export function BlockDetailModal({
           Bloqueo de agenda
         </h2>
         <p className={`${typography.caption} mb-4 capitalize`}>
-          {staffName} · {formatDisplayDate(date)} · {block.startTime}–{block.endTime}
+          {staffName} · {formatDisplayDate(date)}
         </p>
 
         {seriesLoading && (
@@ -75,6 +100,37 @@ export function BlockDetailModal({
         )}
 
         <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <span className={`${typography.label} mb-1.5 block`}>Comienzo</span>
+              <ClockTimeInput
+                value={startTime}
+                onChange={(time) => {
+                  setStartTime(time)
+                  setLocalError('')
+                }}
+                defaultTime={block.startTime}
+                minuteStep={5}
+                required
+                disabled={busy}
+              />
+            </div>
+            <div>
+              <span className={`${typography.label} mb-1.5 block`}>Final</span>
+              <ClockTimeInput
+                value={endTime}
+                onChange={(time) => {
+                  setEndTime(time)
+                  setLocalError('')
+                }}
+                defaultTime={block.endTime}
+                minuteStep={5}
+                required
+                disabled={busy}
+              />
+            </div>
+          </div>
+
           <Textarea
             id="block-note"
             label="Observaciones"
@@ -86,7 +142,7 @@ export function BlockDetailModal({
 
           {hasSeries && (
             <fieldset className="space-y-2 border border-gold/20 p-3">
-              <legend className={`${typography.label} px-1`}>Al guardar observaciones</legend>
+              <legend className={`${typography.label} px-1`}>Al guardar</legend>
               <label className="flex cursor-pointer items-start gap-2 text-sm">
                 <input
                   type="radio"
@@ -108,6 +164,12 @@ export function BlockDetailModal({
                 <span>Toda la serie ({series!.count} días)</span>
               </label>
             </fieldset>
+          )}
+
+          {localError && (
+            <p className="text-sm text-red-700" role="alert">
+              {localError}
+            </p>
           )}
 
           <div className="flex flex-wrap gap-2">

@@ -125,7 +125,7 @@ export function useStaffAgenda(token: string) {
 
   const blockDetail = useAgendaBlockDetailView<DayScheduleBlock>({
     fetchSeries: (blockId) => fetchMyBlockSeries(token, blockId),
-    updateNote: (blockId, note, mode) => updateMyBlock(token, blockId, { note, mode }),
+    update: (blockId, payload) => updateMyBlock(token, blockId, payload),
     remove: (blockId, mode) => deleteMyBlock(token, blockId, mode),
     reload: load,
     setError,
@@ -263,10 +263,15 @@ export function useStaffAgenda(token: string) {
     [blockDetail, gridSelection.clear],
   )
 
-  const saveBlockNote = useCallback(
-    async (note: string, mode: 'single' | 'series') => {
+  const saveBlock = useCallback(
+    async (payload: {
+      note: string
+      startTime: string
+      endTime: string
+      mode: 'single' | 'series'
+    }) => {
       if (!blockDetail.viewing) return
-      await blockDetail.saveNote(blockDetail.viewing.id, note, mode)
+      await blockDetail.save(blockDetail.viewing.id, payload)
     },
     [blockDetail],
   )
@@ -860,7 +865,7 @@ export function useStaffAgenda(token: string) {
     blockDetailBusy: blockDetail.busy,
     openBlockDetail,
     closeBlockDetail: blockDetail.close,
-    saveBlockNote,
+    saveBlock,
     deleteViewingBlock,
     unblockSelectedGridSlots,
     createAppointmentFromGridSelection,

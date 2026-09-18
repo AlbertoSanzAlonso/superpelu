@@ -161,7 +161,7 @@ export function AdminAgendaWorkspace({
           seriesLoading={agenda.viewingBlockSeriesLoading}
           busy={agenda.blockDetailBusy}
           onClose={agenda.closeBlockDetail}
-          onSave={agenda.saveBlockNote}
+          onSave={agenda.saveBlock}
           onDelete={agenda.deleteViewingBlock}
         />
       )}

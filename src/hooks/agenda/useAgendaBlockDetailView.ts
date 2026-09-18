@@ -2,13 +2,16 @@ import { useCallback, useState } from 'react'
 import { ApiError } from '@/lib/api'
 import type { BlockSeriesMeta } from '@/types/blocks'
 
+type BlockUpdatePayload = {
+  note?: string | null
+  startTime?: string
+  endTime?: string
+  mode?: 'single' | 'series'
+}
+
 type BlockDetailViewDeps = {
   fetchSeries: (blockId: string) => Promise<BlockSeriesMeta>
-  updateNote: (
-    blockId: string,
-    note: string,
-    mode: 'single' | 'series',
-  ) => Promise<unknown>
+  update: (blockId: string, payload: BlockUpdatePayload) => Promise<unknown>
   remove: (blockId: string, mode: 'single' | 'series') => Promise<unknown>
   reload: (opts?: { silent?: boolean }) => Promise<unknown>
   setError: (message: string) => void
@@ -16,7 +19,7 @@ type BlockDetailViewDeps = {
 
 export function useAgendaBlockDetailView<T>({
   fetchSeries,
-  updateNote,
+  update,
   remove,
   reload,
   setError,
@@ -46,12 +49,25 @@ export function useAgendaBlockDetailView<T>({
     [fetchSeries],
   )
 
-  const saveNote = useCallback(
-    async (blockId: string, note: string, mode: 'single' | 'series') => {
+  const save = useCallback(
+    async (
+      blockId: string,
+      payload: {
+        note: string
+        startTime: string
+        endTime: string
+        mode: 'single' | 'series'
+      },
+    ) => {
       setBusy(true)
       setError('')
       try {
-        await updateNote(blockId, note, mode)
+        await update(blockId, {
+          note: payload.note,
+          startTime: payload.startTime,
+          endTime: payload.endTime,
+          mode: payload.mode,
+        })
         close()
         await reload()
       } catch (err) {
@@ -60,7 +76,7 @@ export function useAgendaBlockDetailView<T>({
         setBusy(false)
       }
     },
-    [updateNote, close, reload, setError],
+    [update, close, reload, setError],
   )
 
   const deleteBlock = useCallback(
@@ -87,7 +103,7 @@ export function useAgendaBlockDetailView<T>({
     busy,
     open,
     close,
-    saveNote,
+    save,
     deleteBlock,
   }
 }

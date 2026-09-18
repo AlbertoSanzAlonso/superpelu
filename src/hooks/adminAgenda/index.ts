@@ -307,7 +307,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     blockDetailBusy: blocks.blockDetailBusy,
     openBlockDetail: blocks.openBlockDetail,
     closeBlockDetail: blocks.closeBlockDetail,
-    saveBlockNote: blocks.saveBlockNote,
+    saveBlock: blocks.saveBlock,
     deleteViewingBlock: blocks.deleteViewingBlock,
     confirmDialog: confirm.confirmDialog,
     confirmBusy: confirm.confirmBusy,

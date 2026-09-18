@@ -39,6 +39,14 @@ function findAppointment(schedule: StaffDaySchedule, id: string) {
   return schedule.appointments.find((a) => a.id === id)
 }
 
+function IconPencil() {
+  return (
+    <svg className="size-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M13.586 3.586a2 2 0 112.828 2.828l-8.5 8.5a1 1 0 01-.434.263l-3 1a1 1 0 01-1.263-1.263l1-3a1 1 0 01.263-.434l8.5-8.5z" />
+    </svg>
+  )
+}
+
 export function StaffTimeGrid({
   date,
   schedule,
@@ -119,6 +127,7 @@ export function StaffTimeGrid({
           const isMultiSelected = selectedTimes.has(cell.time)
           const isFormSlot = cell.status === 'free' && cell.time === formSlotTime && !isMultiSelected
           const isFree = cell.status === 'free'
+          const isBlockStart = cell.status === 'block' && Boolean(cell.title)
           return (
             <button
               key={cell.time}
@@ -143,7 +152,7 @@ export function StaffTimeGrid({
               }}
               aria-pressed={isMultiSelected}
               className={[
-                'min-h-[4.5rem] border px-2 py-2 text-left text-sm transition-colors',
+                'relative min-h-[4.5rem] border px-2 py-2 text-left text-sm transition-colors',
                 cell.status === 'appointment'
                   ? appointmentCellClass(cell)
                   : statusStyles[cell.status],
@@ -161,6 +170,30 @@ export function StaffTimeGrid({
                     <WashPhaseIcon className="h-3 w-3 shrink-0 opacity-90" title="Lavado" />
                   )}
                   <span className="truncate">{cell.subtitle}</span>
+                </span>
+              )}
+              {isBlockStart && cell.blockId && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  className="absolute top-1.5 right-1.5 rounded border border-charcoal/20 bg-cream/90 p-0.5 text-charcoal transition-colors hover:border-charcoal/40 hover:bg-cream"
+                  title="Editar bloqueo"
+                  aria-label="Editar bloqueo"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const block = schedule.blocks.find((b) => b.id === cell.blockId)
+                    if (block) onOpenBlock(block)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      const block = schedule.blocks.find((b) => b.id === cell.blockId)
+                      if (block) onOpenBlock(block)
+                    }
+                  }}
+                >
+                  <IconPencil />
                 </span>
               )}
             </button>

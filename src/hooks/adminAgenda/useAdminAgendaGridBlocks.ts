@@ -53,8 +53,7 @@ export function useAdminAgendaGridBlocks({
 
   const blockDetail = useAgendaBlockDetailView<AdminBlockView>({
     fetchSeries: (blockId) => fetchAdminBlockSeries(adminToken, blockId),
-    updateNote: (blockId, note, mode) =>
-      updateAdminBlock(adminToken, blockId, { note, mode }),
+    update: (blockId, payload) => updateAdminBlock(adminToken, blockId, payload),
     remove: (blockId, mode) => deleteAdminBlock(blockId, adminToken, mode),
     reload: load,
     setError,
@@ -179,10 +178,15 @@ export function useAdminAgendaGridBlocks({
     [schedules, setSelection, blockDetail],
   )
 
-  const saveBlockNote = useCallback(
-    async (note: string, mode: 'single' | 'series') => {
+  const saveBlock = useCallback(
+    async (payload: {
+      note: string
+      startTime: string
+      endTime: string
+      mode: 'single' | 'series'
+    }) => {
       if (!blockDetail.viewing) return
-      await blockDetail.saveNote(blockDetail.viewing.block.id, note, mode)
+      await blockDetail.save(blockDetail.viewing.block.id, payload)
     },
     [blockDetail],
   )
@@ -211,7 +215,7 @@ export function useAdminAgendaGridBlocks({
     blockDetailBusy: blockDetail.busy,
     openBlockDetail,
     closeBlockDetail: blockDetail.close,
-    saveBlockNote,
+    saveBlock,
     deleteViewingBlock,
   }
 }

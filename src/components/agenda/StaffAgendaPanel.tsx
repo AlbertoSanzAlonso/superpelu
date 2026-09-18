@@ -202,7 +202,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
           seriesLoading={agenda.viewingBlockSeriesLoading}
           busy={agenda.blockDetailBusy}
           onClose={agenda.closeBlockDetail}
-          onSave={agenda.saveBlockNote}
+          onSave={agenda.saveBlock}
           onDelete={agenda.deleteViewingBlock}
         />
       )}
