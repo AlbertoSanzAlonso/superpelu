@@ -165,7 +165,7 @@ export async function notifyAppointmentNoShow(row: AppointmentRow): Promise<void
   )
 }
 
-/** Confirmación tras cancelar una cita (cliente desde enlace público). */
+/** Confirmación tras cancelar una cita (agenda o cuando se pide avisar al cliente). */
 export async function notifyAppointmentCancelled(
   row: AppointmentRow,
   groupRows?: AppointmentRow[],

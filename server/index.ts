@@ -1957,7 +1957,7 @@ app.post('/c/:code', async (c) => {
   const { ctx } = resolved
   const { locale, activeRows, targetRow, groupRows } = ctx
   if (cancelAll && activeRows.length > 1) {
-    const cancelled = await cancelBookingGroupByCustomer(ctx.linkId, { notifyCustomer: true })
+    const cancelled = await cancelBookingGroupByCustomer(ctx.linkId, { notifyCustomer: false })
     if (cancelled === 0) {
       const t = cp(locale).alreadyCancelled
       return replyCustomerPage(
@@ -1994,15 +1994,12 @@ app.post('/c/:code', async (c) => {
   }
 
   const multiVisit = isMultiTreatmentVisit(groupRows)
-  await cancelAppointment(cancelId, { notifyCustomer: !multiVisit, notifyAdmin: true })
+  // Cancelación: sin WhatsApp al cliente (solo email al salón).
+  await cancelAppointment(cancelId, { notifyCustomer: false, notifyAdmin: true })
   const t = cp(locale).cancel
   const remaining = activeRows.filter((row) => row.id !== cancelId)
 
   if (multiVisit) {
-    // El WhatsApp sale al confirmar; no hay segundo paso de «enviar notificación».
-    void notifyCustomerBookingVisitFinished(ctx.linkId).catch((err) => {
-      console.error('Superpelu WhatsApp: resumen tras cancelar tratamiento:', err)
-    })
     const updated = cp(locale).updated
     if (remaining.length > 0) {
       return replyCustomerPage(

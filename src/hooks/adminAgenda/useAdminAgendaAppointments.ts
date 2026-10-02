@@ -453,13 +453,18 @@ export function useAdminAgendaAppointments({
   })
 
   const persistCancel = useCallback(
-    async (notifyCustomerWhatsApp: boolean): Promise<boolean> => {
-      if (!pendingCancelId || !adminToken) return false
+    async (
+      notifyCustomerWhatsApp: boolean,
+      override?: { id?: string; mode?: AppointmentSeriesMode },
+    ): Promise<boolean> => {
+      const cancelId = override?.id ?? pendingCancelId
+      const mode = override?.mode ?? pendingCancelMode
+      if (!cancelId || !adminToken) return false
       setError('')
       try {
-        await cancelAppointment(pendingCancelId, adminToken, {
+        await cancelAppointment(cancelId, adminToken, {
           notifyCustomerWhatsApp,
-          mode: pendingCancelMode,
+          mode,
         })
         await resyncAppointmentSnapshots?.({ notify: true })
         setWhatsAppNotifyDialogOpen(false)
