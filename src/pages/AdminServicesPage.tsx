@@ -196,9 +196,11 @@ function ServiceListRow({
   canMoveDown?: boolean
 }) {
   const nameEs = firstLine(svc.nameEs)
-  const rowBg = stripeOdd
-    ? 'bg-gold/[0.07] hover:bg-gold/20'
-    : 'bg-cream/25 hover:bg-gold/20'
+  const rowBg = !svc.active
+    ? 'bg-charcoal/[0.08] hover:bg-charcoal/[0.12]'
+    : stripeOdd
+      ? 'bg-gold/[0.07] hover:bg-gold/20'
+      : 'bg-cream/25 hover:bg-gold/20'
 
   if (compact) {
     return (
