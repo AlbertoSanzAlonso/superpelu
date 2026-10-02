@@ -46,7 +46,7 @@ export const salonServices: SalonService[] = [
   // COLOR
   /** Pareja interna de coloración (30 min tras la pausa); no listar en /reservar. */
   s('svc-wash-color', 'color', 'LAVAR COLOR', 'WASH COLOR', 20, 0, false),
-  /** 90 min en agenda: 30 color + 30 pausa + 30 lavado/acabado (ver bookingOccupancy). */
+  /** 90 min: aplicación + pausa + aclarado (patrón en BD / constructor). */
   s('svc-root-color', 'color', 'Color en raíz', 'Root Color', 90, 1),
   s('svc-complete-color', 'color', 'Color completo', 'Complete Color', 90, 2),
   s(

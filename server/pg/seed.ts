@@ -4,6 +4,8 @@ import {
   legacyMockStaffIds,
   salonStaffMembers,
 } from '@/data/salonStaff'
+import { COLOR_SPLIT_SERVICE_IDS } from '@/lib/booking/occupancy'
+import { defaultColorSplitPattern, patternTotalSpanMinutes } from '@/lib/booking/servicePattern'
 import { sql } from '@server/pg/client.js'
 import { staffWeeklyHoursRestoreV1 } from '@server/pg/staffHoursRestoreV1.js'
 import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/index.js'
@@ -179,10 +181,33 @@ export async function applyStartingStaffWeeklyHoursOnce(): Promise<void> {
   `
 }
 
+/**
+ * Coloración: escribe el patrón 30+pausa+30 solo si aún no hay booking_pattern.
+ * No pisa ediciones del panel.
+ */
+export async function seedColorSplitPatternsIfMissing(): Promise<void> {
+  const now = nowIso()
+  const pattern = defaultColorSplitPattern()
+  const duration = patternTotalSpanMinutes(pattern)
+  const ids = [...COLOR_SPLIT_SERVICE_IDS]
+  for (const id of ids) {
+    await sql`
+      UPDATE services
+      SET
+        booking_pattern = ${sql.json(pattern)},
+        duration_minutes = ${duration},
+        updated_at = ${now}
+      WHERE id = ${id}
+        AND booking_pattern IS NULL
+    `
+  }
+}
+
 export async function runSeed(): Promise<void> {
   // Solo inserts de filas ausentes + caches derivadas. No reescribe catálogo/personal/horarios.
   await seedServiceCategories()
   await syncSalonServices()
+  await seedColorSplitPatternsIfMissing()
   await syncSalonStaff()
   await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()

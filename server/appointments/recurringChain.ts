@@ -6,7 +6,7 @@ import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from '@/lib/booking/colorCombo'
 import { upsertCustomerForBooking } from '@server/customers/index.js'
 import { resolveAppointmentLocaleForCreate } from '@server/appointments/bookingLocale.js'
-import { getBookingSpanMinutes, usesColorSplitBooking } from '@/lib/booking/occupancy'
+import { getBookingSpanMinutes, serviceUsesLinkedWorkSegments } from '@/lib/booking/occupancy'
 import { lockStaffDaysForBooking } from '@server/appointments/lock.js'
 import {
   insertColorBookingGroup,
@@ -317,8 +317,8 @@ export async function createRecurringChainedAppointment(
         const serviceName = serviceDisplayName(service, locale)
         const reminderSentAt = reminderSentAtForCreate(dayPlan.date, dayPlan.serviceStartTimes[0]!)
 
-        if (usesColorSplitBooking(service.id)) {
-          const colorGroup = await prepareColorBookingGroupIds(service.id)
+        if (serviceUsesLinkedWorkSegments(service)) {
+          const colorGroup = await prepareColorBookingGroupIds(service)
           if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
           const skipWash =
             getColorWashReplacementIndex(
@@ -326,7 +326,9 @@ export async function createRecurringChainedAppointment(
               i,
               dayPlan.staffAssignments,
             ) != null
-          const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
+          const washServiceName = skipWash
+            ? ''
+            : await resolveWashServiceName(locale, service.bookingPattern)
           await insertColorBookingGroup(
             {
               groupId: colorGroup.groupId,
@@ -351,6 +353,7 @@ export async function createRecurringChainedAppointment(
               seriesId,
               scope,
               skipWash,
+              bookingPattern: service.bookingPattern,
             },
             tx,
           )

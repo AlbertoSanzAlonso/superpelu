@@ -2,15 +2,23 @@ import {
   COLOR_SPLIT_SEGMENT_MINUTES,
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
+  serviceUsesLinkedWorkSegments,
   usesColorSplitBooking,
   type OccupiedSegment,
 } from '@/lib/booking/occupancy'
+import {
+  findReplaceableWorkStepIndex,
+  patternHasReplaceableWork,
+  patternSpanBeforeReplaceable,
+  patternToOccupiedSegmentsBeforeReplaceable,
+  type ServiceBookingPattern,
+} from '@/lib/booking/servicePattern'
 
 export type BookingServiceLine = {
   id: string
   durationMinutes: number
   categoryId?: string | null
-  bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
+  bookingPattern?: ServiceBookingPattern | null
 }
 
 export type BookingServiceWithCategory = BookingServiceLine
@@ -27,21 +35,25 @@ export function isEstheticCategory(categoryId: string | null | undefined): boole
   return categoryId != null && ESTHETIC_CATEGORY_IDS.has(categoryId)
 }
 
-export function findColorServiceIndex(services: readonly { id: string }[]): number {
-  return services.findIndex((service) => usesColorSplitBooking(service.id))
+function serviceCanHaveWashReplacement(service: BookingServiceWithCategory): boolean {
+  if (patternHasReplaceableWork(service.bookingPattern)) return true
+  return usesColorSplitBooking(service.id)
+}
+
+export function findColorServiceIndex(services: readonly BookingServiceWithCategory[]): number {
+  return services.findIndex((service) => serviceCanHaveWashReplacement(service))
 }
 
 /**
- * Índice del servicio que sustituye el lavado de la coloración en `colorIndex`,
- * o null si esa coloración debe llevar su propio lavado.
+ * Índice del servicio que sustituye el lavado/aclarado en `colorIndex`,
+ * o null si esa coloración debe llevar su propio tramo sustituible.
  *
  * Reglas:
  * - Solo peluquería (no estética) puede sustituir el lavado.
- * - Otra coloración split no sustituye (necesita su propio lavado o sustituto).
+ * - Otro servicio con tramo sustituible no sustituye (necesita el suyo).
  * - Con `staffAssignments`: cualquier tratamiento posterior de peluquería puede
- *   sustituir el lavado, sea del mismo o de otro profesional. Ej: color con Olga
- *   + peinado con Mónica → no se crea fila de lavado de Olga.
- * - Sin `staffAssignments`: solo el tratamiento inmediatamente siguiente (reserva clásica).
+ *   sustituir el lavado, sea del mismo o de otro profesional.
+ * - Sin `staffAssignments`: solo el tratamiento inmediatamente siguiente.
  */
 export function getColorWashReplacementIndex(
   services: readonly BookingServiceWithCategory[],
@@ -49,7 +61,8 @@ export function getColorWashReplacementIndex(
   staffAssignments?: readonly (string | null | undefined)[],
 ): number | null {
   if (colorIndex < 0 || colorIndex >= services.length) return null
-  if (!usesColorSplitBooking(services[colorIndex]!.id)) return null
+  const colorService = services[colorIndex]!
+  if (!serviceCanHaveWashReplacement(colorService)) return null
 
   const hasStaff = Boolean(staffAssignments?.length)
 
@@ -63,7 +76,7 @@ export function getColorWashReplacementIndex(
       if (!hasStaff) return null
       continue
     }
-    if (usesColorSplitBooking(next.id)) return null
+    if (serviceCanHaveWashReplacement(next)) return null
     return nextIndex
   }
   return null
@@ -90,18 +103,31 @@ export function usesColorWashReplacement(
   return services.some((_, i) => getColorWashReplacementIndex(services, i, staffAssignments) != null)
 }
 
+function applicationOnlyDuration(service: BookingServiceWithCategory): number {
+  const pattern = service.bookingPattern
+  if (pattern && findReplaceableWorkStepIndex(pattern) >= 0) {
+    // Solo el primer tramo de work antes del sustituible (sin contar pausas en ocupación).
+    const segs = patternToOccupiedSegmentsBeforeReplaceable(pattern, 0)
+    return segs.reduce((sum, seg) => sum + seg.durationMinutes, 0) || COLOR_SPLIT_SEGMENT_MINUTES
+  }
+  return COLOR_SPLIT_SEGMENT_MINUTES
+}
+
 export function getOccupiedSegmentsForChainService(
   services: readonly BookingServiceWithCategory[],
   serviceIndex: number,
   startMinutes: number,
   staffAssignments?: readonly (string | null | undefined)[],
 ): OccupiedSegment[] {
-  const service = services[serviceIndex]
+  const service = services[serviceIndex]!
   if (
-    usesColorSplitBooking(service.id) &&
+    serviceCanHaveWashReplacement(service) &&
     getColorWashReplacementIndex(services, serviceIndex, staffAssignments) != null
   ) {
-    // Mismo profesional continúa con peluquería: sin fila de lavado; solo aplicación.
+    const pattern = service.bookingPattern
+    if (pattern && findReplaceableWorkStepIndex(pattern) >= 0) {
+      return patternToOccupiedSegmentsBeforeReplaceable(pattern, startMinutes)
+    }
     return [{ startMinutes, durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES }]
   }
 
@@ -115,12 +141,18 @@ export function getFirstServiceBookingSpan(
   staffAssignments?: readonly (string | null | undefined)[],
 ): number {
   if (services.length === 0) return 0
-  const first = services[0]
+  const first = services[0]!
   if (
-    usesColorSplitBooking(first.id) &&
+    serviceCanHaveWashReplacement(first) &&
     getColorWashReplacementIndex(services, 0, staffAssignments) != null
   ) {
+    const pattern = first.bookingPattern
+    if (pattern && findReplaceableWorkStepIndex(pattern) >= 0) {
+      return patternSpanBeforeReplaceable(pattern)
+    }
     return COLOR_SPLIT_SEGMENT_MINUTES
   }
   return getBookingSpanMinutes(first.id, first.durationMinutes, first.bookingPattern)
 }
+
+export { serviceUsesLinkedWorkSegments, applicationOnlyDuration }

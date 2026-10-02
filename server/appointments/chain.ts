@@ -9,7 +9,7 @@ import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
 import { reminderSentAtForCreate } from "@server/appointments/reminderAtCreate.js"
 import { resolveAppointmentLocaleForCreate } from "@server/appointments/bookingLocale.js"
-import { getBookingSpanMinutes, usesColorSplitBooking } from "@/lib/booking/occupancy"
+import { getBookingSpanMinutes, serviceUsesLinkedWorkSegments } from "@/lib/booking/occupancy"
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
   insertColorBookingGroup,
@@ -409,14 +409,16 @@ export async function createChainedBookingAppointment(
       const serviceStartTime = serviceStartTimes[i]
       const serviceName = serviceDisplayName(service, locale)
 
-      if (usesColorSplitBooking(service.id)) {
-        const colorGroup = await prepareColorBookingGroupIds(service.id)
+      if (serviceUsesLinkedWorkSegments(service)) {
+        const colorGroup = await prepareColorBookingGroupIds(service)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
         // Solo omitir lavado si el mismo profesional continúa con peluquería.
         // Otra coloración u otro especialista → lavado propio.
         const skipWash =
           getColorWashReplacementIndex(effectiveServices, i, staffAssignments) != null
-        const washServiceName = skipWash ? '' : await resolveWashServiceName(locale)
+        const washServiceName = skipWash
+          ? ''
+          : await resolveWashServiceName(locale, service.bookingPattern)
         await insertColorBookingGroup(
           {
             groupId: colorGroup.groupId,
@@ -440,6 +442,7 @@ export async function createChainedBookingAppointment(
             bookingGroupId,
             skipWash,
             origin,
+            bookingPattern: service.bookingPattern,
           },
           tx,
         )

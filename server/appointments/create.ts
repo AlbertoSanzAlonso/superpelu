@@ -13,7 +13,7 @@ import { resolveAppointmentLocaleForCreate } from "@server/appointments/bookingL
 import {
   getBookingSpanMinutes,
   getOccupiedSegmentsForBooking,
-  usesColorSplitBooking,
+  serviceUsesLinkedWorkSegments,
 } from "@/lib/booking/occupancy"
 import { lockStaffDayForBooking, lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
@@ -87,8 +87,10 @@ async function createRecurringStaffAppointment(
     { bookingPattern: service.bookingPattern },
   )
   const seriesId = randomUUID()
-  const usesColorSplit = usesColorSplitBooking(service.id)
-  const washServiceName = usesColorSplit ? await resolveWashServiceName(locale) : null
+  const usesColorSplit = serviceUsesLinkedWorkSegments(service)
+  const washServiceName = usesColorSplit
+    ? await resolveWashServiceName(locale, service.bookingPattern)
+    : null
 
   let firstId = ''
 
@@ -105,7 +107,7 @@ async function createRecurringStaffAppointment(
       const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
       if (usesColorSplit) {
-        const colorGroup = await prepareColorBookingGroupIds(service.id)
+        const colorGroup = await prepareColorBookingGroupIds(service)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
         await insertColorBookingGroup(
           {
@@ -130,6 +132,7 @@ async function createRecurringStaffAppointment(
             seriesId,
             scope,
             origin,
+            bookingPattern: service.bookingPattern,
           },
           tx,
         )
@@ -345,7 +348,7 @@ export async function createAppointment(
   const customDuration = input.serviceDurations?.[0] ?? null
   const useCustomDuration = customDuration != null && customDuration > 0
   const durationForSegments = useCustomDuration ? customDuration : service.durationMinutes
-  const colorGroup = await prepareColorBookingGroupIds(service.id)
+  const colorGroup = await prepareColorBookingGroupIds(service)
   const bookingSegments = getOccupiedSegmentsForBooking(
     service.id,
     timeToMinutes(input.startTime),
@@ -368,7 +371,7 @@ export async function createAppointment(
     }
 
     if (colorGroup) {
-      const washServiceName = await resolveWashServiceName(locale)
+      const washServiceName = await resolveWashServiceName(locale, service.bookingPattern)
       await insertColorBookingGroup(
         {
           groupId: colorGroup.groupId,
@@ -390,6 +393,7 @@ export async function createAppointment(
           reminderSentAt,
           locale,
           origin,
+          bookingPattern: useCustomDuration ? null : service.bookingPattern,
         },
         tx,
       )

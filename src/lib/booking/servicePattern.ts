@@ -1,10 +1,28 @@
 import type { OccupiedSegment } from '@/lib/booking/occupancy'
 
-export type ServiceBookingStep =
-  | { type: 'work'; minutes: number }
-  | { type: 'break'; minutes: number }
+export type ServiceBookingWorkStep = {
+  type: 'work'
+  minutes: number
+  nameEs?: string
+  nameEn?: string
+  /** Si true, este tramo no se crea cuando hay otro tratamiento de peluquería después. */
+  replaceableByNext?: boolean
+}
+
+export type ServiceBookingBreakStep = {
+  type: 'break'
+  minutes: number
+}
+
+export type ServiceBookingStep = ServiceBookingWorkStep | ServiceBookingBreakStep
 
 export type ServiceBookingPattern = ServiceBookingStep[]
+
+function optionalTrimmedString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
 
 export function parseBookingPattern(raw: unknown): ServiceBookingPattern | null {
   if (!Array.isArray(raw) || raw.length === 0) return null
@@ -16,7 +34,22 @@ export function parseBookingPattern(raw: unknown): ServiceBookingPattern | null 
     if ((type !== 'work' && type !== 'break') || !Number.isFinite(minutes) || minutes < 1) {
       return null
     }
-    steps.push({ type, minutes: Math.round(minutes) })
+    if (type === 'break') {
+      steps.push({ type: 'break', minutes: Math.round(minutes) })
+      continue
+    }
+    const step: ServiceBookingWorkStep = {
+      type: 'work',
+      minutes: Math.round(minutes),
+    }
+    const nameEs = optionalTrimmedString((item as { nameEs?: unknown }).nameEs)
+    const nameEn = optionalTrimmedString((item as { nameEn?: unknown }).nameEn)
+    if (nameEs) step.nameEs = nameEs
+    if (nameEn) step.nameEn = nameEn
+    if ((item as { replaceableByNext?: unknown }).replaceableByNext === true) {
+      step.replaceableByNext = true
+    }
+    steps.push(step)
   }
   const err = validateBookingPattern(steps)
   return err ? null : steps
@@ -28,14 +61,54 @@ export function isSegmentedPattern(pattern: ServiceBookingPattern | null | undef
   return pattern.some((step) => step.type === 'break')
 }
 
+export function patternWorkSteps(pattern: ServiceBookingPattern): ServiceBookingWorkStep[] {
+  return pattern.filter((step): step is ServiceBookingWorkStep => step.type === 'work')
+}
+
+/** Índice en el array del patrón del tramo work marcado como sustituible, o -1. */
+export function findReplaceableWorkStepIndex(
+  pattern: ServiceBookingPattern | null | undefined,
+): number {
+  if (!pattern) return -1
+  return pattern.findIndex(
+    (step) => step.type === 'work' && step.replaceableByNext === true,
+  )
+}
+
+export function patternHasReplaceableWork(
+  pattern: ServiceBookingPattern | null | undefined,
+): boolean {
+  return findReplaceableWorkStepIndex(pattern) >= 0
+}
+
+/** ≥2 tramos de trabajo con pausa (p. ej. color + aclarado). */
+export function patternHasLinkedWorkSegments(
+  pattern: ServiceBookingPattern | null | undefined,
+): boolean {
+  if (!pattern || !isSegmentedPattern(pattern)) return false
+  return patternWorkSteps(pattern).length >= 2
+}
+
 export function patternTotalSpanMinutes(pattern: ServiceBookingPattern): number {
   return pattern.reduce((sum, step) => sum + step.minutes, 0)
 }
 
 export function patternWorkMinutes(pattern: ServiceBookingPattern): number {
-  return pattern
-    .filter((step): step is { type: 'work'; minutes: number } => step.type === 'work')
-    .reduce((sum, step) => sum + step.minutes, 0)
+  return patternWorkSteps(pattern).reduce((sum, step) => sum + step.minutes, 0)
+}
+
+/**
+ * Span hasta (sin incluir) el tramo sustituible: aplicación + pausas previas.
+ * Si no hay sustituible, el span completo.
+ */
+export function patternSpanBeforeReplaceable(pattern: ServiceBookingPattern): number {
+  const replaceableIndex = findReplaceableWorkStepIndex(pattern)
+  if (replaceableIndex < 0) return patternTotalSpanMinutes(pattern)
+  let sum = 0
+  for (let i = 0; i < replaceableIndex; i++) {
+    sum += pattern[i]!.minutes
+  }
+  return sum
 }
 
 export function patternToOccupiedSegments(
@@ -53,12 +126,51 @@ export function patternToOccupiedSegments(
   return segments
 }
 
+/** Solo tramos work anteriores al sustituible (p. ej. solo aplicación). */
+export function patternToOccupiedSegmentsBeforeReplaceable(
+  pattern: ServiceBookingPattern,
+  startMinutes: number,
+): OccupiedSegment[] {
+  const replaceableIndex = findReplaceableWorkStepIndex(pattern)
+  if (replaceableIndex < 0) {
+    return patternToOccupiedSegments(pattern, startMinutes)
+  }
+  const segments: OccupiedSegment[] = []
+  let cursor = startMinutes
+  for (let i = 0; i < replaceableIndex; i++) {
+    const step = pattern[i]!
+    if (step.type === 'work') {
+      segments.push({ startMinutes: cursor, durationMinutes: step.minutes })
+    }
+    cursor += step.minutes
+  }
+  return segments
+}
+
+export function workStepDisplayName(
+  step: ServiceBookingWorkStep,
+  locale: 'es' | 'en',
+  fallback: string,
+): string {
+  if (locale === 'en') {
+    return step.nameEn?.trim() || step.nameEs?.trim() || fallback
+  }
+  return step.nameEs?.trim() || step.nameEn?.trim() || fallback
+}
+
 export function validateBookingPattern(pattern: ServiceBookingPattern): string | null {
   if (pattern.length === 0) return 'Añade al menos un tramo'
   if (pattern[0].type !== 'work') return 'El patrón debe empezar con un tramo'
   if (pattern[pattern.length - 1].type !== 'work') return 'El patrón debe terminar con un tramo'
+  let replaceableCount = 0
   for (const step of pattern) {
-    if (!Number.isFinite(step.minutes) || step.minutes < 1) return 'Cada tramo o descanso debe durar al menos 1 min'
+    if (!Number.isFinite(step.minutes) || step.minutes < 1) {
+      return 'Cada tramo o descanso debe durar al menos 1 min'
+    }
+    if (step.type === 'work' && step.replaceableByNext) replaceableCount += 1
+  }
+  if (replaceableCount > 1) {
+    return 'Solo un tramo puede ser sustituible por el siguiente tratamiento'
   }
   for (let i = 1; i < pattern.length; i++) {
     if (pattern[i].type === pattern[i - 1].type) {
@@ -68,7 +180,7 @@ export function validateBookingPattern(pattern: ServiceBookingPattern): string |
   return null
 }
 
-/** Guarda null si es un solo tramo sin pausas. */
+/** Guarda null si es un solo tramo sin pausas. Limpia nombres vacíos. */
 export function normalizeBookingPattern(
   pattern: ServiceBookingPattern | null | undefined,
 ): ServiceBookingPattern | null {
@@ -76,14 +188,22 @@ export function normalizeBookingPattern(
   const err = validateBookingPattern(pattern)
   if (err) return null
   if (!isSegmentedPattern(pattern)) return null
-  return pattern
+  return pattern.map((step) => {
+    if (step.type === 'break') return { type: 'break' as const, minutes: step.minutes }
+    const next: ServiceBookingWorkStep = { type: 'work', minutes: step.minutes }
+    if (step.nameEs?.trim()) next.nameEs = step.nameEs.trim()
+    if (step.nameEn?.trim()) next.nameEn = step.nameEn.trim()
+    if (step.replaceableByNext) next.replaceableByNext = true
+    return next
+  })
 }
 
 export function formatPatternSummary(pattern: ServiceBookingPattern): string {
   const parts: string[] = []
   for (const step of pattern) {
     if (step.type === 'work') {
-      parts.push(`${step.minutes} min`)
+      const label = step.nameEs?.trim()
+      parts.push(label ? `${label} ${step.minutes} min` : `${step.minutes} min`)
     } else {
       parts.push(`pausa ${step.minutes} min`)
     }
@@ -93,4 +213,19 @@ export function formatPatternSummary(pattern: ServiceBookingPattern): string {
 
 export function defaultBookingPattern(durationMinutes = 30): ServiceBookingPattern {
   return [{ type: 'work', minutes: durationMinutes }]
+}
+
+/** Patrón por defecto de coloración (aplicación + pausa + aclarado sustituible). */
+export function defaultColorSplitPattern(): ServiceBookingPattern {
+  return [
+    { type: 'work', minutes: 30, nameEs: 'Aplicación', nameEn: 'Application' },
+    { type: 'break', minutes: 30 },
+    {
+      type: 'work',
+      minutes: 30,
+      nameEs: 'Aclarado',
+      nameEn: 'Rinse',
+      replaceableByNext: true,
+    },
+  ]
 }

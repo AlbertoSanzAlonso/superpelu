@@ -1,5 +1,7 @@
 import {
   isSegmentedPattern,
+  patternHasLinkedWorkSegments,
+  patternHasReplaceableWork,
   patternToOccupiedSegments,
   patternTotalSpanMinutes,
   type ServiceBookingPattern,
@@ -32,7 +34,7 @@ export const COLOR_GROUP_ROLE = {
 
 export type ColorGroupRole = (typeof COLOR_GROUP_ROLE)[keyof typeof COLOR_GROUP_ROLE]
 
-/** Servicios de coloración que reservan dos franjas de 30 min separadas por una pausa. */
+/** Servicios de coloración legacy (fallback si aún no tienen booking_pattern). */
 export const COLOR_SPLIT_SERVICE_IDS = new Set([
   'svc-root-color',
   'svc-complete-color',
@@ -49,8 +51,22 @@ export type OccupiedSegmentOptions = {
   bookingPattern?: ServiceBookingPattern | null
 }
 
+/** Legacy: solo por ID hardcodeado. Preferir `serviceUsesLinkedWorkSegments`. */
 export function usesColorSplitBooking(serviceId: string): boolean {
   return COLOR_SPLIT_SERVICE_IDS.has(serviceId)
+}
+
+/**
+ * Servicio con dos (o más) tramos de trabajo enlazados en agenda
+ * (patrón con replaceable / multi-work, o ID color legacy).
+ */
+export function serviceUsesLinkedWorkSegments(service: {
+  id: string
+  bookingPattern?: ServiceBookingPattern | null
+}): boolean {
+  if (patternHasReplaceableWork(service.bookingPattern)) return true
+  if (patternHasLinkedWorkSegments(service.bookingPattern)) return true
+  return usesColorSplitBooking(service.id)
 }
 
 export function isColorGroupWashRow(colorGroupRole: string | null | undefined): boolean {
@@ -95,8 +111,15 @@ export function getCustomerFacingDurationMinutes(
   serviceId: string,
   durationMinutes: number,
   colorGroupRole?: string | null,
+  bookingPattern?: ServiceBookingPattern | null,
 ): number {
-  if (isColorGroupColorRow(colorGroupRole) && usesColorSplitBooking(serviceId)) {
+  if (
+    isColorGroupColorRow(colorGroupRole) &&
+    serviceUsesLinkedWorkSegments({ id: serviceId, bookingPattern })
+  ) {
+    if (bookingPattern && isSegmentedPattern(bookingPattern)) {
+      return patternTotalSpanMinutes(bookingPattern)
+    }
     return COLOR_SPLIT_TOTAL_SPAN_MINUTES
   }
   return durationMinutes
@@ -225,7 +248,12 @@ export function formatAppointmentTimeRange(
   }
 
   if (!showSplitRange) {
-    const displayDuration = getCustomerFacingDurationMinutes(serviceId, durationMinutes, role)
+    const displayDuration = getCustomerFacingDurationMinutes(
+      serviceId,
+      durationMinutes,
+      role,
+      pattern,
+    )
     return rangeBetween(startTime, minutesToTime(start + displayDuration), locale, separator)
   }
 
