@@ -186,19 +186,15 @@ function StepRow({
           />
         </div>
       </div>
-      <label className="flex items-start gap-2">
+      <label className="flex items-center gap-2">
         <input
           type="checkbox"
           checked={work.replaceableByNext === true}
           onChange={(e) => onReplaceableChange(index, e.target.checked)}
-          className="mt-0.5 h-4 w-4 accent-gold"
+          className="h-4 w-4 accent-gold"
         />
         <span className="text-xs text-charcoal">
           Sustituible por el siguiente tratamiento
-          <span className="mt-0.5 block text-charcoal-muted">
-            Si el cliente reserva otro servicio de peluquería después, este tramo
-            no se crea y ese servicio ocupa el hueco (como el aclarado del color).
-          </span>
         </span>
       </label>
     </div>
@@ -427,20 +423,14 @@ export function ServiceForm({
       </div>
 
       <div className="space-y-2">
-        <label className="flex items-start gap-2">
+        <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={useSegments}
             onChange={(e) => enableSegments(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-gold"
+            className="h-4 w-4 accent-gold"
           />
-          <span className="text-sm text-charcoal">
-            Duración por tramos
-            <span className="mt-0.5 block text-xs text-charcoal-muted">
-              Opcional. Actívalo para coloración u otros servicios con pausa (p. ej.
-              aplicación + descanso + aclarado).
-            </span>
-          </span>
+          <span className="text-sm text-charcoal">Duración por tramos</span>
         </label>
 
         {!useSegments ? (
