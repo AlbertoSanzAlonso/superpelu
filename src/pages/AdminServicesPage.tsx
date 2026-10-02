@@ -401,7 +401,7 @@ function CategoryListRow({
             aria-expanded={expanded}
           >
             <span
-              className="shrink-0 text-[10px] text-charcoal-muted transition-transform"
+              className="shrink-0 text-[10px] text-charcoal-muted transition-transform duration-300 ease-out"
               style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
               aria-hidden
             >
@@ -478,7 +478,7 @@ function CategoryListRow({
         aria-expanded={expanded}
       >
         <span
-          className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform"
+          className="mt-0.5 shrink-0 text-xs text-charcoal-muted transition-transform duration-300 ease-out"
           style={{ transform: expanded ? 'rotate(90deg)' : 'none' }}
           aria-hidden
         >
@@ -997,56 +997,64 @@ export function AdminServicesPage() {
                     onReactivate={() => handleReactivateCategory(cat.id)}
                   />
 
-                  {expanded && (
-                    <div className="border-t border-gold/5 bg-cream/30">
-                      {catServices.length === 0 ? (
-                        <p className="px-4 py-3 text-xs text-charcoal-muted sm:px-8">
-                          No hay servicios en esta categoría.
-                        </p>
-                      ) : (
-                        catServices.map((svc, index) => (
-                          <ServiceListRow
-                            key={svc.id}
-                            svc={svc}
-                            compact={compact}
-                            canMoveUp={index > 0}
-                            canMoveDown={index < catServices.length - 1}
-                            onMoveUp={() => void handleMoveServiceInCategory(cat.id, svc.id, 'up')}
-                            onMoveDown={() => void handleMoveServiceInCategory(cat.id, svc.id, 'down')}
-                            onEdit={() =>
+                  <div
+                    className={`admin-collapsible ${
+                      expanded ? 'admin-collapsible-open' : 'admin-collapsible-closed'
+                    }`}
+                    aria-hidden={!expanded}
+                    inert={!expanded ? true : undefined}
+                  >
+                    <div className="admin-collapsible-inner">
+                      <div className="border-t border-gold/5 bg-cream/30">
+                        {catServices.length === 0 ? (
+                          <p className="px-4 py-3 text-xs text-charcoal-muted sm:px-8">
+                            No hay servicios en esta categoría.
+                          </p>
+                        ) : (
+                          catServices.map((svc, index) => (
+                            <ServiceListRow
+                              key={svc.id}
+                              svc={svc}
+                              compact={compact}
+                              canMoveUp={index > 0}
+                              canMoveDown={index < catServices.length - 1}
+                              onMoveUp={() => void handleMoveServiceInCategory(cat.id, svc.id, 'up')}
+                              onMoveDown={() => void handleMoveServiceInCategory(cat.id, svc.id, 'down')}
+                              onEdit={() =>
+                                setServiceModal({
+                                  open: true,
+                                  mode: 'edit',
+                                  service: svc,
+                                  categoryId: svc.categoryId ?? '',
+                                })
+                              }
+                              onDeactivate={() => handleDeactivateService(svc)}
+                              onDelete={() => handleDeleteService(svc)}
+                              onReactivate={() => handleReactivateService(svc.id)}
+                            />
+                          ))
+                        )}
+                        <div className="px-4 py-2 sm:px-8">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs !px-2 !py-0.5"
+                            onClick={() =>
                               setServiceModal({
                                 open: true,
-                                mode: 'edit',
-                                service: svc,
-                                categoryId: svc.categoryId ?? '',
+                                mode: 'create',
+                                service: null,
+                                categoryId: cat.id,
                               })
                             }
-                            onDeactivate={() => handleDeactivateService(svc)}
-                            onDelete={() => handleDeleteService(svc)}
-                            onReactivate={() => handleReactivateService(svc.id)}
-                          />
-                        ))
-                      )}
-                      <div className="px-4 py-2 sm:px-8">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-xs !px-2 !py-0.5"
-                          onClick={() =>
-                            setServiceModal({
-                              open: true,
-                              mode: 'create',
-                              service: null,
-                              categoryId: cat.id,
-                            })
-                          }
-                        >
-                          + Añadir servicio
-                        </Button>
+                          >
+                            + Añadir servicio
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               )
             })}
