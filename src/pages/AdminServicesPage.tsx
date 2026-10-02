@@ -409,14 +409,15 @@ function CategoryListRow({
   canMoveDown?: boolean
 }) {
   const nameEs = firstLine(cat.nameEs)
+  const categoryRowBg = 'bg-cream/40'
 
   if (compact) {
     return (
-      <div className="border-b border-gold/10">
+      <div className={`border-b border-gold/10 ${categoryRowBg}`}>
         <div className="flex items-center gap-1 px-3 py-2">
           <button
             type="button"
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left hover:bg-gold/5"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-left hover:bg-gold/10"
             onClick={onToggle}
             aria-expanded={expanded}
           >
@@ -490,10 +491,10 @@ function CategoryListRow({
   }
 
   return (
-    <div className="border-b border-gold/10">
+    <div className={`border-b border-gold/10 ${categoryRowBg}`}>
       <button
         type="button"
-        className="flex w-full cursor-pointer items-start gap-2 px-4 py-3 text-left hover:bg-gold/5"
+        className="flex w-full cursor-pointer items-start gap-2 px-4 py-3 text-left hover:bg-gold/10"
         onClick={onToggle}
         aria-expanded={expanded}
       >
@@ -522,7 +523,7 @@ function CategoryListRow({
           </p>
         </div>
       </button>
-      <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/20 px-4 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-t border-gold/5 bg-cream/40 px-4 py-2">
         {cat.active ? (
           <>
             {(onMoveUp || onMoveDown) && (
@@ -1117,7 +1118,7 @@ export function AdminServicesPage() {
 
             {uncategorizedServices.length > 0 && (
               <div className="border-b border-gold/10">
-                <div className="bg-gold/5 px-3 py-2">
+                <div className="bg-cream/40 px-3 py-2">
                   <p className={`font-medium text-charcoal ${compact ? 'text-[11px]' : 'text-sm'}`}>
                     Sin categoría
                   </p>
