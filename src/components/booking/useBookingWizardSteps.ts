@@ -82,7 +82,7 @@ export function useBookingWizardSteps(form: AppointmentFormApi) {
       }
 
       form.toggleServiceId(service.id)
-      // Paso de tratamientos: ver selección, añadir otro o continuar.
+      // Paso de servicios: ver selección, añadir otro o continuar.
       setStep(1)
     },
     [form.toggleServiceId],

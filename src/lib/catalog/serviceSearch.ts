@@ -20,7 +20,7 @@ export type ServiceSearchHit = {
   rank: number
 }
 
-/** Busca tratamientos por nombre o especialidad (sin acentos, ES/EN). */
+/** Busca servicios por nombre o especialidad (sin acentos, ES/EN). */
 export function searchBookableServices(
   services: BookableService[],
   query: string,
