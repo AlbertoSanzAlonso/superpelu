@@ -528,11 +528,6 @@ export function ServiceForm({
               />
               <span className="text-sm text-charcoal">Reservable online</span>
             </label>
-            <p className="text-xs text-charcoal-muted">
-              Si se desmarca, el cliente ve el tratamiento en la reserva pero solo puede
-              llamar o escribir por WhatsApp (igual que mechas / balayage). En agenda sí
-              se puede citar.
-            </p>
           </>
         )}
       </div>
