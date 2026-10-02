@@ -829,7 +829,9 @@ export const SpecialScheduleSection = forwardRef<
               variant="solid"
               size="sm"
               onClick={handleSave}
-              disabled={saving || loading || (scope === 'staff' && !selectedStaffId)}
+              disabled={
+                saving || loading || !isDirty || (scope === 'staff' && !selectedStaffId)
+              }
             >
               {saving ? 'Guardando...' : 'Guardar cambios'}
             </Button>

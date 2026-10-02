@@ -196,6 +196,16 @@ export function ScheduleManagementPage() {
     })
   }, [staffWindowsMap, staffBaselineMap])
 
+  const selectedStaffWeeklyDirty = useMemo(() => {
+    if (!selectedStaffId) return false
+    const current = staffWindowsMap[selectedStaffId] ?? emptyWeeklyWindows()
+    const baseline = staffBaselineMap[selectedStaffId] ?? emptyWeeklyWindows()
+    return !weeklyEqual(current, baseline)
+  }, [selectedStaffId, staffWindowsMap, staffBaselineMap])
+
+  const activeWeeklyDirty =
+    activeTab === 'salon' ? salonWeeklyDirty : activeTab === 'personal' ? selectedStaffWeeklyDirty : false
+
   const pageDirty =
     salonWeeklyDirty || staffWeeklyDirty || specialSalonDirty || specialStaffDirty
 
@@ -316,7 +326,7 @@ export function ScheduleManagementPage() {
   }
 
   const handleSave = async (): Promise<boolean> => {
-    if (!adminToken) return false
+    if (!adminToken || !activeWeeklyDirty) return false
     if (activeTab === 'salon') return saveSalonWeekly()
     if (activeTab === 'especiales') return true
     if (activeTab !== 'personal' || !selectedStaffId) return false
@@ -524,7 +534,10 @@ export function ScheduleManagementPage() {
               title="Centro"
               description="Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.). Tiene prioridad sobre el horario semanal habitual."
               expanded={salonSpecialExpanded}
-              onToggle={() => setSalonSpecialExpanded((open) => !open)}
+              onToggle={() => {
+                setSalonSpecialExpanded((open) => !open)
+                setStaffSpecialExpanded(false)
+              }}
             >
               <SpecialScheduleSection
                 ref={salonSpecialRef}
@@ -538,7 +551,10 @@ export function ScheduleManagementPage() {
               id="special-staff-section"
               title="Personal"
               expanded={staffSpecialExpanded}
-              onToggle={() => setStaffSpecialExpanded((open) => !open)}
+              onToggle={() => {
+                setStaffSpecialExpanded((open) => !open)
+                setSalonSpecialExpanded(false)
+              }}
               bordered
             >
               <SpecialScheduleSection
@@ -574,7 +590,7 @@ export function ScheduleManagementPage() {
                     variant="solid"
                     size="sm"
                     onClick={() => void handleSave()}
-                    disabled={saving}
+                    disabled={saving || !activeWeeklyDirty}
                   >
                     {saving ? 'Guardando...' : 'Guardar cambios'}
                   </Button>
