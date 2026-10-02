@@ -31,7 +31,9 @@ import type { WeeklySalonConflict } from '@/lib/schedule/salonBounds'
 function SectionChevron({ expanded }: { expanded: boolean }) {
   return (
     <svg
-      className={`h-4 w-4 shrink-0 text-gold transition-transform ${expanded ? 'rotate-180' : ''}`}
+      className={`h-4 w-4 shrink-0 text-gold transition-transform duration-300 ease-[var(--ease-premium)] ${
+        expanded ? 'rotate-180' : ''
+      }`}
       viewBox="0 0 20 20"
       fill="currentColor"
       aria-hidden
@@ -69,15 +71,26 @@ function CollapsibleSpecialSection({
         onClick={onToggle}
         aria-expanded={expanded}
         aria-controls={id}
-        className="-mx-1 flex w-full cursor-pointer items-center gap-2 px-1 py-1.5 text-left hover:bg-gold/5"
+        className="-mx-1 flex w-full cursor-pointer items-center gap-2 px-1 py-1.5 text-left transition-colors duration-200 hover:bg-gold/5"
       >
         <SectionChevron expanded={expanded} />
         <span className={typography.label}>{title}</span>
       </button>
-      {/* Mantener montado para no perder cambios al plegar. */}
-      <div id={id} className={`${description ? 'mt-2' : 'mt-1'} ${expanded ? '' : 'hidden'}`}>
-        {description && <p className="mb-4 text-xs text-charcoal-muted">{description}</p>}
-        {children}
+      {/* Mantener montado para no perder cambios al plegar; altura animada vía CSS. */}
+      <div
+        id={id}
+        className={`special-collapsible ${
+          expanded ? 'special-collapsible-open' : 'special-collapsible-closed'
+        }`}
+        aria-hidden={!expanded}
+        inert={!expanded ? true : undefined}
+      >
+        <div className="special-collapsible-inner">
+          <div className={description ? 'mt-2' : 'mt-1'}>
+            {description && <p className="mb-4 text-xs text-charcoal-muted">{description}</p>}
+            {children}
+          </div>
+        </div>
       </div>
     </section>
   )

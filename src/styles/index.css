@@ -104,6 +104,35 @@
     animation: bookingStepEnter 520ms var(--ease-premium) forwards;
   }
 
+  /* Horarios especiales: desplegables Centro / Personal */
+  .special-collapsible {
+    display: grid;
+    transition:
+      grid-template-rows 380ms var(--ease-premium),
+      opacity 280ms var(--ease-premium);
+  }
+
+  .special-collapsible-open {
+    grid-template-rows: 1fr;
+    opacity: 1;
+  }
+
+  .special-collapsible-closed {
+    grid-template-rows: 0fr;
+    opacity: 0;
+  }
+
+  .special-collapsible-inner {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .special-collapsible {
+      transition: none;
+    }
+  }
+
   /* Horarios especiales: calendario flotante al añadir días */
   .special-add-calendar {
     transition:
