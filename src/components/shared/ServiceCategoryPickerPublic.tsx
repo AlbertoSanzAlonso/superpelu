@@ -114,15 +114,6 @@ export function ServiceCategoryPickerPublic({
     [services, selectedCategoryId],
   )
 
-  const bookableServices = useMemo(
-    () => (selectedCategoryId ? bookableOnlineInCategory(services, selectedCategoryId) : []),
-    [services, selectedCategoryId],
-  )
-
-  const phoneOnlyCategory = Boolean(
-    selectedCategoryId && isPhoneOnlyCategory(services, selectedCategoryId),
-  )
-
   useEffect(() => {
     setPhoneOnlyServiceId('')
   }, [selectedCategoryId])
@@ -232,7 +223,7 @@ export function ServiceCategoryPickerPublic({
           <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
             {labels.service}
           </legend>
-          {phoneOnlyCategory || bookableServices.length === 0 ? (
+          {categoryServices.length === 0 ? (
             <PhoneOnlyCallToAction categoryId={selectedCategoryId} labels={labels} />
           ) : (
             <div className="space-y-4">

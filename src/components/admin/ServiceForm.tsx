@@ -43,6 +43,12 @@ function patternFromInitial(initial: AdminService | null): ServiceBookingPattern
   return defaultBookingPattern(initial?.durationMinutes ?? 30)
 }
 
+function initialUsesSegments(initial: AdminService | null): boolean {
+  if (initial?.bookingPattern && isSegmentedPattern(initial.bookingPattern)) return true
+  if (initial && usesColorSplitBooking(initial.id)) return true
+  return false
+}
+
 function StepRow({
   step,
   index,
@@ -190,12 +196,36 @@ export function ServiceForm({
   const [nameEn, setNameEn] = useState(initial?.nameEn ?? '')
   const [formCategoryId, setFormCategoryId] = useState(initial?.categoryId ?? categoryId)
   const [bookableOnline, setBookableOnline] = useState(initial?.bookableOnline ?? true)
+  const [useSegments, setUseSegments] = useState(() => initialUsesSegments(initial))
+  const [durationMinutes, setDurationMinutes] = useState(
+    () => initial?.durationMinutes ?? 30,
+  )
   const [pattern, setPattern] = useState<ServiceBookingPattern>(() => patternFromInitial(initial))
   const [patternError, setPatternError] = useState('')
 
   const totalMinutes = useMemo(() => patternTotalSpanMinutes(pattern), [pattern])
   const segmented = isSegmentedPattern(pattern)
   const isInternalCompanion = Boolean(initial && isHiddenFromPublicBooking(initial.id))
+
+  const enableSegments = (checked: boolean) => {
+    setUseSegments(checked)
+    setPatternError('')
+    if (checked && !isSegmentedPattern(pattern)) {
+      if (initial && usesColorSplitBooking(initial.id)) {
+        setPattern(defaultColorSplitPattern())
+      } else {
+        const base = Math.max(30, durationMinutes)
+        setPattern([
+          { type: 'work', minutes: Math.round(base / 2) || 30 },
+          { type: 'break', minutes: 30 },
+          { type: 'work', minutes: Math.round(base / 2) || 30, replaceableByNext: true },
+        ])
+      }
+    }
+    if (!checked) {
+      setDurationMinutes(isSegmentedPattern(pattern) ? patternTotalSpanMinutes(pattern) : durationMinutes)
+    }
+  }
 
   const updateStepMinutes = (index: number, minutes: number) => {
     setPattern((current) =>
@@ -271,19 +301,33 @@ export function ServiceForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!nameEs.trim()) return
+
+    if (!useSegments) {
+      const minutes = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes : 30
+      onSave({
+        nameEs: nameEs.trim(),
+        nameEn: nameEn.trim(),
+        durationMinutes: minutes,
+        categoryId: formCategoryId || null,
+        bookableOnline: isInternalCompanion ? false : bookableOnline,
+        bookingPattern: null,
+      })
+      return
+    }
+
     const validationError = validateBookingPattern(pattern)
     if (validationError) {
       setPatternError(validationError)
       return
     }
     const bookingPattern = normalizeBookingPattern(pattern)
-    const durationMinutes = bookingPattern
+    const minutes = bookingPattern
       ? patternTotalSpanMinutes(bookingPattern)
       : pattern[0]?.minutes ?? 30
     onSave({
       nameEs: nameEs.trim(),
       nameEn: nameEn.trim(),
-      durationMinutes,
+      durationMinutes: minutes,
       categoryId: formCategoryId || null,
       bookableOnline: isInternalCompanion ? false : bookableOnline,
       bookingPattern,
@@ -294,11 +338,6 @@ export function ServiceForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {mode === 'edit' && initial && (
-        <p className="text-xs text-charcoal-muted">
-          ID interno: <span className="font-mono text-charcoal">{initial.id}</span>
-        </p>
-      )}
       <div>
         <label className={labelClass} htmlFor="svc-es">Nombre (ES)</label>
         <input
@@ -335,60 +374,93 @@ export function ServiceForm({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className={labelClass}>Duración por tramos</p>
-          <p className="text-xs tabular-nums text-charcoal-muted">
-            Total: {totalMinutes} min
-            {segmented && (
-              <span className="ml-1">({formatPatternSummary(pattern)})</span>
+        <label className="flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={useSegments}
+            onChange={(e) => enableSegments(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-gold"
+          />
+          <span className="text-sm text-charcoal">
+            Duración por tramos
+            <span className="mt-0.5 block text-xs text-charcoal-muted">
+              Opcional. Actívalo para coloración u otros servicios con pausa (p. ej.
+              aplicación + descanso + aclarado).
+            </span>
+          </span>
+        </label>
+
+        {!useSegments ? (
+          <div>
+            <label className={labelClass} htmlFor="svc-duration">Duración (min)</label>
+            <input
+              id="svc-duration"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              required
+              value={String(durationMinutes)}
+              onChange={(e) => {
+                const value = Number(e.target.value.replace(/\D/g, ''))
+                if (Number.isFinite(value) && value > 0) setDurationMinutes(value)
+              }}
+              className={fieldClass}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-charcoal-muted">
+                En la agenda solo se bloquean los tramos de trabajo; los descansos quedan
+                libres. Con varios tramos de trabajo se crean bloques enlazados.
+              </p>
+              <p className="shrink-0 text-xs tabular-nums text-charcoal-muted">
+                Total: {totalMinutes} min
+                {segmented && (
+                  <span className="ml-1">({formatPatternSummary(pattern)})</span>
+                )}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {pattern.map((step, index) => {
+                if (step.type === 'work') workOrdinal += 1
+                return (
+                  <StepRow
+                    key={`${step.type}-${index}`}
+                    step={step}
+                    index={index}
+                    workOrdinal={workOrdinal}
+                    onMinutesChange={updateStepMinutes}
+                    onWorkNameChange={updateWorkName}
+                    onReplaceableChange={updateReplaceable}
+                    onRemove={removeStep}
+                    canRemove={pattern.length > 1}
+                  />
+                )
+              })}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant="outline" size="sm" className="!px-3" onClick={addWorkSegment}>
+                + Añadir tramo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="!px-3"
+                onClick={addBreak}
+                disabled={pattern.length > 0 && pattern[pattern.length - 1].type === 'break'}
+              >
+                + Añadir descanso
+              </Button>
+            </div>
+            {patternError && (
+              <p className="text-xs text-red-700" role="alert">{patternError}</p>
             )}
-          </p>
-        </div>
-        <p className="text-xs text-charcoal-muted">
-          En la agenda solo se bloquean los tramos de trabajo; los descansos quedan
-          libres. Con varios tramos de trabajo se crean bloques enlazados (como color +
-          aclarado).
-        </p>
-        <div className="space-y-2">
-          {pattern.map((step, index) => {
-            if (step.type === 'work') workOrdinal += 1
-            return (
-              <StepRow
-                key={`${step.type}-${index}`}
-                step={step}
-                index={index}
-                workOrdinal={workOrdinal}
-                onMinutesChange={updateStepMinutes}
-                onWorkNameChange={updateWorkName}
-                onReplaceableChange={updateReplaceable}
-                onRemove={removeStep}
-                canRemove={pattern.length > 1}
-              />
-            )
-          })}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={addWorkSegment}>
-            + Añadir tramo
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={addBreak}
-            disabled={pattern.length > 0 && pattern[pattern.length - 1].type === 'break'}
-          >
-            + Añadir descanso
-          </Button>
-        </div>
-        {patternError && (
-          <p className="text-xs text-red-700" role="alert">{patternError}</p>
+          </>
         )}
       </div>
 
-      <p className="text-xs text-charcoal-muted">
-        El orden dentro de cada categoría se ajusta en el listado con las flechas arriba/abajo.
-      </p>
       <div className="space-y-1.5">
         {isInternalCompanion ? (
           <p className="text-xs text-charcoal-muted">
