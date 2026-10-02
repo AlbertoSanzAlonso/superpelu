@@ -173,6 +173,7 @@ function nextSortOrderForCategories(categories: AdminServiceCategory[]) {
 function ServiceListRow({
   svc,
   compact,
+  stripeOdd = false,
   onEdit,
   onDeactivate,
   onDelete,
@@ -184,6 +185,7 @@ function ServiceListRow({
 }: {
   svc: AdminService
   compact: boolean
+  stripeOdd?: boolean
   onEdit: () => void
   onDeactivate: () => void
   onDelete: () => void
@@ -194,10 +196,11 @@ function ServiceListRow({
   canMoveDown?: boolean
 }) {
   const nameEs = firstLine(svc.nameEs)
+  const rowBg = stripeOdd ? 'bg-gold/10 hover:bg-gold/15' : 'bg-cream/40 hover:bg-gold/10'
 
   if (compact) {
     return (
-      <div className="border-b border-gold/5 px-3 py-1.5 last:border-b-0 hover:bg-gold/5">
+      <div className={`border-b border-gold/5 px-3 py-1.5 last:border-b-0 ${rowBg}`}>
         <div className="flex items-center gap-1.5">
           <p
             className={`min-w-0 flex-1 truncate text-[11px] leading-tight ${
@@ -261,7 +264,7 @@ function ServiceListRow({
   }
 
   return (
-    <div className="border-b border-gold/5 px-4 py-3 last:border-b-0 hover:bg-gold/5 md:px-8">
+    <div className={`border-b border-gold/5 px-4 py-3 last:border-b-0 md:px-8 ${rowBg}`}>
       <div className="min-w-0">
         <p className={`break-words text-sm leading-snug ${svc.active ? '' : 'opacity-50 line-through'}`}>
           {nameEs}
@@ -1066,6 +1069,7 @@ export function AdminServicesPage() {
                               key={svc.id}
                               svc={svc}
                               compact={compact}
+                              stripeOdd={index % 2 === 1}
                               canMoveUp={index > 0}
                               canMoveDown={index < catServices.length - 1}
                               onMoveUp={() => void handleMoveServiceInCategory(cat.id, svc.id, 'up')}
@@ -1121,11 +1125,12 @@ export function AdminServicesPage() {
                     </p>
                   )}
                 </div>
-                {uncategorizedServices.map((svc) => (
+                {uncategorizedServices.map((svc, index) => (
                   <ServiceListRow
                     key={svc.id}
                     svc={svc}
                     compact={compact}
+                    stripeOdd={index % 2 === 1}
                     onEdit={() =>
                       setServiceModal({ open: true, mode: 'edit', service: svc, categoryId: '' })
                     }
