@@ -545,7 +545,6 @@ export function ScheduleManagementPage() {
             <CollapsibleSpecialSection
               id="special-salon-section"
               title="Centro"
-              description="Horario excepcional del salon para fechas concretas (festivos, aperturas especiales, etc.). Tiene prioridad sobre el horario semanal habitual."
               expanded={salonSpecialExpanded}
               onToggle={() => {
                 setSalonSpecialExpanded((open) => !open)
