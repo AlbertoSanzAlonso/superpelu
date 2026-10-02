@@ -788,7 +788,7 @@ export const SpecialScheduleSection = forwardRef<
                           )}
                           {isClosed && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
-                              {scope === 'staff' ? 'Descanso' : 'Cerrado'}
+                              {scope === 'staff' ? 'Libre' : 'Cerrado'}
                             </span>
                           )}
                         </div>
@@ -883,7 +883,7 @@ export const SpecialScheduleSection = forwardRef<
                             <p className="text-xs text-charcoal">
                               {formatRangesLabel(
                                 span.ranges,
-                                scope === 'staff' ? 'Descanso' : 'Cerrado',
+                                scope === 'staff' ? 'Libre' : 'Cerrado',
                               )}
                             </p>
                           )}

@@ -9,7 +9,7 @@ export function ScheduleEditor({
 }: {
   weeklyWindows: WeeklyWindows
   onChange: (w: WeeklyWindows) => void
-  /** En personal se muestra «Descanso» en lugar de «Cerrado». */
+  /** En personal se muestra «Libre» en lugar de «Cerrado». */
   mode?: 'salon' | 'staff'
 }) {
   const updateRange = (day: number, idx: number, field: 'start' | 'end', value: string) => {
@@ -61,7 +61,9 @@ export function ScheduleEditor({
               >
                 {isOpen ? '\u2713' : '\u00A0'}
               </button>
-              <span className={`${typography.label} w-24 shrink-0`}>{DAY_NAMES[day]}</span>
+              <span className={`${typography.label} w-24 shrink-0`}>
+                {day === 3 ? 'Miérc.' : DAY_NAMES[day]}
+              </span>
               {isOpen ? (
                 <div className="flex flex-1 flex-wrap items-center gap-2">
                   {ranges.map((range, idx) => (
@@ -102,7 +104,7 @@ export function ScheduleEditor({
                 </div>
               ) : (
                 <span className="text-xs text-charcoal-muted">
-                  {mode === 'staff' ? 'Descanso' : 'Cerrado'}
+                  {mode === 'staff' ? 'Libre' : 'Cerrado'}
                 </span>
               )}
             </div>
