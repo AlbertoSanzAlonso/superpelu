@@ -196,7 +196,9 @@ function ServiceListRow({
   canMoveDown?: boolean
 }) {
   const nameEs = firstLine(svc.nameEs)
-  const rowBg = stripeOdd ? 'bg-gold/10 hover:bg-gold/15' : 'bg-cream/40 hover:bg-gold/10'
+  const rowBg = stripeOdd
+    ? 'bg-charcoal/[0.06] hover:bg-gold/20'
+    : 'bg-cream/25 hover:bg-gold/20'
 
   if (compact) {
     return (
