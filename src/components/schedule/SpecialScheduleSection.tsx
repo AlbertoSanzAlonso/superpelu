@@ -1,4 +1,14 @@
-import { useCallback, useEffect, useImperativeHandle, useMemo, useState, forwardRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  forwardRef,
+} from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
@@ -127,8 +137,8 @@ function formatSpanTitle(span: SpecialDaySpan): string {
   return formatSpecialDateRangeLabel(span.start, span.end)
 }
 
-function formatRangesLabel(ranges: ScheduleTimeRange[]): string {
-  if (ranges.length === 0) return 'Cerrado'
+function formatRangesLabel(ranges: ScheduleTimeRange[], closedLabel = 'Cerrado'): string {
+  if (ranges.length === 0) return closedLabel
   return ranges.map((r) => `${r.start} – ${r.end}`).join(' · ')
 }
 
@@ -155,6 +165,9 @@ export const SpecialScheduleSection = forwardRef<
   const [selectedMonth, setSelectedMonth] = useState(() => todaySalon().slice(0, 7))
   const [page, setPage] = useState(1)
   const [addCalendarOpen, setAddCalendarOpen] = useState(false)
+  const [calendarPos, setCalendarPos] = useState<{ top: number; right: number } | null>(null)
+  const addCalendarButtonRef = useRef<HTMLButtonElement>(null)
+  const addCalendarPanelRef = useRef<HTMLDivElement>(null)
   const [unsavedStaffOpen, setUnsavedStaffOpen] = useState(false)
   const [pendingStaffId, setPendingStaffId] = useState<string | null>(null)
   const [editingSpanIds, setEditingSpanIds] = useState<Set<string>>(() => new Set())
@@ -185,12 +198,62 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
+    setCalendarPos(null)
     setEditingSpanIds(new Set())
   }, [selectedStaffId])
 
   useEffect(() => {
     setPage(1)
   }, [filterMode, selectedMonth])
+
+  const updateAddCalendarPos = useCallback(() => {
+    const button = addCalendarButtonRef.current
+    if (!button) return
+    const rect = button.getBoundingClientRect()
+    setCalendarPos({
+      top: rect.bottom + 8,
+      right: Math.max(8, window.innerWidth - rect.right),
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!addCalendarOpen) return
+    updateAddCalendarPos()
+    const onReposition = () => updateAddCalendarPos()
+    window.addEventListener('resize', onReposition)
+    // capture: true para reaccionar a scroll en contenedores overflow-y-auto
+    window.addEventListener('scroll', onReposition, true)
+    return () => {
+      window.removeEventListener('resize', onReposition)
+      window.removeEventListener('scroll', onReposition, true)
+    }
+  }, [addCalendarOpen, updateAddCalendarPos])
+
+  useEffect(() => {
+    if (!addCalendarOpen) return
+    const closeCalendar = () => {
+      setAddCalendarOpen(false)
+      setCalendarPos(null)
+      setRangeStart('')
+      setRangeEnd('')
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (addCalendarButtonRef.current?.contains(target)) return
+      if (addCalendarPanelRef.current?.contains(target)) return
+      closeCalendar()
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      closeCalendar()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [addCalendarOpen])
 
   const load = useCallback(async () => {
     if (scope === 'staff' && !selectedStaffId) return
@@ -248,6 +311,7 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
+    setCalendarPos(null)
     setFilterMode('month')
     setSelectedMonth(filterMonth)
     setPage(1)
@@ -624,15 +688,25 @@ export const SpecialScheduleSection = forwardRef<
             </div>
             <div className="relative z-20 flex flex-col items-start">
               <button
+                ref={addCalendarButtonRef}
                 type="button"
                 onClick={() => {
-                  setAddCalendarOpen((open) => {
-                    if (open) {
-                      setRangeStart('')
-                      setRangeEnd('')
-                    }
-                    return !open
-                  })
+                  if (addCalendarOpen) {
+                    setAddCalendarOpen(false)
+                    setCalendarPos(null)
+                    setRangeStart('')
+                    setRangeEnd('')
+                    return
+                  }
+                  const button = addCalendarButtonRef.current
+                  if (button) {
+                    const rect = button.getBoundingClientRect()
+                    setCalendarPos({
+                      top: rect.bottom + 8,
+                      right: Math.max(8, window.innerWidth - rect.right),
+                    })
+                  }
+                  setAddCalendarOpen(true)
                 }}
                 className={`flex h-8 cursor-pointer items-center gap-1.5 border px-3 text-xs transition-colors ${
                   addCalendarOpen
@@ -651,33 +725,37 @@ export const SpecialScheduleSection = forwardRef<
                 </span>
                 Añadir dias
               </button>
-              <div
-                className={`special-add-calendar absolute right-0 top-[calc(100%+0.5rem)] z-30 origin-top-right ${
-                  addCalendarOpen ? 'special-add-calendar-open' : 'special-add-calendar-closed'
-                }`}
-                aria-hidden={!addCalendarOpen}
-                inert={!addCalendarOpen ? true : undefined}
-              >
-                <div className="border border-gold/30 bg-cream/95 p-2 shadow-[0_18px_44px_-14px_rgba(40,30,20,0.4)] backdrop-blur-[2px]">
-                  <SpecialDateRangeCalendar
-                    rangeStart={rangeStart}
-                    rangeEnd={rangeEnd}
-                    onPick={pickRangeDate}
-                    existingDates={existingSpecialDates}
-                    minDate={todaySalon()}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-2 h-8 text-xs"
-                    onClick={addDateRange}
-                    disabled={!rangeStart || datesToAddCount === 0}
+              {typeof document !== 'undefined' &&
+                addCalendarOpen &&
+                calendarPos &&
+                createPortal(
+                  <div
+                    ref={addCalendarPanelRef}
+                    className="special-add-calendar special-add-calendar-open fixed z-[60] origin-top-right"
+                    style={{ top: calendarPos.top, right: calendarPos.right }}
                   >
-                    {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
-                  </Button>
-                </div>
-              </div>
+                    <div className="border border-gold/30 bg-cream/95 p-2 shadow-[0_18px_44px_-14px_rgba(40,30,20,0.4)] backdrop-blur-[2px]">
+                      <SpecialDateRangeCalendar
+                        rangeStart={rangeStart}
+                        rangeEnd={rangeEnd}
+                        onPick={pickRangeDate}
+                        existingDates={existingSpecialDates}
+                        minDate={todaySalon()}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-8 text-xs"
+                        onClick={addDateRange}
+                        disabled={!rangeStart || datesToAddCount === 0}
+                      >
+                        {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
+                      </Button>
+                    </div>
+                  </div>,
+                  document.body,
+                )}
             </div>
           </div>
 
@@ -710,7 +788,7 @@ export const SpecialScheduleSection = forwardRef<
                           )}
                           {isClosed && (
                             <span className="rounded bg-red-100 px-1.5 py-0.5 text-[10px] text-red-600">
-                              Cerrado
+                              {scope === 'staff' ? 'Descanso' : 'Cerrado'}
                             </span>
                           )}
                         </div>
@@ -722,13 +800,19 @@ export const SpecialScheduleSection = forwardRef<
                                 onClick={() => toggleSpanClosed(span.dates)}
                                 className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
                               >
-                                {isClosed
-                                  ? isMultiDay
-                                    ? 'Abrir franja'
-                                    : 'Abrir dia'
-                                  : isMultiDay
-                                    ? 'Cerrar franja'
-                                    : 'Cerrar dia'}
+                                {scope === 'staff'
+                                  ? isClosed
+                                    ? 'Con horario'
+                                    : isMultiDay
+                                      ? 'Días libres'
+                                      : 'Día libre'
+                                  : isClosed
+                                    ? isMultiDay
+                                      ? 'Abrir franja'
+                                      : 'Abrir dia'
+                                    : isMultiDay
+                                      ? 'Cerrar franja'
+                                      : 'Cerrar dia'}
                               </button>
                               <button
                                 type="button"
@@ -796,7 +880,12 @@ export const SpecialScheduleSection = forwardRef<
                       ) : (
                         <div className="space-y-1.5">
                           {!isClosed && (
-                            <p className="text-xs text-charcoal">{formatRangesLabel(span.ranges)}</p>
+                            <p className="text-xs text-charcoal">
+                              {formatRangesLabel(
+                                span.ranges,
+                                scope === 'staff' ? 'Descanso' : 'Cerrado',
+                              )}
+                            </p>
                           )}
                           {span.note.trim() ? (
                             <p className="whitespace-pre-wrap text-xs text-charcoal-muted">

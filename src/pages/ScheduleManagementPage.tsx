@@ -592,7 +592,11 @@ export function ScheduleManagementPage() {
                     : `Horario de ${activeStaffMember?.staffName ?? ''}`}
                 </p>
                 {(activeTab === 'salon' || selectedStaffId) && (
-                  <ScheduleEditor weeklyWindows={currentWindows} onChange={setCurrentWindows} />
+                  <ScheduleEditor
+                    weeklyWindows={currentWindows}
+                    onChange={setCurrentWindows}
+                    mode={activeTab === 'personal' ? 'staff' : 'salon'}
+                  />
                 )}
               </div>
 

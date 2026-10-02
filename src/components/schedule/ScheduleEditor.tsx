@@ -5,9 +5,12 @@ import type { WeeklyWindows } from './constants'
 export function ScheduleEditor({
   weeklyWindows,
   onChange,
+  mode = 'salon',
 }: {
   weeklyWindows: WeeklyWindows
   onChange: (w: WeeklyWindows) => void
+  /** En personal se muestra «Descanso» en lugar de «Cerrado». */
+  mode?: 'salon' | 'staff'
 }) {
   const updateRange = (day: number, idx: number, field: 'start' | 'end', value: string) => {
     const next = cloneWindows(weeklyWindows)
@@ -98,7 +101,9 @@ export function ScheduleEditor({
                   </button>
                 </div>
               ) : (
-                <span className="text-xs text-charcoal-muted">Cerrado</span>
+                <span className="text-xs text-charcoal-muted">
+                  {mode === 'staff' ? 'Descanso' : 'Cerrado'}
+                </span>
               )}
             </div>
           </div>
