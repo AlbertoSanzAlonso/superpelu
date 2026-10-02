@@ -11,6 +11,7 @@ import {
   type ServiceBookingPattern,
   type ServiceBookingStep,
 } from '@/lib/booking/servicePattern'
+import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 
 const labelClass = 'block text-xs uppercase tracking-wide text-gold mb-1'
 const fieldClass =
@@ -107,6 +108,7 @@ export function ServiceForm({
 
   const totalMinutes = useMemo(() => patternTotalSpanMinutes(pattern), [pattern])
   const segmented = isSegmentedPattern(pattern)
+  const isInternalCompanion = Boolean(initial && isHiddenFromPublicBooking(initial.id))
 
   const updateStepMinutes = (index: number, minutes: number) => {
     setPattern((current) =>
@@ -263,20 +265,29 @@ export function ServiceForm({
         El orden dentro de cada categoría se ajusta en el listado con las flechas arriba/abajo.
       </p>
       <div className="space-y-1.5">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={bookableOnline}
-            onChange={(e) => setBookableOnline(e.target.checked)}
-            className="h-4 w-4 accent-gold"
-          />
-          <span className="text-sm text-charcoal">Reservable online</span>
-        </label>
-        <p className="text-xs text-charcoal-muted">
-          Si se desmarca, el cliente ve el tratamiento en la reserva pero solo puede
-          llamar o escribir por WhatsApp (igual que mechas / balayage). En agenda sí
-          se puede citar.
-        </p>
+        {isInternalCompanion ? (
+          <p className="text-xs text-charcoal-muted">
+            Pieza interna de coloración: se crea sola en agenda tras el color (con
+            pausa). No aparece en la reserva online aunque no sea «reservable».
+          </p>
+        ) : (
+          <>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={bookableOnline}
+                onChange={(e) => setBookableOnline(e.target.checked)}
+                className="h-4 w-4 accent-gold"
+              />
+              <span className="text-sm text-charcoal">Reservable online</span>
+            </label>
+            <p className="text-xs text-charcoal-muted">
+              Si se desmarca, el cliente ve el tratamiento en la reserva pero solo puede
+              llamar o escribir por WhatsApp (igual que mechas / balayage). En agenda sí
+              se puede citar.
+            </p>
+          </>
+        )}
       </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>

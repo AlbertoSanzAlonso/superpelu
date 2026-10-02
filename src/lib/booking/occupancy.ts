@@ -15,6 +15,16 @@ export type { ServiceBookingPattern } from '@/lib/booking/servicePattern'
 
 export const WASH_COLOR_SERVICE_ID = 'svc-wash-color'
 
+/**
+ * Piezas internas de agenda (p. ej. lavar color tras coloración).
+ * No deben listarse en /reservar ni tratarse como «solo teléfono».
+ */
+export const HIDDEN_FROM_PUBLIC_BOOKING_IDS = new Set([WASH_COLOR_SERVICE_ID])
+
+export function isHiddenFromPublicBooking(serviceId: string): boolean {
+  return HIDDEN_FROM_PUBLIC_BOOKING_IDS.has(serviceId)
+}
+
 export const COLOR_GROUP_ROLE = {
   color: 'color',
   wash: 'wash',

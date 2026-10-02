@@ -10,7 +10,7 @@ import { useTranslation } from '@/i18n/useTranslation'
 import {
   bookableOnlineInCategory,
   categoryIdForService,
-  countBookableOnlineInCategory,
+  countServicesInCategory,
   getAllServiceCategories,
   isBookableOnline,
   isPhoneOnlyCategory,
@@ -186,14 +186,13 @@ export function ServiceCategoryPickerPublic({
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {categories.map((cat) => {
             const selected = selectedCategoryId === cat.id
-            const bookableCount = countBookableOnlineInCategory(services, cat.id)
-            const phoneOnly = isPhoneOnlyCategory(services, cat.id)
+            const totalCount = countServicesInCategory(services, cat.id)
             const countLabel =
-              phoneOnly || bookableCount === 0
+              totalCount === 0
                 ? labels.phoneOnly
-                : bookableCount === 1
+                : totalCount === 1
                   ? labels.oneTreatment
-                  : labels.treatments(bookableCount)
+                  : labels.treatments(totalCount)
             return (
               <button
                 key={cat.id}
@@ -212,7 +211,7 @@ export function ServiceCategoryPickerPublic({
                 <span
                   className={[
                     'mt-1 block font-normal leading-tight',
-                    phoneOnly || bookableCount === 0
+                    totalCount === 0
                       ? 'text-[9px] tracking-tight'
                       : 'whitespace-nowrap text-[10px] tracking-normal',
                     selected ? 'text-gold/80' : 'text-charcoal-muted',

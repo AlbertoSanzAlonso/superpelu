@@ -1,5 +1,8 @@
 import { salonServiceById } from '@/data/salonServices'
-import { WASH_COLOR_SERVICE_ID } from '@/lib/booking/occupancy'
+import {
+  HIDDEN_FROM_PUBLIC_BOOKING_IDS,
+  isHiddenFromPublicBooking,
+} from '@/lib/booking/occupancy'
 import { parseBookingPattern, type ServiceBookingPattern } from '@/lib/booking/servicePattern'
 import { sql, type ServiceRow } from '@server/db.js'
 
@@ -14,9 +17,6 @@ export type PublicService = {
   /** false = aparece en /reservar pero solo teléfono/WhatsApp (como mechas). */
   bookableOnline: boolean
 }
-
-/** Servicios internos que no deben listarse en la reserva pública. */
-const HIDDEN_FROM_PUBLIC_BOOKING = new Set([WASH_COLOR_SERVICE_ID])
 
 function rowBookingPattern(row: ServiceRow): ServiceBookingPattern | null {
   return parseBookingPattern(row.booking_pattern)
@@ -57,8 +57,10 @@ export async function listActiveServices(options?: {
 
   const mapped = rows.map(rowToPublic)
   if (!publicCatalog) return mapped
-  return mapped.filter((service) => !HIDDEN_FROM_PUBLIC_BOOKING.has(service.id))
+  return mapped.filter((service) => !isHiddenFromPublicBooking(service.id))
 }
+
+export { HIDDEN_FROM_PUBLIC_BOOKING_IDS, isHiddenFromPublicBooking }
 
 export async function getService(
   id: string,

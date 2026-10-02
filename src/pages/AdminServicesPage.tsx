@@ -29,6 +29,7 @@ import { CategoryForm, type CategoryFormData } from '@/components/admin/Category
 import { ServiceForm, type ServiceFormData } from '@/components/admin/ServiceForm'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { formatPatternSummary, isSegmentedPattern } from '@/lib/booking/servicePattern'
+import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 
 type ModalMode = 'create' | 'edit'
 
@@ -277,7 +278,14 @@ function ServiceListRow({
             ? formatPatternSummary(svc.bookingPattern)
             : `${svc.durationMinutes} min`}
         </span>
-        {svc.bookableOnline ? (
+        {isHiddenFromPublicBooking(svc.id) ? (
+          <span
+            className={`${tagClass} bg-slate-100 text-slate-700`}
+            title="Se crea solo al reservar coloración; no aparece en /reservar"
+          >
+            Interno
+          </span>
+        ) : svc.bookableOnline ? (
           <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
         ) : (
           <span className={`${tagClass} bg-amber-100 text-amber-900`}>Solo teléfono</span>
@@ -897,11 +905,13 @@ export function AdminServicesPage() {
   }
 
   const serviceMatchesStatus = (service: AdminService) => {
+    const internal = isHiddenFromPublicBooking(service.id)
     switch (statusFilter) {
       case 'online':
-        return service.active && service.bookableOnline
+        return service.active && service.bookableOnline && !internal
       case 'phone':
-        return service.active && !service.bookableOnline
+        // Solo teléfono de cara al cliente (mechas, etc.); no piezas internas.
+        return service.active && !service.bookableOnline && !internal
       case 'inactive':
         return !service.active
       default:

@@ -11,6 +11,7 @@ import {
   ApiError,
 } from '@/lib/api'
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
+import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 import { isValidDateString } from '@/lib/core/dates'
 import { capitalizePersonName } from '@/lib/customer/name'
 import { isValidPhone } from '@/lib/customer/phone'
@@ -192,8 +193,10 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setServicesError('')
     return fetchServices()
       .then((res) => {
-        setServices(res.services)
-        if (res.services.length === 0) {
+        // Defensa: lavar color (pareja de coloración) no debe listarse en /reservar.
+        const visible = res.services.filter((s) => !isHiddenFromPublicBooking(s.id))
+        setServices(visible)
+        if (visible.length === 0) {
           setServicesError(errors.noServicesOnline)
         }
       })
