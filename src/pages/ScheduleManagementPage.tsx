@@ -544,7 +544,7 @@ export function ScheduleManagementPage() {
           <div className={activeTab === 'especiales' ? 'mb-4 space-y-4' : 'hidden'}>
             <CollapsibleSpecialSection
               id="special-salon-section"
-              title="Centro"
+              title="Salon"
               expanded={salonSpecialExpanded}
               onToggle={() => {
                 setSalonSpecialExpanded((open) => !open)
