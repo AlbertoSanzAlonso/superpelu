@@ -247,6 +247,9 @@ const es = {
     public: {
       category: '¿Qué te apetece hoy?',
       service: 'Tu tratamiento',
+      searchLabel: 'Buscar tratamiento',
+      searchPlaceholder: 'Ej. corte, color, manicura…',
+      searchEmpty: 'Ningún tratamiento coincide',
       loading: 'Cargando tratamientos…',
       emptyCategory: 'Reserva este tipo de cita por teléfono o WhatsApp.',
       phoneOnly: 'Solo teléfono / WhatsApp',
@@ -862,6 +865,9 @@ const en = {
     public: {
       category: 'What would you like today?',
       service: 'Your treatment',
+      searchLabel: 'Search treatment',
+      searchPlaceholder: 'E.g. cut, colour, manicure…',
+      searchEmpty: 'No matching treatments',
       loading: 'Loading treatments…',
       emptyCategory: 'Book this type of appointment by phone or WhatsApp.',
       phoneOnly: 'Phone / WhatsApp only',

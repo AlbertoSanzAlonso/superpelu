@@ -218,6 +218,7 @@ export function AppointmentForm({
               <BookingCategoryStep
                 {...pickerBase}
                 onCategorySelected={wizard.handleCategorySelected}
+                onServicePickedFromSearch={wizard.handleServicePickedFromSearch}
               />
             )}
 
