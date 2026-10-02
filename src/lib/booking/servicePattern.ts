@@ -1,5 +1,7 @@
 import type { OccupiedSegment } from '@/lib/booking/occupancy'
 
+export type TrailingWhenReplaced = 'discard' | 'afterReplacement'
+
 export type ServiceBookingWorkStep = {
   type: 'work'
   minutes: number
@@ -7,6 +9,11 @@ export type ServiceBookingWorkStep = {
   nameEn?: string
   /** Si true, este tramo no se crea cuando hay otro tratamiento de peluquería después. */
   replaceableByNext?: boolean
+  /**
+   * Qué hacer con los tramos de trabajo posteriores si este se sustituye.
+   * Solo aplica si hay más work después del sustituible.
+   */
+  trailingWhenReplaced?: TrailingWhenReplaced
 }
 
 export type ServiceBookingBreakStep = {
@@ -48,6 +55,10 @@ export function parseBookingPattern(raw: unknown): ServiceBookingPattern | null 
     if (nameEn) step.nameEn = nameEn
     if ((item as { replaceableByNext?: unknown }).replaceableByNext === true) {
       step.replaceableByNext = true
+      const trailing = (item as { trailingWhenReplaced?: unknown }).trailingWhenReplaced
+      if (trailing === 'discard' || trailing === 'afterReplacement') {
+        step.trailingWhenReplaced = trailing
+      }
     }
     steps.push(step)
   }
@@ -79,6 +90,46 @@ export function patternHasReplaceableWork(
   pattern: ServiceBookingPattern | null | undefined,
 ): boolean {
   return findReplaceableWorkStepIndex(pattern) >= 0
+}
+
+/** Hay tramos de trabajo después del índice (en el array del patrón). */
+export function hasWorkStepsAfterPatternIndex(
+  pattern: ServiceBookingPattern,
+  stepIndex: number,
+): boolean {
+  for (let i = stepIndex + 1; i < pattern.length; i++) {
+    if (pattern[i]!.type === 'work') return true
+  }
+  return false
+}
+
+export function getReplaceableTrailingPolicy(
+  pattern: ServiceBookingPattern | null | undefined,
+): TrailingWhenReplaced | null {
+  const index = findReplaceableWorkStepIndex(pattern)
+  if (index < 0 || !pattern) return null
+  const step = pattern[index]
+  if (!step || step.type !== 'work') return null
+  if (!hasWorkStepsAfterPatternIndex(pattern, index)) return null
+  return step.trailingWhenReplaced ?? 'discard'
+}
+
+/** Subpatrón desde el tramo sustituible (incluido) hasta el final. */
+export function patternFromReplaceableInclusive(
+  pattern: ServiceBookingPattern,
+): ServiceBookingPattern | null {
+  const index = findReplaceableWorkStepIndex(pattern)
+  if (index < 0) return null
+  return pattern.slice(index)
+}
+
+/** Solo tramos posteriores al sustituible (sin incluirlo). */
+export function patternAfterReplaceable(
+  pattern: ServiceBookingPattern,
+): ServiceBookingPattern {
+  const index = findReplaceableWorkStepIndex(pattern)
+  if (index < 0) return []
+  return pattern.slice(index + 1)
 }
 
 /** ≥2 tramos de trabajo con pausa (p. ej. color + aclarado). */
@@ -193,7 +244,12 @@ export function normalizeBookingPattern(
     const next: ServiceBookingWorkStep = { type: 'work', minutes: step.minutes }
     if (step.nameEs?.trim()) next.nameEs = step.nameEs.trim()
     if (step.nameEn?.trim()) next.nameEn = step.nameEn.trim()
-    if (step.replaceableByNext) next.replaceableByNext = true
+    if (step.replaceableByNext) {
+      next.replaceableByNext = true
+      if (step.trailingWhenReplaced === 'discard' || step.trailingWhenReplaced === 'afterReplacement') {
+        next.trailingWhenReplaced = step.trailingWhenReplaced
+      }
+    }
     return next
   })
 }

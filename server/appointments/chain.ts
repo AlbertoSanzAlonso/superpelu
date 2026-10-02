@@ -4,7 +4,8 @@ import { serviceDisplayName } from "@/i18n/localeHelpers"
 import { normalizeLocale } from "@/i18n/types"
 import { getStaff, listStaffForService, type PublicStaff } from "@server/staff/index.js"
 import { buildFlexibleServiceStartTimes } from "@/lib/booking/combo"
-import { getColorWashReplacementIndex, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
+import { getColorWashReplacementIndex, findColorIndexReplacedByService, getOccupiedSegmentsForChainService } from "@/lib/booking/colorCombo"
+import { getReplaceableTrailingPolicy } from "@/lib/booking/servicePattern"
 import { upsertCustomerForBooking } from "@server/customers/index.js"
 import { afterAppointmentCreated } from "@server/appointments/createNotify.js"
 import { reminderSentAtForCreate } from "@server/appointments/reminderAtCreate.js"
@@ -13,6 +14,7 @@ import { getBookingSpanMinutes, serviceUsesLinkedWorkSegments } from "@/lib/book
 import { lockStaffDaysForBooking } from "@server/appointments/lock.js"
 import {
   insertColorBookingGroup,
+  insertTrailingWorkAfterReplacement,
   prepareColorBookingGroupIds,
   resolveWashServiceName,
 } from "@server/appointments/color.js"
@@ -26,7 +28,7 @@ import {
   type ResolvedBookingService,
   type SlotOptions,
 } from "@server/appointments/booking.js"
-import { timeToMinutes } from "@server/appointments/time.js"
+import { timeToMinutes, minutesToTime } from "@server/appointments/time.js"
 
 export type BookingChainSegmentPlan = {
   serviceIndex: number
@@ -400,6 +402,7 @@ export async function createChainedBookingAppointment(
 
     let firstId: string | null = null
     const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
+    const colorGroupIdByIndex = new Map<number, string>()
 
     for (let i = 0; i < effectiveServices.length; i++) {
       const service = effectiveServices[i]
@@ -412,8 +415,6 @@ export async function createChainedBookingAppointment(
       if (serviceUsesLinkedWorkSegments(service)) {
         const colorGroup = await prepareColorBookingGroupIds(service)
         if (!colorGroup) throw new Error('SERVICIO_INVALIDO')
-        // Solo omitir lavado si el mismo profesional continúa con peluquería.
-        // Otra coloración u otro especialista → lavado propio.
         const skipWash =
           getColorWashReplacementIndex(effectiveServices, i, staffAssignments) != null
         const washServiceName = skipWash
@@ -446,31 +447,83 @@ export async function createChainedBookingAppointment(
           },
           tx,
         )
+        colorGroupIdByIndex.set(i, colorGroup.groupId)
         if (!firstId) firstId = colorGroup.colorId
-        continue
-      }
-
-      const id = randomUUID()
+      } else {
+        const id = randomUUID()
         const storedDuration = getBookingSpanMinutes(
           service.id,
           service.durationMinutes,
           service.bookingPattern,
         )
-      await tx`
-        INSERT INTO appointments (
-          id, staff_id, staff_name, service_id, service_name, duration_minutes,
-          appointment_date, start_time,
-          customer_name, customer_phone, customer_email, notes,
-          status, created_at, reminder_sent_at, locale, booking_group_id, origin
-        ) VALUES (
-          ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
-          ${input.date}, ${serviceStartTime},
-          ${nameSnapshot}, ${customerPhone}, ${input.customerEmail?.trim() || null},
-          ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
-          ${bookingGroupId}, ${origin}
-        )
-      `
-      if (!firstId) firstId = id
+        await tx`
+          INSERT INTO appointments (
+            id, staff_id, staff_name, service_id, service_name, duration_minutes,
+            appointment_date, start_time,
+            customer_name, customer_phone, customer_email, notes,
+            status, created_at, reminder_sent_at, locale, booking_group_id, origin
+          ) VALUES (
+            ${id}, ${staff.id}, ${staff.name}, ${service.id}, ${serviceName}, ${storedDuration},
+            ${input.date}, ${serviceStartTime},
+            ${nameSnapshot}, ${customerPhone}, ${input.customerEmail?.trim() || null},
+            ${input.notes?.trim() || null}, 'confirmed', ${createdAt}, ${reminderSentAt}, ${locale},
+            ${bookingGroupId}, ${origin}
+          )
+        `
+        if (!firstId) firstId = id
+      }
+
+      // Si este servicio sustituyó el tramo de uno anterior con política afterReplacement,
+      // crear los tramos posteriores justo después de este.
+      const replacedIndex = findColorIndexReplacedByService(
+        effectiveServices,
+        i,
+        staffAssignments,
+      )
+      if (replacedIndex != null) {
+        const prior = effectiveServices[replacedIndex]!
+        if (
+          prior.bookingPattern &&
+          getReplaceableTrailingPolicy(prior.bookingPattern) === 'afterReplacement'
+        ) {
+          const priorStaffId = staffAssignments[replacedIndex]
+          const priorStaff = await getStaff(priorStaffId)
+          const groupId = colorGroupIdByIndex.get(replacedIndex)
+          if (priorStaff?.active && groupId) {
+            const segs = getOccupiedSegmentsForChainService(
+              effectiveServices,
+              i,
+              timeToMinutes(serviceStartTime),
+              staffAssignments,
+            )
+            const endMin = Math.max(
+              ...segs.map((seg) => seg.startMinutes + seg.durationMinutes),
+            )
+            await insertTrailingWorkAfterReplacement(
+              {
+                groupId,
+                staffId: priorStaff.id,
+                staffName: priorStaff.name,
+                serviceId: prior.id,
+                serviceNameFallback: serviceDisplayName(prior, locale),
+                bookingPattern: prior.bookingPattern,
+                date: input.date,
+                startTime: minutesToTime(endMin),
+                customerName: nameSnapshot,
+                customerPhone: customerPhone,
+                customerEmail: input.customerEmail?.trim() || null,
+                notes: input.notes?.trim() || null,
+                createdAt,
+                reminderSentAt,
+                locale,
+                bookingGroupId,
+                origin,
+              },
+              tx,
+            )
+          }
+        }
+      }
     }
 
     if (!firstId) throw new Error('SERVICIO_INVALIDO')

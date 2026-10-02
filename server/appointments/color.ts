@@ -15,7 +15,10 @@ import {
 import {
   defaultColorSplitPattern,
   findReplaceableWorkStepIndex,
+  getReplaceableTrailingPolicy,
+  patternAfterReplaceable,
   patternHasLinkedWorkSegments,
+  patternToOccupiedSegments,
   patternWorkSteps,
   workStepDisplayName,
   type ServiceBookingPattern,
@@ -226,9 +229,8 @@ export async function insertColorBookingGroup(
       (replaceableIndexInPattern < 0 && workOrdinal === workSteps.length - 1 && workSteps.length > 1)
 
     if (isReplaceable && params.skipWash) {
-      cursor += workStep.minutes
-      workOrdinal += 1
-      continue
+      // discard / afterReplacement: no más filas aquí (trailing va tras el sustituto si aplica).
+      break
     }
 
     const isFirst = workOrdinal === 0
@@ -277,6 +279,73 @@ export async function insertColorBookingGroup(
     })
 
     cursor += workStep.minutes
+    workOrdinal += 1
+  }
+}
+
+/**
+ * Inserta los tramos posteriores al sustituible, empezando en `startTime`
+ * (p. ej. justo después del tratamiento que ocupó el hueco).
+ */
+export async function insertTrailingWorkAfterReplacement(
+  params: {
+    groupId: string
+    staffId: string
+    staffName: string
+    serviceId: string
+    serviceNameFallback: string
+    bookingPattern: ServiceBookingPattern
+    date: string
+    startTime: string
+    customerName: string
+    customerPhone: string
+    customerEmail: string | null
+    notes: string | null
+    createdAt: string
+    reminderSentAt: string | null
+    locale: Locale
+    bookingGroupId?: string | null
+    seriesId?: string | null
+    scope?: string | null
+    origin?: string | null
+  },
+  query: DbClient = sql,
+): Promise<void> {
+  const trailing = patternAfterReplaceable(params.bookingPattern)
+  if (trailing.length === 0) return
+  if (getReplaceableTrailingPolicy(params.bookingPattern) !== 'afterReplacement') return
+
+  const occupied = patternToOccupiedSegments(trailing, timeToMinutes(params.startTime))
+  let workOrdinal = 0
+  for (let i = 0; i < trailing.length; i++) {
+    const step = trailing[i]!
+    if (step.type === 'break') continue
+    const seg = occupied[workOrdinal]
+    if (!seg) break
+    const stepLabel = workStepDisplayName(step, params.locale, params.serviceNameFallback)
+    await insertWorkSegmentRow(query, {
+      id: randomUUID(),
+      staffId: params.staffId,
+      staffName: params.staffName,
+      serviceId: params.serviceId,
+      serviceName: step.nameEs || step.nameEn ? stepLabel : params.serviceNameFallback,
+      durationMinutes: step.minutes,
+      date: params.date,
+      startTime: minutesToTime(seg.startMinutes),
+      customerName: params.customerName,
+      customerPhone: params.customerPhone,
+      customerEmail: params.customerEmail,
+      notes: params.notes,
+      createdAt: params.createdAt,
+      reminderSentAt: params.reminderSentAt,
+      locale: params.locale,
+      groupId: params.groupId,
+      role: COLOR_GROUP_ROLE.wash,
+      bookingGroupId: params.bookingGroupId,
+      seriesId: params.seriesId,
+      scope: params.scope,
+      origin: params.origin,
+    })
     workOrdinal += 1
   }
 }

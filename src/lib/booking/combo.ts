@@ -4,6 +4,11 @@ import {
   type BookingServiceWithCategory,
 } from '@/lib/booking/colorCombo'
 import { getWashPhaseStartMinutes, type OccupiedSegment } from '@/lib/booking/occupancy'
+import {
+  getReplaceableTrailingPolicy,
+  patternAfterReplaceable,
+  patternToOccupiedSegments,
+} from '@/lib/booking/servicePattern'
 
 export type { BookingServiceLine } from '@/lib/booking/colorCombo'
 
@@ -18,8 +23,28 @@ export function getChainedBookingSegments(
   const all: OccupiedSegment[] = []
   for (let i = 0; i < services.length; i++) {
     all.push(
-      ...getOccupiedSegmentsForChainService(services, i, startTimes[i], staffAssignments),
+      ...getOccupiedSegmentsForChainService(services, i, startTimes[i]!, staffAssignments),
     )
+
+    const replacedIndex = findColorIndexReplacedByService(services, i, staffAssignments)
+    if (replacedIndex == null) continue
+    const prior = services[replacedIndex]!
+    if (
+      !prior.bookingPattern ||
+      getReplaceableTrailingPolicy(prior.bookingPattern) !== 'afterReplacement'
+    ) {
+      continue
+    }
+    const trailing = patternAfterReplaceable(prior.bookingPattern)
+    if (trailing.length === 0) continue
+    const segs = getOccupiedSegmentsForChainService(
+      services,
+      i,
+      startTimes[i]!,
+      staffAssignments,
+    )
+    const endMin = Math.max(...segs.map((seg) => seg.startMinutes + seg.durationMinutes))
+    all.push(...patternToOccupiedSegments(trailing, endMin))
   }
   return all
 }

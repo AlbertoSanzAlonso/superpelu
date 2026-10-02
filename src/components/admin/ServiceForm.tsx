@@ -6,6 +6,7 @@ import {
   defaultBookingPattern,
   defaultColorSplitPattern,
   formatPatternSummary,
+  hasWorkStepsAfterPatternIndex,
   isSegmentedPattern,
   normalizeBookingPattern,
   patternTotalSpanMinutes,
@@ -13,6 +14,7 @@ import {
   type ServiceBookingPattern,
   type ServiceBookingStep,
   type ServiceBookingWorkStep,
+  type TrailingWhenReplaced,
 } from '@/lib/booking/servicePattern'
 import {
   isHiddenFromPublicBooking,
@@ -229,10 +231,52 @@ export function ServiceForm({
   const [pattern, setPattern] = useState<ServiceBookingPattern>(() => patternFromInitial(initial))
   const [patternError, setPatternError] = useState('')
   const [confirmDefaultNames, setConfirmDefaultNames] = useState(false)
+  const [trailingPromptIndex, setTrailingPromptIndex] = useState<number | null>(null)
 
   const totalMinutes = useMemo(() => patternTotalSpanMinutes(pattern), [pattern])
   const segmented = isSegmentedPattern(pattern)
   const isInternalCompanion = Boolean(initial && isHiddenFromPublicBooking(initial.id))
+
+  const applyReplaceable = (index: number, trailing?: TrailingWhenReplaced) => {
+    setPattern((current) =>
+      current.map((step, i) => {
+        if (step.type !== 'work') return step
+        if (i === index) {
+          const next: ServiceBookingWorkStep = { ...step, replaceableByNext: true }
+          if (trailing) next.trailingWhenReplaced = trailing
+          else delete next.trailingWhenReplaced
+          return next
+        }
+        const cleared = { ...step }
+        delete cleared.replaceableByNext
+        delete cleared.trailingWhenReplaced
+        return cleared
+      }),
+    )
+    setPatternError('')
+    setTrailingPromptIndex(null)
+  }
+
+  const updateReplaceable = (index: number, checked: boolean) => {
+    if (!checked) {
+      setPattern((current) =>
+        current.map((step, i) => {
+          if (i !== index || step.type !== 'work') return step
+          const next = { ...step }
+          delete next.replaceableByNext
+          delete next.trailingWhenReplaced
+          return next
+        }),
+      )
+      setPatternError('')
+      return
+    }
+    if (hasWorkStepsAfterPatternIndex(pattern, index)) {
+      setTrailingPromptIndex(index)
+      return
+    }
+    applyReplaceable(index)
+  }
 
   const saveWithPattern = (nextPattern: ServiceBookingPattern) => {
     const validationError = validateBookingPattern(nextPattern)
@@ -288,25 +332,6 @@ export function ServiceForm({
         return { ...step, [field]: value }
       }),
     )
-  }
-
-  const updateReplaceable = (index: number, checked: boolean) => {
-    setPattern((current) =>
-      current.map((step, i) => {
-        if (step.type !== 'work') return step
-        if (i === index) {
-          const next = { ...step }
-          if (checked) next.replaceableByNext = true
-          else delete next.replaceableByNext
-          return next
-        }
-        if (!checked) return step
-        const cleared = { ...step }
-        delete cleared.replaceableByNext
-        return cleared
-      }),
-    )
-    setPatternError('')
   }
 
   const removeStep = (index: number) => {
@@ -543,6 +568,28 @@ export function ServiceForm({
         busy={busy}
         onClose={() => setConfirmDefaultNames(false)}
         onConfirm={acceptDefaultNames}
+      />
+
+      <ConfirmDialog
+        open={trailingPromptIndex != null}
+        title="Tramos posteriores"
+        message={
+          'Hay más tramos de trabajo después del sustituible. ¿Qué hacemos con ellos ' +
+          'si otro tratamiento ocupa ese hueco?'
+        }
+        confirmLabel="Eliminarlos"
+        secondaryLabel="Ponerlos después del tratamiento"
+        cancelLabel="Cancelar"
+        busy={busy}
+        onClose={() => setTrailingPromptIndex(null)}
+        onConfirm={() => {
+          if (trailingPromptIndex == null) return
+          applyReplaceable(trailingPromptIndex, 'discard')
+        }}
+        onSecondary={() => {
+          if (trailingPromptIndex == null) return
+          applyReplaceable(trailingPromptIndex, 'afterReplacement')
+        }}
       />
     </form>
   )
