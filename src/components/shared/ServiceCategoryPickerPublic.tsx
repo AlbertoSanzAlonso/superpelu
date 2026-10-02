@@ -104,7 +104,9 @@ export function ServiceCategoryPickerPublic({
   }, [categoryFromService, onCategoryChange])
 
   const selectedCategoryId =
-    controlledCategoryId || pickedCategoryId || categoryFromService
+    controlledCategoryId !== undefined
+      ? controlledCategoryId
+      : pickedCategoryId || categoryFromService
 
   const showCategory = visibleSection === 'category' || visibleSection === 'both'
   const showService = visibleSection === 'service' || visibleSection === 'both'

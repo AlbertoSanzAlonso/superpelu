@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { AdminService, AdminServiceCategory } from '@/lib/api/admin-catalog'
 import {
   defaultBookingPattern,
@@ -47,6 +48,35 @@ function initialUsesSegments(initial: AdminService | null): boolean {
   if (initial?.bookingPattern && isSegmentedPattern(initial.bookingPattern)) return true
   if (initial && usesColorSplitBooking(initial.id)) return true
   return false
+}
+
+function workStepsMissingNames(pattern: ServiceBookingPattern): boolean {
+  return pattern.some(
+    (step) => step.type === 'work' && !step.nameEs?.trim() && !step.nameEn?.trim(),
+  )
+}
+
+/** Rellena nombres vacíos con «Tratamiento N» (ES/EN). */
+function applyDefaultWorkStepNames(
+  pattern: ServiceBookingPattern,
+  treatmentNameEs: string,
+  treatmentNameEn: string,
+): ServiceBookingPattern {
+  const baseEs = treatmentNameEs.trim() || 'Tratamiento'
+  const baseEn = treatmentNameEn.trim() || baseEs
+  let workOrdinal = 0
+  return pattern.map((step) => {
+    if (step.type !== 'work') return step
+    workOrdinal += 1
+    const hasEs = Boolean(step.nameEs?.trim())
+    const hasEn = Boolean(step.nameEn?.trim())
+    if (hasEs && hasEn) return step
+    return {
+      ...step,
+      nameEs: hasEs ? step.nameEs!.trim() : `${baseEs} ${workOrdinal}`,
+      nameEn: hasEn ? step.nameEn!.trim() : `${baseEn} ${workOrdinal}`,
+    }
+  })
 }
 
 function StepRow({
@@ -202,10 +232,31 @@ export function ServiceForm({
   )
   const [pattern, setPattern] = useState<ServiceBookingPattern>(() => patternFromInitial(initial))
   const [patternError, setPatternError] = useState('')
+  const [confirmDefaultNames, setConfirmDefaultNames] = useState(false)
 
   const totalMinutes = useMemo(() => patternTotalSpanMinutes(pattern), [pattern])
   const segmented = isSegmentedPattern(pattern)
   const isInternalCompanion = Boolean(initial && isHiddenFromPublicBooking(initial.id))
+
+  const saveWithPattern = (nextPattern: ServiceBookingPattern) => {
+    const validationError = validateBookingPattern(nextPattern)
+    if (validationError) {
+      setPatternError(validationError)
+      return
+    }
+    const bookingPattern = normalizeBookingPattern(nextPattern)
+    const minutes = bookingPattern
+      ? patternTotalSpanMinutes(bookingPattern)
+      : nextPattern[0]?.minutes ?? 30
+    onSave({
+      nameEs: nameEs.trim(),
+      nameEn: nameEn.trim(),
+      durationMinutes: minutes,
+      categoryId: formCategoryId || null,
+      bookableOnline: isInternalCompanion ? false : bookableOnline,
+      bookingPattern,
+    })
+  }
 
   const enableSegments = (checked: boolean) => {
     setUseSegments(checked)
@@ -320,18 +371,20 @@ export function ServiceForm({
       setPatternError(validationError)
       return
     }
-    const bookingPattern = normalizeBookingPattern(pattern)
-    const minutes = bookingPattern
-      ? patternTotalSpanMinutes(bookingPattern)
-      : pattern[0]?.minutes ?? 30
-    onSave({
-      nameEs: nameEs.trim(),
-      nameEn: nameEn.trim(),
-      durationMinutes: minutes,
-      categoryId: formCategoryId || null,
-      bookableOnline: isInternalCompanion ? false : bookableOnline,
-      bookingPattern,
-    })
+
+    if (workStepsMissingNames(pattern)) {
+      setConfirmDefaultNames(true)
+      return
+    }
+
+    saveWithPattern(pattern)
+  }
+
+  const acceptDefaultNames = () => {
+    const named = applyDefaultWorkStepNames(pattern, nameEs, nameEn)
+    setPattern(named)
+    setConfirmDefaultNames(false)
+    saveWithPattern(named)
   }
 
   let workOrdinal = 0
@@ -409,11 +462,7 @@ export function ServiceForm({
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs text-charcoal-muted">
-                En la agenda solo se bloquean los tramos de trabajo; los descansos quedan
-                libres. Con varios tramos de trabajo se crean bloques enlazados.
-              </p>
+            <div className="flex items-center justify-end gap-2">
               <p className="shrink-0 text-xs tabular-nums text-charcoal-muted">
                 Total: {totalMinutes} min
                 {segmented && (
@@ -495,6 +544,21 @@ export function ServiceForm({
           {mode === 'create' ? 'Crear' : 'Guardar'}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmDefaultNames}
+        title="Nombres de tramo automáticos"
+        message={
+          `Hay tramos sin nombre. Si aceptas, se usará el nombre del tratamiento seguido del número ` +
+          `(p. ej. «${nameEs.trim() || 'Tratamiento'} 1», «${nameEs.trim() || 'Tratamiento'} 2»). ` +
+          `Cancela para volver y ponerlos a mano.`
+        }
+        confirmLabel="Aceptar"
+        cancelLabel="Cancelar"
+        busy={busy}
+        onClose={() => setConfirmDefaultNames(false)}
+        onConfirm={acceptDefaultNames}
+      />
     </form>
   )
 }

@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
 import {
   bookableOnlineInCategory,
-  countBookableOnlineInCategory,
   isBookableOnline,
 } from '@/lib/catalog/servicePicker'
 import type { BookableService } from '@/types/booking'
@@ -29,10 +28,9 @@ export function useBookingWizardSteps(form: AppointmentFormApi) {
     }
     setStep((current) => {
       if (current === SCHEDULE_STEP) return 1
-      if (current === 1 && form.serviceIds.length > 0) return 0
-      if (current === 1 && pickedCategoryId) {
-        const count = countBookableOnlineInCategory(form.services, pickedCategoryId)
-        if (count <= 1) return 0
+      if (current === 1) {
+        setPickedCategoryId('')
+        return 0
       }
       return Math.max(current - 1, 0)
     })
@@ -42,9 +40,6 @@ export function useBookingWizardSteps(form: AppointmentFormApi) {
     form.date,
     form.setStartTime,
     form.setDate,
-    pickedCategoryId,
-    form.services,
-    form.serviceIds.length,
     form.staffAssignments.length,
     form.resetChainSelection,
   ])

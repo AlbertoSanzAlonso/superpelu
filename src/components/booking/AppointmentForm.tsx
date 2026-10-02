@@ -234,7 +234,10 @@ export function AppointmentForm({
                 }}
                 selectedServices={form.selectedServices}
                 onRemoveServiceAt={form.removeServiceAt}
-                onBackToCategories={() => wizard.setStep(0)}
+                onBackToCategories={() => {
+                  wizard.setPickedCategoryId('')
+                  wizard.setStep(0)
+                }}
                 onContinue={wizard.handleContinueWithServices}
                 {...pickerBase}
               />
