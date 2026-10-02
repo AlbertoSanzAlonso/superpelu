@@ -32,6 +32,7 @@ import {
 import { createChainedBookingAppointment, resolveChainContinuation } from "@server/appointments/chain.js"
 import { collectDatesForSeriesScope } from "@server/appointments/seriesDates.js"
 import { createRecurringChainedAppointment } from "@server/appointments/recurringChain.js"
+import { reminderSentAtForCreate } from "@server/appointments/reminderAtCreate.js"
 import { isValidDateString, timeToMinutes } from "@server/appointments/time.js"
 import type { CreateAppointmentInput } from "@server/appointments/types.js"
 export type { CreateAppointmentInput } from "@server/appointments/types.js"
@@ -99,7 +100,7 @@ async function createRecurringStaffAppointment(
 
     for (const day of dates) {
       await assertBookingAvailable(tx, staff.id, day, bookingSegments)
-      const reminderSentAt = null
+      const reminderSentAt = reminderSentAtForCreate(day, input.startTime)
 
       const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 
@@ -336,9 +337,8 @@ export async function createAppointment(
   const locale = resolveAppointmentLocaleForCreate(input, profile)
   const serviceName = serviceDisplayName(service, locale)
 
-  // Confirmación WhatsApp al crear; el recordatorio lo envía el scheduler a ~24h.
-  // No marcar reminder_sent_at aquí.
-  const reminderSentAt = null
+  // Confirmación WhatsApp al crear; recordatorio solo si la cita es a más de 24h.
+  const reminderSentAt = reminderSentAtForCreate(input.date, input.startTime)
 
   const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'
 

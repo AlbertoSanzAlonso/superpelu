@@ -21,6 +21,7 @@ import {
   isStaffFreeForServiceAt,
   resolveBookingServices,
 } from '@server/appointments/booking.js'
+import { reminderSentAtForCreate } from '@server/appointments/reminderAtCreate.js'
 import { collectDatesForSeriesScope } from '@server/appointments/seriesDates.js'
 import { timeToMinutes, minutesToTime } from '@server/appointments/time.js'
 
@@ -314,7 +315,7 @@ export async function createRecurringChainedAppointment(
         if (!staff?.active) throw new Error('STAFF_INVALIDO')
         const serviceStartTime = dayPlan.serviceStartTimes[i]
         const serviceName = serviceDisplayName(service, locale)
-        const reminderSentAt = null
+        const reminderSentAt = reminderSentAtForCreate(dayPlan.date, dayPlan.serviceStartTimes[0]!)
 
         if (usesColorSplitBooking(service.id)) {
           const colorGroup = await prepareColorBookingGroupIds(service.id)

@@ -413,7 +413,7 @@ const es = {
     confirmationHeading: 'Tu cita en *Superpelu* está confirmada:',
     rescheduledHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
     visitUpdatedHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
-    reminderHeading: 'Te recordamos tu cita de mañana en *Superpelu*:',
+    reminderHeading: 'Te recordamos tu próxima cita en *Superpelu*:',
     cancelledHeading: 'Tu cita en *Superpelu* ha sido *cancelada*:',
     noShowHeading:
       'Tenías una cita en *Superpelu* y no hemos podido verte. Te echamos de menos y nos preocupa por si te hubiera pasado algo:',
@@ -1028,7 +1028,7 @@ const en = {
     confirmationHeading: 'Your appointment at *Superpelu* is confirmed:',
     rescheduledHeading: 'Your appointment at *Superpelu* has been *modified*:',
     visitUpdatedHeading: 'Your appointment at *Superpelu* has been *modified*:',
-    reminderHeading: 'Reminder: your appointment tomorrow at *Superpelu*:',
+    reminderHeading: 'Reminder: your next appointment at *Superpelu*:',
     cancelledHeading: 'Your appointment at *Superpelu* has been *cancelled*:',
     noShowHeading:
       'You had an appointment at *Superpelu* and we missed you. We are worried in case something happened:',
