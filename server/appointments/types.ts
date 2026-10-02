@@ -48,13 +48,14 @@ export type CreateAppointmentInput = {
   /** Al editar, excluye esta cita de la comprobación de disponibilidad. */
   excludeAppointmentId?: string
   /**
-   * No enviar avisos de «cita nueva» (email admin). Usado al recrear una visita
-   * tras editarla en agenda; el update ya manda «modificada» por WhatsApp si corresponde.
+   * No enviar avisos de «cita nueva» (email admin ni WhatsApp de confirmación).
+   * Usado al recrear una visita tras editarla en agenda; el update ya manda
+   * «modificada» por WhatsApp si corresponde.
    */
   skipCustomerWhatsApp?: boolean
   /**
-   * Agenda staff: si true, envía el WhatsApp de reserva/confirmación al cliente
-   * (el mismo mensaje que antes al crear; /reservar ya no lo envía solo).
+   * Agenda staff/admin: si true, envía el WhatsApp de confirmación al cliente.
+   * En /reservar la confirmación se envía siempre (no hace falta este flag).
    */
   notifyCustomerWhatsApp?: boolean
   /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */

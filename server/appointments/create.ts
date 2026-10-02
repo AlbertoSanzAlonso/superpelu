@@ -336,8 +336,8 @@ export async function createAppointment(
   const locale = resolveAppointmentLocaleForCreate(input, profile)
   const serviceName = serviceDisplayName(service, locale)
 
-  // Recordatorio: lo envía el scheduler al entrar en la ventana de 24h (ya no hay
-  // WhatsApp de confirmación al crear; no marcar reminder_sent_at aquí).
+  // Confirmación WhatsApp al crear; el recordatorio lo envía el scheduler a ~24h.
+  // No marcar reminder_sent_at aquí.
   const reminderSentAt = null
 
   const origin = input.forStaffPortal ? 'backoffice' : 'booking_page'

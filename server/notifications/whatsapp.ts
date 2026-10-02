@@ -115,8 +115,9 @@ export async function notifyAppointmentUpdated(row: AppointmentRow): Promise<voi
 }
 
 /**
- * WhatsApp de reserva/confirmación (el mismo de antes al crear).
- * Solo se llama desde agenda cuando el staff elige avisar; /reservar ya no lo envía.
+ * WhatsApp de confirmación al crear la cita.
+ * /reservar lo envía siempre; en agenda solo si el staff elige avisar.
+ * El recordatorio ~24h lo gestiona el scheduler por separado.
  */
 export async function notifyAppointmentCreated(row: AppointmentRow): Promise<void> {
   const config = getOpenWaConfig()
