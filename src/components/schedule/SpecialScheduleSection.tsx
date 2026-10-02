@@ -166,6 +166,8 @@ export const SpecialScheduleSection = forwardRef<
   const [page, setPage] = useState(1)
   const [addCalendarOpen, setAddCalendarOpen] = useState(false)
   const [calendarPos, setCalendarPos] = useState<{ top: number; right: number } | null>(null)
+  const [calendarMounted, setCalendarMounted] = useState(false)
+  const [calendarVisible, setCalendarVisible] = useState(false)
   const addCalendarButtonRef = useRef<HTMLButtonElement>(null)
   const addCalendarPanelRef = useRef<HTMLDivElement>(null)
   const [unsavedStaffOpen, setUnsavedStaffOpen] = useState(false)
@@ -198,6 +200,8 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
+    setCalendarVisible(false)
+    setCalendarMounted(false)
     setCalendarPos(null)
     setEditingSpanIds(new Set())
   }, [selectedStaffId])
@@ -216,36 +220,59 @@ export const SpecialScheduleSection = forwardRef<
     })
   }, [])
 
-  useLayoutEffect(() => {
-    if (!addCalendarOpen) return
+  const closeAddCalendar = useCallback(() => {
+    setAddCalendarOpen(false)
+    setRangeStart('')
+    setRangeEnd('')
+  }, [])
+
+  const openAddCalendar = useCallback(() => {
     updateAddCalendarPos()
+    setAddCalendarOpen(true)
+  }, [updateAddCalendarPos])
+
+  useLayoutEffect(() => {
+    if (!addCalendarOpen) {
+      setCalendarVisible(false)
+      return
+    }
+    setCalendarMounted(true)
+    updateAddCalendarPos()
+    const prefersReduced =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) {
+      setCalendarVisible(true)
+      return
+    }
+    const frame = requestAnimationFrame(() => {
+      requestAnimationFrame(() => setCalendarVisible(true))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [addCalendarOpen, updateAddCalendarPos])
+
+  useLayoutEffect(() => {
+    if (!calendarMounted) return
     const onReposition = () => updateAddCalendarPos()
     window.addEventListener('resize', onReposition)
-    // capture: true para reaccionar a scroll en contenedores overflow-y-auto
     window.addEventListener('scroll', onReposition, true)
     return () => {
       window.removeEventListener('resize', onReposition)
       window.removeEventListener('scroll', onReposition, true)
     }
-  }, [addCalendarOpen, updateAddCalendarPos])
+  }, [calendarMounted, updateAddCalendarPos])
 
   useEffect(() => {
     if (!addCalendarOpen) return
-    const closeCalendar = () => {
-      setAddCalendarOpen(false)
-      setCalendarPos(null)
-      setRangeStart('')
-      setRangeEnd('')
-    }
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node
       if (addCalendarButtonRef.current?.contains(target)) return
       if (addCalendarPanelRef.current?.contains(target)) return
-      closeCalendar()
+      closeAddCalendar()
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      closeCalendar()
+      closeAddCalendar()
     }
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown)
@@ -253,7 +280,24 @@ export const SpecialScheduleSection = forwardRef<
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
+  }, [addCalendarOpen, closeAddCalendar])
+
+  const finishCalendarExit = useCallback(() => {
+    if (addCalendarOpen) return
+    setCalendarMounted(false)
+    setCalendarPos(null)
   }, [addCalendarOpen])
+
+  useEffect(() => {
+    if (addCalendarOpen || !calendarMounted) return
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduced) {
+      finishCalendarExit()
+      return
+    }
+    const timer = window.setTimeout(finishCalendarExit, 400)
+    return () => clearTimeout(timer)
+  }, [addCalendarOpen, calendarMounted, finishCalendarExit])
 
   const load = useCallback(async () => {
     if (scope === 'staff' && !selectedStaffId) return
@@ -311,7 +355,6 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
-    setCalendarPos(null)
     setFilterMode('month')
     setSelectedMonth(filterMonth)
     setPage(1)
@@ -692,21 +735,10 @@ export const SpecialScheduleSection = forwardRef<
                 type="button"
                 onClick={() => {
                   if (addCalendarOpen) {
-                    setAddCalendarOpen(false)
-                    setCalendarPos(null)
-                    setRangeStart('')
-                    setRangeEnd('')
+                    closeAddCalendar()
                     return
                   }
-                  const button = addCalendarButtonRef.current
-                  if (button) {
-                    const rect = button.getBoundingClientRect()
-                    setCalendarPos({
-                      top: rect.bottom + 8,
-                      right: Math.max(8, window.innerWidth - rect.right),
-                    })
-                  }
-                  setAddCalendarOpen(true)
+                  openAddCalendar()
                 }}
                 className={`flex h-8 cursor-pointer items-center gap-1.5 border px-3 text-xs transition-colors ${
                   addCalendarOpen
@@ -726,13 +758,24 @@ export const SpecialScheduleSection = forwardRef<
                 Añadir dias
               </button>
               {typeof document !== 'undefined' &&
-                addCalendarOpen &&
+                calendarMounted &&
                 calendarPos &&
                 createPortal(
                   <div
                     ref={addCalendarPanelRef}
-                    className="special-add-calendar special-add-calendar-open fixed z-[60] origin-top-right"
+                    className={`special-add-calendar fixed z-[60] origin-top-right ${
+                      calendarVisible ? 'special-add-calendar-open' : 'special-add-calendar-closed'
+                    }`}
                     style={{ top: calendarPos.top, right: calendarPos.right }}
+                    aria-hidden={!addCalendarOpen}
+                    inert={!addCalendarOpen ? true : undefined}
+                    onTransitionEnd={(event) => {
+                      if (event.target !== event.currentTarget) return
+                      if (event.propertyName !== 'opacity' && event.propertyName !== 'transform') {
+                        return
+                      }
+                      finishCalendarExit()
+                    }}
                   >
                     <div className="border border-gold/30 bg-cream/95 p-2 shadow-[0_18px_44px_-14px_rgba(40,30,20,0.4)] backdrop-blur-[2px]">
                       <SpecialDateRangeCalendar

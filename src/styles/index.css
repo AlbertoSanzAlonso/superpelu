@@ -155,7 +155,13 @@
   .special-add-calendar-closed {
     pointer-events: none;
     opacity: 0;
-    transform: translateY(-0.4rem) scale(0.97);
+    transform: translateY(-0.35rem) scale(0.98);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .special-add-calendar {
+      transition: none;
+    }
   }
 
   /* Agenda admin: cambio de día */
