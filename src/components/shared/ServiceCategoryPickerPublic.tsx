@@ -8,9 +8,12 @@ import {
 } from '@/i18n/helpers'
 import { useTranslation } from '@/i18n/useTranslation'
 import {
-  countServicesInCategory,
+  bookableOnlineInCategory,
   categoryIdForService,
+  countBookableOnlineInCategory,
   getAllServiceCategories,
+  isBookableOnline,
+  isPhoneOnlyCategory,
   servicesInCategory,
 } from '@/lib/catalog/servicePicker'
 import type { BookableService } from '@/types/booking'
@@ -31,6 +34,41 @@ type Props = {
   onCategoryChange?: (categoryId: string) => void
   onCategorySelected?: (categoryId: string) => void
   onServiceSelected?: (serviceId: string) => void
+}
+
+function PhoneOnlyCallToAction({
+  categoryId,
+  labels,
+}: {
+  categoryId: string
+  labels: {
+    emptyCategory: string
+    callPhone: (phone: string) => string
+    writeWhatsApp: string
+  }
+}) {
+  const { locale } = useTranslation()
+  return (
+    <div className="space-y-6 text-center">
+      <p className={typography.caption}>{labels.emptyCategory}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+        <Button href={brand.phoneHref} variant="solid" size="md">
+          {labels.callPhone(brand.phone)}
+        </Button>
+        <Button
+          href={
+            categoryId === 'highlights'
+              ? whatsappUrl(locale, 'highlights')
+              : whatsappUrl(locale)
+          }
+          variant="outline"
+          size="md"
+        >
+          {labels.writeWhatsApp}
+        </Button>
+      </div>
+    </div>
+  )
 }
 
 export function ServiceCategoryPickerPublic({
@@ -56,6 +94,7 @@ export function ServiceCategoryPickerPublic({
 
   const categoryFromService = categoryIdForService(services, serviceId)
   const [pickedCategoryId, setPickedCategoryId] = useState('')
+  const [phoneOnlyServiceId, setPhoneOnlyServiceId] = useState('')
 
   useEffect(() => {
     if (categoryFromService) {
@@ -75,22 +114,40 @@ export function ServiceCategoryPickerPublic({
     [services, selectedCategoryId],
   )
 
+  const bookableServices = useMemo(
+    () => (selectedCategoryId ? bookableOnlineInCategory(services, selectedCategoryId) : []),
+    [services, selectedCategoryId],
+  )
+
+  const phoneOnlyCategory = Boolean(
+    selectedCategoryId && isPhoneOnlyCategory(services, selectedCategoryId),
+  )
+
+  useEffect(() => {
+    setPhoneOnlyServiceId('')
+  }, [selectedCategoryId])
+
   function serviceSelectionCount(id: string): number {
     return multiSelect ? serviceIds.filter((item) => item === id).length : serviceId === id ? 1 : 0
   }
 
   function handleCategoryPick(categoryId: string) {
     setPickedCategoryId(categoryId)
+    setPhoneOnlyServiceId('')
     onCategoryChange?.(categoryId)
     if (!multiSelect) {
-      const inCategory = servicesInCategory(services, categoryId)
-      if (inCategory.length === 1) {
-        onServiceChange?.(inCategory[0].id)
+      const bookable = bookableOnlineInCategory(services, categoryId)
+      if (bookable.length === 1) {
+        onServiceChange?.(bookable[0].id)
       } else {
         onServiceChange?.('')
       }
     }
     onCategorySelected?.(categoryId)
+  }
+
+  function handlePhoneOnlyPick(service: BookableService) {
+    setPhoneOnlyServiceId(service.id)
   }
 
   if (loading) {
@@ -129,13 +186,14 @@ export function ServiceCategoryPickerPublic({
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {categories.map((cat) => {
             const selected = selectedCategoryId === cat.id
-            const count = countServicesInCategory(services, cat.id)
+            const bookableCount = countBookableOnlineInCategory(services, cat.id)
+            const phoneOnly = isPhoneOnlyCategory(services, cat.id)
             const countLabel =
-              count === 0
+              phoneOnly || bookableCount === 0
                 ? labels.phoneOnly
-                : count === 1
+                : bookableCount === 1
                   ? labels.oneTreatment
-                  : labels.treatments(count)
+                  : labels.treatments(bookableCount)
             return (
               <button
                 key={cat.id}
@@ -154,7 +212,7 @@ export function ServiceCategoryPickerPublic({
                 <span
                   className={[
                     'mt-1 block font-normal leading-tight',
-                    count === 0
+                    phoneOnly || bookableCount === 0
                       ? 'text-[9px] tracking-tight'
                       : 'whitespace-nowrap text-[10px] tracking-normal',
                     selected ? 'text-gold/80' : 'text-charcoal-muted',
@@ -175,75 +233,89 @@ export function ServiceCategoryPickerPublic({
           <legend className={`${typography.label} mb-2 block w-full text-center md:hidden`}>
             {labels.service}
           </legend>
-          {categoryServices.length === 0 ? (
-            <div className="space-y-6 text-center">
-              <p className={typography.caption}>{labels.emptyCategory}</p>
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                <Button href={brand.phoneHref} variant="solid" size="md">
-                  {labels.callPhone(brand.phone)}
-                </Button>
-                <Button
-                  href={
-                    selectedCategoryId === 'highlights'
-                      ? whatsappUrl(locale, 'highlights')
-                      : whatsappUrl(locale)
-                  }
-                  variant="outline"
-                  size="md"
-                >
-                  {labels.writeWhatsApp}
-                </Button>
-              </div>
-            </div>
+          {phoneOnlyCategory || bookableServices.length === 0 ? (
+            <PhoneOnlyCallToAction categoryId={selectedCategoryId} labels={labels} />
           ) : (
-            <div className="grid gap-2 md:grid-cols-3 md:gap-3">
-              {categoryServices.map((service) => {
-                const selectedCount = serviceSelectionCount(service.id)
-                const selected = selectedCount > 0
-                return (
-                <label
-                  key={service.id}
-                  className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 transition-colors md:p-3 ${
-                    selected
-                      ? 'border-gold bg-gold/5'
-                      : 'border-gold/20 hover:border-gold/40'
-                  }`}
-                >
-                  <input
-                    type={multiSelect ? 'checkbox' : 'radio'}
-                    name={multiSelect ? `service-${service.id}` : 'service'}
-                    value={service.id}
-                    checked={selected}
-                    onChange={() => {
-                      if (multiSelect) {
-                        onToggleService?.(service.id)
-                        return
-                      }
-                      onServiceChange?.(service.id)
-                      onServiceSelected?.(service.id)
-                    }}
-                    className="mt-0.5 shrink-0 accent-gold"
-                  />
-                  <span className="min-w-0 flex-1 text-left">
-                    <span className="flex items-start justify-between gap-2">
-                      <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
-                        {serviceDisplayName(service, locale)}
-                      </span>
-                      {multiSelect && selectedCount > 0 && (
-                        <span className="shrink-0 text-xs font-medium text-gold tabular-nums">
-                          ×{selectedCount}
+            <div className="space-y-4">
+              <div className="grid gap-2 md:grid-cols-3 md:gap-3">
+                {categoryServices.map((service) => {
+                  const online = isBookableOnline(service)
+                  if (!online) {
+                    const selected = phoneOnlyServiceId === service.id
+                    return (
+                      <button
+                        key={service.id}
+                        type="button"
+                        onClick={() => handlePhoneOnlyPick(service)}
+                        className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 text-left transition-colors md:p-3 ${
+                          selected
+                            ? 'border-gold bg-gold/5'
+                            : 'border-gold/20 hover:border-gold/40'
+                        }`}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
+                            {serviceDisplayName(service, locale)}
+                          </span>
+                          <span className="mt-1 block text-[10px] font-normal uppercase tracking-wide text-charcoal-muted md:text-[11px]">
+                            {labels.phoneOnly}
+                          </span>
                         </span>
-                      )}
-                    </span>
-                    {service.showDurationInBooking !== false && (
-                      <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
-                        {labels.minutes(service.durationMinutes)}
+                      </button>
+                    )
+                  }
+
+                  const selectedCount = serviceSelectionCount(service.id)
+                  const selected = selectedCount > 0
+                  return (
+                    <label
+                      key={service.id}
+                      className={`flex h-full min-w-0 cursor-pointer items-start gap-2 border p-3 transition-colors md:p-3 ${
+                        selected
+                          ? 'border-gold bg-gold/5'
+                          : 'border-gold/20 hover:border-gold/40'
+                      }`}
+                    >
+                      <input
+                        type={multiSelect ? 'checkbox' : 'radio'}
+                        name={multiSelect ? `service-${service.id}` : 'service'}
+                        value={service.id}
+                        checked={selected}
+                        onChange={() => {
+                          setPhoneOnlyServiceId('')
+                          if (multiSelect) {
+                            onToggleService?.(service.id)
+                            return
+                          }
+                          onServiceChange?.(service.id)
+                          onServiceSelected?.(service.id)
+                        }}
+                        className="mt-0.5 shrink-0 accent-gold"
+                      />
+                      <span className="min-w-0 flex-1 text-left">
+                        <span className="flex items-start justify-between gap-2">
+                          <span className="block text-sm font-medium leading-snug text-gold md:text-xs md:leading-tight">
+                            {serviceDisplayName(service, locale)}
+                          </span>
+                          {multiSelect && selectedCount > 0 && (
+                            <span className="shrink-0 text-xs font-medium text-gold tabular-nums">
+                              ×{selectedCount}
+                            </span>
+                          )}
+                        </span>
+                        {service.showDurationInBooking !== false && (
+                          <span className="mt-1 block text-xs font-normal normal-case leading-snug text-charcoal-muted md:text-[11px]">
+                            {labels.minutes(service.durationMinutes)}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                </label>
-                )
-              })}
+                    </label>
+                  )
+                })}
+              </div>
+              {phoneOnlyServiceId && (
+                <PhoneOnlyCallToAction categoryId={selectedCategoryId} labels={labels} />
+              )}
             </div>
           )}
         </fieldset>

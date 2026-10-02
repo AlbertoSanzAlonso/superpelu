@@ -788,7 +788,7 @@ app.get('/api/admin/whatsapp/qr', async (c) => {
 })
 
 app.get('/api/services', async (c) =>
-  c.json({ services: await listActiveServices({ onlineOnly: true }) }),
+  c.json({ services: await listActiveServices({ publicCatalog: true }) }),
 )
 
 app.get('/api/service-categories', async (c) =>

@@ -7,7 +7,10 @@ export type SalonService = {
   nameEn: string
   durationMinutes: number
   sortOrder: number
-  /** Si es false, no aparece en reserva online (p. ej. mechas solo por teléfono). */
+  /**
+   * Si es false, aparece en /reservar con aviso de teléfono/WhatsApp
+   * (p. ej. mechas / balayage); no se puede reservar online.
+   */
   bookableOnline?: boolean
   /** Si es false, no se muestra duración en /reservar (pendiente de confirmar en tarifa). */
   showDurationInBooking?: boolean

@@ -51,6 +51,11 @@ const tagClass =
 const searchFieldClass =
   'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:max-w-xs'
 
+const filterSelectClass =
+  'h-9 shrink-0 border border-gold/30 bg-cream/40 px-2 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
+
+type ServiceStatusFilter = 'all' | 'online' | 'phone' | 'inactive'
+
 const adminIconBtnClass =
   'flex size-6 shrink-0 items-center justify-center border border-gold/25 bg-cream text-charcoal-muted hover:border-gold hover:text-gold'
 
@@ -272,8 +277,10 @@ function ServiceListRow({
             ? formatPatternSummary(svc.bookingPattern)
             : `${svc.durationMinutes} min`}
         </span>
-        {svc.bookableOnline && (
+        {svc.bookableOnline ? (
           <span className={`${tagClass} bg-green-100 text-green-800`}>Online</span>
+        ) : (
+          <span className={`${tagClass} bg-amber-100 text-amber-900`}>Solo teléfono</span>
         )}
         {!svc.active && (
           <span className={`${tagClass} bg-amber-100 text-amber-800`}>Inactivo</span>
@@ -595,6 +602,7 @@ export function AdminServicesPage() {
   const [error, setError] = useState('')
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(null)
   const [serviceQuery, setServiceQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ServiceStatusFilter>('all')
   const [busy, setBusy] = useState(false)
 
   const [categoryModal, setCategoryModal] = useState<CategoryModalState>({
@@ -878,6 +886,8 @@ export function AdminServicesPage() {
   }
 
   const queryNorm = serviceQuery.trim().toLocaleLowerCase('es')
+  const hasActiveFilters = Boolean(queryNorm) || statusFilter !== 'all'
+
   const serviceMatchesQuery = (service: AdminService) => {
     if (!queryNorm) return true
     return (
@@ -886,19 +896,35 @@ export function AdminServicesPage() {
     )
   }
 
+  const serviceMatchesStatus = (service: AdminService) => {
+    switch (statusFilter) {
+      case 'online':
+        return service.active && service.bookableOnline
+      case 'phone':
+        return service.active && !service.bookableOnline
+      case 'inactive':
+        return !service.active
+      default:
+        return true
+    }
+  }
+
+  const serviceMatchesFilters = (service: AdminService) =>
+    serviceMatchesQuery(service) && serviceMatchesStatus(service)
+
   const servicesForCategory = (categoryId: string) =>
     sortServicesForDisplay(
-      services.filter((s) => s.categoryId === categoryId && serviceMatchesQuery(s)),
+      services.filter((s) => s.categoryId === categoryId && serviceMatchesFilters(s)),
     )
 
   const uncategorizedServices = sortServicesForDisplay(
-    services.filter((s) => !s.categoryId && serviceMatchesQuery(s)),
+    services.filter((s) => !s.categoryId && serviceMatchesFilters(s)),
   )
 
   const sortedCategories = sortCategoriesForDisplay(
-    queryNorm
+    hasActiveFilters
       ? categories.filter((cat) =>
-          services.some((s) => s.categoryId === cat.id && serviceMatchesQuery(s)),
+          services.some((s) => s.categoryId === cat.id && serviceMatchesFilters(s)),
         )
       : categories,
   )
@@ -944,6 +970,20 @@ export function AdminServicesPage() {
             onChange={(e) => setServiceQuery(e.target.value)}
             className={searchFieldClass}
           />
+          <label className="sr-only" htmlFor="services-status-filter">
+            Filtrar por estado
+          </label>
+          <select
+            id="services-status-filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as ServiceStatusFilter)}
+            className={filterSelectClass}
+          >
+            <option value="all">Todos</option>
+            <option value="online">Reservable online</option>
+            <option value="phone">Solo teléfono</option>
+            <option value="inactive">Inactivo</option>
+          </select>
           <Button
             type="button"
             variant="solid"
@@ -978,7 +1018,7 @@ export function AdminServicesPage() {
           <div className="services-admin-list w-full max-w-full divide-y divide-gold/10">
             {sortedCategories.map((cat, index) => {
               const catServices = servicesForCategory(cat.id)
-              const expanded = Boolean(queryNorm) || expandedCategoryId === cat.id
+              const expanded = hasActiveFilters || expandedCategoryId === cat.id
               return (
                 <div key={cat.id}>
                   <CategoryListRow
@@ -1089,8 +1129,8 @@ export function AdminServicesPage() {
 
             {sortedCategories.length === 0 && uncategorizedServices.length === 0 && (
               <p className={`${typography.body} p-8 text-center`}>
-                {queryNorm
-                  ? 'Ningún tratamiento coincide con la búsqueda.'
+                {hasActiveFilters
+                  ? 'Ningún tratamiento coincide con el filtro.'
                   : 'No hay servicios ni categorías. Crea tu primera categoría o servicio.'}
               </p>
             )}

@@ -1,6 +1,9 @@
 import { useCallback, useState } from 'react'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
-import { countServicesInCategory, servicesInCategory } from '@/lib/catalog/servicePicker'
+import {
+  bookableOnlineInCategory,
+  countBookableOnlineInCategory,
+} from '@/lib/catalog/servicePicker'
 
 export const SCHEDULE_STEP = 2
 export const CONFIRM_STEP = 3
@@ -26,8 +29,8 @@ export function useBookingWizardSteps(form: AppointmentFormApi) {
       if (current === SCHEDULE_STEP) return 1
       if (current === 1 && form.serviceIds.length > 0) return 0
       if (current === 1 && pickedCategoryId) {
-        const count = countServicesInCategory(form.services, pickedCategoryId)
-        if (count === 1) return 0
+        const count = countBookableOnlineInCategory(form.services, pickedCategoryId)
+        if (count <= 1) return 0
       }
       return Math.max(current - 1, 0)
     })
@@ -46,13 +49,18 @@ export function useBookingWizardSteps(form: AppointmentFormApi) {
 
   const handleCategorySelected = useCallback(
     (categoryId: string) => {
-      const inCategory = servicesInCategory(form.services, categoryId)
+      const bookable = bookableOnlineInCategory(form.services, categoryId)
       if (form.serviceIds.length > 0) {
         setStep(1)
         return
       }
-      if (inCategory.length === 1) {
-        form.setServiceIds([inCategory[0].id])
+      if (bookable.length === 0) {
+        // Solo teléfono/WhatsApp (como mechas): mostrar explicación, no agenda.
+        setStep(1)
+        return
+      }
+      if (bookable.length === 1) {
+        form.setServiceIds([bookable[0].id])
         setStep(SCHEDULE_STEP)
         return
       }

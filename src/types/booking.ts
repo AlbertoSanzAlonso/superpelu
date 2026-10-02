@@ -16,6 +16,8 @@ export type BookableService = {
   categoryId: string | null
   showDurationInBooking?: boolean
   bookingPattern?: import('@/lib/booking/servicePattern').ServiceBookingPattern | null
+  /** false = visible en /reservar pero solo por teléfono/WhatsApp. */
+  bookableOnline?: boolean
 }
 
 export type StaffMember = {

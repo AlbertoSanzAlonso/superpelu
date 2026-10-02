@@ -228,10 +228,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
   const addServiceId = useCallback(
     (id: string) => {
+      const service = services.find((item) => item.id === id)
+      if (service && service.bookableOnline === false) return
       setServiceIdsState((current) => [...current, id])
       resetScheduleSelection()
     },
-    [resetScheduleSelection],
+    [resetScheduleSelection, services],
   )
 
   const toggleServiceId = addServiceId

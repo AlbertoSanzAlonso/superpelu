@@ -262,15 +262,22 @@ export function ServiceForm({
       <p className="text-xs text-charcoal-muted">
         El orden dentro de cada categoría se ajusta en el listado con las flechas arriba/abajo.
       </p>
-      <label className="flex items-center gap-2">
-        <input
-          type="checkbox"
-          checked={bookableOnline}
-          onChange={(e) => setBookableOnline(e.target.checked)}
-          className="h-4 w-4 accent-gold"
-        />
-        <span className="text-sm text-charcoal">Reservable online</span>
-      </label>
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={bookableOnline}
+            onChange={(e) => setBookableOnline(e.target.checked)}
+            className="h-4 w-4 accent-gold"
+          />
+          <span className="text-sm text-charcoal">Reservable online</span>
+        </label>
+        <p className="text-xs text-charcoal-muted">
+          Si se desmarca, el cliente ve el tratamiento en la reserva pero solo puede
+          llamar o escribir por WhatsApp (igual que mechas / balayage). En agenda sí
+          se puede citar.
+        </p>
+      </div>
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancelar

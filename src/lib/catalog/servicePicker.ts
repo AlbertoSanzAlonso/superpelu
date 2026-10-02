@@ -57,12 +57,31 @@ export function buildAdminCategoryOptions(
   return ordered
 }
 
+export function isBookableOnline(service: BookableService): boolean {
+  return service.bookableOnline !== false
+}
+
 export function countServicesInCategory(services: BookableService[], categoryId: string) {
   return servicesInCategory(services, categoryId).length
 }
 
+/** Tratamientos que el cliente puede reservar online en esa especialidad. */
+export function countBookableOnlineInCategory(services: BookableService[], categoryId: string) {
+  return bookableOnlineInCategory(services, categoryId).length
+}
+
 export function servicesInCategory(services: BookableService[], categoryId: string) {
   return services.filter((s) => s.categoryId === categoryId)
+}
+
+export function bookableOnlineInCategory(services: BookableService[], categoryId: string) {
+  return servicesInCategory(services, categoryId).filter(isBookableOnline)
+}
+
+/** Especialidad solo teléfono/WhatsApp (como mechas): no hay nada reservable online. */
+export function isPhoneOnlyCategory(services: BookableService[], categoryId: string) {
+  const inCategory = servicesInCategory(services, categoryId)
+  return inCategory.length > 0 && inCategory.every((s) => !isBookableOnline(s))
 }
 
 export function categoryIdForService(
