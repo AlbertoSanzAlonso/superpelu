@@ -289,10 +289,25 @@ export function defaultBookingPattern(durationMinutes = 30): ServiceBookingPatte
   return [{ type: 'work', minutes: durationMinutes }]
 }
 
-/** Patrón por defecto de coloración (aplicación + pausa + aclarado sustituible). */
+/**
+ * Nombre genérico del 1.er tramo del patrón de coloración por defecto.
+ * En agenda debe usarse el nombre del tratamiento (p. ej. «Color en raíz»), no este label.
+ */
+export function isGenericColorApplicationLabel(name: string | undefined | null): boolean {
+  if (!name?.trim()) return false
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+  return normalized === 'aplicacion' || normalized === 'application'
+}
+
+/** Patrón por defecto de coloración (tramo color sin nombre + pausa + aclarado sustituible). */
 export function defaultColorSplitPattern(): ServiceBookingPattern {
   return [
-    { type: 'work', minutes: 30, nameEs: 'Aplicación', nameEn: 'Application' },
+    // Sin nombre: al crear la cita se usa el nombre del servicio (Color en raíz, etc.).
+    { type: 'work', minutes: 30 },
     { type: 'break', minutes: 30 },
     {
       type: 'work',

@@ -239,17 +239,12 @@ export async function insertColorBookingGroup(
     // Más de 2 work steps: generar UUID adicionales
     const rowId = isFirst || workOrdinal === 1 ? id : randomUUID()
 
-    const stepLabel = workStepDisplayName(
-      workStep,
-      params.locale,
-      isFirst ? params.colorServiceName : params.washServiceName,
-    )
-    const serviceName =
-      workStep.nameEs || workStep.nameEn
-        ? stepLabel
-        : isFirst
-          ? params.colorServiceName
-          : params.washServiceName
+    // Primer tramo: siempre el nombre del tratamiento en agenda (no el label del patrón).
+    const serviceName = isFirst
+      ? params.colorServiceName
+      : workStep.nameEs || workStep.nameEn
+        ? workStepDisplayName(workStep, params.locale, params.washServiceName)
+        : params.washServiceName
 
     const serviceId =
       !isFirst && useLegacyWashService ? WASH_COLOR_SERVICE_ID : params.colorServiceId
