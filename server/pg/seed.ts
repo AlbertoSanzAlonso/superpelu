@@ -7,13 +7,13 @@ import {
 import { COLOR_GROUP_ROLE, COLOR_SPLIT_SERVICE_IDS } from '@/lib/booking/occupancy'
 import {
   defaultColorSplitPattern,
-  isGenericColorApplicationLabel,
-  isSegmentedPattern,
+  formatTreatmentSegmentLabel,
   parseBookingPattern,
   patternTotalSpanMinutes,
-  type ServiceBookingPattern,
-  type ServiceBookingWorkStep,
+  patternWorkSteps,
+  workStepDisplayName,
 } from '@/lib/booking/servicePattern'
+import type { Locale } from '@/i18n/types'
 import { sql } from '@server/pg/client.js'
 import { staffWeeklyHoursRestoreV1 } from '@server/pg/staffHoursRestoreV1.js'
 import { seedSalonScheduleIfMissing, setStaffSchedule } from '@server/schedule/index.js'
@@ -227,66 +227,84 @@ export async function seedColorSplitPatternsIfMissing(): Promise<void> {
 }
 
 /**
- * Quita «Aplicación»/«Application» del 1.er tramo del patrón (label genérico).
- * Así nuevas citas y el editor usan el nombre del tratamiento.
+ * Citas de grupo color: service_name = «Tratamiento - Tramo».
  */
-export async function repairGenericColorApplicationStepNames(): Promise<void> {
-  const rows = await sql<{ id: string; booking_pattern: unknown }[]>`
-    SELECT id, booking_pattern
-    FROM services
-    WHERE booking_pattern IS NOT NULL
+export async function repairColorGroupAppointmentLabels(): Promise<void> {
+  const rows = await sql<
+    {
+      id: string
+      color_group_id: string
+      color_group_role: string | null
+      locale: string
+      service_id: string
+      service_name: string
+      service_name_es: string
+      service_name_en: string | null
+      booking_pattern: unknown
+    }[]
+  >`
+    SELECT
+      a.id,
+      a.color_group_id,
+      a.color_group_role,
+      a.locale,
+      a.service_id,
+      a.service_name,
+      s.name AS service_name_es,
+      s.name_en AS service_name_en,
+      s.booking_pattern
+    FROM appointments a
+    INNER JOIN services s ON s.id = a.service_id
+    WHERE a.color_group_id IS NOT NULL
+      AND a.color_group_role IS NOT NULL
   `
-  const now = nowIso()
+
+  const byGroup = new Map<string, typeof rows>()
   for (const row of rows) {
-    const pattern = parseBookingPattern(row.booking_pattern)
-    if (!pattern || !isSegmentedPattern(pattern)) continue
-    const firstWorkIndex = pattern.findIndex((step) => step.type === 'work')
-    if (firstWorkIndex < 0) continue
-    const first = pattern[firstWorkIndex] as ServiceBookingWorkStep
-    const es = first.nameEs?.trim()
-    const en = first.nameEn?.trim()
-    if (!es && !en) continue
-    const onlyGeneric =
-      (!es || isGenericColorApplicationLabel(es)) &&
-      (!en || isGenericColorApplicationLabel(en))
-    if (!onlyGeneric) continue
-
-    const next: ServiceBookingPattern = pattern.map((step, index) => {
-      if (index !== firstWorkIndex || step.type !== 'work') return step
-      const cleared: ServiceBookingWorkStep = { type: 'work', minutes: step.minutes }
-      if (step.replaceableByNext) cleared.replaceableByNext = true
-      if (step.trailingWhenReplaced) cleared.trailingWhenReplaced = step.trailingWhenReplaced
-      return cleared
-    })
-    await sql`
-      UPDATE services
-      SET booking_pattern = ${sql.json(next)}, updated_at = ${now}
-      WHERE id = ${row.id}
-    `
+    const list = byGroup.get(row.color_group_id) ?? []
+    list.push(row)
+    byGroup.set(row.color_group_id, list)
   }
-}
 
-/**
- * Filas del 1.er tramo (color): service_name = nombre del tratamiento.
- * Así la agenda no muestra labels de patrón («Aplicación», etc.).
- */
-export async function repairColorPhaseAppointmentServiceNames(): Promise<void> {
-  await sql`
-    UPDATE appointments AS a
-    SET service_name = CASE
-      WHEN a.locale = 'en' THEN COALESCE(NULLIF(s.name_en, ''), s.name)
-      ELSE s.name
-    END
-    FROM services AS s
-    WHERE a.service_id = s.id
-      AND a.color_group_role = ${COLOR_GROUP_ROLE.color}
-      AND a.service_name IS DISTINCT FROM (
-        CASE
-          WHEN a.locale = 'en' THEN COALESCE(NULLIF(s.name_en, ''), s.name)
-          ELSE s.name
-        END
-      )
-  `
+  for (const group of byGroup.values()) {
+    const colorRow = group.find((row) => row.color_group_role === COLOR_GROUP_ROLE.color)
+    if (!colorRow) continue
+
+    const locale: Locale = colorRow.locale === 'en' ? 'en' : 'es'
+    const treatmentName =
+      locale === 'en'
+        ? colorRow.service_name_en?.trim() || colorRow.service_name_es
+        : colorRow.service_name_es
+    const pattern = parseBookingPattern(colorRow.booking_pattern)
+    const works = pattern ? patternWorkSteps(pattern) : []
+
+    const ordered = [...group].sort((a, b) => {
+      if (a.color_group_role === COLOR_GROUP_ROLE.color) return -1
+      if (b.color_group_role === COLOR_GROUP_ROLE.color) return 1
+      return 0
+    })
+
+    let workOrdinal = 0
+    for (const row of ordered) {
+      const step = works[workOrdinal]
+      workOrdinal += 1
+      const segmentName =
+        step && (step.nameEs?.trim() || step.nameEn?.trim())
+          ? workStepDisplayName(step, locale, '')
+          : row.color_group_role === COLOR_GROUP_ROLE.color
+            ? ''
+            : row.service_name.includes(' - ')
+              ? row.service_name.slice(row.service_name.indexOf(' - ') + 3)
+              : row.service_name
+      const nextLabel = formatTreatmentSegmentLabel(treatmentName, segmentName)
+      if (nextLabel === row.service_name) continue
+      await sql`
+        UPDATE appointments
+        SET service_name = ${nextLabel}
+        WHERE id = ${row.id}
+      `
+    }
+  }
 }
 
 export async function runSeed(): Promise<void> {
@@ -295,8 +313,7 @@ export async function runSeed(): Promise<void> {
   await syncSalonServices()
   await repairDoubleEncodedBookingPatterns()
   await seedColorSplitPatternsIfMissing()
-  await repairGenericColorApplicationStepNames()
-  await repairColorPhaseAppointmentServiceNames()
+  await repairColorGroupAppointmentLabels()
   await syncSalonStaff()
   await seedStaffCategoriesIfMissing()
   await syncStaffAllServices()

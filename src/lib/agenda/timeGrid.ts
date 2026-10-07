@@ -3,7 +3,6 @@ import { nowSalonMinutes, todaySalon } from '@/lib/core/dates'
 import { slotStartInWorkWindows } from '@/lib/core/scheduleHours'
 import {
   getOccupiedSegmentsForAppointment,
-  isColorGroupWashRow,
   occupiedSegmentsOverlap,
 } from '@/lib/booking/occupancy'
 import { truncateNotesPreview } from '@/lib/core/notes'
@@ -82,9 +81,7 @@ function appendWorkingSlotCell(
       { colorGroupRole: apt.colorGroupRole, bookingPattern: apt.bookingPattern },
     )
     const isSegmentStart = aptSegments.some((seg) => seg.startMinutes === slotStart)
-    const serviceLabel = isColorGroupWashRow(apt.colorGroupRole)
-      ? 'Lavar color'
-      : apt.serviceName
+    const serviceLabel = apt.serviceName
     const notesPreview = isSegmentStart ? truncateNotesPreview(apt.notes, 36) : undefined
     const subtitleParts = [serviceLabel, notesPreview].filter(Boolean)
     cells.push({

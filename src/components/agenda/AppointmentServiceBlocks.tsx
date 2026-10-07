@@ -109,7 +109,7 @@ export function AppointmentServiceBlocks({ appointment, staffName, services }: P
           {isColorGroupWashRow(block.colorGroupRole) && (
             <WashPhaseIcon className="mr-0.5 inline h-3.5 w-3.5 align-[-2px] opacity-90" title="Lavado" />
           )}
-          {isColorGroupWashRow(block.colorGroupRole) ? 'Lavar color' : block.serviceName}
+          {block.serviceName}
           {block.nameEn ? ` - ${block.nameEn}` : ''} ({block.staffLabel})
         </li>
       ))}

@@ -204,7 +204,7 @@ export function DraggableAppointmentBlock({
             )}
             <span className="truncate">
               {apt.customerName} —{' '}
-              {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
+              {apt.serviceName}
             </span>
           </span>
           <span className="mt-0.5 block opacity-80 tabular-nums">

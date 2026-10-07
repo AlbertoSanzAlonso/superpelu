@@ -15,6 +15,7 @@ import {
 import {
   defaultColorSplitPattern,
   findReplaceableWorkStepIndex,
+  formatTreatmentSegmentLabel,
   getReplaceableTrailingPolicy,
   patternAfterReplaceable,
   patternHasLinkedWorkSegments,
@@ -183,7 +184,10 @@ export async function insertColorBookingGroup(
       staffId: params.staffId,
       staffName: params.staffName,
       serviceId: WASH_COLOR_SERVICE_ID,
-      serviceName: params.washServiceName,
+      serviceName: formatTreatmentSegmentLabel(
+        params.colorServiceName,
+        params.washServiceName,
+      ),
       durationMinutes: COLOR_SPLIT_SEGMENT_MINUTES,
       date: params.date,
       startTime: minutesToTime(getWashPhaseStartMinutes(startMinutes)),
@@ -239,12 +243,18 @@ export async function insertColorBookingGroup(
     // Más de 2 work steps: generar UUID adicionales
     const rowId = isFirst || workOrdinal === 1 ? id : randomUUID()
 
-    // Primer tramo: siempre el nombre del tratamiento en agenda (no el label del patrón).
-    const serviceName = isFirst
-      ? params.colorServiceName
-      : workStep.nameEs || workStep.nameEn
-        ? workStepDisplayName(workStep, params.locale, params.washServiceName)
-        : params.washServiceName
+    const segmentName =
+      workStep.nameEs || workStep.nameEn
+        ? workStepDisplayName(
+            workStep,
+            params.locale,
+            isFirst ? params.colorServiceName : params.washServiceName,
+          )
+        : isFirst
+          ? ''
+          : params.washServiceName
+    // Agenda: «Tratamiento - Tramo» en todos los tramos del grupo.
+    const serviceName = formatTreatmentSegmentLabel(params.colorServiceName, segmentName)
 
     const serviceId =
       !isFirst && useLegacyWashService ? WASH_COLOR_SERVICE_ID : params.colorServiceId
@@ -317,13 +327,16 @@ export async function insertTrailingWorkAfterReplacement(
     if (step.type === 'break') continue
     const seg = occupied[workOrdinal]
     if (!seg) break
-    const stepLabel = workStepDisplayName(step, params.locale, params.serviceNameFallback)
+    const stepLabel =
+      step.nameEs || step.nameEn
+        ? workStepDisplayName(step, params.locale, params.serviceNameFallback)
+        : params.serviceNameFallback
     await insertWorkSegmentRow(query, {
       id: randomUUID(),
       staffId: params.staffId,
       staffName: params.staffName,
       serviceId: params.serviceId,
-      serviceName: step.nameEs || step.nameEn ? stepLabel : params.serviceNameFallback,
+      serviceName: formatTreatmentSegmentLabel(params.serviceNameFallback, stepLabel),
       durationMinutes: step.minutes,
       date: params.date,
       startTime: minutesToTime(seg.startMinutes),

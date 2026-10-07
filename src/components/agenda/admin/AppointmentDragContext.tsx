@@ -526,7 +526,7 @@ function AppointmentDragOverlay({
         )}
         <span className="truncate">
           {apt.customerName} —{' '}
-          {isColorGroupWashRow(apt.colorGroupRole) ? 'Lavar color' : apt.serviceName}
+          {apt.serviceName}
         </span>
       </span>
       {crossStaff && (

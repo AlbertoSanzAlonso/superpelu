@@ -227,6 +227,19 @@ export function workStepDisplayName(
   return step.nameEs?.trim() || step.nameEn?.trim() || fallback
 }
 
+/** Etiqueta de agenda: «Tratamiento - Tramo» (o solo tratamiento si no hay tramo). */
+export function formatTreatmentSegmentLabel(
+  treatmentName: string,
+  segmentName?: string | null,
+): string {
+  const treatment = treatmentName.trim()
+  const segment = segmentName?.trim()
+  if (!treatment) return segment || ''
+  if (!segment || segment === treatment) return treatment
+  if (segment.startsWith(`${treatment} - `)) return segment
+  return `${treatment} - ${segment}`
+}
+
 export function validateBookingPattern(pattern: ServiceBookingPattern): string | null {
   if (pattern.length === 0) return 'Añade al menos un tramo'
   if (pattern[0].type !== 'work') return 'El patrón debe empezar con un tramo'
@@ -289,25 +302,10 @@ export function defaultBookingPattern(durationMinutes = 30): ServiceBookingPatte
   return [{ type: 'work', minutes: durationMinutes }]
 }
 
-/**
- * Nombre genérico del 1.er tramo del patrón de coloración por defecto.
- * En agenda debe usarse el nombre del tratamiento (p. ej. «Color en raíz»), no este label.
- */
-export function isGenericColorApplicationLabel(name: string | undefined | null): boolean {
-  if (!name?.trim()) return false
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-  return normalized === 'aplicacion' || normalized === 'application'
-}
-
-/** Patrón por defecto de coloración (tramo color sin nombre + pausa + aclarado sustituible). */
+/** Patrón por defecto de coloración (aplicación + pausa + aclarado sustituible). */
 export function defaultColorSplitPattern(): ServiceBookingPattern {
   return [
-    // Sin nombre: al crear la cita se usa el nombre del servicio (Color en raíz, etc.).
-    { type: 'work', minutes: 30 },
+    { type: 'work', minutes: 30, nameEs: 'Aplicación', nameEn: 'Application' },
     { type: 'break', minutes: 30 },
     {
       type: 'work',
