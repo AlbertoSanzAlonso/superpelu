@@ -31,10 +31,28 @@ function optionalTrimmedString(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
+/** Deshace booking_pattern guardado como string JSONB (bug antiguo del PATCH admin). */
+function coerceBookingPatternRaw(raw: unknown): unknown {
+  let value = raw
+  for (let i = 0; i < 3; i++) {
+    if (Array.isArray(value)) return value
+    if (typeof value !== 'string') return value
+    const trimmed = value.trim()
+    if (!trimmed) return value
+    try {
+      value = JSON.parse(trimmed)
+    } catch {
+      return value
+    }
+  }
+  return value
+}
+
 export function parseBookingPattern(raw: unknown): ServiceBookingPattern | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null
+  const coerced = coerceBookingPatternRaw(raw)
+  if (!Array.isArray(coerced) || coerced.length === 0) return null
   const steps: ServiceBookingStep[] = []
-  for (const item of raw) {
+  for (const item of coerced) {
     if (!item || typeof item !== 'object') return null
     const type = (item as { type?: string }).type
     const minutes = Number((item as { minutes?: unknown }).minutes)

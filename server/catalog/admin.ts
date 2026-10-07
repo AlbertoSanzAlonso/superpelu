@@ -152,7 +152,9 @@ export async function updateService(
   if (data.nameEn !== undefined) patch.name_en = data.nameEn
   if (data.bookingPattern !== undefined) {
     const bookingPattern = normalizeBookingPattern(data.bookingPattern)
-    patch.booking_pattern = bookingPattern != null ? JSON.stringify(bookingPattern) : null
+    // sql.json: si pasamos JSON.stringify, postgres.js guarda un scalar string (doble encode)
+    // y parseBookingPattern deja de leer el patrón al reabrir el editor.
+    patch.booking_pattern = bookingPattern != null ? sql.json(bookingPattern) : null
     patch.duration_minutes =
       bookingPattern != null
         ? patternTotalSpanMinutes(bookingPattern)

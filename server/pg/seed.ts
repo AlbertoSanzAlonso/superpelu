@@ -182,6 +182,21 @@ export async function applyStartingStaffWeeklyHoursOnce(): Promise<void> {
 }
 
 /**
+ * Corrige booking_pattern guardados como scalar string JSONB
+ * (PATCH admin antiguo con JSON.stringify + postgres.js).
+ */
+export async function repairDoubleEncodedBookingPatterns(): Promise<void> {
+  await sql`
+    UPDATE services
+    SET
+      booking_pattern = (booking_pattern #>> '{}')::jsonb,
+      updated_at = ${nowIso()}
+    WHERE booking_pattern IS NOT NULL
+      AND jsonb_typeof(booking_pattern) = 'string'
+  `
+}
+
+/**
  * Coloración: escribe el patrón 30+pausa+30 solo si aún no hay booking_pattern.
  * No pisa ediciones del panel.
  */
@@ -207,6 +222,7 @@ export async function runSeed(): Promise<void> {
   // Solo inserts de filas ausentes + caches derivadas. No reescribe catálogo/personal/horarios.
   await seedServiceCategories()
   await syncSalonServices()
+  await repairDoubleEncodedBookingPatterns()
   await seedColorSplitPatternsIfMissing()
   await syncSalonStaff()
   await seedStaffCategoriesIfMissing()
