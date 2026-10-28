@@ -70,7 +70,9 @@ export function SpecialDateRangeCalendar({
 }: Props) {
   const today = todaySalon()
   const [view, setView] = useState(() => {
-    const { year, month } = parseYmd(minDate || today)
+    const floor = minDate || today
+    const seed = rangeStart && rangeStart >= floor ? rangeStart : floor
+    const { year, month } = parseYmd(seed)
     return { year, month }
   })
 

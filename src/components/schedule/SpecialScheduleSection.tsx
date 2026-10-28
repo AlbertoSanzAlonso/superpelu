@@ -27,6 +27,7 @@ import {
 } from '@/lib/api/admin'
 import { todaySalon } from '@/lib/core/dates'
 import { DateRangeEditor } from './DateRangeEditor'
+import { SpecialSpanDateEditor } from './SpecialSpanDateEditor'
 import {
   SpecialDateRangeCalendar,
   enumerateDateRange,
@@ -378,6 +379,57 @@ export const SpecialScheduleSection = forwardRef<
     setSaved(false)
   }
 
+  const applySpanDates = (span: SpecialDaySpan, nextStart: string, nextEnd: string) => {
+    const nextDates = enumerateDateRange(nextStart, nextEnd || nextStart)
+    if (nextDates.length === 0) return
+    const own = new Set(span.dates)
+    if (nextDates.some((date) => specialDays[date] && !own.has(date))) {
+      setError('Esas fechas ya tienen un horario especial.')
+      return
+    }
+    if (nextDates[0] === span.start && nextDates[nextDates.length - 1] === span.end) return
+
+    const source = specialDays[span.dates[0]!]
+    const ranges = specialDayRanges(source)
+    const note = source?.note ?? ''
+    const draft: SpecialDaysMap = { ...specialDays }
+    for (const date of span.dates) delete draft[date]
+    for (const date of nextDates) draft[date] = createSpecialDayEntry(ranges, note)
+
+    const moved = groupSpecialDaySpans(draft).find((item) =>
+      nextDates.some((date) => item.dates.includes(date)),
+    )
+    const nextId = moved?.id ?? `${nextDates[0]}_${nextDates[nextDates.length - 1]}`
+    const todayMonth = todaySalon().slice(0, 7)
+    const stillVisible =
+      filterMode === 'all' ||
+      (filterMode === 'default' && Boolean(moved && spanIntersectsMonth(moved, todayMonth))) ||
+      (filterMode === 'month' && Boolean(moved && spanIntersectsMonth(moved, selectedMonth)))
+    const nextFilterMode: SpecialDateFilterMode = stillVisible ? filterMode : 'month'
+    const nextMonth = stillVisible ? selectedMonth : nextDates[0]!.slice(0, 7)
+    const visible = groupSpecialDaySpans(draft).filter((item) => {
+      if (nextFilterMode === 'all') return true
+      const month = nextFilterMode === 'default' ? todayMonth : nextMonth
+      return spanIntersectsMonth(item, month)
+    })
+    const index = visible.findIndex((item) => item.id === nextId)
+
+    setSpecialDays(draft)
+    setEditingSpanIds((prev) => {
+      const next = new Set(prev)
+      next.delete(span.id)
+      next.add(nextId)
+      return next
+    })
+    if (!stillVisible) {
+      setFilterMode('month')
+      setSelectedMonth(nextDates[0]!.slice(0, 7))
+    }
+    if (index >= 0) setPage(Math.floor(index / SPECIAL_SPANS_PAGE_SIZE) + 1)
+    setSaved(false)
+    setError('')
+  }
+
   const updateSpanNote = (dates: string[], note: string) => {
     setSpecialDays((prev) => {
       const next = { ...prev }
@@ -460,7 +512,11 @@ export const SpecialScheduleSection = forwardRef<
         (date) =>
           !rangesEqual(specialDayRanges(changedDays[date]), specialDayRanges(baselineSpecialDays[date])),
       )
-      if (rangeChangedDates.length > 0) {
+      const removedDates = Object.keys(baselineSpecialDays).filter(
+        (date) => !Object.prototype.hasOwnProperty.call(nextSpecialDays, date),
+      )
+      const datesToCheck = [...rangeChangedDates, ...removedDates]
+      if (datesToCheck.length > 0) {
         setSaving(true)
         setError('')
         try {
@@ -468,7 +524,7 @@ export const SpecialScheduleSection = forwardRef<
             adminToken,
             selectedStaffId,
             nextSpecialDays,
-            rangeChangedDates,
+            datesToCheck,
           )
           if (preview.conflicts.length > 0) {
             setExpandModalOpen(false)
@@ -502,8 +558,16 @@ export const SpecialScheduleSection = forwardRef<
         onSalonSpecialDaysChange(res.specialDays)
       }
       const res = await updateStaffSpecialSchedule(adminToken, selectedStaffId, nextSpecialDays)
-      setSpecialDays(res.specialDays)
-      setBaselineSpecialDays(res.specialDays)
+      const removed = Object.keys(baselineSpecialDays).filter(
+        (date) => !Object.prototype.hasOwnProperty.call(nextSpecialDays, date),
+      )
+      for (const date of removed) {
+        await deleteStaffSpecialDate(adminToken, selectedStaffId, date)
+      }
+      const savedDays = { ...res.specialDays }
+      for (const date of removed) delete savedDays[date]
+      setSpecialDays(savedDays)
+      setBaselineSpecialDays(savedDays)
       setEditingSpanIds(new Set())
       setAppointmentConflictOpen(false)
       setAppointmentConflicts([])
@@ -530,8 +594,16 @@ export const SpecialScheduleSection = forwardRef<
       setError('')
       try {
         const res = await updateSalonSpecialSchedule(adminToken, specialDays)
-        setSpecialDays(res.specialDays)
-        setBaselineSpecialDays(res.specialDays)
+        const removed = Object.keys(baselineSpecialDays).filter(
+          (date) => !Object.prototype.hasOwnProperty.call(specialDays, date),
+        )
+        for (const date of removed) {
+          await deleteSalonSpecialDate(adminToken, date)
+        }
+        const savedDays = { ...res.specialDays }
+        for (const date of removed) delete savedDays[date]
+        setSpecialDays(savedDays)
+        setBaselineSpecialDays(savedDays)
         setEditingSpanIds(new Set())
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
@@ -846,9 +918,7 @@ export const SpecialScheduleSection = forwardRef<
                                 {scope === 'staff'
                                   ? isClosed
                                     ? 'Con horario'
-                                    : isMultiDay
-                                      ? 'Días libres'
-                                      : 'Día libre'
+                                    : 'Libre'
                                   : isClosed
                                     ? isMultiDay
                                       ? 'Abrir franja'
@@ -897,6 +967,18 @@ export const SpecialScheduleSection = forwardRef<
                       </div>
                       {isEditing ? (
                         <>
+                          <SpecialSpanDateEditor
+                            key={span.id}
+                            start={span.start}
+                            end={span.end}
+                            existingDates={
+                              new Set(
+                                Object.keys(specialDays).filter((date) => !span.dates.includes(date)),
+                              )
+                            }
+                            minDate={todaySalon()}
+                            onApply={(start, end) => applySpanDates(span, start, end)}
+                          />
                           {!isClosed && (
                             <DateRangeEditor
                               ranges={span.ranges}

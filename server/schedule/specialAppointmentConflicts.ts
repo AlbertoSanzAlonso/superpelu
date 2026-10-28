@@ -9,9 +9,9 @@ import { isBookingUnavailable } from '@server/appointments/booking.js'
 import { minutesToTime, timeToMinutes } from '@server/appointments/time.js'
 import { listStaffForService } from '@server/staff/index.js'
 import { updateAppointmentForStaff } from '@server/appointments/update.js'
+import { getStaffDayWindows } from '@server/staff/availability.js'
 import {
   normalizeSpecialDayEntry,
-  type SpecialDayEntry,
   type SpecialDaysMap,
 } from '@server/schedule/special.js'
 
@@ -88,8 +88,10 @@ async function findReassignmentTarget(
 }
 
 /**
- * Citas del profesional que no caben en el horario especial propuesto
- * (solo fechas indicadas, p. ej. las que cambiaron de franjas).
+ * Citas del profesional que no caben en el horario propuesto.
+ * Fechas presentes en `proposedSpecialDays` usan esas franjas.
+ * Fechas pedidas que ya no están en el mapa se comprueban contra el horario
+ * habitual (el especial de ese día va a desaparecer).
  */
 export async function findStaffSpecialAppointmentConflicts(
   staffId: string,
@@ -99,13 +101,20 @@ export async function findStaffSpecialAppointmentConflicts(
   const dates = [...new Set(datesToCheck)].filter(Boolean).sort()
   if (dates.length === 0) return []
 
-  const normalized: SpecialDaysMap = {}
+  const proposed = proposedSpecialDays as Record<string, unknown>
+  const rangesByDate = new Map<string, { start: string; end: string }[]>()
   for (const date of dates) {
-    const raw = (proposedSpecialDays as Record<string, unknown>)[date]
-    if (raw === undefined) continue
-    normalized[date] = normalizeSpecialDayEntry(raw)
+    const raw = proposed[date]
+    if (raw !== undefined) {
+      rangesByDate.set(date, normalizeSpecialDayEntry(raw).ranges)
+      continue
+    }
+    const windows = await getStaffDayWindows(staffId, date, { ignoreStaffSpecial: true })
+    rangesByDate.set(
+      date,
+      windows.map((window) => ({ start: window.startTime, end: window.endTime })),
+    )
   }
-  if (Object.keys(normalized).length === 0) return []
 
   const from = dates[0]!
   const to = dates[dates.length - 1]!
@@ -122,10 +131,10 @@ export async function findStaffSpecialAppointmentConflicts(
 
   const conflicts: SpecialAppointmentConflict[] = []
   for (const row of rows) {
-    const entry = normalized[row.appointment_date] as SpecialDayEntry | undefined
-    if (!entry) continue
+    const ranges = rangesByDate.get(row.appointment_date)
+    if (!ranges) continue
     const segments = appointmentSegments(row)
-    if (segmentsFitInRanges(segments, entry.ranges)) continue
+    if (segmentsFitInRanges(segments, ranges)) continue
 
     const target = await findReassignmentTarget(row, staffId)
     conflicts.push({

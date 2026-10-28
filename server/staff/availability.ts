@@ -70,10 +70,13 @@ function salonWindowsAsStaffWindows(salonWindows: SalonDayWindow[]): StaffDayWin
 export async function getStaffDayWindows(
   staffId: string,
   date: string,
+  options?: { ignoreStaffSpecial?: boolean },
 ): Promise<StaffDayWindow[]> {
-  const staffSpecial = await resolveStaffSpecialSchedule(staffId, date)
-  if (staffSpecial !== null) {
-    return rangesToStaffDayWindows(staffSpecial)
+  if (!options?.ignoreStaffSpecial) {
+    const staffSpecial = await resolveStaffSpecialSchedule(staffId, date)
+    if (staffSpecial !== null) {
+      return rangesToStaffDayWindows(staffSpecial)
+    }
   }
 
   const salonWindows = await getSalonDayWindows(date)
