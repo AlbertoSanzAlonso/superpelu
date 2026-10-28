@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { typography } from '@/styles/typography'
 import { Button } from '@/components/ui/Button'
 import { enumerateDateRange, SpecialDateRangeCalendar } from './SpecialDateRangeCalendar'
@@ -25,8 +25,13 @@ export function SpecialSpanDateEditor({
   minDate: string
   onApply: (start: string, end: string) => void
 }) {
+  const rootRef = useRef<HTMLDivElement>(null)
   const [rangeStart, setRangeStart] = useState(start)
   const [rangeEnd, setRangeEnd] = useState(end === start ? '' : end)
+
+  useLayoutEffect(() => {
+    rootRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [])
 
   const pickDate = (dateStr: string) => {
     if (!rangeStart || (rangeStart && rangeEnd)) {
@@ -43,7 +48,7 @@ export function SpecialSpanDateEditor({
   const singleDay = from === to
 
   return (
-    <div className="mb-3">
+    <div ref={rootRef} className="mb-3">
       <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>Días</span>
       <p className="mb-2 text-xs text-charcoal-muted">
         Primer clic marca el inicio y el segundo el final.
@@ -54,6 +59,7 @@ export function SpecialSpanDateEditor({
         onPick={pickDate}
         existingDates={existingDates}
         minDate={minDate}
+        anchorDate={start}
       />
       {changed && (
         <div className="mt-2">

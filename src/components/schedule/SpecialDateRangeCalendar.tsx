@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useState } from 'react'
 import { addDaysToDateString, toDateString, todaySalon } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
@@ -9,11 +9,20 @@ type Props = {
   /** Fechas que ya tienen horario especial (solo marca visual). */
   existingDates?: ReadonlySet<string>
   minDate?: string
+  /** Mes que debe mostrarse al abrir (el día que se está editando). */
+  anchorDate?: string
 }
 
 function parseYmd(dateStr: string): { year: number; month: number; day: number } {
   const [year, month, day] = dateStr.split('-').map(Number)
   return { year, month, day }
+}
+
+function viewFromDate(dateStr: string | undefined, fallback: string): { year: number; month: number } {
+  const seed = (dateStr || fallback).slice(0, 10)
+  const parsed = parseYmd(seed)
+  if (!parsed.year || !parsed.month) return parseYmd(fallback)
+  return { year: parsed.year, month: parsed.month }
 }
 
 function ymd(year: number, month: number, day: number): string {
@@ -67,14 +76,16 @@ export function SpecialDateRangeCalendar({
   onPick,
   existingDates,
   minDate = todaySalon(),
+  anchorDate,
 }: Props) {
   const today = todaySalon()
-  const [view, setView] = useState(() => {
-    const floor = minDate || today
-    const seed = rangeStart && rangeStart >= floor ? rangeStart : floor
-    const { year, month } = parseYmd(seed)
-    return { year, month }
-  })
+  const anchor = (anchorDate || rangeStart || '').slice(0, 10)
+  const [view, setView] = useState(() => viewFromDate(anchor, minDate || today))
+
+  useLayoutEffect(() => {
+    if (!anchor) return
+    setView(viewFromDate(anchor, anchor))
+  }, [anchor])
 
   const cells = useMemo(() => buildMonthCells(view.year, view.month), [view.year, view.month])
 
@@ -87,16 +98,17 @@ export function SpecialDateRangeCalendar({
     [view.year, view.month],
   )
 
-  const effectiveEnd = rangeEnd || rangeStart
-  const rangeFrom = rangeStart && effectiveEnd
-    ? rangeStart <= effectiveEnd
-      ? rangeStart
-      : effectiveEnd
+  const normalizedStart = rangeStart.slice(0, 10)
+  const normalizedEnd = (rangeEnd || rangeStart).slice(0, 10)
+  const rangeFrom = normalizedStart
+    ? normalizedStart <= normalizedEnd
+      ? normalizedStart
+      : normalizedEnd
     : ''
-  const rangeTo = rangeStart && effectiveEnd
-    ? rangeStart <= effectiveEnd
-      ? effectiveEnd
-      : rangeStart
+  const rangeTo = normalizedStart
+    ? normalizedStart <= normalizedEnd
+      ? normalizedEnd
+      : normalizedStart
     : ''
 
   function goPrevMonth() {
@@ -109,7 +121,10 @@ export function SpecialDateRangeCalendar({
 
   const viewMonthKey = `${view.year}-${String(view.month).padStart(2, '0')}`
   const minMonthKey = minDate.slice(0, 7)
-  const canPrev = viewMonthKey > minMonthKey
+  const anchorMonthKey = anchor.slice(0, 7)
+  const earliestMonth =
+    anchorMonthKey && anchorMonthKey < minMonthKey ? anchorMonthKey : minMonthKey
+  const canPrev = viewMonthKey > earliestMonth
 
   return (
     <div className="w-[19.5rem] border border-gold/30 bg-cream/40 p-3">
@@ -151,10 +166,10 @@ export function SpecialDateRangeCalendar({
             return <div key={`empty-${index}`} className="aspect-square" aria-hidden />
           }
 
-          const disabled = dateStr < minDate
           const isToday = dateStr === today
           const inRange = Boolean(rangeFrom && rangeTo && dateStr >= rangeFrom && dateStr <= rangeTo)
           const isEdge = dateStr === rangeFrom || dateStr === rangeTo
+          const disabled = dateStr < minDate && !inRange
           const alreadyExists = existingDates?.has(dateStr) ?? false
           const dayNum = parseYmd(dateStr).day
 
@@ -165,12 +180,12 @@ export function SpecialDateRangeCalendar({
               disabled={disabled}
               onClick={() => onPick(dateStr)}
               className={`aspect-square text-sm transition-colors ${
-                disabled
-                  ? 'cursor-not-allowed border border-transparent text-charcoal-muted/40'
-                  : isEdge
-                    ? 'cursor-pointer border-2 border-gold bg-gold/25 font-semibold text-gold'
-                    : inRange
-                      ? 'cursor-pointer border border-gold/40 bg-gold/15 text-charcoal'
+                isEdge
+                  ? 'cursor-pointer border-2 border-gold bg-gold/25 font-semibold text-gold'
+                  : inRange
+                    ? 'cursor-pointer border border-gold/40 bg-gold/15 text-charcoal'
+                    : disabled
+                      ? 'cursor-not-allowed border border-transparent text-charcoal-muted/40'
                       : alreadyExists
                         ? 'cursor-pointer border border-gold/20 bg-cream/50 text-charcoal-muted hover:border-gold hover:bg-gold/10'
                         : 'cursor-pointer border border-gold/25 bg-cream/25 text-charcoal hover:border-gold hover:bg-gold/15'
