@@ -125,6 +125,10 @@
     opacity: 0;
   }
 
+  .special-collapsible.special-collapsible-instant {
+    transition: none;
+  }
+
   .special-collapsible-inner,
   .admin-collapsible-inner {
     min-height: 0;

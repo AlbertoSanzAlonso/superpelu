@@ -173,7 +173,12 @@ export const SpecialScheduleSection = forwardRef<
   const addCalendarPanelRef = useRef<HTMLDivElement>(null)
   const [unsavedStaffOpen, setUnsavedStaffOpen] = useState(false)
   const [pendingStaffId, setPendingStaffId] = useState<string | null>(null)
-  const [editingSpanIds, setEditingSpanIds] = useState<Set<string>>(() => new Set())
+  const [editingSpanId, setEditingSpanId] = useState<string | null>(null)
+  const [editorPhase, setEditorPhase] = useState<'closed' | 'armed' | 'open' | 'closing'>('closed')
+  const [editorLeaveOpen, setEditorLeaveOpen] = useState(false)
+  const pendingEditRef = useRef<string | null>(null)
+  const editorCloseTokenRef = useRef(0)
+  const discardingRef = useRef(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [pendingDeleteDates, setPendingDeleteDates] = useState<string[] | null>(null)
   const [pendingDeleteLabel, setPendingDeleteLabel] = useState('')
@@ -190,6 +195,58 @@ export const SpecialScheduleSection = forwardRef<
   const salonSpecialDays = scope === 'staff' ? props.salonSpecialDays : {}
   const onSalonSpecialDaysChange = scope === 'staff' ? props.onSalonSpecialDaysChange : () => {}
 
+  const motionReduced = () =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  const scheduleOpen = (spanId: string) => {
+    const token = ++editorCloseTokenRef.current
+    setEditingSpanId(spanId)
+    setEditorPhase('closed')
+    if (motionReduced()) {
+      setEditorPhase('open')
+      return
+    }
+    requestAnimationFrame(() => {
+      if (editorCloseTokenRef.current !== token) return
+      setEditorPhase('armed')
+      requestAnimationFrame(() => {
+        if (editorCloseTokenRef.current !== token) return
+        setEditorPhase('open')
+      })
+    })
+  }
+
+  const openEditor = (spanId: string) => {
+    pendingEditRef.current = null
+    scheduleOpen(spanId)
+  }
+
+  const beginCloseEditor = (nextSpanId: string | null) => {
+    pendingEditRef.current = nextSpanId
+    const token = ++editorCloseTokenRef.current
+    setEditorPhase('closing')
+    window.setTimeout(() => {
+      if (editorCloseTokenRef.current !== token) return
+      const next = pendingEditRef.current
+      pendingEditRef.current = null
+      if (!next) {
+        setEditingSpanId(null)
+        setEditorPhase('closed')
+        return
+      }
+      scheduleOpen(next)
+    }, motionReduced() ? 0 : 400)
+  }
+
+  const resetEditor = () => {
+    pendingEditRef.current = null
+    discardingRef.current = false
+    editorCloseTokenRef.current += 1
+    setEditingSpanId(null)
+    setEditorPhase('closed')
+    setEditorLeaveOpen(false)
+  }
+
   useEffect(() => {
     if (scope === 'staff' && staffList.length > 0 && !selectedStaffId) {
       setSelectedStaffId(staffList[0].staffId)
@@ -204,7 +261,7 @@ export const SpecialScheduleSection = forwardRef<
     setCalendarVisible(false)
     setCalendarMounted(false)
     setCalendarPos(null)
-    setEditingSpanIds(new Set())
+    resetEditor()
   }, [selectedStaffId])
 
   useEffect(() => {
@@ -311,7 +368,7 @@ export const SpecialScheduleSection = forwardRef<
           : await fetchStaffSpecialSchedule(adminToken, selectedStaffId)
       setSpecialDays(res.specialDays)
       setBaselineSpecialDays(res.specialDays)
-      setEditingSpanIds(new Set())
+      resetEditor()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -348,11 +405,8 @@ export const SpecialScheduleSection = forwardRef<
       }
       return next
     })
-    setEditingSpanIds((prev) => {
-      const next = new Set(prev)
-      next.add(spanId)
-      return next
-    })
+    if (editingSpanId) beginCloseEditor(spanId)
+    else openEditor(spanId)
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
@@ -415,12 +469,8 @@ export const SpecialScheduleSection = forwardRef<
     const index = visible.findIndex((item) => item.id === nextId)
 
     setSpecialDays(draft)
-    setEditingSpanIds((prev) => {
-      const next = new Set(prev)
-      next.delete(span.id)
-      next.add(nextId)
-      return next
-    })
+    setEditingSpanId(nextId)
+    setEditorPhase('open')
     if (!stillVisible) {
       setFilterMode('month')
       setSelectedMonth(nextDates[0]!.slice(0, 7))
@@ -478,12 +528,7 @@ export const SpecialScheduleSection = forwardRef<
         for (const date of dates) delete next[date]
         return next
       })
-      setEditingSpanIds((prev) => {
-        const next = new Set(prev)
-        const spanId = `${dates[0]!}_${dates[dates.length - 1]!}`
-        next.delete(spanId)
-        return next
-      })
+      if (editingSpanId === `${dates[0]!}_${dates[dates.length - 1]!}`) resetEditor()
       return true
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -568,7 +613,7 @@ export const SpecialScheduleSection = forwardRef<
       for (const date of removed) delete savedDays[date]
       setSpecialDays(savedDays)
       setBaselineSpecialDays(savedDays)
-      setEditingSpanIds(new Set())
+      beginCloseEditor(pendingEditRef.current)
       setAppointmentConflictOpen(false)
       setAppointmentConflicts([])
       setPendingSaveAfterAptConflict(null)
@@ -587,6 +632,7 @@ export const SpecialScheduleSection = forwardRef<
   }
 
   const handleSave = async (): Promise<boolean> => {
+    if (discardingRef.current) return false
     if (scope === 'staff' && !selectedStaffId) return false
     if (scope === 'salon') {
       setSaving(true)
@@ -604,7 +650,7 @@ export const SpecialScheduleSection = forwardRef<
         for (const date of removed) delete savedDays[date]
         setSpecialDays(savedDays)
         setBaselineSpecialDays(savedDays)
-        setEditingSpanIds(new Set())
+        beginCloseEditor(pendingEditRef.current)
         setSaved(true)
         setTimeout(() => setSaved(false), 2000)
         return true
@@ -644,7 +690,7 @@ export const SpecialScheduleSection = forwardRef<
     setRangeStart('')
     setRangeEnd('')
     setAddCalendarOpen(false)
-    setEditingSpanIds(new Set())
+    resetEditor()
     setSaved(false)
     setError('')
   }, [baselineSpecialDays])
@@ -653,6 +699,83 @@ export const SpecialScheduleSection = forwardRef<
     () => specialDaysAreDirty(specialDays, baselineSpecialDays),
     [specialDays, baselineSpecialDays],
   )
+
+  const baselineRef = useRef(baselineSpecialDays)
+  baselineRef.current = baselineSpecialDays
+
+  const requestEditSpan = (spanId: string) => {
+    if (discardingRef.current) return
+    if (editingSpanId === spanId) {
+      if (editorPhase === 'closing') openEditor(spanId)
+      return
+    }
+    if (editorPhase === 'closing') {
+      if (!isDirty) beginCloseEditor(spanId)
+      return
+    }
+    if (editingSpanId && isDirty) {
+      pendingEditRef.current = spanId
+      setEditorLeaveOpen(true)
+      return
+    }
+    if (editingSpanId) {
+      beginCloseEditor(spanId)
+      return
+    }
+    openEditor(spanId)
+  }
+
+  const requestCloseEditor = () => {
+    if (discardingRef.current || !editingSpanId || editorPhase === 'closing') return
+    if (isDirty) {
+      pendingEditRef.current = null
+      setEditorLeaveOpen(true)
+      return
+    }
+    beginCloseEditor(null)
+  }
+
+  const discardAndCloseEditor = (nextSpanId: string | null) => {
+    discardingRef.current = true
+    pendingEditRef.current = nextSpanId
+    const token = ++editorCloseTokenRef.current
+    setEditorLeaveOpen(false)
+    setEditorPhase('closing')
+    window.setTimeout(() => {
+      if (editorCloseTokenRef.current !== token) {
+        discardingRef.current = false
+        return
+      }
+      const baseline = baselineRef.current
+      setSpecialDays(baseline)
+      setRangeStart('')
+      setRangeEnd('')
+      setAddCalendarOpen(false)
+      setSaved(false)
+      setError('')
+      const pending = pendingEditRef.current
+      pendingEditRef.current = null
+      discardingRef.current = false
+      const nextStart = pending?.slice(0, 10)
+      const exists = Boolean(
+        nextStart && Object.prototype.hasOwnProperty.call(baseline, nextStart),
+      )
+      if (!exists || !pending) {
+        setEditingSpanId(null)
+        setEditorPhase('closed')
+        return
+      }
+      scheduleOpen(pending)
+    }, motionReduced() ? 0 : 400)
+  }
+
+  useEffect(() => {
+    if (editorPhase !== 'open' || !editingSpanId) return
+    document.getElementById(`special-editor-${editingSpanId}`)?.scrollIntoView({
+      block: 'nearest',
+      behavior: motionReduced() ? 'auto' : 'smooth',
+    })
+  }, [editorPhase, editingSpanId])
 
   useEffect(() => {
     onDirtyChange?.(isDirty)
@@ -890,9 +1013,16 @@ export const SpecialScheduleSection = forwardRef<
                 {paginatedSpans.map((span) => {
                   const isClosed = span.ranges.length === 0
                   const isMultiDay = span.dates.length > 1
-                  const isEditing = editingSpanIds.has(span.id)
+                  const isEditing = editingSpanId === span.id
+                  const editorOpen = isEditing && editorPhase === 'open'
+                  const chipClass =
+                    'flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold'
                   return (
-                    <div key={span.id} className="border border-gold/15 bg-cream/60 p-3">
+                    <div
+                      key={span.id}
+                      id={isEditing ? `special-editor-${span.id}` : undefined}
+                      className="border border-gold/15 bg-cream/60 p-3"
+                    >
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className={typography.label}>{formatSpanTitle(span)}</span>
@@ -912,8 +1042,11 @@ export const SpecialScheduleSection = forwardRef<
                             <>
                               <button
                                 type="button"
-                                onClick={() => toggleSpanClosed(span.dates)}
-                                className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                                onClick={() => {
+                                  if (editorPhase === 'closing') return
+                                  toggleSpanClosed(span.dates)
+                                }}
+                                className={chipClass}
                               >
                                 {scope === 'staff'
                                   ? isClosed
@@ -927,31 +1060,33 @@ export const SpecialScheduleSection = forwardRef<
                                       ? 'Cerrar franja'
                                       : 'Cerrar dia'}
                               </button>
+                              {isDirty && editorPhase === 'open' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    pendingEditRef.current = null
+                                    void handleSave()
+                                  }}
+                                  disabled={saving}
+                                  className="flex h-6 cursor-pointer items-center border border-gold bg-gold/15 px-2 text-[10px] text-gold-dark hover:bg-gold/25 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold disabled:cursor-not-allowed disabled:opacity-45"
+                                >
+                                  {saving ? 'Guardando...' : 'Guardar'}
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setEditingSpanIds((prev) => {
-                                    const next = new Set(prev)
-                                    next.delete(span.id)
-                                    return next
-                                  })
-                                }}
-                                className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                                onClick={requestCloseEditor}
+                                className="flex h-6 w-6 cursor-pointer items-center justify-center border border-gold/30 text-sm leading-none text-charcoal-muted hover:border-gold hover:text-charcoal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
+                                aria-label="Cerrar"
                               >
-                                Listo
+                                ✕
                               </button>
                             </>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => {
-                                setEditingSpanIds((prev) => {
-                                  const next = new Set(prev)
-                                  next.add(span.id)
-                                  return next
-                                })
-                              }}
-                              className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-gold/60"
+                              onClick={() => requestEditSpan(span.id)}
+                              className={chipClass}
                             >
                               Editar
                             </button>
@@ -959,49 +1094,55 @@ export const SpecialScheduleSection = forwardRef<
                           <button
                             type="button"
                             onClick={() => requestRemoveSpan(span)}
-                            className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500"
+                            className="flex h-6 cursor-pointer items-center border border-gold/30 px-2 text-[10px] text-charcoal-muted hover:border-red-400 hover:text-red-500 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-gold"
                           >
                             Eliminar
                           </button>
                         </div>
                       </div>
                       {isEditing ? (
-                        <>
-                          <SpecialSpanDateEditor
-                            key={span.id}
-                            start={span.start}
-                            end={span.end}
-                            existingDates={
-                              new Set(
-                                Object.keys(specialDays).filter((date) => !span.dates.includes(date)),
-                              )
-                            }
-                            minDate={todaySalon()}
-                            onApply={(start, end) => applySpanDates(span, start, end)}
-                          />
-                          {!isClosed && (
-                            <DateRangeEditor
-                              ranges={span.ranges}
-                              onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
-                            />
-                          )}
-                          <label className="mt-2 block">
-                            <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>
-                              Comentario
-                            </span>
-                            <textarea
-                              value={span.note}
-                              onChange={(e) => updateSpanNote(span.dates, e.target.value)}
-                              placeholder={
-                                isMultiDay
-                                  ? 'Texto explicativo de la franja (opcional)'
-                                  : 'Texto explicativo del dia (opcional)'
+                        <div
+                          className={`special-collapsible ${
+                            editorOpen ? 'special-collapsible-open' : 'special-collapsible-closed'
+                          }${editorPhase === 'closed' ? ' special-collapsible-instant' : ''}`}
+                        >
+                          <div className="special-collapsible-inner" inert={!editorOpen}>
+                            <SpecialSpanDateEditor
+                              key={span.id}
+                              start={span.start}
+                              end={span.end}
+                              existingDates={
+                                new Set(
+                                  Object.keys(specialDays).filter((date) => !span.dates.includes(date)),
+                                )
                               }
-                              rows={2}
-                              className={noteFieldClass}
+                              minDate={todaySalon()}
+                              onApply={(start, end) => applySpanDates(span, start, end)}
                             />
-                          </label>
-                        </>
+                            {!isClosed && (
+                              <DateRangeEditor
+                                ranges={span.ranges}
+                                onChange={(ranges) => updateSpanRanges(span.dates, ranges)}
+                              />
+                            )}
+                            <label className="mt-2 block">
+                              <span className={`${typography.caption} mb-1 block normal-case tracking-normal`}>
+                                Comentario
+                              </span>
+                              <textarea
+                                value={span.note}
+                                onChange={(e) => updateSpanNote(span.dates, e.target.value)}
+                                placeholder={
+                                  isMultiDay
+                                    ? 'Texto explicativo de la franja (opcional)'
+                                    : 'Texto explicativo del dia (opcional)'
+                                }
+                                rows={2}
+                                className={noteFieldClass}
+                              />
+                            </label>
+                          </div>
+                        </div>
                       ) : (
                         <div className="space-y-1.5">
                           {!isClosed && (
@@ -1042,7 +1183,10 @@ export const SpecialScheduleSection = forwardRef<
               type="button"
               variant="solid"
               size="sm"
-              onClick={handleSave}
+              onClick={() => {
+                pendingEditRef.current = null
+                void handleSave()
+              }}
               disabled={
                 saving || loading || !isDirty || (scope === 'staff' && !selectedStaffId)
               }
@@ -1067,6 +1211,7 @@ export const SpecialScheduleSection = forwardRef<
           busy={saving}
           onClose={() => {
             if (saving) return
+            pendingEditRef.current = null
             setExpandModalOpen(false)
             setPendingConflicts([])
             setPendingSpecialDays(null)
@@ -1090,6 +1235,7 @@ export const SpecialScheduleSection = forwardRef<
           busy={saving}
           onCancel={() => {
             if (saving) return
+            pendingEditRef.current = null
             setAppointmentConflictOpen(false)
             setAppointmentConflicts([])
             setPendingSaveAfterAptConflict(null)
@@ -1208,6 +1354,30 @@ export const SpecialScheduleSection = forwardRef<
           setUnsavedStaffOpen(false)
           setPendingStaffId(null)
           if (nextId) setSelectedStaffId(nextId)
+        }}
+      />
+
+      <ConfirmDialog
+        open={editorLeaveOpen}
+        title="¿Salir sin guardar?"
+        message="Tienes cambios sin guardar en los horarios especiales."
+        confirmLabel="Guardar cambios"
+        cancelLabel="Salir sin guardar"
+        secondaryLabel="Seguir editando"
+        busy={saving}
+        onClose={() => {
+          if (saving) return
+          discardAndCloseEditor(pendingEditRef.current)
+        }}
+        onSecondary={() => {
+          if (saving) return
+          pendingEditRef.current = null
+          setEditorLeaveOpen(false)
+        }}
+        onConfirm={async () => {
+          const ok = await handleSave()
+          setEditorLeaveOpen(false)
+          if (!ok) return
         }}
       />
     </div>
