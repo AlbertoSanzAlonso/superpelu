@@ -762,11 +762,14 @@ export function CustomersPage() {
         adminToken={adminToken ?? ''}
         onClose={() => setEditingCustomer(null)}
         onSaved={(updated) => {
+          const previousPhone = editingCustomer?.phone
+          if (!previousPhone) return
           setCustomers((rows) =>
             rows.map((row) =>
-              row.phone === updated.phone
+              row.phone === previousPhone
                 ? {
                     ...row,
+                    phone: updated.phone,
                     firstName: updated.firstName,
                     lastName: updated.lastName,
                     email: updated.email,
@@ -779,6 +782,15 @@ export function CustomersPage() {
                 : row,
             ),
           )
+          if (previousPhone !== updated.phone) {
+            setSelectedPhones((prev) => {
+              if (!prev.has(previousPhone)) return prev
+              const next = new Set(prev)
+              next.delete(previousPhone)
+              next.add(updated.phone)
+              return next
+            })
+          }
         }}
         onDeleted={(deletedPhone) => {
           setCustomers((rows) => rows.filter((row) => row.phone !== deletedPhone))

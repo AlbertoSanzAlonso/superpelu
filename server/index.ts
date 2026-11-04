@@ -103,6 +103,8 @@ import {
 import { listServicesForStaff } from '@server/staff/index.js'
 import {
   createCustomer,
+  CustomerPhoneInUseError,
+  customerPhoneInUseMessage,
   deleteCustomer,
   getCustomer,
   listCustomerAppointments,
@@ -1003,11 +1005,20 @@ app.post('/api/customers', async (c) => {
     })
     return c.json({ customer: customerToJson(row) }, 201)
   } catch (err) {
+    if (err instanceof CustomerPhoneInUseError) {
+      return c.json(
+        {
+          error: customerPhoneInUseMessage(err.existingName),
+          code: 'TELEFONO_EN_USO',
+          existingCustomerName: err.existingName,
+        },
+        409,
+      )
+    }
     const code = err instanceof Error ? err.message : ''
     const messages: Record<string, string> = {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
-      CLIENTE_YA_EXISTE: 'Ya existe un cliente con ese teléfono',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
@@ -1098,6 +1109,7 @@ app.patch('/api/customers/:phone', async (c) => {
 
   const phone = decodeURIComponent(c.req.param('phone'))
   const body = await c.req.json<{
+    phone?: string
     firstName?: string
     lastName?: string
     email?: string | null
@@ -1108,6 +1120,7 @@ app.patch('/api/customers/:phone', async (c) => {
 
   try {
     const row = await updateCustomer(phone, {
+      phone: body.phone,
       firstName: body.firstName ?? '',
       lastName: body.lastName,
       email: body.email,
@@ -1117,6 +1130,16 @@ app.patch('/api/customers/:phone', async (c) => {
     })
     return c.json({ customer: customerToJson(row) })
   } catch (err) {
+    if (err instanceof CustomerPhoneInUseError) {
+      return c.json(
+        {
+          error: customerPhoneInUseMessage(err.existingName),
+          code: 'TELEFONO_EN_USO',
+          existingCustomerName: err.existingName,
+        },
+        409,
+      )
+    }
     const code = err instanceof Error ? err.message : ''
     const messages: Record<string, string> = {
       TELEFONO_INVALIDO: 'Teléfono no válido',

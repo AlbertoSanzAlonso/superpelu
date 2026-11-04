@@ -15,7 +15,7 @@ import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
 import { formatDisplayDate } from '@/lib/core/dates'
-import { formatPhoneDisplay } from '@/lib/customer/phone'
+import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
@@ -202,10 +202,15 @@ export function CustomerHistoryPage() {
         adminToken={adminToken ?? ''}
         onClose={() => setEditOpen(false)}
         onSaved={(updated) => {
+          if (normalizePhone(updated.phone) !== normalizePhone(phone)) {
+            navigate(`/clientes/${encodeURIComponent(updated.phone)}`, { replace: true })
+            return
+          }
           setCustomer((prev) =>
             prev
               ? {
                   ...prev,
+                  phone: updated.phone,
                   firstName: updated.firstName,
                   lastName: updated.lastName,
                   email: updated.email,

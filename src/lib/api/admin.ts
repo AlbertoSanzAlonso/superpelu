@@ -369,6 +369,7 @@ export function updateCustomer(
   adminToken: string,
   phone: string,
   payload: {
+    phone?: string
     firstName: string
     lastName?: string
     email?: string | null

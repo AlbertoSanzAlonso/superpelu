@@ -6,14 +6,23 @@ import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelec
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
-import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
+import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/customer/phone'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
 type CustomerFields = Pick<
   Customer,
-  'phone' | 'firstName' | 'lastName' | 'email' | 'notes' | 'locale' | 'birthdate'
+  | 'phone'
+  | 'firstName'
+  | 'lastName'
+  | 'email'
+  | 'notes'
+  | 'locale'
+  | 'birthdate'
+  | 'lastUpdateSource'
+  | 'updatedAt'
 >
 
 type Props = {
@@ -66,7 +75,7 @@ export function CustomerEditModal({
       setBirthdate('')
       setLocale('es')
     } else if (customer) {
-      setPhoneInput(customer.phone)
+      setPhoneInput(formatPhoneDisplay(customer.phone))
       setFirstName(customer.firstName)
       setLastName(customer.lastName)
       setEmail(customer.email ?? '')
@@ -85,6 +94,8 @@ export function CustomerEditModal({
 
   const phone = isCreate ? phoneInput : customer!.phone
   const busy = saving || deleting
+  const phoneChanged =
+    isCreate || normalizePhone(phoneInput) !== normalizePhone(customer?.phone ?? '')
 
   function validateForm(): boolean {
     if (!firstName.trim()) {
@@ -95,7 +106,7 @@ export function CustomerEditModal({
       setError('El correo electrónico no es válido')
       return false
     }
-    if (isCreate && !normalizePhone(phoneInput)) {
+    if (!isValidPhone(phoneInput) || isGuestCustomerPhone(phoneInput)) {
       setError('Indica un teléfono válido')
       return false
     }
@@ -122,6 +133,7 @@ export function CustomerEditModal({
         onSaved(created)
       } else {
         const { customer: updated } = await updateCustomer(adminToken, phone, {
+          phone: phoneInput.trim(),
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           email: email.trim() || null,
@@ -143,7 +155,7 @@ export function CustomerEditModal({
     e.preventDefault()
     if (!validateForm()) return
 
-    if (isCreate && shouldAskForeignPhoneLocale(phoneInput, locale)) {
+    if (phoneChanged && shouldAskForeignPhoneLocale(phoneInput, locale)) {
       setForeignPhonePromptOpen(true)
       return
     }
@@ -200,25 +212,16 @@ export function CustomerEditModal({
           </header>
 
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5">
-            {isCreate ? (
-              <Input
-                label="Teléfono"
-                required
-                type="tel"
-                autoComplete="tel"
-                value={phoneInput}
-                onChange={(e) => setPhoneInput(e.target.value)}
-                disabled={busy}
-                placeholder="+34…"
-              />
-            ) : (
-              <div className="rounded-lg border border-gold/25 bg-charcoal/[0.03] px-4 py-3">
-                <p className={`${typography.label} mb-1`}>Teléfono</p>
-                <p className="tabular-nums text-base font-medium text-charcoal">
-                  {formatPhoneDisplay(customer!.phone)}
-                </p>
-              </div>
-            )}
+            <Input
+              label="Teléfono"
+              required
+              type="tel"
+              autoComplete="tel"
+              value={phoneInput}
+              onChange={(e) => setPhoneInput(e.target.value)}
+              disabled={busy}
+              placeholder="+34…"
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Input

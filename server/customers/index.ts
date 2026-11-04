@@ -211,11 +211,56 @@ export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow>
   return rows[0]!
 }
 
+/** El teléfono nuevo ya identifica a otra ficha (o a citas de esa persona). */
+export class CustomerPhoneInUseError extends Error {
+  readonly existingName: string
+
+  constructor(existingName: string) {
+    super('TELEFONO_EN_USO')
+    this.name = 'CustomerPhoneInUseError'
+    this.existingName = existingName
+  }
+}
+
+export function customerPhoneInUseMessage(existingName: string): string {
+  const name = existingName.trim()
+  if (!name) return 'Ya existe un cliente con ese teléfono'
+  return `Ya existe un cliente con ese teléfono: ${name}`
+}
+
+function customerRowDisplayName(row: Pick<CustomerRow, 'first_name' | 'last_name'>): string {
+  return formatCustomerDisplayName(row.first_name, row.last_name ?? '')
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code?: string }).code === '23505'
+  )
+}
+
+async function assertCustomerPhoneAvailable(phone: string): Promise<void> {
+  const existing = await getCustomer(phone)
+  if (existing) throw new CustomerPhoneInUseError(customerRowDisplayName(existing))
+}
+
+/**
+ * El número nuevo no puede ser el de otra ficha ni el de citas ya guardadas
+ * (aunque esa persona no tenga fila en `customers`).
+ */
+async function assertPhoneFreeForReassign(phone: string): Promise<void> {
+  await assertCustomerPhoneAvailable(phone)
+  const appointments = await listCustomerAppointments(phone)
+  const snapshot = appointments[0]?.customer_name?.trim() ?? ''
+  if (appointments.length > 0) throw new CustomerPhoneInUseError(snapshot)
+}
+
 /** Crea ficha nueva; falla si el teléfono ya existe. */
 export async function createCustomer(input: CustomerInput): Promise<CustomerRow> {
   const { firstName, lastName, phone } = resolveCustomerFromInput(input)
-  const existing = await getCustomer(phone)
-  if (existing) throw new Error('CLIENTE_YA_EXISTE')
+  await assertCustomerPhoneAvailable(phone)
 
   const now = new Date().toISOString()
   const email = input.email?.trim() || null
@@ -250,9 +295,14 @@ export type CustomerUpdateInput = {
   locale?: Locale
   birthdate?: string | null
   updateSource?: CustomerUpdateSource
+  /**
+   * Teléfono nuevo. Si cambia, la PK pasa a ese número
+   * y las citas del cliente se mueven con él.
+   */
+  phone?: string
 }
 
-/** Actualiza ficha existente (el teléfono / PK no cambia). */
+/** Actualiza la ficha. Cambiar `phone` reasigna la PK y el historial de citas. */
 export async function updateCustomer(
   phone: string,
   input: CustomerUpdateInput,
@@ -278,21 +328,66 @@ export async function updateCustomer(
   const now = new Date().toISOString()
   const updateSource = input.updateSource ?? CUSTOMER_UPDATE_SOURCES.customers
 
-  await sql`
-    UPDATE customers SET
-      first_name = ${firstName},
-      last_name = ${lastName || null},
-      email = ${email},
-      notes = ${notes},
-      locale = ${locale},
-      birthdate = ${birthdate},
-      last_update_source = ${updateSource},
-      updated_at = ${now}
-    WHERE phone = ${normalized}
-  `
+  let nextPhone = normalized
+  if (input.phone !== undefined) {
+    if (!isValidPhone(input.phone) || isGuestCustomerPhone(input.phone)) {
+      throw new Error('TELEFONO_INVALIDO')
+    }
+    nextPhone = normalizePhone(input.phone)
+  }
+
+  if (nextPhone === normalized) {
+    await sql`
+      UPDATE customers SET
+        first_name = ${firstName},
+        last_name = ${lastName || null},
+        email = ${email},
+        notes = ${notes},
+        locale = ${locale},
+        birthdate = ${birthdate},
+        last_update_source = ${updateSource},
+        updated_at = ${now}
+      WHERE phone = ${normalized}
+    `
+  } else {
+    await assertPhoneFreeForReassign(nextPhone)
+    try {
+      await sql.begin(async (tx) => {
+        const updated = await tx<{ phone: string }[]>`
+          UPDATE customers SET
+            phone = ${nextPhone},
+            first_name = ${firstName},
+            last_name = ${lastName || null},
+            email = ${email},
+            notes = ${notes},
+            locale = ${locale},
+            birthdate = ${birthdate},
+            last_update_source = ${updateSource},
+            updated_at = ${now}
+          WHERE phone = ${normalized}
+          RETURNING phone
+        `
+        if (updated.length === 0) throw new Error('CLIENTE_NO_ENCONTRADO')
+
+        await tx`
+          UPDATE appointments
+          SET customer_phone = ${nextPhone}
+          WHERE customer_phone = ${normalized}
+        `
+      })
+    } catch (err) {
+      if (err instanceof CustomerPhoneInUseError) throw err
+      if (err instanceof Error && err.message === 'CLIENTE_NO_ENCONTRADO') throw err
+      if (isUniqueViolation(err)) {
+        const conflict = await getCustomer(nextPhone)
+        throw new CustomerPhoneInUseError(conflict ? customerRowDisplayName(conflict) : '')
+      }
+      throw err
+    }
+  }
 
   const rows = await sql<CustomerRow[]>`
-    SELECT * FROM customers WHERE phone = ${normalized}
+    SELECT * FROM customers WHERE phone = ${nextPhone}
   `
   return rows[0]!
 }

@@ -80,7 +80,7 @@ Tablas: `service_categories`, `services`, `staff`, `staff_categories` (M2M quié
 
 Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-sqlite` (requiere `SQLITE_PATH` y `DATABASE_URL`).
 
-**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`.
+**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`. Cambiar el teléfono en la ficha (`PATCH` con `phone`) actualiza la PK en una transacción y mueve `appointments.customer_phone` al número nuevo (el historial sigue a la ficha). Si ese número ya es de otro cliente, o ya tiene citas, responde `409` `TELEFONO_EN_USO` con el nombre.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 
@@ -187,7 +187,7 @@ El proyecto usa **alias de rutas** en frontend y backend (no rutas relativas `..
 
 - Auth: `useAdminSession` — token en `sessionStorage` (`superpelu-admin-token`); sin token → redirige a `/agenda`.
 - **`CustomersPage` (`/clientes`):** tabla con búsqueda (`?q=`), columnas citas/última cita; clic en fila → historial.
-- **`CustomerHistoryPage` (`/clientes/:phone`):** ficha + lista de citas a pantalla completa.
+- **`CustomerHistoryPage` (`/clientes/:phone`):** ficha + lista de citas a pantalla completa. El teléfono se edita en el mismo formulario que el resto de la ficha; si cambia, la URL pasa al número nuevo.
   - Filtros en cliente: fecha **desde/hasta**, **tratamiento** (select con servicios del historial), «Quitar filtros», contador «X de Y citas».
   - Clic en cita → modal solo lectura `CustomerAppointmentDetailModal`.
 - Enlace desde `AdminAgendaControlBar` → «Clientes».
