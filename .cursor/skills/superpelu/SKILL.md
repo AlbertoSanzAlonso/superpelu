@@ -80,7 +80,7 @@ Tablas: `service_categories`, `services`, `staff`, `staff_categories` (M2M quié
 
 Esquema: `server/pg/schema.sql`. Migrar datos desde SQLite: `npm run db:migrate-sqlite` (requiere `SQLITE_PATH` y `DATABASE_URL`).
 
-**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`. Cambiar el teléfono en la ficha (`PATCH` con `phone`) actualiza la PK en una transacción y mueve `appointments.customer_phone` al número nuevo (el historial sigue a la ficha). Si ese número ya es de otro cliente, o ya tiene citas, responde `409` `TELEFONO_EN_USO` con el nombre.
+**Clientes:** `customers.phone` (PK, E.164 `+34…` vía `src/lib/customer/phone.ts`), `first_name`, `last_name`, `email`, `notes`. Las citas guardan `customer_phone` (FK lógica) y `customer_name` como **snapshot** del nombre usado en esa cita. Al crear/editar cita: `upsertCustomer` en `server/customers/index.ts`. Cambiar el teléfono en la ficha (`PATCH` con `phone`) actualiza la PK en una transacción y mueve `appointments.customer_phone` al número nuevo (el historial sigue a la ficha). Si ese número ya es de otro cliente, o ya tiene citas, responde `409` `TELEFONO_EN_USO` con el nombre. La ficha pregunta en un modal si se sustituye: con `replaceExisting` se borra la otra ficha y las citas de ambas quedan en el número nuevo.
 
 `staff_time_blocks`: `series_id`, `scope` (`single` | `range` | `weekly`) para bloqueos en serie (admin y API staff).
 

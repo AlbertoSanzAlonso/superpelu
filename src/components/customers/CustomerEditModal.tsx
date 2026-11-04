@@ -41,6 +41,14 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
 }
 
+function phoneConflictMessage(name: string, creating: boolean): string {
+  const who = name.trim() || 'otro cliente'
+  if (creating) {
+    return `Ese teléfono ya pertenece a ${who}. Si sustituyes, los datos de este formulario reemplazan su ficha. Las citas que ya tiene se conservan.`
+  }
+  return `Ese teléfono ya pertenece a ${who}. Si sustituyes, esta ficha pasa a ese número y se elimina la de ${who}. Las citas de las dos quedan juntas en ese teléfono.`
+}
+
 export function CustomerEditModal({
   open,
   mode = 'edit',
@@ -62,6 +70,8 @@ export function CustomerEditModal({
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [foreignPhonePromptOpen, setForeignPhonePromptOpen] = useState(false)
+  const [phoneConflictOpen, setPhoneConflictOpen] = useState(false)
+  const [phoneConflictName, setPhoneConflictName] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -88,6 +98,8 @@ export function CustomerEditModal({
     setDeleting(false)
     setDeleteConfirmOpen(false)
     setForeignPhonePromptOpen(false)
+    setPhoneConflictOpen(false)
+    setPhoneConflictName('')
   }, [open, customer, isCreate])
 
   if (!open || (!isCreate && !customer)) return null
@@ -113,38 +125,44 @@ export function CustomerEditModal({
     return true
   }
 
-  async function persist(localeOverride?: Locale) {
+  async function persist(localeOverride?: Locale, replaceExisting = false) {
     const localeToSave = localeOverride ?? locale
     if (localeOverride) setLocale(localeOverride)
 
     setSaving(true)
     setError('')
     try {
+      const fields = {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim() || null,
+        notes: notes.trim() || null,
+        birthdate: birthdate.trim() || null,
+        locale: localeToSave,
+        replaceExisting,
+      }
       if (isCreate) {
         const { customer: created } = await createCustomer(adminToken, {
           phone: phoneInput.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim() || null,
-          notes: notes.trim() || null,
-          birthdate: birthdate.trim() || null,
-          locale: localeToSave,
+          ...fields,
         })
         onSaved(created)
       } else {
         const { customer: updated } = await updateCustomer(adminToken, phone, {
           phone: phoneInput.trim(),
-          firstName: firstName.trim(),
-          lastName: lastName.trim(),
-          email: email.trim() || null,
-          notes: notes.trim() || null,
-          birthdate: birthdate.trim() || null,
-          locale: localeToSave,
+          ...fields,
         })
         onSaved(updated)
       }
+      setPhoneConflictOpen(false)
       onClose()
     } catch (err) {
+      if (!replaceExisting && err instanceof ApiError && err.code === 'TELEFONO_EN_USO') {
+        setPhoneConflictName(err.existingCustomerName?.trim() ?? '')
+        setPhoneConflictOpen(true)
+        return
+      }
+      setPhoneConflictOpen(false)
       setError(err instanceof ApiError ? err.message : 'No se pudo guardar los cambios')
     } finally {
       setSaving(false)
@@ -326,6 +344,20 @@ export function CustomerEditModal({
         busy={deleting}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
+      />
+
+      <ConfirmDialog
+        open={phoneConflictOpen}
+        title="Ese teléfono ya existe"
+        message={phoneConflictMessage(phoneConflictName, isCreate)}
+        confirmLabel="Sustituir"
+        cancelLabel="Cancelar"
+        destructive
+        busy={saving}
+        onClose={() => {
+          if (!saving) setPhoneConflictOpen(false)
+        }}
+        onConfirm={() => void persist(undefined, true)}
       />
 
       <ForeignPhoneLocaleConfirmDialog

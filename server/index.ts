@@ -991,6 +991,7 @@ app.post('/api/customers', async (c) => {
     notes?: string | null
     locale?: 'es' | 'en'
     birthdate?: string | null
+    replaceExisting?: boolean
   }>()
 
   try {
@@ -1002,6 +1003,7 @@ app.post('/api/customers', async (c) => {
       notes: body.notes,
       locale: body.locale,
       birthdate: body.birthdate,
+      replaceExisting: body.replaceExisting === true,
     })
     return c.json({ customer: customerToJson(row) }, 201)
   } catch (err) {
@@ -1116,6 +1118,7 @@ app.patch('/api/customers/:phone', async (c) => {
     notes?: string | null
     locale?: 'es' | 'en'
     birthdate?: string | null
+    replaceExisting?: boolean
   }>()
 
   try {
@@ -1127,6 +1130,7 @@ app.patch('/api/customers/:phone', async (c) => {
       notes: body.notes,
       locale: body.locale,
       birthdate: body.birthdate,
+      replaceExisting: body.replaceExisting === true,
     })
     return c.json({ customer: customerToJson(row) })
   } catch (err) {

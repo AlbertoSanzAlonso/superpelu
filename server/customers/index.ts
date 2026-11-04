@@ -66,6 +66,8 @@ export type CustomerInput = {
   birthdate?: string | null
   /** Origen del cambio de ficha (reserva, agenda, panel…). */
   updateSource?: CustomerUpdateSource
+  /** Si el teléfono ya existe, sustituir esa ficha por los datos nuevos. */
+  replaceExisting?: boolean
 }
 
 export type PublicCustomer = {
@@ -260,6 +262,20 @@ async function assertPhoneFreeForReassign(phone: string): Promise<void> {
 /** Crea ficha nueva; falla si el teléfono ya existe. */
 export async function createCustomer(input: CustomerInput): Promise<CustomerRow> {
   const { firstName, lastName, phone } = resolveCustomerFromInput(input)
+  if (input.replaceExisting) {
+    const existing = await getCustomer(phone)
+    if (existing) {
+      return updateCustomer(existing.phone, {
+        firstName,
+        lastName,
+        email: input.email,
+        notes: input.notes,
+        locale: input.locale,
+        birthdate: input.birthdate,
+        updateSource: input.updateSource,
+      })
+    }
+  }
   await assertCustomerPhoneAvailable(phone)
 
   const now = new Date().toISOString()
@@ -300,6 +316,8 @@ export type CustomerUpdateInput = {
    * y las citas del cliente se mueven con él.
    */
   phone?: string
+  /** Elimina la ficha que ya usa `phone` y se queda con esta. */
+  replaceExisting?: boolean
 }
 
 /** Actualiza la ficha. Cambiar `phone` reasigna la PK y el historial de citas. */
@@ -350,9 +368,12 @@ export async function updateCustomer(
       WHERE phone = ${normalized}
     `
   } else {
-    await assertPhoneFreeForReassign(nextPhone)
+    if (!input.replaceExisting) await assertPhoneFreeForReassign(nextPhone)
     try {
       await sql.begin(async (tx) => {
+        if (input.replaceExisting) {
+          await tx`DELETE FROM customers WHERE phone = ${nextPhone}`
+        }
         const updated = await tx<{ phone: string }[]>`
           UPDATE customers SET
             phone = ${nextPhone},

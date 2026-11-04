@@ -765,29 +765,33 @@ export function CustomersPage() {
           const previousPhone = editingCustomer?.phone
           if (!previousPhone) return
           setCustomers((rows) =>
-            rows.map((row) =>
-              row.phone === previousPhone
-                ? {
-                    ...row,
-                    phone: updated.phone,
-                    firstName: updated.firstName,
-                    lastName: updated.lastName,
-                    email: updated.email,
-                    notes: updated.notes,
-                    birthdate: updated.birthdate,
-                    locale: updated.locale,
-                    lastUpdateSource: updated.lastUpdateSource ?? 'customers',
-                    updatedAt: updated.updatedAt,
-                  }
-                : row,
-            ),
+            rows
+              .filter((row) => row.phone === previousPhone || row.phone !== updated.phone)
+              .map((row) =>
+                row.phone === previousPhone
+                  ? {
+                      ...row,
+                      phone: updated.phone,
+                      firstName: updated.firstName,
+                      lastName: updated.lastName,
+                      email: updated.email,
+                      notes: updated.notes,
+                      birthdate: updated.birthdate,
+                      locale: updated.locale,
+                      lastUpdateSource: updated.lastUpdateSource ?? 'customers',
+                      updatedAt: updated.updatedAt,
+                    }
+                  : row,
+              ),
           )
           if (previousPhone !== updated.phone) {
             setSelectedPhones((prev) => {
-              if (!prev.has(previousPhone)) return prev
               const next = new Set(prev)
-              next.delete(previousPhone)
-              next.add(updated.phone)
+              next.delete(updated.phone)
+              if (next.has(previousPhone)) {
+                next.delete(previousPhone)
+                next.add(updated.phone)
+              }
               return next
             })
           }

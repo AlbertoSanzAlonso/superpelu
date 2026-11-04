@@ -376,6 +376,7 @@ export function updateCustomer(
     notes?: string | null
     locale?: 'es' | 'en'
     birthdate?: string | null
+    replaceExisting?: boolean
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>(
@@ -398,6 +399,7 @@ export function createCustomer(
     notes?: string | null
     locale?: 'es' | 'en'
     birthdate?: string | null
+    replaceExisting?: boolean
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>('/customers', {
