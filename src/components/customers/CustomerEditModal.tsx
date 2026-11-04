@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
@@ -73,6 +73,7 @@ export function CustomerEditModal({
   const [phoneConflictOpen, setPhoneConflictOpen] = useState(false)
   const [phoneConflictName, setPhoneConflictName] = useState('')
   const [error, setError] = useState('')
+  const backdropPressed = useRef(false)
 
   useEffect(() => {
     if (!open) return
@@ -204,7 +205,15 @@ export function CustomerEditModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="customer-edit-title"
-        onClick={busy ? undefined : onClose}
+        onMouseDown={(e) => {
+          backdropPressed.current = e.target === e.currentTarget
+        }}
+        onMouseUp={(e) => {
+          const releaseOnBackdrop = e.target === e.currentTarget
+          const close = backdropPressed.current && releaseOnBackdrop
+          backdropPressed.current = false
+          if (!busy && close) onClose()
+        }}
       >
         <form
           className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream shadow-2xl sm:h-auto sm:max-h-[min(90vh,40rem)] sm:border sm:border-gold/35"
