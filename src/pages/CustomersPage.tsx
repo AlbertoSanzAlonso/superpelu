@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type SelectHTMLAttributes } 
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { BirthdayMessageModal } from '@/components/customers/BirthdayMessageModal'
+import { BulkCustomerDeleteNotice } from '@/components/customers/CustomerDeleteNotice'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import {
   CustomersWorkspaceHeader,
@@ -847,7 +848,12 @@ export function CustomersPage() {
         busy={bulkBusy}
         destructive
         title="Eliminar fichas"
-        message={`Se eliminarán ${selectedPhones.size} ficha${selectedPhones.size === 1 ? '' : 's'} de cliente. Las citas del historial se conservan.`}
+        message={
+          <BulkCustomerDeleteNotice
+            count={selectedPhones.size}
+            customers={customers.filter((row) => selectedPhones.has(row.phone))}
+          />
+        }
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         onClose={() => {

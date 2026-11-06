@@ -5,6 +5,7 @@ import {
   CUSTOMER_HISTORY_APPOINTMENT_PARAM,
   CustomerAppointmentHistoryPanel,
 } from '@/components/customers/CustomerAppointmentHistoryPanel'
+import { CustomerDeleteNotice } from '@/components/customers/CustomerDeleteNotice'
 import { CustomerEditModal } from '@/components/customers/CustomerEditModal'
 import { ReviewRequestButton } from '@/components/customers/ReviewRequestButton'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +18,7 @@ import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay, normalizePhone } from '@/lib/customer/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
+import type { Appointment } from '@/types/booking'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -42,6 +44,7 @@ export function CustomerHistoryPage() {
   const { adminToken, authOk, handleLogout } = useAdminSession()
 
   const [customer, setCustomer] = useState<Customer | null>(null)
+  const [appointments, setAppointments] = useState<Appointment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editOpen, setEditOpen] = useState(false)
@@ -54,6 +57,7 @@ export function CustomerHistoryPage() {
     setError('')
     try {
       const detail = await fetchCustomerDetail(adminToken, phone)
+      setAppointments(detail.appointments)
       setCustomer({
         ...detail.customer,
         appointmentCount: detail.appointments.filter(
@@ -62,6 +66,7 @@ export function CustomerHistoryPage() {
         lastAppointmentDate: detail.appointments[0]?.date ?? null,
       })
     } catch (err) {
+      setAppointments([])
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar el historial')
     } finally {
       setLoading(false)
@@ -236,7 +241,16 @@ export function CustomerHistoryPage() {
       <ConfirmDialog
         open={deleteConfirmOpen}
         title="¿Eliminar este cliente?"
-        message="Se quitará la ficha del listado de clientes. Las citas ya registradas se conservan en la agenda."
+        message={
+          customer ? (
+            <CustomerDeleteNotice
+              titularName={formatCustomerDisplayName(customer.firstName, customer.lastName)}
+              phone={customer.phone}
+              members={customer.members ?? []}
+              appointments={appointments}
+            />
+          ) : undefined
+        }
         confirmLabel="Eliminar cliente"
         cancelLabel="Volver"
         destructive

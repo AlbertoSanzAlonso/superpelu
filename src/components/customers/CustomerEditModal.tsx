@@ -2,18 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
+import { CustomerDeleteNotice } from '@/components/customers/CustomerDeleteNotice'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import {
   CustomerMembersField,
   type CustomerMemberDraft,
 } from '@/components/customers/CustomerMembersField'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
-import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
+import { updateCustomer, createCustomer, deleteCustomer, fetchCustomerDetail, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/customer/phone'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import type { Appointment } from '@/types/booking'
 import type { Customer, CustomerMember } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -85,6 +87,12 @@ export function CustomerEditModal({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false)
+  const [deletePreview, setDeletePreview] = useState<{
+    members: CustomerMember[]
+    appointments: Appointment[]
+    appointmentsUnknown: boolean
+  } | null>(null)
   const [foreignPhonePromptOpen, setForeignPhonePromptOpen] = useState(false)
   const [phoneConflictOpen, setPhoneConflictOpen] = useState(false)
   const [phoneConflictName, setPhoneConflictName] = useState('')
@@ -116,6 +124,8 @@ export function CustomerEditModal({
     setSaving(false)
     setDeleting(false)
     setDeleteConfirmOpen(false)
+    setDeletePreview(null)
+    setDeletePreviewLoading(false)
     setForeignPhonePromptOpen(false)
     setPhoneConflictOpen(false)
     setPhoneConflictName('')
@@ -209,6 +219,29 @@ export function CustomerEditModal({
     }
 
     await persist()
+  }
+
+  function requestDelete() {
+    setDeleteConfirmOpen(true)
+    setDeletePreview(null)
+    if (!adminToken || !customer) return
+    setDeletePreviewLoading(true)
+    void fetchCustomerDetail(adminToken, customer.phone)
+      .then((detail) => {
+        setDeletePreview({
+          members: detail.customer.members ?? [],
+          appointments: detail.appointments,
+          appointmentsUnknown: false,
+        })
+      })
+      .catch(() => {
+        setDeletePreview({
+          members: customer.members ?? [],
+          appointments: [],
+          appointmentsUnknown: true,
+        })
+      })
+      .finally(() => setDeletePreviewLoading(false))
   }
 
   async function handleDelete() {
@@ -362,7 +395,7 @@ export function CustomerEditModal({
                 variant="outline"
                 size="sm"
                 disabled={busy}
-                onClick={() => setDeleteConfirmOpen(true)}
+                onClick={requestDelete}
                 className="w-full border-red-300 text-red-800 hover:bg-red-50 sm:w-auto"
               >
                 {deleting ? 'Eliminando…' : 'Eliminar cliente'}
@@ -384,11 +417,23 @@ export function CustomerEditModal({
       <ConfirmDialog
         open={deleteConfirmOpen}
         title="¿Eliminar este cliente?"
-        message="Se quitará la ficha del listado de clientes. Las citas ya registradas se conservan en la agenda."
+        message={
+          deletePreviewLoading || !deletePreview || !customer ? (
+            'Comprobando citas y miembros…'
+          ) : (
+            <CustomerDeleteNotice
+              titularName={formatCustomerDisplayName(customer.firstName, customer.lastName)}
+              phone={customer.phone}
+              members={deletePreview.members}
+              appointments={deletePreview.appointments}
+              appointmentsUnknown={deletePreview.appointmentsUnknown}
+            />
+          )
+        }
         confirmLabel="Eliminar cliente"
         cancelLabel="Volver"
         destructive
-        busy={deleting}
+        busy={deleting || deletePreviewLoading}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleDelete}
       />

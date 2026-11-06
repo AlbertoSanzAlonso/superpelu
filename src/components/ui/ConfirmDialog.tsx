@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/Button'
 import { typography } from '@/styles/typography'
 
 export type ConfirmDialogState = {
   title: string
-  message?: string
+  message?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   /** Etiqueta de una tercera acción secundaria opcional (ej. "Seguir editando"). */
@@ -47,13 +48,15 @@ export function ConfirmDialog({
       }}
     >
       <div
-        className="w-full max-w-md border border-gold/30 bg-cream p-5 shadow-lg sm:p-6"
+        className="max-h-[min(90vh,36rem)] w-full max-w-md overflow-y-auto border border-gold/30 bg-cream p-5 shadow-lg sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="confirm-dialog-title" className={`${typography.h3} mb-2 text-gold`}>
           {title}
         </h2>
-        {message && <p className={`${typography.body} mb-5 text-sm`}>{message}</p>}
+        {message != null && message !== '' && (
+          <div className={`${typography.body} mb-5 text-sm`}>{message}</div>
+        )}
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
             {cancelLabel}
