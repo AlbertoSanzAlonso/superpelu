@@ -1,86 +1,29 @@
 import type { Locale } from '@/i18n/types'
 
-/** Parentesco respecto al titular. El valor guardado es la palabra en español. */
-export const MEMBER_RELATIONSHIPS = [
-  'hijo',
-  'hija',
-  'padre',
-  'madre',
-  'pareja',
-  'esposo',
-  'esposa',
-  'hermano',
-  'hermana',
-  'abuelo',
-  'abuela',
-  'nieto',
-  'nieta',
-  'sobrino',
-  'sobrina',
-  'primo',
-  'prima',
-  'amigo',
-  'amiga',
-] as const
+const RELATIONSHIP_MAX = 40
 
-export type MemberRelationship = (typeof MEMBER_RELATIONSHIPS)[number]
-
-const EN_LABEL: Record<MemberRelationship, string> = {
-  hijo: 'son',
-  hija: 'daughter',
-  padre: 'father',
-  madre: 'mother',
-  pareja: 'partner',
-  esposo: 'husband',
-  esposa: 'wife',
-  hermano: 'brother',
-  hermana: 'sister',
-  abuelo: 'grandfather',
-  abuela: 'grandmother',
-  nieto: 'grandson',
-  nieta: 'granddaughter',
-  sobrino: 'nephew',
-  sobrina: 'niece',
-  primo: 'cousin',
-  prima: 'cousin',
-  amigo: 'friend',
-  amiga: 'friend',
-}
-
-export function normalizeMemberRelationship(value: string): MemberRelationship | '' {
-  const key = value.trim().toLocaleLowerCase('es')
-  return (MEMBER_RELATIONSHIPS as readonly string[]).includes(key)
-    ? (key as MemberRelationship)
-    : ''
-}
-
-export function memberRelationshipLabel(value: string, locale: Locale = 'es'): string {
-  const key = normalizeMemberRelationship(value)
-  if (!key) return ''
-  return locale === 'en' ? EN_LABEL[key] : key
+/** Texto libre. Recorta espacios y longitud. */
+export function clipMemberRelationship(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').slice(0, RELATIONSHIP_MAX)
 }
 
 /** «Antonio (hijo)». Sin parentesco, solo el nombre. */
-export function formatMemberLabel(
-  firstName: string,
-  relationship: string,
-  locale: Locale = 'es',
-): string {
+export function formatMemberLabel(firstName: string, relationship: string): string {
   const name = firstName.trim()
   if (!name) return ''
-  const label = memberRelationshipLabel(relationship, locale)
+  const label = clipMemberRelationship(relationship)
   return label ? `${name} (${label})` : name
 }
 
-/** «Antonio (hijo) de Luis». En inglés: «Antonio (son) of Luis». */
+/** «Antonio (hijo) de Luis». En inglés: «Antonio (hijo) of Luis». */
 export function formatMemberAppointmentName(
   memberFirstName: string,
   relationship: string,
   titularFirstName: string,
   locale: Locale = 'es',
 ): string {
-  const base = formatMemberLabel(memberFirstName, relationship, locale)
+  const base = formatMemberLabel(memberFirstName, relationship)
   const titular = titularFirstName.trim()
-  if (!base || !titular || !memberRelationshipLabel(relationship, locale)) return base
+  if (!base || !titular || !clipMemberRelationship(relationship)) return base
   return locale === 'en' ? `${base} of ${titular}` : `${base} de ${titular}`
 }

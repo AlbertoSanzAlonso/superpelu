@@ -1049,8 +1049,7 @@ app.post('/api/customers', async (c) => {
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
-      PARENTESCO_OBLIGATORIO: 'Elige el parentesco de cada miembro',
-      PARENTESCO_INVALIDO: 'El parentesco no es válido',
+      PARENTESCO_OBLIGATORIO: 'Indica el parentesco de cada miembro',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
   }
@@ -1191,8 +1190,7 @@ app.patch('/api/customers/:phone', async (c) => {
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
-      PARENTESCO_OBLIGATORIO: 'Elige el parentesco de cada miembro',
-      PARENTESCO_INVALIDO: 'El parentesco no es válido',
+      PARENTESCO_OBLIGATORIO: 'Indica el parentesco de cada miembro',
     }
     const status = code === 'CLIENTE_NO_ENCONTRADO' ? 404 : 400
     return c.json({ error: messages[code] ?? 'No se pudo actualizar el cliente' }, status)
@@ -1438,7 +1436,7 @@ const adminScheduleErrors: Record<string, string> = {
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
-  PARENTESCO_OBLIGATORIO: 'Elige el parentesco del miembro',
+  PARENTESCO_OBLIGATORIO: 'Indica el parentesco del miembro',
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',

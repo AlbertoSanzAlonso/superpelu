@@ -9,8 +9,7 @@ import {
 } from '@/lib/api/admin'
 import { ApiError } from '@/lib/api/request'
 import { formatDisplayDate } from '@/lib/core/dates'
-import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
-import { formatMemberLabel, normalizeMemberRelationship } from '@/lib/customer/relationship'
+import { clipMemberRelationship, formatMemberLabel } from '@/lib/customer/relationship'
 import { typography } from '@/styles/typography'
 
 export type CustomerMemberDraft = {
@@ -84,13 +83,13 @@ export function CustomerMembersField({
 
   function addMember() {
     const name = firstName.trim()
-    const kinship = normalizeMemberRelationship(relationship)
+    const kinship = clipMemberRelationship(relationship)
     if (!name) {
       setError('Indica al menos el nombre')
       return
     }
     if (!kinship) {
-      setError('Elige el parentesco')
+      setError('Indica el parentesco')
       return
     }
     const key = crypto.randomUUID()
@@ -99,7 +98,6 @@ export function CustomerMembersField({
     setRelationship('')
     setError('')
     setAdding(false)
-    setEditingKey(key)
   }
 
   function closePending() {
@@ -206,6 +204,7 @@ export function CustomerMembersField({
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer px-3 py-2 text-left text-sm text-charcoal hover:bg-gold/10"
                     onClick={() => {
+                      setAdding(false)
                       setEditingKey(member.key)
                       setOpen(false)
                     }}
@@ -229,7 +228,8 @@ export function CustomerMembersField({
       </div>
 
       {editing && (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-2">
           <Input
             id="member-edit-first-name"
             label="Nombre"
@@ -242,17 +242,29 @@ export function CustomerMembersField({
               )
             }
           />
-          <MemberRelationshipSelect
+          <Input
+            id="member-edit-relationship"
             label="Parentesco"
             value={editing.relationship}
-            onChange={(next) =>
+            placeholder="hijo, pareja…"
+            onChange={(e) =>
               onChange(
                 members.map((member) =>
-                  member.key === editing.key ? { ...member, relationship: next } : member,
+                  member.key === editing.key
+                    ? { ...member, relationship: e.target.value }
+                    : member,
                 ),
               )
             }
           />
+        </div>
+          <button
+            type="button"
+            className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+            onClick={() => setEditingKey(null)}
+          >
+            Ocultar
+          </button>
         </div>
       )}
 
@@ -266,10 +278,12 @@ export function CustomerMembersField({
               onChange={(e) => setFirstName(e.target.value)}
               autoComplete="given-name"
             />
-            <MemberRelationshipSelect
+            <Input
+              id="member-new-relationship"
               label="Parentesco"
               value={relationship}
-              onChange={setRelationship}
+              placeholder="hijo, pareja…"
+              onChange={(e) => setRelationship(e.target.value)}
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -285,6 +299,8 @@ export function CustomerMembersField({
               className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
               onClick={() => {
                 setAdding(false)
+                setFirstName('')
+                setRelationship('')
                 setError('')
               }}
             >
@@ -296,7 +312,10 @@ export function CustomerMembersField({
         <button
           type="button"
           className="ui-rounded w-full cursor-pointer border border-dashed border-gold/40 px-3 py-2 text-sm text-gold hover:border-gold hover:bg-gold/5 focus:outline-none focus:ring-2 focus:ring-gold/40"
-          onClick={() => setAdding(true)}
+          onClick={() => {
+            setEditingKey(null)
+            setAdding(true)
+          }}
         >
           + Añadir miembro
         </button>

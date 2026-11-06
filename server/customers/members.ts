@@ -4,8 +4,8 @@ import type { CustomerMember } from '@/types/customers'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { normalizePhone } from '@/lib/customer/phone'
 import {
+  clipMemberRelationship,
   formatMemberAppointmentName,
-  normalizeMemberRelationship,
 } from '@/lib/customer/relationship'
 
 export type CustomerMemberInput = {
@@ -140,7 +140,7 @@ export async function syncCustomerMembers(
 
   const cleaned = members.map((member) => {
     const firstName = clipName(member.firstName ?? '')
-    const relationship = normalizeMemberRelationship(member.relationship ?? '')
+    const relationship = clipMemberRelationship(member.relationship ?? '')
     if (!firstName) throw new Error('NOMBRE_INVALIDO')
     if (!relationship) throw new Error('PARENTESCO_OBLIGATORIO')
     const id = member.id?.trim() || undefined
@@ -206,7 +206,7 @@ export async function refreshMemberAppointmentNames(phone: string): Promise<void
   if (!titular) return
   const members = await listCustomerMembers(normalized)
   for (const member of members) {
-    if (!normalizeMemberRelationship(member.relationship)) continue
+    if (!clipMemberRelationship(member.relationship)) continue
     const name = formatMemberAppointmentName(member.firstName, member.relationship, titular)
     await sql`
       UPDATE appointments
@@ -252,7 +252,7 @@ export async function planBookingMember(input: {
   }
 
   const firstName = clipName(input.memberName ?? '')
-  const relationship = normalizeMemberRelationship(input.memberRelationship ?? '')
+  const relationship = clipMemberRelationship(input.memberRelationship ?? '')
   if (!firstName) throw new Error('MIEMBRO_NOMBRE_OBLIGATORIO')
   if (!relationship) throw new Error('PARENTESCO_OBLIGATORIO')
   return {

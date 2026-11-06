@@ -8,10 +8,9 @@ import {
 import { deleteCustomerMember } from '@/lib/api/admin'
 import { deleteMyCustomerMember } from '@/lib/api/staff'
 import { ApiError } from '@/lib/api/request'
-import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
 import {
+  clipMemberRelationship,
   formatMemberAppointmentName,
-  normalizeMemberRelationship,
 } from '@/lib/customer/relationship'
 import { typography } from '@/styles/typography'
 
@@ -79,13 +78,13 @@ export function AppointmentMembersField({
 
   function addMember() {
     const name = firstName.trim()
-    const kinship = normalizeMemberRelationship(relationship)
+    const kinship = clipMemberRelationship(relationship)
     if (!name) {
       setError('Indica al menos el nombre')
       return
     }
     if (!kinship) {
-      setError('Elige el parentesco')
+      setError('Indica el parentesco')
       return
     }
     const id = `${NEW_MEMBER_ID_PREFIX}${crypto.randomUUID()}`
@@ -233,10 +232,12 @@ export function AppointmentMembersField({
               className={fieldCompact}
               autoComplete="given-name"
             />
-            <MemberRelationshipSelect
+            <Input
+              id="appointment-member-relationship"
               label="Parentesco"
               value={relationship}
-              onChange={setRelationship}
+              placeholder="hijo, pareja…"
+              onChange={(e) => setRelationship(e.target.value)}
               className={fieldCompact}
             />
           </div>

@@ -58,7 +58,7 @@ const errorMessages: Record<string, string> = {
   CITAS_PENDIENTES:
     'Este miembro tiene citas pendientes. Elige qué hacer con ellas desde la ficha del cliente.',
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
-  PARENTESCO_OBLIGATORIO: 'Elige el parentesco del miembro',
+  PARENTESCO_OBLIGATORIO: 'Indica el parentesco del miembro',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',

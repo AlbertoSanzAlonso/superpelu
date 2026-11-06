@@ -1,7 +1,5 @@
-import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
 import { Input } from '@/components/ui/Input'
 import { formatMemberLabel } from '@/lib/customer/relationship'
-import type { Locale } from '@/i18n/types'
 import type { CustomerMember } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -12,10 +10,9 @@ type Props = {
   selectedMemberId: string | 'new' | null
   newMemberName: string
   newMemberRelationship: string
-  locale: Locale
   error?: string
   onAppointmentFor: (value: 'self' | 'other') => void
-  onSelectMember: (id: string | 'new') => void
+  onSelectMember: (id: string | 'new' | null) => void
   onNewMemberName: (value: string) => void
   onNewMemberRelationship: (value: string) => void
   labels: {
@@ -24,9 +21,12 @@ type Props = {
     appointmentForOther: string
     appointmentForMembersHint: string
     appointmentForNewPerson: string
+    appointmentForAdd: string
+    memberFormCancel: string
     memberName: string
     memberNameHint: string
     memberRelationship: string
+    memberRelationshipPlaceholder: string
   }
 }
 
@@ -44,7 +44,6 @@ export function BookingAttendeeChoice({
   selectedMemberId,
   newMemberName,
   newMemberRelationship,
-  locale,
   error,
   onAppointmentFor,
   onSelectMember,
@@ -52,8 +51,7 @@ export function BookingAttendeeChoice({
   onNewMemberRelationship,
   labels,
 }: Props) {
-  const showNewName =
-    appointmentFor === 'other' && (members.length === 0 || selectedMemberId === 'new')
+  const showNewName = appointmentFor === 'other' && selectedMemberId === 'new'
   const selfLabel = selfName.trim()
     ? `${labels.appointmentForSelf} (${selfName.trim()})`
     : labels.appointmentForSelf
@@ -80,11 +78,21 @@ export function BookingAttendeeChoice({
         </button>
       </div>
 
+      {appointmentFor === 'other' && members.length === 0 && !showNewName && (
+        <button
+          type="button"
+          className={choiceClass(false)}
+          onClick={() => onSelectMember('new')}
+        >
+          {labels.appointmentForAdd}
+        </button>
+      )}
+
       {appointmentFor === 'other' && members.length > 0 && (
         <div className="space-y-2">
           <p className={typography.caption}>{labels.appointmentForMembersHint}</p>
           {members.map((member) => {
-            const name = formatMemberLabel(member.firstName, member.relationship, locale)
+            const name = formatMemberLabel(member.firstName, member.relationship)
             const active = selectedMemberId === member.id
             return (
               <button
@@ -118,13 +126,21 @@ export function BookingAttendeeChoice({
             onChange={(e) => onNewMemberName(e.target.value)}
             autoComplete="given-name"
           />
-          <MemberRelationshipSelect
+          <Input
             label={labels.memberRelationship}
+            required
             value={newMemberRelationship}
-            onChange={onNewMemberRelationship}
-            locale={locale}
+            onChange={(e) => onNewMemberRelationship(e.target.value)}
+            placeholder={labels.memberRelationshipPlaceholder}
           />
           <p className={typography.caption}>{labels.memberNameHint}</p>
+          <button
+            type="button"
+            className="cursor-pointer text-sm text-charcoal-muted underline-offset-2 hover:text-charcoal hover:underline focus:outline-none focus:ring-2 focus:ring-gold/40"
+            onClick={() => onSelectMember(null)}
+          >
+            {labels.memberFormCancel}
+          </button>
         </div>
       )}
 

@@ -14,7 +14,7 @@ import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 import { isValidDateString } from '@/lib/core/dates'
 import { capitalizePersonName } from '@/lib/customer/name'
-import { normalizeMemberRelationship } from '@/lib/customer/relationship'
+import { clipMemberRelationship } from '@/lib/customer/relationship'
 import { isValidPhone } from '@/lib/customer/phone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type {
@@ -170,13 +170,17 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setNewMemberRelationshipState('')
       return
     }
-    setSelectedMemberIdState(householdMembers.length === 0 ? 'new' : null)
+    setSelectedMemberIdState(null)
     setNewMemberNameState('')
     setNewMemberRelationshipState('')
-  }, [householdMembers.length])
+  }, [])
 
-  const setSelectedMemberId = useCallback((id: string | 'new') => {
+  const setSelectedMemberId = useCallback((id: string | 'new' | null) => {
     setSelectedMemberIdState(id)
+    if (id !== 'new') {
+      setNewMemberNameState('')
+      setNewMemberRelationshipState('')
+    }
     setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
   }, [])
 
@@ -640,11 +644,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         next.attendee = errors.appointmentForRequired
       } else if (appointmentFor === 'other') {
         const pickedExisting = selectedMemberId != null && selectedMemberId !== 'new'
-        if (!pickedExisting && householdMembers.length > 0 && selectedMemberId == null) {
+        if (!pickedExisting && selectedMemberId !== 'new') {
           next.attendee = errors.memberChoiceRequired
         } else if (!pickedExisting && !newMemberName.trim()) {
           next.attendee = errors.memberNameRequired
-        } else if (!pickedExisting && !normalizeMemberRelationship(newMemberRelationship)) {
+        } else if (!pickedExisting && !clipMemberRelationship(newMemberRelationship)) {
           next.attendee = errors.memberRelationshipRequired
         }
       }
@@ -668,7 +672,6 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.memberChoiceRequired,
     errors.memberNameRequired,
     errors.memberRelationshipRequired,
-    householdMembers.length,
     appointmentFor,
     selectedMemberId,
     newMemberName,

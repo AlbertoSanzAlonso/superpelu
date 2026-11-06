@@ -156,7 +156,7 @@ export function CustomerEditModal({
       return false
     }
     if (members.some((member) => member.firstName.trim() && !member.relationship.trim())) {
-      setError('Elige el parentesco de cada miembro')
+      setError('Indica el parentesco de cada miembro')
       return false
     }
     return true
