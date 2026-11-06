@@ -130,8 +130,8 @@ export type AdminAppointmentPayload = {
   conflictResolutions?: SeriesConflictResolution[]
   forceSchedule?: boolean
   guestCustomer?: boolean
-  /** Cita para un miembro del teléfono, no para el titular. */
-  appointmentFor?: 'other'
+  /** Cita para el titular o para un miembro del teléfono. */
+  appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
 }
@@ -430,6 +430,56 @@ export function updateBirthdayMessageTemplates(
     headers: adminHeaders(adminToken),
     body: JSON.stringify(templates),
   })
+}
+
+export type PendingMemberAppointment = {
+  id: string
+  date: string
+  startTime: string
+  serviceName: string
+  staffName: string | null
+}
+
+export function fetchPendingMemberAppointments(
+  adminToken: string,
+  phone: string,
+  memberId: string,
+) {
+  return request<{ appointments: PendingMemberAppointment[] }>(
+    `/customers/${encodeURIComponent(phone)}/members/${encodeURIComponent(memberId)}/appointments`,
+    { headers: adminHeaders(adminToken) },
+  )
+}
+
+export function removeCustomerMember(
+  adminToken: string,
+  phone: string,
+  memberId: string,
+  action: 'cancel' | 'titular' | 'member',
+  options?: { targetMemberId?: string; titularName?: string },
+) {
+  return request<{ ok: true }>(
+    `/customers/${encodeURIComponent(phone)}/members/${encodeURIComponent(memberId)}/remove`,
+    {
+      method: 'POST',
+      headers: adminHeaders(adminToken),
+      body: JSON.stringify({
+        action,
+        targetMemberId: options?.targetMemberId,
+        titularName: options?.titularName,
+      }),
+    },
+  )
+}
+
+export function deleteCustomerMember(adminToken: string, phone: string, memberId: string) {
+  return request<{ ok: true }>(
+    `/customers/${encodeURIComponent(phone)}/members/${encodeURIComponent(memberId)}`,
+    {
+      method: 'DELETE',
+      headers: adminHeaders(adminToken),
+    },
+  )
 }
 
 export function deleteCustomer(adminToken: string, phone: string) {

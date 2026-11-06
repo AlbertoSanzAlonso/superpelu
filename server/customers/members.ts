@@ -67,6 +67,29 @@ export async function listMembersForPhones(
   return map
 }
 
+export async function deleteCustomerMember(phone: string, memberId: string): Promise<void> {
+  const normalized = normalizePhone(phone)
+  const id = memberId.trim()
+  if (!normalized) throw new Error('TELEFONO_INVALIDO')
+  if (!id) throw new Error('MIEMBRO_NO_ENCONTRADO')
+  const pending = await sql<{ id: string }[]>`
+    SELECT id
+    FROM appointments
+    WHERE customer_phone = ${normalized}
+      AND customer_member_id = ${id}
+      AND status = 'confirmed'
+      AND appointment_date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Madrid')::date
+    LIMIT 1
+  `
+  if (pending.length > 0) throw new Error('CITAS_PENDIENTES')
+  const rows = await sql<{ id: string }[]>`
+    DELETE FROM customer_members
+    WHERE id = ${id} AND phone = ${normalized}
+    RETURNING id
+  `
+  if (rows.length === 0) throw new Error('MIEMBRO_NO_ENCONTRADO')
+}
+
 export async function getCustomerMember(
   phone: string,
   memberId: string,

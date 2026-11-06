@@ -3,10 +3,15 @@ import { Button } from '@/components/ui/Button'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Input, Textarea } from '@/components/ui/Input'
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
+import {
+  CustomerMembersField,
+  type CustomerMemberDraft,
+} from '@/components/customers/CustomerMembersField'
 import { ForeignPhoneLocaleConfirmDialog } from '@/components/customers/ForeignPhoneLocaleConfirmDialog'
 import { updateCustomer, createCustomer, deleteCustomer, ApiError } from '@/lib/api'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/customer/phone'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
 import type { Customer, CustomerMember } from '@/types/customers'
@@ -42,14 +47,7 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
 }
 
-type MemberDraft = {
-  key: string
-  id?: string
-  firstName: string
-  lastName: string
-}
-
-function draftsFromMembers(members: CustomerMember[] | undefined): MemberDraft[] {
+function draftsFromMembers(members: CustomerMember[] | undefined): CustomerMemberDraft[] {
   return (members ?? []).map((member) => ({
     key: member.id,
     id: member.id,
@@ -83,7 +81,7 @@ export function CustomerEditModal({
   const [notes, setNotes] = useState('')
   const [birthdate, setBirthdate] = useState('')
   const [locale, setLocale] = useState<Locale>('es')
-  const [members, setMembers] = useState<MemberDraft[]>([])
+  const [members, setMembers] = useState<CustomerMemberDraft[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -328,69 +326,14 @@ export function CustomerEditModal({
 
             <CustomerLocaleSelect value={locale} onChange={setLocale} disabled={busy} />
 
-            <fieldset className="space-y-3" disabled={busy}>
-              <legend className={typography.label}>Miembros</legend>
-              <p className={typography.caption}>
-                Otras personas que usan este mismo teléfono. El titular de la ficha sigue siendo el
-                usuario principal.
-              </p>
-              {members.length === 0 && (
-                <p className={`${typography.caption} text-charcoal-muted`}>
-                  Nadie más está asociado a este teléfono.
-                </p>
-              )}
-              {members.map((member) => (
-                <div key={member.key} className="space-y-2 rounded border border-gold/20 p-3">
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <Input
-                      label="Nombre"
-                      value={member.firstName}
-                      onChange={(e) =>
-                        setMembers((rows) =>
-                          rows.map((row) =>
-                            row.key === member.key ? { ...row, firstName: e.target.value } : row,
-                          ),
-                        )
-                      }
-                      disabled={busy}
-                    />
-                    <Input
-                      label="Apellidos"
-                      value={member.lastName}
-                      onChange={(e) =>
-                        setMembers((rows) =>
-                          rows.map((row) =>
-                            row.key === member.key ? { ...row, lastName: e.target.value } : row,
-                          ),
-                        )
-                      }
-                      disabled={busy}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-red-300 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-gold/40"
-                    onClick={() =>
-                      setMembers((rows) => rows.filter((row) => row.key !== member.key))
-                    }
-                  >
-                    Quitar
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                className="ui-rounded cursor-pointer border border-dashed border-gold/40 px-3 py-2 text-sm text-gold hover:border-gold hover:bg-gold/5 focus:outline-none focus:ring-2 focus:ring-gold/40"
-                onClick={() =>
-                  setMembers((rows) => [
-                    ...rows,
-                    { key: crypto.randomUUID(), firstName: '', lastName: '' },
-                  ])
-                }
-              >
-                Añadir miembro
-              </button>
-            </fieldset>
+            <CustomerMembersField
+              members={members}
+              onChange={setMembers}
+              titularName={formatCustomerDisplayName(firstName, lastName)}
+              phone={isCreate ? '' : customer?.phone}
+              adminToken={adminToken}
+              disabled={busy}
+            />
 
             {error && (
               <p

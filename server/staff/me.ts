@@ -30,6 +30,7 @@ import {
   type DeleteBlockMode,
   type UpdateBlockNoteMode,
 } from '@server/staff/blocks.js'
+import { deleteCustomerMember } from '@server/customers/members.js'
 import { loginStaff, logoutStaff, resolveStaffSession } from '@server/staff/auth.js'
 import type { StaffRow } from '@server/db.js'
 
@@ -53,6 +54,10 @@ async function requireStaff(c: {
 
 const errorMessages: Record<string, string> = {
   TELEFONO_INVALIDO: 'Teléfono no válido',
+  MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
+  CITAS_PENDIENTES:
+    'Este miembro tiene citas pendientes. Elige qué hacer con ellas desde la ficha del cliente.',
+  MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',
@@ -290,6 +295,9 @@ me.patch('/me/appointments/:id', async (c) => {
     forceSchedule?: boolean
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, {
@@ -439,6 +447,21 @@ me.patch('/me/blocks/:id', async (c) => {
   } catch (err) {
     const code = err instanceof Error ? err.message : 'ERROR'
     return c.json({ error: errorMessages[code] ?? 'No se pudo actualizar el bloqueo' }, 409)
+  }
+})
+
+me.delete('/me/customers/:phone/members/:memberId', async (c) => {
+  const { error } = await requireStaff(c)
+  if (error) return error
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const memberId = decodeURIComponent(c.req.param('memberId'))
+  try {
+    await deleteCustomerMember(phone, memberId)
+    return c.json({ ok: true })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : 'ERROR'
+    const status = code === 'MIEMBRO_NO_ENCONTRADO' ? 404 : code === 'CITAS_PENDIENTES' ? 409 : 400
+    return c.json({ error: errorMessages[code] ?? 'No se pudo eliminar el miembro', code }, status)
   }
 })
 

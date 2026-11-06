@@ -85,16 +85,19 @@ export function householdMembersForAppointment(
 
 export const NEW_MEMBER_ID_PREFIX = 'new:'
 
-/** Datos de miembro para crear la cita: vacío si la visita es del titular. */
-export function appointmentMemberBooking(members: HouseholdMemberDraft[]): {
-  appointmentFor?: 'other'
+/** Datos de miembro para la cita. Vacío si es del titular, salvo `explicitSelf`. */
+export function appointmentMemberBooking(
+  members: HouseholdMemberDraft[],
+  options?: { explicitSelf?: boolean },
+): {
+  appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
 } {
   const attendee = members.find((member) => member.attendee)
-  if (!attendee) return {}
+  if (!attendee) return options?.explicitSelf ? { appointmentFor: 'self' } : {}
   const name = formatCustomerDisplayName(attendee.firstName, attendee.lastName)
-  if (!name) return {}
+  if (!name) return options?.explicitSelf ? { appointmentFor: 'self' } : {}
   if (attendee.id.startsWith(NEW_MEMBER_ID_PREFIX)) {
     return { appointmentFor: 'other', memberName: name }
   }

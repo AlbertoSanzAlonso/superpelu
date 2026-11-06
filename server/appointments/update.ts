@@ -7,6 +7,11 @@ import { getStaff } from "@server/staff/index.js"
 import {
   resolveStaffPortalCustomerPatch,
 } from "@server/customers/index.js"
+import {
+  linkAppointmentMember,
+  planBookingMember,
+  type MemberLink,
+} from "@server/customers/members.js"
 import { notifyAppointmentUpdated } from "@server/notifications/whatsapp.js"
 import { hoursUntilAppointment } from "@/lib/core/dates"
 import {
@@ -22,6 +27,59 @@ import { isValidDateString, minutesToTime, timeToMinutes } from "@server/appoint
 import type { UpdateAppointmentInput } from "@server/appointments/types.js"
 import { createAppointment } from "@server/appointments/create.js"
 export type { UpdateAppointmentInput } from "@server/appointments/types.js"
+
+async function applyEditedMember(input: {
+  appointmentId: string
+  phone: string
+  nameSnapshot: string
+  memberLink: MemberLink | null
+  clearMember: boolean
+}): Promise<void> {
+  if (!input.memberLink && !input.clearMember) return
+  if (input.memberLink) {
+    await linkAppointmentMember({
+      appointmentId: input.appointmentId,
+      phone: input.phone,
+      link: input.memberLink,
+    })
+    await sql`
+      UPDATE appointments AS target
+      SET customer_name = ${input.nameSnapshot}
+      WHERE target.id = ${input.appointmentId}
+         OR target.color_group_id = (
+           SELECT color_group_id FROM appointments
+           WHERE id = ${input.appointmentId} AND color_group_id IS NOT NULL
+         )
+         OR target.booking_group_id = (
+           SELECT booking_group_id FROM appointments
+           WHERE id = ${input.appointmentId} AND booking_group_id IS NOT NULL
+         )
+         OR target.series_id = (
+           SELECT series_id FROM appointments
+           WHERE id = ${input.appointmentId} AND series_id IS NOT NULL
+         )
+    `
+    return
+  }
+  await sql`
+    UPDATE appointments AS target
+    SET customer_name = ${input.nameSnapshot},
+        customer_member_id = NULL
+    WHERE target.id = ${input.appointmentId}
+       OR target.color_group_id = (
+         SELECT color_group_id FROM appointments
+         WHERE id = ${input.appointmentId} AND color_group_id IS NOT NULL
+       )
+       OR target.booking_group_id = (
+         SELECT booking_group_id FROM appointments
+         WHERE id = ${input.appointmentId} AND booking_group_id IS NOT NULL
+       )
+       OR target.series_id = (
+         SELECT series_id FROM appointments
+         WHERE id = ${input.appointmentId} AND series_id IS NOT NULL
+       )
+  `
+}
 
 /** La cita de un miembro conserva su nombre; el formulario edita al titular. */
 function attendeeNameSnapshot(
@@ -162,8 +220,10 @@ export async function updateAppointmentForStaff(
 
   let nameSnapshot = existing.customer_name
   let customerPhone = existing.customer_phone
+  let memberLink: MemberLink | null = null
+  let clearMember = false
 
-  if (hasCustomerPatch) {
+  if (hasCustomerPatch || input.appointmentFor) {
     const resolved = await resolveStaffPortalCustomerPatch({
       customerFirstName: input.customerFirstName,
       customerLastName: input.customerLastName,
@@ -179,7 +239,23 @@ export async function updateAppointmentForStaff(
       existingEmail: existing.customer_email,
     })
     customerPhone = resolved.customerPhone
-    nameSnapshot = attendeeNameSnapshot(existing, resolved.nameSnapshot, customerPhone)
+    if (input.appointmentFor === 'other') {
+      const planned = await planBookingMember({
+        phone: customerPhone,
+        primaryFirstName: input.customerFirstName?.trim() || resolved.nameSnapshot,
+        primaryLastName: input.customerLastName?.trim() ?? '',
+        appointmentFor: 'other',
+        memberId: input.memberId,
+        memberName: input.memberName,
+      })
+      nameSnapshot = planned.nameSnapshot
+      memberLink = planned.memberLink
+    } else if (input.appointmentFor === 'self') {
+      nameSnapshot = resolved.nameSnapshot
+      clearMember = true
+    } else {
+      nameSnapshot = attendeeNameSnapshot(existing, resolved.nameSnapshot, customerPhone)
+    }
   }
 
   // Reprogramación: si la nueva fecha/hora queda a más de 24h, reactivar el
@@ -285,6 +361,14 @@ export async function updateAppointmentForStaff(
     await persistUpdates(sql)
   }
 
+  await applyEditedMember({
+    appointmentId,
+    phone: customerPhone,
+    nameSnapshot,
+    memberLink,
+    clearMember,
+  })
+
   const updated = (await getAppointmentById(appointmentId))!
   const scheduleChanged =
     dateOrTimeChanged || serviceId !== existing.service_id || staffChanged
@@ -374,14 +458,20 @@ async function replaceAppointment(
     forStaffPortal: true,
     forceSchedule: true,
     guestCustomer: input.guestCustomer,
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
     // Es una modificación: no mandar "cita nueva" ni confundir con cancelación.
     skipCustomerWhatsApp: true,
   })
 
-  await restoreMemberVisit(created, existing)
-  const saved = existing.customer_member_id
-    ? ((await getAppointmentById(created.id)) ?? created)
-    : created
+  if (input.appointmentFor == null) {
+    await restoreMemberVisit(created, existing)
+  }
+  const saved =
+    input.appointmentFor != null || existing.customer_member_id
+      ? ((await getAppointmentById(created.id)) ?? created)
+      : created
 
   if (input.notifyCustomerWhatsApp === true) {
     void notifyAppointmentUpdated(saved).catch((err) => {

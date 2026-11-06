@@ -44,6 +44,7 @@ export type Appointment = {
   startTime: string
   customerName: string
   customerPhone: string
+  customerMemberId?: string | null
   customerEmail: string | null
   notes: string | null
   status: string

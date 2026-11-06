@@ -158,6 +158,7 @@ export function useAdminAppointmentPersist({
             ...(guestCustomer || (editingGuestPhone && !aptDraft.customerPhone.trim())
               ? { guestCustomer: true }
               : {}),
+            ...appointmentMemberBooking(aptDraft.householdMembers ?? [], { explicitSelf: true }),
           })
           await resyncAppointmentSnapshots?.({ notify: true })
         } else {

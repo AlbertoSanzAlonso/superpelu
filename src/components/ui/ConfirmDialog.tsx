@@ -41,7 +41,10 @@ export function ConfirmDialog({
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-dialog-title"
-      onClick={busy ? undefined : onClose}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (!busy) onClose()
+      }}
     >
       <div
         className="w-full max-w-md border border-gold/30 bg-cream p-5 shadow-lg sm:p-6"

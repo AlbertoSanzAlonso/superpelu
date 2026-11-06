@@ -145,7 +145,7 @@ export function createMyAppointment(
     conflictResolutions?: SeriesConflictResolution[]
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
-    appointmentFor?: 'other'
+    appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
   },
@@ -178,6 +178,9 @@ export function updateMyAppointment(
     forceSchedule?: boolean
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>,
 ) {
   return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}`, token, {
@@ -260,6 +263,14 @@ export function updateMyBlock(
     method: 'PATCH',
     body: JSON.stringify(payload),
   })
+}
+
+export function deleteMyCustomerMember(token: string, phone: string, memberId: string) {
+  return staffRequest<{ ok: true }>(
+    `/me/customers/${encodeURIComponent(phone)}/members/${encodeURIComponent(memberId)}`,
+    token,
+    { method: 'DELETE' },
+  )
 }
 
 export function deleteMyBlock(

@@ -68,6 +68,7 @@ type Props = {
   isNoShow?: boolean
   hint?: string
   adminToken?: string
+  staffToken?: string
   compact?: boolean
   /** La hora de la visita se edita fuera (p. ej. título del modal). */
   hideVisitTime?: boolean
@@ -101,6 +102,7 @@ export function StaffAppointmentFormFields({
   isNoShow = false,
   hint,
   adminToken,
+  staffToken,
   compact = false,
   hideVisitTime = false,
   isSubmitting = false,
@@ -737,17 +739,18 @@ export function StaffAppointmentFormFields({
             compact={compact}
             guestWithoutProfile={guestWithoutProfile}
             allowOptionalPhone
-            hideMembers={!editingId}
+            hideMembers
             onCustomerLocaleTouched={onCustomerLocaleTouched}
           />
-          {!editingId && (
-            <AppointmentMembersField
-              titularName={formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName)}
-              members={draft.householdMembers ?? []}
-              compact={compact}
-              onChange={(householdMembers) => onDraftChange({ householdMembers })}
-            />
-          )}
+          <AppointmentMembersField
+            titularName={formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName)}
+            members={draft.householdMembers ?? []}
+            phone={draft.customerPhone}
+            adminToken={adminToken}
+            staffToken={staffToken}
+            compact={compact}
+            onChange={(householdMembers) => onDraftChange({ householdMembers })}
+          />
         </>
       )}
 

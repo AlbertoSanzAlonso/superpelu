@@ -472,6 +472,7 @@ export function rowToPublic(row: AppointmentRow & { booking_pattern?: unknown | 
     startTime: row.start_time,
     customerName: row.customer_name,
     customerPhone: row.customer_phone,
+    customerMemberId: row.customer_member_id,
     customerEmail: row.customer_email,
     notes: row.notes,
     status: row.status,

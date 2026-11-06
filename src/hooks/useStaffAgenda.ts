@@ -384,6 +384,7 @@ export function useStaffAgenda(token: string) {
             ...(asGuest || (editingGuestPhone && !aptDraft.customerPhone.trim())
               ? { guestCustomer: true }
               : {}),
+            ...appointmentMemberBooking(aptDraft.householdMembers ?? [], { explicitSelf: true }),
           })
         } else {
           const isMultiTreatmentSeries = filteredIds.length > 1 && aptDraft.recurrenceScope === 'weekly'

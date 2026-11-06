@@ -100,4 +100,8 @@ export type UpdateAppointmentInput = {
   forceSchedule?: boolean
   /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */
   guestCustomer?: boolean
+  /** Si se envía, cambia para quién es la cita. Si falta, se conserva el miembro actual. */
+  appointmentFor?: 'self' | 'other'
+  memberId?: string
+  memberName?: string
 }

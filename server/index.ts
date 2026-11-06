@@ -112,7 +112,17 @@ import {
   lookupCustomerForBooking,
   updateCustomer,
 } from '@server/customers/index.js'
-import { listCustomerMembers, readMemberInputs, syncCustomerMembers } from '@server/customers/members.js'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import {
+  listPendingMemberAppointments,
+  removeCustomerMember,
+} from '@server/customers/memberRemoval.js'
+import {
+  deleteCustomerMember,
+  listCustomerMembers,
+  readMemberInputs,
+  syncCustomerMembers,
+} from '@server/customers/members.js'
 import {
   getBirthdayMessageTemplates,
   setBirthdayMessageTemplates,
@@ -1183,6 +1193,74 @@ app.patch('/api/customers/:phone', async (c) => {
   }
 })
 
+app.delete('/api/customers/:phone/members/:memberId', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const memberId = decodeURIComponent(c.req.param('memberId'))
+  try {
+    await deleteCustomerMember(phone, memberId)
+    return c.json({ ok: true })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    const messages: Record<string, string> = {
+      TELEFONO_INVALIDO: 'Teléfono no válido',
+      MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
+      CITAS_PENDIENTES:
+        'Este miembro tiene citas pendientes. Elige qué hacer con ellas antes de eliminarlo.',
+    }
+    const status = code === 'MIEMBRO_NO_ENCONTRADO' ? 404 : code === 'CITAS_PENDIENTES' ? 409 : 400
+    return c.json({ error: messages[code] ?? 'No se pudo eliminar el miembro', code }, status)
+  }
+})
+
+app.get('/api/customers/:phone/members/:memberId/appointments', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const memberId = decodeURIComponent(c.req.param('memberId'))
+  const appointments = await listPendingMemberAppointments(phone, memberId)
+  return c.json({ appointments })
+})
+
+app.post('/api/customers/:phone/members/:memberId/remove', async (c) => {
+  const auth = c.req.header('Authorization')
+  if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
+  const phone = decodeURIComponent(c.req.param('phone'))
+  const memberId = decodeURIComponent(c.req.param('memberId'))
+  const body = await c.req.json<{
+    action?: 'cancel' | 'titular' | 'member'
+    targetMemberId?: string
+    titularName?: string
+  }>()
+  const customer = await getCustomer(phone)
+  if (!customer) return c.json({ error: 'Cliente no encontrado' }, 404)
+  try {
+    await removeCustomerMember({
+      phone,
+      memberId,
+      titularName:
+        body.titularName?.trim() ||
+        formatCustomerDisplayName(customer.first_name, customer.last_name ?? ''),
+      action: body.action,
+      targetMemberId: body.targetMemberId,
+    })
+    return c.json({ ok: true })
+  } catch (err) {
+    const code = err instanceof Error ? err.message : ''
+    const messages: Record<string, string> = {
+      TELEFONO_INVALIDO: 'Teléfono no válido',
+      MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
+      MIEMBRO_OBJETIVO_INVALIDO: 'Elige otro miembro para esas citas',
+      NOMBRE_INVALIDO: 'Indica al menos el nombre',
+      CITAS_PENDIENTES:
+        'Este miembro tiene citas pendientes. Elige qué hacer con ellas antes de eliminarlo.',
+    }
+    const status = code === 'MIEMBRO_NO_ENCONTRADO' ? 404 : code === 'CITAS_PENDIENTES' ? 409 : 400
+    return c.json({ error: messages[code] ?? 'No se pudo eliminar el miembro', code }, status)
+  }
+})
+
 app.get('/api/admin/birthday-message', async (c) => {
   const auth = c.req.header('Authorization')
   if (!requireAdmin(auth)) return c.json({ error: 'No autorizado' }, 401)
@@ -1352,6 +1430,8 @@ const adminScheduleErrors: Record<string, string> = {
   CITA_NO_ENCONTRADA: 'Cita no encontrada',
   TELEFONO_INVALIDO: 'Teléfono no válido',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
+  MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
+  MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',
@@ -1670,6 +1750,9 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     notifyCustomerWhatsApp?: boolean
     forceSchedule?: boolean
     guestCustomer?: boolean
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>()
   try {
     const row = await updateAppointmentForAdmin(c.req.param('id'), {

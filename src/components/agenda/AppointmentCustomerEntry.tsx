@@ -110,6 +110,8 @@ export function AppointmentCustomerEntry({
           <AppointmentMembersField
             titularName={selectedLabel}
             members={draft.householdMembers ?? []}
+            phone={draft.customerPhone}
+            adminToken={adminToken}
             compact={compact}
             onChange={(householdMembers) => onDraftChange({ householdMembers })}
           />
@@ -156,6 +158,8 @@ export function AppointmentCustomerEntry({
       <AppointmentMembersField
         titularName={selectedLabel}
         members={draft.householdMembers ?? []}
+        phone={draft.customerPhone}
+        adminToken={adminToken}
         compact={compact}
         onChange={(householdMembers) => onDraftChange({ householdMembers })}
       />

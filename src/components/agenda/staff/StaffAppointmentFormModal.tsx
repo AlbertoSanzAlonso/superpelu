@@ -36,6 +36,7 @@ type Props = {
   canMarkNoShow?: boolean
   isNoShow?: boolean
   adminToken?: string
+  staffToken?: string
   /** Origen de la cita al editar: 'backoffice' o 'booking_page'. */
   appointmentOrigin?: string | null
   error?: string
@@ -70,6 +71,7 @@ export function StaffAppointmentFormModal({
   canMarkNoShow,
   isNoShow,
   adminToken,
+  staffToken,
   appointmentOrigin,
   error,
   isSubmitting,
@@ -258,6 +260,7 @@ export function StaffAppointmentFormModal({
             isNoShow={isNoShow}
             hint={hint}
             adminToken={adminToken}
+            staffToken={staffToken}
             isSubmitting={isSubmitting}
             guestWithoutProfile={guestWithoutProfile}
             onCustomerLocaleTouched={onCustomerLocaleTouched}
