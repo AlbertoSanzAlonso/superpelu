@@ -35,16 +35,62 @@ function overlaps(
   return startA < endB && startB < endA
 }
 
+type HouseholdMemberRow = {
+  id: string
+  firstName: string
+  lastName: string
+}
+
 type OccupiedRow = AppointmentRow & {
   category_id: string | null
   booking_pattern: unknown | null
   customer_locale: string | null
   customer_notes: string | null
+  profile_first_name: string | null
+  profile_last_name: string | null
+  household_members: unknown
+}
+
+function readHouseholdMembers(raw: unknown): HouseholdMemberRow[] {
+  const value = typeof raw === 'string' ? safeJson(raw) : raw
+  if (!Array.isArray(value)) return []
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+    const row = item as { id?: unknown; firstName?: unknown; lastName?: unknown }
+    if (typeof row.id !== 'string' || typeof row.firstName !== 'string') return []
+    return [{
+      id: row.id,
+      firstName: row.firstName,
+      lastName: typeof row.lastName === 'string' ? row.lastName : '',
+    }]
+  })
+}
+
+function safeJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw) as unknown
+  } catch {
+    return null
+  }
 }
 
 async function getOccupiedOnDate(date: string, staffId: string): Promise<OccupiedRow[]> {
   return sql<OccupiedRow[]>`
-    SELECT a.*, s.category_id, s.booking_pattern, c.locale AS customer_locale, c.notes AS customer_notes
+    SELECT a.*, s.category_id, s.booking_pattern,
+      c.locale AS customer_locale, c.notes AS customer_notes,
+      c.first_name AS profile_first_name, c.last_name AS profile_last_name,
+      COALESCE((
+        SELECT json_agg(
+          json_build_object(
+            'id', cm.id,
+            'firstName', cm.first_name,
+            'lastName', COALESCE(cm.last_name, '')
+          )
+          ORDER BY cm.created_at ASC, cm.first_name ASC
+        )
+        FROM customer_members cm
+        WHERE cm.phone = a.customer_phone
+      ), '[]'::json) AS household_members
     FROM appointments a
     LEFT JOIN services s ON s.id = a.service_id
     LEFT JOIN customers c ON c.phone = a.customer_phone
@@ -66,6 +112,13 @@ export type DayScheduleAppointment = {
   customerName: string
   customerPhone: string
   customerEmail: string | null
+  /** Titular de la ficha. Null si la cita no tiene cliente registrado. */
+  profileFirstName: string | null
+  profileLastName: string | null
+  /** Miembro del teléfono si la cita no es para el titular. */
+  customerMemberId: string | null
+  /** Otras personas del mismo teléfono. */
+  householdMembers: HouseholdMemberRow[]
   customerNotes: string | null
   customerLocale: 'es' | 'en'
   notes: string | null
@@ -161,6 +214,10 @@ export async function getStaffDaySchedule(
       customerName: row.customer_name,
       customerPhone: row.customer_phone,
       customerEmail: row.customer_email,
+      profileFirstName: row.profile_first_name,
+      profileLastName: row.profile_last_name,
+      customerMemberId: row.customer_member_id,
+      householdMembers: readHouseholdMembers(row.household_members),
       customerNotes: row.customer_notes,
       customerLocale: row.customer_locale === 'en' ? 'en' : 'es',
       notes: row.notes,

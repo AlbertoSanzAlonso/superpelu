@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type AnimationEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { BrandWatermark } from '@/components/ui/BrandWatermark'
 import { Button } from '@/components/ui/Button'
@@ -11,35 +11,64 @@ import {
 } from '@/lib/cookieConsent'
 import { typography } from '@/styles/typography'
 
+type BannerPhase = 'hidden' | 'enter' | 'leave'
+
+const EXIT_FALLBACK_MS = 720
+
+function prefersReducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export function CookieConsentBanner() {
   const { t } = useTranslation()
   const { pathname } = useLocation()
   const titleId = useId()
   const descId = useId()
-  const [visible, setVisible] = useState(false)
+  const [phase, setPhase] = useState<BannerPhase>('hidden')
 
   useEffect(() => {
-    if (!shouldShowCookieConsentBanner(pathname)) {
-      setVisible(false)
+    const shouldShow = shouldShowCookieConsentBanner(pathname) && readCookieConsent() === null
+    if (shouldShow) {
+      setPhase('enter')
       return
     }
-    setVisible(readCookieConsent() === null)
+    setPhase((current) => (current === 'enter' ? 'leave' : current))
   }, [pathname])
 
-  if (!visible) return null
+  useEffect(() => {
+    if (phase !== 'leave') return
+    if (prefersReducedMotion()) {
+      setPhase('hidden')
+      return
+    }
+    const fallback = window.setTimeout(() => setPhase('hidden'), EXIT_FALLBACK_MS)
+    return () => window.clearTimeout(fallback)
+  }, [phase])
+
+  if (phase === 'hidden') return null
 
   const dismiss = (choice: CookieConsentChoice) => {
+    if (phase !== 'enter') return
     writeCookieConsent(choice)
-    setVisible(false)
+    setPhase('leave')
+  }
+
+  const onAnimationEnd = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget) return
+    if (event.animationName !== 'cookieConsentLeave') return
+    if (phase !== 'leave') return
+    setPhase('hidden')
   }
 
   return (
     <div
-      className="cookie-consent-enter fixed inset-x-0 bottom-0 z-[80] p-3 sm:p-4"
+      className={`${phase === 'leave' ? 'cookie-consent-leave' : 'cookie-consent-enter'} fixed inset-x-0 bottom-0 z-[80] p-3 sm:p-4`}
       role="dialog"
       aria-modal="false"
+      aria-hidden={phase === 'leave'}
       aria-labelledby={titleId}
       aria-describedby={descId}
+      onAnimationEnd={onAnimationEnd}
     >
       <div className="relative mx-auto max-w-5xl overflow-hidden border border-gold/30 bg-cream-footer/95 shadow-[0_-12px_40px_-20px_rgba(44,40,37,0.35)] backdrop-blur-md">
         <div

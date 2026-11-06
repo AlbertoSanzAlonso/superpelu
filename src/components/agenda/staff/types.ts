@@ -1,8 +1,16 @@
-import { splitCustomerName } from '@/lib/customer/name'
+import { formatCustomerDisplayName, splitCustomerName } from '@/lib/customer/name'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
 import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
+
+export type HouseholdMemberDraft = {
+  id: string
+  firstName: string
+  lastName: string
+  /** Esta cita es para esta persona, no para el titular. */
+  attendee: boolean
+}
 
 export type AppointmentDraft = {
   serviceIds: string[]
@@ -25,6 +33,8 @@ export type AppointmentDraft = {
   notes: string
   /** Idioma en ficha del cliente (`customers.locale`). */
   customerLocale: Locale
+  /** Personas del mismo teléfono. `attendee` es quien viene a esta cita. */
+  householdMembers: HouseholdMemberDraft[]
   recurrenceScope: AppointmentRecurrenceScope
   recurrenceEndDate: string
 }
@@ -43,8 +53,63 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
   customerNotes: '',
   notes: '',
   customerLocale: 'es',
+  householdMembers: [],
   recurrenceScope: 'single',
   recurrenceEndDate: '',
+}
+
+export function householdMembersForAppointment(
+  members: { id: string; firstName: string; lastName: string }[],
+  attendeeId: string | null | undefined,
+  attendeeNameFallback = '',
+): HouseholdMemberDraft[] {
+  const list = members.map((member) => ({
+    id: member.id,
+    firstName: member.firstName,
+    lastName: member.lastName,
+    attendee: Boolean(attendeeId) && member.id === attendeeId,
+  }))
+  if (attendeeId && !list.some((member) => member.attendee)) {
+    const split = splitCustomerName(attendeeNameFallback)
+    if (split.firstName) {
+      list.push({
+        id: attendeeId,
+        firstName: split.firstName,
+        lastName: split.lastName,
+        attendee: true,
+      })
+    }
+  }
+  return list
+}
+
+export const NEW_MEMBER_ID_PREFIX = 'new:'
+
+/** Datos de miembro para crear la cita: vacío si la visita es del titular. */
+export function appointmentMemberBooking(members: HouseholdMemberDraft[]): {
+  appointmentFor?: 'other'
+  memberId?: string
+  memberName?: string
+} {
+  const attendee = members.find((member) => member.attendee)
+  if (!attendee) return {}
+  const name = formatCustomerDisplayName(attendee.firstName, attendee.lastName)
+  if (!name) return {}
+  if (attendee.id.startsWith(NEW_MEMBER_ID_PREFIX)) {
+    return { appointmentFor: 'other', memberName: name }
+  }
+  return { appointmentFor: 'other', memberId: attendee.id }
+}
+
+export function formatHouseholdMembersField(members: HouseholdMemberDraft[]): string {
+  return members
+    .map((member) => {
+      const name = formatCustomerDisplayName(member.firstName, member.lastName)
+      if (!name) return ''
+      return member.attendee ? `${name} (esta cita)` : name
+    })
+    .filter(Boolean)
+    .join(', ')
 }
 
 export function appointmentToDraft(
@@ -59,15 +124,25 @@ export function appointmentToDraft(
   /** Fecha de la cita (YYYY-MM-DD). Se usa para permitir cambiarla al editar. */
   appointmentDate?: string,
 ): AppointmentDraft {
-  const { firstName, lastName } = splitCustomerName(apt.customerName)
+  const profileFirstName = apt.profileFirstName?.trim() ?? ''
+  const profileLastName = apt.profileLastName?.trim() ?? ''
+  const hasProfile = profileFirstName.length > 0
+  const snapshot = hasProfile
+    ? { firstName: profileFirstName, lastName: profileLastName }
+    : splitCustomerName(apt.customerName)
   const base = {
-    customerFirstName: firstName,
-    customerLastName: lastName,
+    customerFirstName: snapshot.firstName,
+    customerLastName: snapshot.lastName,
     customerPhone: isGuestCustomerPhone(apt.customerPhone) ? '' : apt.customerPhone,
     customerEmail: apt.customerEmail ?? customerProfile?.email ?? '',
     customerNotes: customerProfile?.notes ?? apt.customerNotes ?? '',
     notes: apt.notes ?? '',
     customerLocale: normalizeLocale(customerProfile?.locale ?? apt.customerLocale),
+    householdMembers: householdMembersForAppointment(
+      apt.householdMembers ?? [],
+      apt.customerMemberId,
+      apt.customerName,
+    ),
     recurrenceScope: 'single' as AppointmentRecurrenceScope,
     recurrenceEndDate: '',
     date: appointmentDate ?? '',

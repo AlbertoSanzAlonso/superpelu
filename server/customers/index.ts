@@ -656,11 +656,19 @@ export async function upsertCustomerForBooking(input: {
     updateSource: CUSTOMER_UPDATE_SOURCES.agenda,
   })
   const profile = (await getCustomer(customer.phone))!
+  const attendee = await planBookingMember({
+    phone: profile.phone,
+    primaryFirstName: profile.first_name,
+    primaryLastName: profile.last_name ?? '',
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
+  })
   return {
     phone: profile.phone,
-    nameSnapshot: customerNameSnapshot(profile.first_name, profile.last_name ?? ''),
+    nameSnapshot: attendee.nameSnapshot,
     profile,
-    memberLink: null,
+    memberLink: attendee.memberLink,
   }
 }
 

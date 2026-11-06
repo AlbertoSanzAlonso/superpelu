@@ -423,14 +423,31 @@ const es = {
       'Hola, quiero reservar mechas o balayage en SuperPelu Benalmádena',
   },
   whatsappAppointment: {
-    greeting: (name: string) => `Hola ${name}, 👋`,
-    confirmationHeading: 'Tu cita en *Superpelu* está confirmada:',
-    rescheduledHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
-    visitUpdatedHeading: 'Tu cita en *Superpelu* ha sido *modificada*:',
-    reminderHeading: 'Te recordamos tu próxima cita en *Superpelu*:',
-    cancelledHeading: 'Tu cita en *Superpelu* ha sido *cancelada*:',
-    noShowHeading:
-      'Tenías una cita en *Superpelu* y no hemos podido verte. Te echamos de menos y nos preocupa por si te hubiera pasado algo:',
+    greeting: (name: string) => `Hola, ${name} 👋`,
+    confirmationHeading: (memberName?: string | null) =>
+      memberName
+        ? `La cita para *${memberName}* en *Superpelu* está confirmada:`
+        : 'Tu cita en *Superpelu* está confirmada:',
+    rescheduledHeading: (memberName?: string | null) =>
+      memberName
+        ? `La cita para *${memberName}* en *Superpelu* ha sido *modificada*:`
+        : 'Tu cita en *Superpelu* ha sido *modificada*:',
+    visitUpdatedHeading: (memberName?: string | null) =>
+      memberName
+        ? `La cita para *${memberName}* en *Superpelu* ha sido *modificada*:`
+        : 'Tu cita en *Superpelu* ha sido *modificada*:',
+    reminderHeading: (memberName?: string | null) =>
+      memberName
+        ? `Te recordamos la cita para *${memberName}* en *Superpelu*:`
+        : 'Te recordamos tu próxima cita en *Superpelu*:',
+    cancelledHeading: (memberName?: string | null) =>
+      memberName
+        ? `La cita para *${memberName}* en *Superpelu* ha sido *cancelada*:`
+        : 'Tu cita en *Superpelu* ha sido *cancelada*:',
+    noShowHeading: (memberName?: string | null) =>
+      memberName
+        ? `La cita para *${memberName}* en *Superpelu* no se pudo realizar. Te echamos de menos y nos preocupa por si hubiera pasado algo:`
+        : 'Tenías una cita en *Superpelu* y no hemos podido verte. Te echamos de menos y nos preocupa por si te hubiera pasado algo:',
     withStaff: (name: string) => `👤 Con ${name}`,
     treatmentsHeading: 'Servicios de tu visita:',
     manageLinkLabel: '📋 Cancelar / modificar cita:',
@@ -1052,14 +1069,31 @@ const en = {
       'Hello, I would like to book highlights or balayage at SuperPelu Benalmádena',
   },
   whatsappAppointment: {
-    greeting: (name: string) => `Hello ${name}, 👋`,
-    confirmationHeading: 'Your appointment at *Superpelu* is confirmed:',
-    rescheduledHeading: 'Your appointment at *Superpelu* has been *modified*:',
-    visitUpdatedHeading: 'Your appointment at *Superpelu* has been *modified*:',
-    reminderHeading: 'Reminder: your next appointment at *Superpelu*:',
-    cancelledHeading: 'Your appointment at *Superpelu* has been *cancelled*:',
-    noShowHeading:
-      'You had an appointment at *Superpelu* and we missed you. We are worried in case something happened:',
+    greeting: (name: string) => `Hello, ${name} 👋`,
+    confirmationHeading: (memberName?: string | null) =>
+      memberName
+        ? `The appointment for *${memberName}* at *Superpelu* is confirmed:`
+        : 'Your appointment at *Superpelu* is confirmed:',
+    rescheduledHeading: (memberName?: string | null) =>
+      memberName
+        ? `The appointment for *${memberName}* at *Superpelu* has been *modified*:`
+        : 'Your appointment at *Superpelu* has been *modified*:',
+    visitUpdatedHeading: (memberName?: string | null) =>
+      memberName
+        ? `The appointment for *${memberName}* at *Superpelu* has been *modified*:`
+        : 'Your appointment at *Superpelu* has been *modified*:',
+    reminderHeading: (memberName?: string | null) =>
+      memberName
+        ? `Reminder: the appointment for *${memberName}* at *Superpelu*:`
+        : 'Reminder: your next appointment at *Superpelu*:',
+    cancelledHeading: (memberName?: string | null) =>
+      memberName
+        ? `The appointment for *${memberName}* at *Superpelu* has been *cancelled*:`
+        : 'Your appointment at *Superpelu* has been *cancelled*:',
+    noShowHeading: (memberName?: string | null) =>
+      memberName
+        ? `The appointment for *${memberName}* at *Superpelu* did not happen. We missed you and we are worried in case something happened:`
+        : 'You had an appointment at *Superpelu* and we missed you. We are worried in case something happened:',
     withStaff: (name: string) => `👤 With ${name}`,
     treatmentsHeading: 'Services in your visit:',
     manageLinkLabel: '📋 Cancel or change appointment:',

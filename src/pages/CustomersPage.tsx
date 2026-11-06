@@ -347,30 +347,33 @@ export function CustomersPage() {
   return (
     <AgendaWorkspaceShell>
       <CustomersWorkspaceHeader onLogout={handleLogout}>
-        <Link
-          to="/clientes/citas"
-          className={`${customersWorkspaceLinkClass} w-full justify-center sm:w-auto`}
-        >
-          Historial de citas
-        </Link>
-        <Button
-          type="button"
-          variant="solid"
-          size="sm"
-          className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
-          onClick={() => setCreateOpen(true)}
-        >
-          Cliente nuevo
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
-          onClick={() => setBirthdayMessageOpen(true)}
-        >
-          Felicitación cumpleaños
-        </Button>
+        <div className="flex w-full min-w-0 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="solid"
+              size="sm"
+              className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
+              onClick={() => setCreateOpen(true)}
+            >
+              + Nuevo cliente
+            </Button>
+            <Link
+              to="/clientes/citas"
+              className={`${customersWorkspaceLinkClass} w-full justify-center sm:w-auto`}
+            >
+              Historial de citas
+            </Link>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={`${customersWorkspaceButtonClass} w-full sm:w-auto`}
+              onClick={() => setBirthdayMessageOpen(true)}
+            >
+              Felicitación cumpleaños
+            </Button>
+          </div>
         <form
           className="flex w-full min-w-0 flex-col gap-3 sm:max-w-none sm:flex-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-3"
           onSubmit={(e) => {
@@ -449,6 +452,7 @@ export function CustomersPage() {
             Buscar
           </Button>
         </form>
+        </div>
       </CustomersWorkspaceHeader>
 
       {error && (

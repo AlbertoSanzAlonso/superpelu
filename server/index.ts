@@ -1576,6 +1576,9 @@ app.post('/api/schedule/appointments', async (c) => {
     conflictResolutions?: { date: string; action: 'skip' | 'reassign' | 'reschedule'; staffId?: string; startTime?: string }[]
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (
@@ -1621,6 +1624,9 @@ app.post('/api/schedule/appointments', async (c) => {
       conflictResolutions: body.conflictResolutions,
       guestCustomer: body.guestCustomer,
       notifyCustomerWhatsApp: body.notifyCustomerWhatsApp === true,
+      appointmentFor: body.appointmentFor,
+      memberId: body.memberId,
+      memberName: body.memberName,
     })
     const grouped =
       row.booking_group_id != null

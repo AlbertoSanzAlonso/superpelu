@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   appointmentToDraft,
+  householdMembersForAppointment,
   EMPTY_APPOINTMENT_DRAFT,
   type AppointmentDraft,
 } from '@/components/agenda/staff/types'
@@ -371,6 +372,13 @@ export function useAdminAgendaAppointments({
               { email: detail.customer.email, notes: detail.customer.notes, locale: detail.customer.locale },
               siblings,
               date,
+            ),
+            customerFirstName: detail.customer.firstName,
+            customerLastName: detail.customer.lastName,
+            householdMembers: householdMembersForAppointment(
+              detail.customer.members ?? [],
+              apt.customerMemberId,
+              apt.customerName,
             ),
             notes: prev.notes,
             serviceIds: prev.serviceIds,

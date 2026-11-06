@@ -217,6 +217,9 @@ me.post('/me/appointments', async (c) => {
     conflictResolutions?: import('@server/appointments/recurringChain.js').SeriesConflictResolution[]
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (ids.length === 0 || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
@@ -253,6 +256,9 @@ me.post('/me/appointments', async (c) => {
       conflictResolutions: body.conflictResolutions,
       guestCustomer: body.guestCustomer,
       notifyCustomerWhatsApp: body.notifyCustomerWhatsApp === true,
+      appointmentFor: body.appointmentFor,
+      memberId: body.memberId,
+      memberName: body.memberName,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {

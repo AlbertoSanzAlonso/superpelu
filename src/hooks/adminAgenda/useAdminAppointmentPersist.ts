@@ -5,7 +5,7 @@ import {
   previewSeriesConflicts,
   updateAdminAppointment,
 } from '@/lib/api'
-import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { appointmentMemberBooking, type AppointmentDraft } from '@/components/agenda/staff/types'
 import type { StaffDaySchedule } from '@/types/booking'
 import type {
   SeriesPreviewResult,
@@ -221,6 +221,7 @@ export function useAdminAppointmentPersist({
               forceSchedule: true,
               ...(guestCustomer ? { guestCustomer: true } : {}),
               ...(notifyCustomerWhatsApp === true ? { notifyCustomerWhatsApp: true } : {}),
+              ...appointmentMemberBooking(aptDraft.householdMembers ?? []),
             },
             adminToken,
           )
@@ -278,6 +279,13 @@ export function useAdminAppointmentPersist({
       if (!activeStaffId || !adminToken) return false
       if (!aptDraft.customerFirstName.trim()) {
         setError('Indica el nombre del cliente')
+        return false
+      }
+      if (
+        appointmentMemberBooking(aptDraft.householdMembers ?? []).appointmentFor === 'other' &&
+        !aptDraft.customerPhone.trim()
+      ) {
+        setError('Indica un teléfono para guardar el miembro')
         return false
       }
       if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
@@ -346,6 +354,7 @@ export function useAdminAppointmentPersist({
       aptDraft.customerNotes,
       aptDraft.customerLocale,
       aptDraft.customerFirstName,
+      aptDraft.householdMembers,
       persistAppointment,
       setWhatsAppNotifyDialogOpen,
       setWhatsAppNotifyContext,
@@ -496,6 +505,7 @@ export function useAdminAppointmentPersist({
             ...(pendingNotifyWhatsAppRef.current === true
               ? { notifyCustomerWhatsApp: true }
               : {}),
+            ...appointmentMemberBooking(aptDraft.householdMembers ?? []),
           },
           adminToken,
         )

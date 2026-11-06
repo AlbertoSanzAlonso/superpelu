@@ -1,5 +1,8 @@
 import type { AppointmentRow } from '@server/db.js'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { getCustomer } from '@server/customers/index.js'
+import { getCustomerMember } from '@server/customers/members.js'
 import {
   localizeAppointmentsForCustomer,
   resolveCustomerFacingLocale,
@@ -30,6 +33,29 @@ async function localizeWhatsAppRows(
   return { row: localizedRow!, groupRows: localizedGroup }
 }
 
+async function resolveWhatsAppAddressee(row: AppointmentRow): Promise<{
+  principalFirstName: string
+  memberName: string | null
+}> {
+  const customer = isGuestCustomerPhone(row.customer_phone)
+    ? undefined
+    : await getCustomer(row.customer_phone)
+  const principalFirstName =
+    customer?.first_name.trim() ||
+    row.customer_name.trim().split(/\s+/)[0] ||
+    row.customer_name
+
+  if (!row.customer_member_id) {
+    return { principalFirstName, memberName: null }
+  }
+
+  const member = await getCustomerMember(row.customer_phone, row.customer_member_id)
+  const memberName = member
+    ? formatCustomerDisplayName(member.firstName, member.lastName)
+    : row.customer_name.trim()
+  return { principalFirstName, memberName: memberName || null }
+}
+
 async function sendCustomerWhatsApp(
   row: AppointmentRow,
   text: string,
@@ -46,9 +72,11 @@ export async function buildAppointmentReminderMessage(row: AppointmentRow): Prom
     ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
     : undefined
   const localized = await localizeWhatsAppRows(row, groupRows)
+  const addressee = await resolveWhatsAppAddressee(localized.row)
   return buildWhatsAppAppointmentMessage(localized.row, 'reminder', {
     manageUrl: buildManageUrl(localized.row),
     groupRows: localized.groupRows,
+    ...addressee,
   })
 }
 
@@ -57,9 +85,11 @@ export async function buildAppointmentCancelledMessage(
   groupRows?: AppointmentRow[],
 ): Promise<string> {
   const localized = await localizeWhatsAppRows(row, groupRows)
+  const addressee = await resolveWhatsAppAddressee(localized.row)
   return buildWhatsAppAppointmentMessage(localized.row, 'cancelled', {
     bookingUrl: buildBookingUrl(),
     groupRows: localized.groupRows,
+    ...addressee,
   })
 }
 
@@ -74,16 +104,20 @@ export async function buildAppointmentVisitUpdatedMessage(
       )
     : undefined
   const localized = await localizeWhatsAppRows(row, groupRows)
+  const addressee = await resolveWhatsAppAddressee(localized.row)
   return buildWhatsAppAppointmentMessage(localized.row, 'updated', {
     manageUrl: buildManageUrl(localized.row),
     groupRows: localized.groupRows,
+    ...addressee,
   })
 }
 
 export async function buildAppointmentNoShowMessage(row: AppointmentRow): Promise<string> {
   const localized = await localizeWhatsAppRows(row)
+  const addressee = await resolveWhatsAppAddressee(localized.row)
   return buildWhatsAppAppointmentMessage(localized.row, 'no_show', {
     bookingUrl: buildBookingUrl(),
+    ...addressee,
   })
 }
 
@@ -94,9 +128,11 @@ export async function buildAppointmentConfirmationMessage(
     ? filterWhatsAppBookingGroupRows(await getAppointmentsByBookingGroup(row.booking_group_id))
     : undefined
   const localized = await localizeWhatsAppRows(row, groupRows)
+  const addressee = await resolveWhatsAppAddressee(localized.row)
   return buildWhatsAppAppointmentMessage(localized.row, 'confirmation', {
     manageUrl: buildManageUrl(localized.row),
     groupRows: localized.groupRows,
+    ...addressee,
   })
 }
 
@@ -126,8 +162,9 @@ export async function notifyAppointmentCreated(row: AppointmentRow): Promise<voi
   if (isColorGroupWashRow(row.color_group_role)) return
   if (isGuestCustomerPhone(row.customer_phone)) return
 
-  const text = await buildAppointmentConfirmationMessage(row)
-  const messageId = await sendCustomerWhatsApp(row, text)
+  const fresh = (await getAppointmentById(row.id)) ?? row
+  const text = await buildAppointmentConfirmationMessage(fresh)
+  const messageId = await sendCustomerWhatsApp(fresh, text)
   console.log(
     `Superpelu WhatsApp: confirmación de reserva a ${row.customer_phone}${messageId ? ` (${messageId})` : ''}`,
   )

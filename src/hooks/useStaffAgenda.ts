@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  appointmentMemberBooking,
   appointmentToDraft,
   EMPTY_APPOINTMENT_DRAFT,
   type AppointmentDraft,
@@ -438,6 +439,7 @@ export function useStaffAgenda(token: string) {
             ...(conflictResolutions ? { conflictResolutions } : {}),
             ...(asGuest ? { guestCustomer: true } : {}),
             ...(notifyFlag === true ? { notifyCustomerWhatsApp: true } : {}),
+            ...appointmentMemberBooking(aptDraft.householdMembers ?? []),
           })
         }
         setWhatsAppNotifyDialogOpen(false)
@@ -484,6 +486,13 @@ export function useStaffAgenda(token: string) {
       setError('')
       if (!aptDraft.customerFirstName.trim()) {
         setError('Indica el nombre del cliente')
+        return false
+      }
+      if (
+        appointmentMemberBooking(aptDraft.householdMembers ?? []).appointmentFor === 'other' &&
+        !aptDraft.customerPhone.trim()
+      ) {
+        setError('Indica un teléfono para guardar el miembro')
         return false
       }
       if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
@@ -538,6 +547,7 @@ export function useStaffAgenda(token: string) {
       aptDraft.customerNotes,
       aptDraft.customerLocale,
       aptDraft.customerFirstName,
+      aptDraft.householdMembers,
       openWhatsAppNotifyForCreate,
     ],
   )

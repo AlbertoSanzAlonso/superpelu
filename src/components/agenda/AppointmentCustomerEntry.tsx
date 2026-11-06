@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
+import { AppointmentMembersField } from '@/components/agenda/AppointmentMembersField'
 import { CustomerNotesWarningModal } from '@/components/agenda/CustomerNotesWarningModal'
 import { CustomerSearchPicker } from '@/components/customers/CustomerSearchPicker'
-import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { householdMembersForAppointment, type AppointmentDraft } from '@/components/agenda/staff/types'
 import { markCustomerNotesAcknowledged } from '@/lib/agenda/customerNotesWarning'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
@@ -19,6 +20,7 @@ const CLEAR_CUSTOMER_PATCH: Partial<AppointmentDraft> = {
   customerEmail: '',
   customerNotes: '',
   customerLocale: 'es',
+  householdMembers: [],
 }
 
 function customerToDraftPatch(customer: CustomerDetail['customer']): Partial<AppointmentDraft> {
@@ -29,6 +31,7 @@ function customerToDraftPatch(customer: CustomerDetail['customer']): Partial<App
     customerEmail: customer.email ?? '',
     customerNotes: customer.notes ?? '',
     customerLocale: normalizeLocale(customer.locale),
+    householdMembers: householdMembersForAppointment(customer.members ?? [], null),
   }
 }
 
@@ -102,7 +105,16 @@ export function AppointmentCustomerEntry({
               ✕
             </button>
           </div>
-        ) : (
+        ) : null}
+        {hasSelection && (
+          <AppointmentMembersField
+            titularName={selectedLabel}
+            members={draft.householdMembers ?? []}
+            compact={compact}
+            onChange={(householdMembers) => onDraftChange({ householdMembers })}
+          />
+        )}
+        {!hasSelection && (
           <>
             <CustomerSearchPicker adminToken={adminToken} onSelect={selectExisting} />
             <button type="button" onClick={openManual} className={customerEntryActionClass}>
@@ -138,7 +150,14 @@ export function AppointmentCustomerEntry({
         onDraftChange={onDraftChange}
         compact={compact}
         allowOptionalPhone
+        hideMembers
         onCustomerLocaleTouched={onCustomerLocaleTouched}
+      />
+      <AppointmentMembersField
+        titularName={selectedLabel}
+        members={draft.householdMembers ?? []}
+        compact={compact}
+        onChange={(householdMembers) => onDraftChange({ householdMembers })}
       />
       <CustomerNotesWarningModal
         open={notesWarning != null}

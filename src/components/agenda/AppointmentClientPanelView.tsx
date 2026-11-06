@@ -4,7 +4,7 @@ import {
   customerHistoryModalTitle,
 } from '@/components/customers/CustomerAppointmentHistoryModal'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
-import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import { formatHouseholdMembersField, type AppointmentDraft } from '@/components/agenda/staff/types'
 import { dash, whatsappHref } from '@/components/agenda/appointmentModalUtils'
 import { Button } from '@/components/ui/Button'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
@@ -35,6 +35,7 @@ export function AppointmentClientPanelView({
     draft.customerFirstName,
     draft.customerLastName,
   )
+  const membersLabel = formatHouseholdMembersField(draft.householdMembers ?? [])
   const phone = draft.customerPhone
   const showContactActions = Boolean(phone.trim()) && !isGuestCustomerPhone(phone)
   const showOrigin = appointmentOrigin !== undefined
@@ -97,6 +98,12 @@ export function AppointmentClientPanelView({
           <div>
             <dt className={typography.label}>Reservada desde</dt>
             <dd className="mt-0.5">{originText}</dd>
+          </div>
+        )}
+        {membersLabel && (
+          <div>
+            <dt className={typography.label}>Miembros</dt>
+            <dd className="mt-0.5">{membersLabel}</dd>
           </div>
         )}
         <div>

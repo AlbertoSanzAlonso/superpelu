@@ -1,6 +1,9 @@
 import { CustomerLocaleSelect } from '@/components/customers/CustomerLocaleSelect'
 import { Input, Textarea } from '@/components/ui/Input'
-import type { AppointmentDraft } from '@/components/agenda/staff/types'
+import {
+  formatHouseholdMembersField,
+  type AppointmentDraft,
+} from '@/components/agenda/staff/types'
 
 const fieldCompact = '!px-3 !py-2'
 
@@ -17,6 +20,8 @@ type Props = {
   allowOptionalPhone?: boolean
   /** El personal cambió el idioma del cliente a propósito. */
   onCustomerLocaleTouched?: () => void
+  /** El formulario de alta muestra los miembros en su propio bloque. */
+  hideMembers?: boolean
 }
 
 export function AppointmentCustomerFields({
@@ -28,8 +33,10 @@ export function AppointmentCustomerFields({
   guestWithoutProfile = false,
   allowOptionalPhone = false,
   onCustomerLocaleTouched,
+  hideMembers = false,
 }: Props) {
   const phoneOptional = guestWithoutProfile || allowOptionalPhone
+  const membersLabel = formatHouseholdMembersField(draft.householdMembers ?? [])
 
   return (
     <div className="space-y-3">
@@ -77,6 +84,20 @@ export function AppointmentCustomerFields({
           autoComplete="email"
         />
       </div>
+      {!hideMembers && membersLabel && (
+        <div>
+          <Input
+            label="Miembros"
+            value={membersLabel}
+            readOnly
+            tabIndex={-1}
+            className={`${compact ? fieldCompact : ''} cursor-default`}
+          />
+          <p className="mt-1 text-xs text-charcoal-muted">
+            Nombre y apellidos son el titular de la ficha.
+          </p>
+        </div>
+      )}
       {showCustomerNotes && (
         <Textarea
           label="Observaciones del cliente (ficha)"

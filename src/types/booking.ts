@@ -82,6 +82,13 @@ export type DayScheduleAppointment = {
   customerName: string
   customerPhone: string
   customerEmail: string | null
+  /** Titular de la ficha. Ausente si la cita no tiene cliente registrado. */
+  profileFirstName?: string | null
+  profileLastName?: string | null
+  /** Miembro del teléfono si la cita no es para el titular. */
+  customerMemberId?: string | null
+  /** Otras personas del mismo teléfono. */
+  householdMembers?: { id: string; firstName: string; lastName: string }[]
   /** Notas en ficha del cliente (`customers.notes`), si existe el teléfono en el listado. */
   customerNotes?: string | null
   /** Idioma en ficha del cliente (`customers.locale`). */

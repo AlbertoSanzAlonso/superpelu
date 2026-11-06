@@ -52,25 +52,33 @@ export function buildWhatsAppAppointmentMessage(
     manageUrl?: string | null
     bookingUrl?: string | null
     groupRows?: AppointmentRow[]
+    /** Nombre del titular. Si falta, se usa el de la cita. */
+    principalFirstName?: string | null
+    /** Nombre del miembro si la cita no es para el titular. */
+    memberName?: string | null
   },
 ): string {
   const locale = appointmentLocale(row)
   const wa = getTranslation(locale).whatsappAppointment
-  const firstName = row.customer_name.trim().split(/\s+/)[0] || row.customer_name
+  const firstName =
+    options?.principalFirstName?.trim() ||
+    row.customer_name.trim().split(/\s+/)[0] ||
+    row.customer_name
+  const memberName = options?.memberName?.trim() || null
   const groupRows = resolveGroupRows(row, options?.groupRows)
 
   const heading =
     kind === 'confirmation'
-      ? wa.confirmationHeading
+      ? wa.confirmationHeading(memberName)
       : kind === 'rescheduled'
-        ? wa.rescheduledHeading
+        ? wa.rescheduledHeading(memberName)
         : kind === 'updated'
-          ? wa.visitUpdatedHeading
+          ? wa.visitUpdatedHeading(memberName)
           : kind === 'reminder'
-            ? wa.reminderHeading
+            ? wa.reminderHeading(memberName)
             : kind === 'no_show'
-              ? wa.noShowHeading
-              : wa.cancelledHeading
+              ? wa.noShowHeading(memberName)
+              : wa.cancelledHeading(memberName)
 
   const dateLabel = formatDisplayDate(row.appointment_date, locale)
   const visitStart = groupRows[0]?.start_time ?? row.start_time

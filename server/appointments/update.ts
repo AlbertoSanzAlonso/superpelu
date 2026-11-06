@@ -1,4 +1,5 @@
 import { sql, type AppointmentRow } from "@server/db.js"
+import { normalizePhone } from "@/lib/customer/phone"
 import { getService } from "@server/catalog/services.js"
 import { serviceDisplayName } from "@/i18n/localeHelpers"
 import { resolveCustomerFacingLocale } from "@server/appointments/bookingLocale.js"
@@ -21,6 +22,54 @@ import { isValidDateString, minutesToTime, timeToMinutes } from "@server/appoint
 import type { UpdateAppointmentInput } from "@server/appointments/types.js"
 import { createAppointment } from "@server/appointments/create.js"
 export type { UpdateAppointmentInput } from "@server/appointments/types.js"
+
+/** La cita de un miembro conserva su nombre; el formulario edita al titular. */
+function attendeeNameSnapshot(
+  existing: AppointmentRow,
+  resolvedName: string,
+  resolvedPhone: string,
+): string {
+  if (!existing.customer_member_id) return resolvedName
+  if (normalizePhone(resolvedPhone) !== normalizePhone(existing.customer_phone)) return resolvedName
+  return existing.customer_name
+}
+
+async function restoreMemberVisit(created: AppointmentRow, existing: AppointmentRow): Promise<void> {
+  if (!existing.customer_member_id) return
+  if (normalizePhone(created.customer_phone) !== normalizePhone(existing.customer_phone)) return
+  const memberId = existing.customer_member_id
+  const name = existing.customer_name
+  await sql`
+    UPDATE appointments SET
+      customer_name = ${name},
+      customer_member_id = ${memberId}
+    WHERE id = ${created.id}
+  `
+  if (created.booking_group_id) {
+    await sql`
+      UPDATE appointments SET
+        customer_name = ${name},
+        customer_member_id = ${memberId}
+      WHERE booking_group_id = ${created.booking_group_id}
+    `
+  }
+  if (created.color_group_id) {
+    await sql`
+      UPDATE appointments SET
+        customer_name = ${name},
+        customer_member_id = ${memberId}
+      WHERE color_group_id = ${created.color_group_id}
+    `
+  }
+  if (created.series_id) {
+    await sql`
+      UPDATE appointments SET
+        customer_name = ${name},
+        customer_member_id = ${memberId}
+      WHERE series_id = ${created.series_id}
+    `
+  }
+}
 
 function servicesDiffer(
   existing: AppointmentRow,
@@ -129,8 +178,8 @@ export async function updateAppointmentForStaff(
       existingPhone: existing.customer_phone,
       existingEmail: existing.customer_email,
     })
-    nameSnapshot = resolved.nameSnapshot
     customerPhone = resolved.customerPhone
+    nameSnapshot = attendeeNameSnapshot(existing, resolved.nameSnapshot, customerPhone)
   }
 
   // Reprogramación: si la nueva fecha/hora queda a más de 24h, reactivar el
@@ -329,12 +378,17 @@ async function replaceAppointment(
     skipCustomerWhatsApp: true,
   })
 
+  await restoreMemberVisit(created, existing)
+  const saved = existing.customer_member_id
+    ? ((await getAppointmentById(created.id)) ?? created)
+    : created
+
   if (input.notifyCustomerWhatsApp === true) {
-    void notifyAppointmentUpdated(created).catch((err) => {
+    void notifyAppointmentUpdated(saved).catch((err) => {
       console.error('Superpelu WhatsApp (cita modificada):', err)
     })
   }
-  return created
+  return saved
 }
 
 export async function updateAppointmentForAdmin(

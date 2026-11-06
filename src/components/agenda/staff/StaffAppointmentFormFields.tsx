@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/Input'
 import { ServiceCategoryPicker } from '@/components/shared/ServiceCategoryPicker'
 import { AppointmentCustomerEntry } from '@/components/agenda/AppointmentCustomerEntry'
 import { AppointmentCustomerFields } from '@/components/agenda/AppointmentCustomerFields'
+import { AppointmentMembersField } from '@/components/agenda/AppointmentMembersField'
 import { AppointmentRecurrenceFields } from '@/components/agenda/AppointmentRecurrenceFields'
 import type { AppointmentDraft } from '@/components/agenda/staff/types'
 import type { BookableService } from '@/types/booking'
@@ -18,6 +19,7 @@ import {
 } from '@/lib/catalog/staffForService'
 import { buildEditableServiceTimeOptions, ALL_DAY_SLOTS } from '@/lib/agenda/serviceTimeOptions'
 import { checkServiceOverlaps } from '@/lib/agenda/serviceOverlaps'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
 
 const fieldCompact = '!px-3 !py-2'
 const formCompactClass =
@@ -728,14 +730,25 @@ export function StaffAppointmentFormFields({
           onCustomerLocaleTouched={onCustomerLocaleTouched}
         />
       ) : (
-        <AppointmentCustomerFields
-          draft={draft}
-          onDraftChange={onDraftChange}
-          compact={compact}
-          guestWithoutProfile={guestWithoutProfile}
-          allowOptionalPhone
-          onCustomerLocaleTouched={onCustomerLocaleTouched}
-        />
+        <>
+          <AppointmentCustomerFields
+            draft={draft}
+            onDraftChange={onDraftChange}
+            compact={compact}
+            guestWithoutProfile={guestWithoutProfile}
+            allowOptionalPhone
+            hideMembers={!editingId}
+            onCustomerLocaleTouched={onCustomerLocaleTouched}
+          />
+          {!editingId && (
+            <AppointmentMembersField
+              titularName={formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName)}
+              members={draft.householdMembers ?? []}
+              compact={compact}
+              onChange={(householdMembers) => onDraftChange({ householdMembers })}
+            />
+          )}
+        </>
       )}
 
       {!editingId && (

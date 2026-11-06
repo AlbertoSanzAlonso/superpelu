@@ -145,6 +145,9 @@ export function createMyAppointment(
     conflictResolutions?: SeriesConflictResolution[]
     guestCustomer?: boolean
     notifyCustomerWhatsApp?: boolean
+    appointmentFor?: 'other'
+    memberId?: string
+    memberName?: string
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {

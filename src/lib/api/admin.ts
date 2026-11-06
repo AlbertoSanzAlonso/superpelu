@@ -130,6 +130,10 @@ export type AdminAppointmentPayload = {
   conflictResolutions?: SeriesConflictResolution[]
   forceSchedule?: boolean
   guestCustomer?: boolean
+  /** Cita para un miembro del teléfono, no para el titular. */
+  appointmentFor?: 'other'
+  memberId?: string
+  memberName?: string
 }
 
 export type SeriesConflictResolution = {
