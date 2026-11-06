@@ -1,6 +1,7 @@
 import type { Locale } from '@/i18n/types'
 import type { SeriesScope } from '@server/appointments/seriesDates.js'
 import type { SeriesConflictResolution } from '@server/appointments/recurringChain.js'
+import type { MemberLink } from '@server/customers/members.js'
 
 export type CreateAppointmentInput = {
   serviceId?: string
@@ -60,6 +61,14 @@ export type CreateAppointmentInput = {
   notifyCustomerWhatsApp?: boolean
   /** Agenda: cita sin ficha de cliente (teléfono temporal interno). */
   guestCustomer?: boolean
+  /** Reserva pública: cita para el titular (`self`) o para otra persona (`other`). */
+  appointmentFor?: 'self' | 'other'
+  /** Miembro ya guardado en la ficha, si `appointmentFor` es `other`. */
+  memberId?: string
+  /** Nombre de un miembro nuevo, si `appointmentFor` es `other` y no hay `memberId`. */
+  memberName?: string
+  /** Lo rellena el servidor al preparar la ficha; no lo envía el cliente. */
+  memberLink?: MemberLink | null
 }
 
 export type UpdateAppointmentInput = {

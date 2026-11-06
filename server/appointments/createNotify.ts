@@ -1,5 +1,6 @@
 import type { AppointmentRow } from '@server/db.js'
 import type { CreateAppointmentInput } from '@server/appointments/types.js'
+import { linkAppointmentMember } from '@server/customers/members.js'
 import { notifyAdminAppointmentCreated } from '@server/notifications/email.js'
 import { notifyAppointmentCreated } from '@server/notifications/whatsapp.js'
 
@@ -9,10 +10,18 @@ import { notifyAppointmentCreated } from '@server/notifications/whatsapp.js'
  * - WhatsApp de confirmación: siempre en /reservar; en agenda solo si el staff elige avisar.
  * - El recordatorio 24h lo envía el scheduler (independiente).
  */
-export function afterAppointmentCreated(
+export async function afterAppointmentCreated(
   input: CreateAppointmentInput,
   row: AppointmentRow,
-): void {
+): Promise<void> {
+  if (input.memberLink) {
+    await linkAppointmentMember({
+      appointmentId: row.id,
+      phone: row.customer_phone,
+      link: input.memberLink,
+    })
+  }
+
   if (input.skipCustomerWhatsApp) return
 
   if (!input.forStaffPortal) {

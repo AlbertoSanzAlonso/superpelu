@@ -667,7 +667,18 @@ export function CustomersPage() {
                         className="cursor-pointer px-3 py-2 font-medium"
                         onClick={() => navigate(historyHref)}
                       >
-                        {label}
+                        <div>
+                          {label}
+                          {(c.members ?? []).length > 0 && (
+                            <p className="mt-0.5 text-xs font-normal text-charcoal-muted">
+                              {c.members
+                                .map((member) =>
+                                  formatCustomerDisplayName(member.firstName, member.lastName),
+                                )
+                                .join(', ')}
+                            </p>
+                          )}
+                        </div>
                       </td>
                       <td
                         className="cursor-pointer px-3 py-2 tabular-nums text-charcoal-muted"
@@ -778,6 +789,7 @@ export function CustomersPage() {
                       notes: updated.notes,
                       birthdate: updated.birthdate,
                       locale: updated.locale,
+                      members: updated.members ?? row.members,
                       lastUpdateSource: updated.lastUpdateSource ?? 'customers',
                       updatedAt: updated.updatedAt,
                     }

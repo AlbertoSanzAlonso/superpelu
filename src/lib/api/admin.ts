@@ -377,6 +377,7 @@ export function updateCustomer(
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
+    members?: { id?: string; firstName: string; lastName?: string }[]
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>(
@@ -400,6 +401,7 @@ export function createCustomer(
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
+    members?: { id?: string; firstName: string; lastName?: string }[]
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>('/customers', {

@@ -112,6 +112,7 @@ import {
   lookupCustomerForBooking,
   updateCustomer,
 } from '@server/customers/index.js'
+import { listCustomerMembers, readMemberInputs, syncCustomerMembers } from '@server/customers/members.js'
 import {
   getBirthdayMessageTemplates,
   setBirthdayMessageTemplates,
@@ -904,6 +905,10 @@ app.post('/api/appointments', async (c) => {
     updateCustomerLocale?: boolean
     birthdate?: string | null
     returningCustomer?: boolean
+    /** `self` = titular del teléfono; `other` = un miembro u otra persona. */
+    appointmentFor?: 'self' | 'other'
+    memberId?: string
+    memberName?: string
   }>()
 
   const serviceIds =
@@ -945,6 +950,9 @@ app.post('/api/appointments', async (c) => {
       updateCustomerLocale: body.updateCustomerLocale === true,
       birthdate: body.birthdate,
       returningCustomer: body.returningCustomer,
+      appointmentFor: body.appointmentFor === 'other' ? 'other' : 'self',
+      memberId: body.memberId,
+      memberName: body.memberName,
     })
     const grouped =
       row.booking_group_id != null
@@ -992,6 +1000,7 @@ app.post('/api/customers', async (c) => {
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
+    members?: unknown
   }>()
 
   try {
@@ -1005,7 +1014,12 @@ app.post('/api/customers', async (c) => {
       birthdate: body.birthdate,
       replaceExisting: body.replaceExisting === true,
     })
-    return c.json({ customer: customerToJson(row) }, 201)
+    const memberInputs = readMemberInputs(body.members)
+    const members =
+      memberInputs !== undefined
+        ? await syncCustomerMembers(row.phone, memberInputs)
+        : await listCustomerMembers(row.phone)
+    return c.json({ customer: customerToJson(row, members) }, 201)
   } catch (err) {
     if (err instanceof CustomerPhoneInUseError) {
       return c.json(
@@ -1022,24 +1036,28 @@ app.post('/api/customers', async (c) => {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
+      DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
   }
 })
 
-function customerToJson(customer: {
-  phone: string
-  first_name: string
-  last_name: string | null
-  email: string | null
-  notes: string | null
-  locale?: string | null
-  birthdate?: string | Date | null
-  review_request_sent_at?: string | null
-  last_update_source?: string | null
-  created_at: string
-  updated_at: string
-}) {
+function customerToJson(
+  customer: {
+    phone: string
+    first_name: string
+    last_name: string | null
+    email: string | null
+    notes: string | null
+    locale?: string | null
+    birthdate?: string | Date | null
+    review_request_sent_at?: string | null
+    last_update_source?: string | null
+    created_at: string
+    updated_at: string
+  },
+  members: { id: string; firstName: string; lastName: string }[] = [],
+) {
   const birthdate =
     customer.birthdate == null
       ? null
@@ -1063,6 +1081,7 @@ function customerToJson(customer: {
       customer.last_update_source === 'birthday'
         ? customer.last_update_source
         : null,
+    members,
     createdAt: customer.created_at,
     updatedAt: customer.updated_at,
   }
@@ -1080,7 +1099,7 @@ app.get('/api/customers/:phone', async (c) => {
   const appointments = appointmentRows.map(rowToPublic)
   if (customer) {
     return c.json({
-      customer: customerToJson(customer),
+      customer: customerToJson(customer, await listCustomerMembers(customer.phone)),
       appointments,
     })
   }
@@ -1098,6 +1117,7 @@ app.get('/api/customers/:phone', async (c) => {
       birthdate: null,
       reviewRequestSentAt: null,
       lastUpdateSource: null,
+      members: [],
       createdAt: now,
       updatedAt: now,
     },
@@ -1119,6 +1139,7 @@ app.patch('/api/customers/:phone', async (c) => {
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
+    members?: unknown
   }>()
 
   try {
@@ -1132,7 +1153,12 @@ app.patch('/api/customers/:phone', async (c) => {
       birthdate: body.birthdate,
       replaceExisting: body.replaceExisting === true,
     })
-    return c.json({ customer: customerToJson(row) })
+    const memberInputs = readMemberInputs(body.members)
+    const members =
+      memberInputs !== undefined
+        ? await syncCustomerMembers(row.phone, memberInputs)
+        : await listCustomerMembers(row.phone)
+    return c.json({ customer: customerToJson(row, members) })
   } catch (err) {
     if (err instanceof CustomerPhoneInUseError) {
       return c.json(
@@ -1150,6 +1176,7 @@ app.patch('/api/customers/:phone', async (c) => {
       CLIENTE_NO_ENCONTRADO: 'Cliente no encontrado',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
+      DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
     }
     const status = code === 'CLIENTE_NO_ENCONTRADO' ? 404 : 400
     return c.json({ error: messages[code] ?? 'No se pudo actualizar el cliente' }, status)

@@ -1,5 +1,6 @@
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { BookingAttendeeChoice } from '@/components/booking/BookingAttendeeChoice'
 import type { AppointmentFormApi } from '@/hooks/useAppointmentForm'
 import { serviceDisplayName } from '@/i18n/helpers'
 import type { Locale } from '@/i18n/types'
@@ -8,7 +9,6 @@ import { formatDisplayDate } from '@/lib/core/dates'
 import { typography } from '@/styles/typography'
 
 const stepLegendMobile = `${typography.label} mb-6 block w-full text-center md:hidden`
-const forSomeoneElseHintClass = `${typography.caption} rounded border border-red-300 bg-red-50 px-3 py-2.5 text-center text-red-800`
 
 type BookingConfirmStepProps = {
   form: AppointmentFormApi
@@ -26,7 +26,14 @@ type BookingConfirmStepProps = {
     returningCustomerNo: string
     returningLookupHint: string
     returningGreeting: (name: string) => string
-    returningForSomeoneElseHint: string
+    accountHolderHint: string
+    appointmentForQuestion: string
+    appointmentForSelf: string
+    appointmentForOther: string
+    appointmentForMembersHint: string
+    appointmentForNewPerson: string
+    memberName: string
+    memberNameHint: string
     returningNotFound: string
     lookupCustomer: string
     lookingUpCustomer: string
@@ -36,6 +43,22 @@ type BookingConfirmStepProps = {
 
 export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingConfirmStepProps) {
   const customerType = form.customerType
+  const attendee = (
+    <BookingAttendeeChoice
+      appointmentFor={form.appointmentFor}
+      selfName={
+        customerType === 'returning' ? form.returningFirstName : form.customerName
+      }
+      members={form.householdMembers}
+      selectedMemberId={form.selectedMemberId}
+      newMemberName={form.newMemberName}
+      error={form.fieldErrors.attendee}
+      onAppointmentFor={form.setAppointmentFor}
+      onSelectMember={form.setSelectedMemberId}
+      onNewMemberName={form.setNewMemberName}
+      labels={labels}
+    />
+  )
 
   return (
     <div className="space-y-4">
@@ -120,9 +143,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             disabled
             autoComplete="tel"
           />
-          <p className={forSomeoneElseHintClass} role="note">
-            {labels.returningForSomeoneElseHint}
-          </p>
+          {attendee}
           <Textarea
             label={labels.notesOptional}
             value={form.notes}
@@ -142,6 +163,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             onChange={(e) => form.setCustomerName(e.target.value)}
             autoComplete="name"
           />
+          <p className={`${typography.caption} -mt-2`}>{labels.accountHolderHint}</p>
           <Input
             label={labels.phone}
             type="tel"
@@ -168,9 +190,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
             onChange={(e) => form.setBirthdate(e.target.value)}
             autoComplete="bday"
           />
-          <p className={forSomeoneElseHintClass} role="note">
-            {labels.returningForSomeoneElseHint}
-          </p>
+          {attendee}
           <Textarea
             label={labels.notesOptional}
             value={form.notes}

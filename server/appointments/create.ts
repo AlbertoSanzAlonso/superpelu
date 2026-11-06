@@ -60,7 +60,7 @@ async function createRecurringStaffAppointment(
   )
   if (dates.length === 0) throw new Error('FECHA_INVALIDA')
 
-  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+  const { phone: customerPhone, nameSnapshot, profile, memberLink } = await upsertCustomerForBooking({
     customerFirstName: input.customerFirstName,
     customerLastName: input.customerLastName,
     customerName: input.customerName,
@@ -73,7 +73,11 @@ async function createRecurringStaffAppointment(
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
     guestCustomer: input.guestCustomer,
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
   })
+  input.memberLink = memberLink
   const createdAt = new Date().toISOString()
   const locale = resolveAppointmentLocaleForCreate(
     { ...input, forStaffPortal: true },
@@ -204,7 +208,7 @@ export async function createAppointment(
         serviceIds,
         input.conflictResolutions ?? [],
       )
-      afterAppointmentCreated(input, row)
+      await afterAppointmentCreated(input, row)
       return row
     }
 
@@ -318,11 +322,11 @@ export async function createAppointment(
   const scope = input.scope ?? 'single'
   if (input.forStaffPortal && scope !== 'single') {
     const row = await createRecurringStaffAppointment(input, service, staff)
-    afterAppointmentCreated(input, row)
+    await afterAppointmentCreated(input, row)
     return row
   }
 
-  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+  const { phone: customerPhone, nameSnapshot, profile, memberLink } = await upsertCustomerForBooking({
     customerFirstName: input.customerFirstName,
     customerLastName: input.customerLastName,
     customerName: input.customerName,
@@ -335,7 +339,11 @@ export async function createAppointment(
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
     guestCustomer: input.guestCustomer,
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
   })
+  input.memberLink = memberLink
   const createdAt = new Date().toISOString()
   const locale = resolveAppointmentLocaleForCreate(input, profile)
   const serviceName = serviceDisplayName(service, locale)
@@ -422,6 +430,6 @@ export async function createAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  afterAppointmentCreated(input, row)
+  await afterAppointmentCreated(input, row)
   return row
 }

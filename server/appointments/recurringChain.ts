@@ -209,7 +209,7 @@ export async function createRecurringChainedAppointment(
     staffAssignments,
   )
 
-  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+  const { phone: customerPhone, nameSnapshot, profile, memberLink } = await upsertCustomerForBooking({
     customerFirstName: input.customerFirstName,
     customerLastName: input.customerLastName,
     customerName: input.customerName,
@@ -222,7 +222,11 @@ export async function createRecurringChainedAppointment(
     returningCustomer: input.returningCustomer,
     forStaffPortal: true,
     guestCustomer: input.guestCustomer,
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
   })
+  input.memberLink = memberLink
   const createdAt = new Date().toISOString()
   const locale = resolveAppointmentLocaleForCreate(
     { ...input, forStaffPortal: true },

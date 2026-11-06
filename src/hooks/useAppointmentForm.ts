@@ -22,6 +22,7 @@ import type {
   BookingChainSegmentPlan,
   StaffMember,
 } from '@/types/booking'
+import type { CustomerMember } from '@/types/customers'
 
 export type AppointmentFormOptions = {
   initialDate?: string
@@ -80,6 +81,10 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [birthdate, setBirthdateState] = useState('')
   const [returningVerified, setReturningVerified] = useState(false)
   const [returningFirstName, setReturningFirstName] = useState('')
+  const [householdMembers, setHouseholdMembers] = useState<CustomerMember[]>([])
+  const [appointmentFor, setAppointmentForState] = useState<'self' | 'other' | null>(null)
+  const [selectedMemberId, setSelectedMemberIdState] = useState<string | 'new' | null>(null)
+  const [newMemberName, setNewMemberNameState] = useState('')
   /** Idioma guardado en ficha tras el lookup de cliente habitual. */
   const [returningLocale, setReturningLocale] = useState<Locale | null>(null)
   const [lookingUpCustomer, setLookingUpCustomer] = useState(false)
@@ -98,6 +103,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     name?: string
     phone?: string
     birthdate?: string
+    attendee?: string
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -117,6 +123,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setFieldErrors((prev) => (prev.birthdate ? { ...prev, birthdate: undefined } : prev))
   }, [])
 
+  const clearAttendee = useCallback(() => {
+    setHouseholdMembers([])
+    setAppointmentForState(null)
+    setSelectedMemberIdState(null)
+    setNewMemberNameState('')
+  }, [])
+
   const setCustomerType = useCallback((value: 'returning' | 'new') => {
     setCustomerTypeState(value)
     setReturningVerified(false)
@@ -125,8 +138,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setReturningLookupError('')
     setCustomerNameState('')
     setBirthdateState('')
+    clearAttendee()
     setFieldErrors({})
-  }, [])
+  }, [clearAttendee])
 
   const resetCustomerType = useCallback(() => {
     setCustomerTypeState(null)
@@ -139,9 +153,32 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setCustomerEmail('')
     setBirthdateState('')
     setNotes('')
+    clearAttendee()
     setNotificationLocale(normalizeLocale(locale))
     setFieldErrors({})
-  }, [locale])
+  }, [clearAttendee, locale])
+
+  const setAppointmentFor = useCallback((value: 'self' | 'other') => {
+    setAppointmentForState(value)
+    setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
+    if (value === 'self') {
+      setSelectedMemberIdState(null)
+      setNewMemberNameState('')
+      return
+    }
+    setSelectedMemberIdState(householdMembers.length === 0 ? 'new' : null)
+    setNewMemberNameState('')
+  }, [householdMembers.length])
+
+  const setSelectedMemberId = useCallback((id: string | 'new') => {
+    setSelectedMemberIdState(id)
+    setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
+  }, [])
+
+  const setNewMemberName = useCallback((value: string) => {
+    setNewMemberNameState(value)
+    setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
+  }, [])
 
   const hasMultipleServices = serviceIds.length > 1
 
@@ -531,16 +568,22 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         setReturningLookupError('not_found')
         setReturningVerified(false)
         setReturningLocale(null)
+        clearAttendee()
         return
       }
       setReturningFirstName(capitalizePersonName(result.firstName))
       setCustomerNameState(capitalizePersonName(result.firstName))
       setReturningLocale(normalizeLocale(result.locale))
+      setHouseholdMembers(result.members ?? [])
+      setAppointmentForState(null)
+      setSelectedMemberIdState(null)
+      setNewMemberNameState('')
       setReturningVerified(true)
     } catch {
       setReturningLookupError(errors.serverConnection)
       setReturningVerified(false)
       setReturningLocale(null)
+      clearAttendee()
     } finally {
       setLookingUpCustomer(false)
     }
@@ -549,6 +592,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.phoneRequired,
     errors.phoneInvalid,
     errors.serverConnection,
+    clearAttendee,
   ])
 
   const validateCustomerFields = useCallback(() => {
@@ -556,7 +600,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setError(errors.customerTypeRequired)
       return false
     }
-    const next: { name?: string; phone?: string; birthdate?: string } = {}
+    const next: { name?: string; phone?: string; birthdate?: string; attendee?: string } = {}
     if (!customerPhone.trim()) {
       next.phone = errors.phoneRequired
     } else if (!isValidPhone(customerPhone)) {
@@ -579,6 +623,20 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       }
     }
 
+    const identityReady = customerType === 'returning' ? returningVerified : true
+    if (identityReady) {
+      if (appointmentFor == null) {
+        next.attendee = errors.appointmentForRequired
+      } else if (appointmentFor === 'other') {
+        const pickedExisting = selectedMemberId != null && selectedMemberId !== 'new'
+        if (!pickedExisting && householdMembers.length > 0 && selectedMemberId == null) {
+          next.attendee = errors.memberChoiceRequired
+        } else if (!pickedExisting && !newMemberName.trim()) {
+          next.attendee = errors.memberNameRequired
+        }
+      }
+    }
+
     setFieldErrors(next)
     return Object.keys(next).length === 0
   }, [
@@ -593,6 +651,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.birthdateRequired,
     errors.birthdateInvalid,
     errors.customerTypeRequired,
+    errors.appointmentForRequired,
+    errors.memberChoiceRequired,
+    errors.memberNameRequired,
+    householdMembers.length,
+    appointmentFor,
+    selectedMemberId,
+    newMemberName,
   ])
 
   const submit = useCallback(async (opts?: {
@@ -640,6 +705,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           : {}),
         returningCustomer: isReturning || undefined,
         birthdate: isReturning ? undefined : birthdate,
+        appointmentFor: appointmentFor ?? 'self',
+        ...(appointmentFor === 'other'
+          ? selectedMemberId && selectedMemberId !== 'new'
+            ? { memberId: selectedMemberId }
+            : { memberName: newMemberName.trim() }
+          : {}),
       })
       onSuccess?.(appointment, appointments, manageUrl)
       return appointment
@@ -670,6 +741,9 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     notes,
     birthdate,
     customerType,
+    appointmentFor,
+    selectedMemberId,
+    newMemberName,
     onSuccess,
     errors.createFailed,
     notificationLocale,
@@ -718,6 +792,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     returningVerified,
     returningFirstName,
     returningLocale,
+    householdMembers,
+    appointmentFor,
+    setAppointmentFor,
+    selectedMemberId,
+    setSelectedMemberId,
+    newMemberName,
+    setNewMemberName,
     lookingUpCustomer,
     returningLookupError,
     lookupReturningCustomer,

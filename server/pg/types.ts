@@ -43,6 +43,8 @@ export type AppointmentRow = {
   scope: string | null
   /** Origen de la cita: 'backoffice' (agenda) o 'booking_page' (reserva web). */
   origin: string | null
+  /** Miembro del teléfono si la cita no es para el titular. */
+  customer_member_id: string | null
 }
 
 export type StaffRow = {

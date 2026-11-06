@@ -330,8 +330,14 @@ const es = {
     returningCustomerNo: 'No, es mi primera vez',
     returningLookupHint: 'Introduce tu móvil y te reconocemos.',
     returningGreeting: (name: string) => `Hola ${name}, ¡encantados de verte de nuevo!`,
-    returningForSomeoneElseHint:
-      'Si la cita es para otra persona, indícalo en observaciones.',
+    accountHolderHint: 'Este nombre es el titular del teléfono.',
+    appointmentForQuestion: '¿La cita es para ti o para otra persona?',
+    appointmentForSelf: 'Para mí',
+    appointmentForOther: 'Para otra persona',
+    appointmentForMembersHint: 'Elige un miembro de este teléfono o añade a alguien nuevo.',
+    appointmentForNewPerson: 'Otra persona',
+    memberName: 'Nombre de la persona',
+    memberNameHint: 'Se guardará en la ficha al confirmar la cita.',
     returningNotFound:
       'No encontramos ese móvil. Completa tus datos como cliente nuevo o prueba otro número.',
     lookupCustomer: 'Continuar',
@@ -378,6 +384,9 @@ const es = {
       birthdateRequired: 'Indica tu fecha de nacimiento.',
       birthdateInvalid: 'La fecha de nacimiento no es válida.',
       customerTypeRequired: 'Indica si ya has sido cliente.',
+      appointmentForRequired: 'Indica si la cita es para ti o para otra persona.',
+      memberChoiceRequired: 'Elige la persona o añade una nueva.',
+      memberNameRequired: 'Indica el nombre de la persona.',
     },
     apiErrors: {
       INCOMPLETE_DATA: 'Faltan datos para completar la reserva.',
@@ -395,6 +404,8 @@ const es = {
       FECHA_NACIMIENTO_OBLIGATORIA: 'La fecha de nacimiento es obligatoria.',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida.',
       CLIENTE_NO_ENCONTRADO: 'No encontramos un cliente con ese móvil.',
+      MIEMBRO_NO_ENCONTRADO: 'Esa persona ya no está en la ficha. Elige otra o añádela de nuevo.',
+      MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre de la persona.',
     },
   },
   calendar: {
@@ -948,8 +959,14 @@ const en = {
     returningCustomerNo: 'No, this is my first visit',
     returningLookupHint: 'Enter your mobile number and we will recognise you.',
     returningGreeting: (name: string) => `Hi ${name}, lovely to see you again!`,
-    returningForSomeoneElseHint:
-      'If the appointment is for someone else, please note it in the notes.',
+    accountHolderHint: 'This name is the account holder for the phone number.',
+    appointmentForQuestion: 'Is this appointment for you or for someone else?',
+    appointmentForSelf: 'For me',
+    appointmentForOther: 'For someone else',
+    appointmentForMembersHint: 'Choose someone on this phone number, or add a new person.',
+    appointmentForNewPerson: 'Someone else',
+    memberName: 'Their name',
+    memberNameHint: 'They will be saved on the profile when you confirm.',
     returningNotFound:
       'We could not find that mobile number. Fill in your details as a new client or try another number.',
     lookupCustomer: 'Continue',
@@ -996,6 +1013,9 @@ const en = {
       birthdateRequired: 'Please enter your date of birth.',
       birthdateInvalid: 'The date of birth is not valid.',
       customerTypeRequired: 'Please tell us if you have been a client before.',
+      appointmentForRequired: 'Say whether the appointment is for you or for someone else.',
+      memberChoiceRequired: 'Choose the person or add someone new.',
+      memberNameRequired: 'Enter the name of the person.',
     },
     apiErrors: {
       INCOMPLETE_DATA: 'Some booking details are missing.',
@@ -1013,6 +1033,8 @@ const en = {
       FECHA_NACIMIENTO_OBLIGATORIA: 'Date of birth is required.',
       FECHA_NACIMIENTO_INVALIDA: 'Invalid date of birth.',
       CLIENTE_NO_ENCONTRADO: 'We could not find a client with that mobile number.',
+      MIEMBRO_NO_ENCONTRADO: 'That person is no longer on the profile. Choose another or add them again.',
+      MIEMBRO_NOMBRE_OBLIGATORIO: 'Enter the name of the person.',
     },
   },
   calendar: {

@@ -12,7 +12,14 @@ import {
   type CustomerUpdateSource,
 } from '@/lib/customer/updateSource'
 import { generateGuestCustomerPhone } from '@server/customers/guest.js'
+import {
+  listCustomerMembers,
+  listMembersForPhones,
+  planBookingMember,
+  type MemberLink,
+} from '@server/customers/members.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
+import type { CustomerMember } from '@/types/customers'
 
 /** Móvil español (+34): no pasar a inglés sin confirmación explícita. */
 function isSpanishStoredPhone(phone: string): boolean {
@@ -80,6 +87,7 @@ export type PublicCustomer = {
   birthdate: string | null
   reviewRequestSentAt: string | null
   lastUpdateSource: CustomerUpdateSource | null
+  members: CustomerMember[]
   appointmentCount: number
   lastAppointmentDate: string | null
   createdAt: string
@@ -107,7 +115,11 @@ function birthdateToIso(value: string | Date | null | undefined): string | null 
   return value.toISOString().slice(0, 10)
 }
 
-function rowToPublic(row: CustomerRow, stats?: { count: number; lastDate: string | null }): PublicCustomer {
+function rowToPublic(
+  row: CustomerRow,
+  stats?: { count: number; lastDate: string | null },
+  members: CustomerMember[] = [],
+): PublicCustomer {
   return {
     phone: row.phone,
     firstName: row.first_name,
@@ -118,6 +130,7 @@ function rowToPublic(row: CustomerRow, stats?: { count: number; lastDate: string
     birthdate: birthdateToIso(row.birthdate),
     reviewRequestSentAt: row.review_request_sent_at ?? null,
     lastUpdateSource: normalizeCustomerUpdateSource(row.last_update_source),
+    members,
     appointmentCount: stats?.count ?? 0,
     lastAppointmentDate: stats?.lastDate ?? null,
     createdAt: row.created_at,
@@ -425,13 +438,22 @@ export async function getCustomer(phone: string): Promise<CustomerRow | undefine
 /** Lookup público mínimo para reserva (sin filtrar PII extra). */
 export async function lookupCustomerForBooking(
   phone: string,
-): Promise<{ found: true; firstName: string; locale: Locale } | { found: false }> {
+): Promise<
+  | {
+      found: true
+      firstName: string
+      locale: Locale
+      members: CustomerMember[]
+    }
+  | { found: false }
+> {
   const customer = await getCustomer(phone)
   if (!customer) return { found: false }
   return {
     found: true,
     firstName: customer.first_name,
     locale: normalizeLocale(customer.locale),
+    members: await listCustomerMembers(customer.phone),
   }
 }
 
@@ -465,7 +487,16 @@ export async function upsertCustomerForBooking(input: {
   guestCustomer?: boolean
   /** Teléfono ya guardado en la cita (edición). */
   existingPhone?: string
-}): Promise<{ phone: string; nameSnapshot: string; profile: CustomerRow | null }> {
+  /** Reserva pública: la cita es para el titular o para otra persona del teléfono. */
+  appointmentFor?: 'self' | 'other'
+  memberId?: string
+  memberName?: string
+}): Promise<{
+  phone: string
+  nameSnapshot: string
+  profile: CustomerRow | null
+  memberLink: MemberLink | null
+}> {
   const phoneInput = input.customerPhone?.trim() ?? ''
   const existingGuest =
     input.existingPhone != null && isGuestCustomerPhone(input.existingPhone)
@@ -489,6 +520,7 @@ export async function upsertCustomerForBooking(input: {
       phone,
       nameSnapshot: customerNameSnapshot(firstName, lastName),
       profile: null,
+      memberLink: null,
     }
   }
 
@@ -520,10 +552,19 @@ export async function upsertCustomerForBooking(input: {
       updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
     const profile = (await getCustomer(phone))!
+    const attendee = await planBookingMember({
+      phone: profile.phone,
+      primaryFirstName: profile.first_name,
+      primaryLastName: profile.last_name ?? '',
+      appointmentFor: input.appointmentFor,
+      memberId: input.memberId,
+      memberName: input.memberName,
+    })
     return {
       phone: profile.phone,
-      nameSnapshot: customerNameSnapshot(profile.first_name, profile.last_name ?? ''),
+      nameSnapshot: attendee.nameSnapshot,
       profile,
+      memberLink: attendee.memberLink,
     }
   }
 
@@ -556,10 +597,19 @@ export async function upsertCustomerForBooking(input: {
       updateSource: CUSTOMER_UPDATE_SOURCES.booking_page,
     })
     const profile = (await getCustomer(customer.phone))!
+    const attendee = await planBookingMember({
+      phone: profile.phone,
+      primaryFirstName: profile.first_name,
+      primaryLastName: profile.last_name ?? '',
+      appointmentFor: input.appointmentFor,
+      memberId: input.memberId,
+      memberName: input.memberName,
+    })
     return {
       phone: profile.phone,
-      nameSnapshot: customerNameSnapshot(profile.first_name, profile.last_name ?? ''),
+      nameSnapshot: attendee.nameSnapshot,
       profile,
+      memberLink: attendee.memberLink,
     }
   }
 
@@ -576,6 +626,7 @@ export async function upsertCustomerForBooking(input: {
       phone: normalizePhone(input.customerPhone),
       nameSnapshot: customerNameSnapshot(firstName, lastName),
       profile: null,
+      memberLink: null,
     }
   }
 
@@ -609,6 +660,7 @@ export async function upsertCustomerForBooking(input: {
     phone: profile.phone,
     nameSnapshot: customerNameSnapshot(profile.first_name, profile.last_name ?? ''),
     profile,
+    memberLink: null,
   }
 }
 
@@ -714,13 +766,17 @@ export async function listCustomers(
     LIMIT ${limit}
   `
 
+  const memberMap = await listMembersForPhones(rows.map((row) => row.phone))
+
   const filtered = q
     ? rows.filter((row) => {
+        const members = memberMap.get(row.phone) ?? []
         const haystack = [
           row.first_name,
           row.last_name ?? '',
           row.phone,
           row.email ?? '',
+          ...members.flatMap((member) => [member.firstName, member.lastName]),
         ]
           .join(' ')
           .toLowerCase()
@@ -729,10 +785,14 @@ export async function listCustomers(
     : rows
 
   return filtered.map((row) =>
-    rowToPublic(row, {
-      count: row.appointment_count,
-      lastDate: row.last_appointment_date,
-    }),
+    rowToPublic(
+      row,
+      {
+        count: row.appointment_count,
+        lastDate: row.last_appointment_date,
+      },
+      memberMap.get(row.phone) ?? [],
+    ),
   )
 }
 

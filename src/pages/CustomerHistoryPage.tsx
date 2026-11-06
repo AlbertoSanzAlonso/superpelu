@@ -142,6 +142,14 @@ export function CustomerHistoryPage() {
                   Cumpleaños: {formatDisplayDate(customer.birthdate, 'es')}
                 </p>
               )}
+              {(customer.members ?? []).length > 0 && (
+                <p className="mt-1 text-sm text-charcoal-muted">
+                  Miembros:{' '}
+                  {customer.members
+                    .map((member) => formatCustomerDisplayName(member.firstName, member.lastName))
+                    .join(', ')}
+                </p>
+              )}
               {customer.email && <p className="mt-1 text-sm break-all">{customer.email}</p>}
               {customer.notes?.trim() && (
                 <div className="mt-2">
@@ -217,6 +225,7 @@ export function CustomerHistoryPage() {
                   notes: updated.notes,
                   locale: updated.locale,
                   birthdate: updated.birthdate,
+                  members: updated.members ?? prev.members,
                 }
               : prev,
           )

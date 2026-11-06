@@ -337,7 +337,7 @@ export async function createChainedBookingAppointment(
         : s.durationMinutes,
   }))
 
-  const { phone: customerPhone, nameSnapshot, profile } = await upsertCustomerForBooking({
+  const { phone: customerPhone, nameSnapshot, profile, memberLink } = await upsertCustomerForBooking({
     customerFirstName: input.customerFirstName,
     customerLastName: input.customerLastName,
     customerName: input.customerName,
@@ -350,7 +350,11 @@ export async function createChainedBookingAppointment(
     returningCustomer: input.returningCustomer,
     forStaffPortal: input.forStaffPortal,
     guestCustomer: input.guestCustomer,
+    appointmentFor: input.appointmentFor,
+    memberId: input.memberId,
+    memberName: input.memberName,
   })
+  input.memberLink = memberLink
   const createdAt = new Date().toISOString()
   const locale = resolveAppointmentLocaleForCreate(input, profile)
   const reminderSentAt = reminderSentAtForCreate(input.date, input.startTime)
@@ -531,6 +535,6 @@ export async function createChainedBookingAppointment(
   })
 
   const row = (await getAppointmentById(primaryId))!
-  afterAppointmentCreated(input, row)
+  await afterAppointmentCreated(input, row)
   return row
 }

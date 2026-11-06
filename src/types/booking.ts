@@ -169,4 +169,8 @@ export type CreateAppointmentPayload = {
   updateCustomerLocale?: boolean
   birthdate?: string
   returningCustomer?: boolean
+  /** `self` = titular; `other` = miembro u otra persona del mismo teléfono. */
+  appointmentFor?: 'self' | 'other'
+  memberId?: string
+  memberName?: string
 }

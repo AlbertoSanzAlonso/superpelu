@@ -109,6 +109,19 @@ CREATE INDEX IF NOT EXISTS idx_customers_birthdate
 CREATE INDEX IF NOT EXISTS idx_customers_updated_at
   ON customers (updated_at DESC);
 
+-- Personas que comparten el teléfono del titular (el titular sigue en customers).
+CREATE TABLE IF NOT EXISTS customer_members (
+  id TEXT PRIMARY KEY,
+  phone TEXT NOT NULL REFERENCES customers(phone) ON DELETE CASCADE ON UPDATE CASCADE,
+  first_name TEXT NOT NULL,
+  last_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_members_phone
+  ON customer_members (phone, created_at);
+
 CREATE TABLE IF NOT EXISTS appointments (
   id TEXT PRIMARY KEY,
   staff_id TEXT REFERENCES staff(id),
@@ -134,6 +147,7 @@ ALTER TABLE appointments ADD COLUMN IF NOT EXISTS booking_group_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS series_id TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS scope TEXT;
 ALTER TABLE appointments ADD COLUMN IF NOT EXISTS origin TEXT;
+ALTER TABLE appointments ADD COLUMN IF NOT EXISTS customer_member_id TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_appointments_booking_group
   ON appointments (booking_group_id)
@@ -232,3 +246,8 @@ CREATE TABLE IF NOT EXISTS salon_settings (
   value TEXT NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE appointments DROP CONSTRAINT IF EXISTS appointments_customer_member_id_fkey;
+ALTER TABLE appointments
+  ADD CONSTRAINT appointments_customer_member_id_fkey
+  FOREIGN KEY (customer_member_id) REFERENCES customer_members(id) ON DELETE SET NULL;

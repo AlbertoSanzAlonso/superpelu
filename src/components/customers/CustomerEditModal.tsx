@@ -9,7 +9,7 @@ import { normalizeLocale, type Locale } from '@/i18n/types'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/customer/phone'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
-import type { Customer } from '@/types/customers'
+import type { Customer, CustomerMember } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
 type CustomerFields = Pick<
@@ -23,6 +23,7 @@ type CustomerFields = Pick<
   | 'birthdate'
   | 'lastUpdateSource'
   | 'updatedAt'
+  | 'members'
 >
 
 type Props = {
@@ -39,6 +40,22 @@ function isValidEmail(value: string): boolean {
   const trimmed = value.trim()
   if (!trimmed) return true
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+}
+
+type MemberDraft = {
+  key: string
+  id?: string
+  firstName: string
+  lastName: string
+}
+
+function draftsFromMembers(members: CustomerMember[] | undefined): MemberDraft[] {
+  return (members ?? []).map((member) => ({
+    key: member.id,
+    id: member.id,
+    firstName: member.firstName,
+    lastName: member.lastName,
+  }))
 }
 
 function phoneConflictMessage(name: string, creating: boolean): string {
@@ -66,6 +83,7 @@ export function CustomerEditModal({
   const [notes, setNotes] = useState('')
   const [birthdate, setBirthdate] = useState('')
   const [locale, setLocale] = useState<Locale>('es')
+  const [members, setMembers] = useState<MemberDraft[]>([])
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -85,6 +103,7 @@ export function CustomerEditModal({
       setNotes('')
       setBirthdate('')
       setLocale('es')
+      setMembers([])
     } else if (customer) {
       setPhoneInput(formatPhoneDisplay(customer.phone))
       setFirstName(customer.firstName)
@@ -93,6 +112,7 @@ export function CustomerEditModal({
       setNotes(customer.notes ?? '')
       setBirthdate(customer.birthdate ?? '')
       setLocale(normalizeLocale(customer.locale))
+      setMembers(draftsFromMembers(customer.members))
     }
     setError('')
     setSaving(false)
@@ -123,6 +143,10 @@ export function CustomerEditModal({
       setError('Indica un teléfono válido')
       return false
     }
+    if (members.some((member) => !member.firstName.trim() && (member.lastName.trim() || member.id))) {
+      setError('Cada miembro necesita al menos el nombre')
+      return false
+    }
     return true
   }
 
@@ -141,6 +165,13 @@ export function CustomerEditModal({
         birthdate: birthdate.trim() || null,
         locale: localeToSave,
         replaceExisting,
+        members: members
+          .filter((member) => member.firstName.trim())
+          .map((member) => ({
+            id: member.id,
+            firstName: member.firstName.trim(),
+            lastName: member.lastName.trim(),
+          })),
       }
       if (isCreate) {
         const { customer: created } = await createCustomer(adminToken, {
@@ -216,7 +247,7 @@ export function CustomerEditModal({
         }}
       >
         <form
-          className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream shadow-2xl sm:h-auto sm:max-h-[min(90vh,40rem)] sm:border sm:border-gold/35"
+          className="flex h-dvh w-full max-w-lg flex-col overflow-hidden bg-cream shadow-2xl sm:h-auto sm:max-h-[min(92vh,52rem)] sm:border sm:border-gold/35"
           onClick={(e) => e.stopPropagation()}
           onSubmit={(e) => void handleSubmit(e)}
         >
@@ -296,6 +327,70 @@ export function CustomerEditModal({
             />
 
             <CustomerLocaleSelect value={locale} onChange={setLocale} disabled={busy} />
+
+            <fieldset className="space-y-3" disabled={busy}>
+              <legend className={typography.label}>Miembros</legend>
+              <p className={typography.caption}>
+                Otras personas que usan este mismo teléfono. El titular de la ficha sigue siendo el
+                usuario principal.
+              </p>
+              {members.length === 0 && (
+                <p className={`${typography.caption} text-charcoal-muted`}>
+                  Nadie más está asociado a este teléfono.
+                </p>
+              )}
+              {members.map((member) => (
+                <div key={member.key} className="space-y-2 rounded border border-gold/20 p-3">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <Input
+                      label="Nombre"
+                      value={member.firstName}
+                      onChange={(e) =>
+                        setMembers((rows) =>
+                          rows.map((row) =>
+                            row.key === member.key ? { ...row, firstName: e.target.value } : row,
+                          ),
+                        )
+                      }
+                      disabled={busy}
+                    />
+                    <Input
+                      label="Apellidos"
+                      value={member.lastName}
+                      onChange={(e) =>
+                        setMembers((rows) =>
+                          rows.map((row) =>
+                            row.key === member.key ? { ...row, lastName: e.target.value } : row,
+                          ),
+                        )
+                      }
+                      disabled={busy}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-red-300 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-gold/40"
+                    onClick={() =>
+                      setMembers((rows) => rows.filter((row) => row.key !== member.key))
+                    }
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className="ui-rounded cursor-pointer border border-dashed border-gold/40 px-3 py-2 text-sm text-gold hover:border-gold hover:bg-gold/5 focus:outline-none focus:ring-2 focus:ring-gold/40"
+                onClick={() =>
+                  setMembers((rows) => [
+                    ...rows,
+                    { key: crypto.randomUUID(), firstName: '', lastName: '' },
+                  ])
+                }
+              >
+                Añadir miembro
+              </button>
+            </fieldset>
 
             {error && (
               <p
