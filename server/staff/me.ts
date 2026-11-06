@@ -58,6 +58,7 @@ const errorMessages: Record<string, string> = {
   CITAS_PENDIENTES:
     'Este miembro tiene citas pendientes. Elige qué hacer con ellas desde la ficha del cliente.',
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
+  PARENTESCO_OBLIGATORIO: 'Elige el parentesco del miembro',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',
@@ -225,6 +226,7 @@ me.post('/me/appointments', async (c) => {
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (ids.length === 0 || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
@@ -264,6 +266,7 @@ me.post('/me/appointments', async (c) => {
       appointmentFor: body.appointmentFor,
       memberId: body.memberId,
       memberName: body.memberName,
+      memberRelationship: body.memberRelationship,
     })
     return c.json({ appointment: rowToPublic(row) }, 201)
   } catch (err) {
@@ -298,6 +301,7 @@ me.patch('/me/appointments/:id', async (c) => {
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>()
   try {
     const row = await updateAppointmentForStaff(c.req.param('id'), staff!.id, {

@@ -148,6 +148,7 @@ export function createMyAppointment(
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   },
 ) {
   return staffRequest<{ appointment: Appointment }>('/me/appointments', token, {
@@ -181,6 +182,7 @@ export function updateMyAppointment(
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>,
 ) {
   return staffRequest<{ appointment: Appointment }>(`/me/appointments/${id}`, token, {

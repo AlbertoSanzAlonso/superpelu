@@ -115,9 +115,12 @@ CREATE TABLE IF NOT EXISTS customer_members (
   phone TEXT NOT NULL REFERENCES customers(phone) ON DELETE CASCADE ON UPDATE CASCADE,
   first_name TEXT NOT NULL,
   last_name TEXT,
+  relationship TEXT,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE customer_members ADD COLUMN IF NOT EXISTS relationship TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_customer_members_phone
   ON customer_members (phone, created_at);

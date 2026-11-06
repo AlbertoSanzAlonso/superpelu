@@ -54,7 +54,7 @@ function draftsFromMembers(members: CustomerMember[] | undefined): CustomerMembe
     key: member.id,
     id: member.id,
     firstName: member.firstName,
-    lastName: member.lastName,
+    relationship: member.relationship,
   }))
 }
 
@@ -151,8 +151,12 @@ export function CustomerEditModal({
       setError('Indica un teléfono válido')
       return false
     }
-    if (members.some((member) => !member.firstName.trim() && (member.lastName.trim() || member.id))) {
+    if (members.some((member) => !member.firstName.trim() && (member.relationship.trim() || member.id))) {
       setError('Cada miembro necesita al menos el nombre')
+      return false
+    }
+    if (members.some((member) => member.firstName.trim() && !member.relationship.trim())) {
+      setError('Elige el parentesco de cada miembro')
       return false
     }
     return true
@@ -178,7 +182,7 @@ export function CustomerEditModal({
           .map((member) => ({
             id: member.id,
             firstName: member.firstName.trim(),
-            lastName: member.lastName.trim(),
+            relationship: member.relationship.trim(),
           })),
       }
       if (isCreate) {

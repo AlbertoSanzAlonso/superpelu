@@ -134,6 +134,7 @@ export type AdminAppointmentPayload = {
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 }
 
 export type SeriesConflictResolution = {
@@ -381,7 +382,7 @@ export function updateCustomer(
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
-    members?: { id?: string; firstName: string; lastName?: string }[]
+    members?: { id?: string; firstName: string; relationship?: string }[]
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>(
@@ -405,7 +406,7 @@ export function createCustomer(
     locale?: 'es' | 'en'
     birthdate?: string | null
     replaceExisting?: boolean
-    members?: { id?: string; firstName: string; lastName?: string }[]
+    members?: { id?: string; firstName: string; relationship?: string }[]
   },
 ) {
   return request<{ customer: CustomerDetail['customer'] }>('/customers', {

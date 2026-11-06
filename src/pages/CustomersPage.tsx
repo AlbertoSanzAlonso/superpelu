@@ -30,6 +30,7 @@ import {
   type CustomerListSort,
 } from '@/lib/customer/listSort'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberLabel } from '@/lib/customer/relationship'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
@@ -678,7 +679,7 @@ export function CustomersPage() {
                             <p className="mt-0.5 text-xs font-normal text-charcoal-muted">
                               {c.members
                                 .map((member) =>
-                                  formatCustomerDisplayName(member.firstName, member.lastName),
+                                  formatMemberLabel(member.firstName, member.relationship),
                                 )
                                 .join(', ')}
                             </p>

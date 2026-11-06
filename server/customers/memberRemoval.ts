@@ -1,7 +1,8 @@
 import { sql } from '@server/db.js'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
-import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberAppointmentName } from '@/lib/customer/relationship'
 import { normalizePhone } from '@/lib/customer/phone'
+import { getCustomer } from '@server/customers/index.js'
 import { cancelAppointment } from '@server/appointments/lifecycle.js'
 import { deleteCustomerMember, getCustomerMember } from '@server/customers/members.js'
 
@@ -84,10 +85,11 @@ export async function removeCustomerMember(input: {
     if (!targetId || targetId === memberId) throw new Error('MIEMBRO_OBJETIVO_INVALIDO')
     const target = await getCustomerMember(phone, targetId)
     if (!target) throw new Error('MIEMBRO_OBJETIVO_INVALIDO')
+    const titular = (await getCustomer(phone))?.first_name ?? ''
     await reassignPending(
       phone,
       memberId,
-      formatCustomerDisplayName(target.firstName, target.lastName),
+      formatMemberAppointmentName(target.firstName, target.relationship, titular),
       target.id,
     )
   }

@@ -744,6 +744,7 @@ export function StaffAppointmentFormFields({
           />
           <AppointmentMembersField
             titularName={formatCustomerDisplayName(draft.customerFirstName, draft.customerLastName)}
+            titularFirstName={draft.customerFirstName}
             members={draft.householdMembers ?? []}
             phone={draft.customerPhone}
             adminToken={adminToken}

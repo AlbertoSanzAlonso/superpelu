@@ -13,6 +13,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { CustomersWorkspaceHeader } from '@/components/customers/CustomersWorkspaceHeader'
 import { fetchCustomerDetail, deleteCustomer, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberLabel } from '@/lib/customer/relationship'
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
 import { formatDisplayDate } from '@/lib/core/dates'
@@ -151,7 +152,7 @@ export function CustomerHistoryPage() {
                 <p className="mt-1 text-sm text-charcoal-muted">
                   Miembros:{' '}
                   {customer.members
-                    .map((member) => formatCustomerDisplayName(member.firstName, member.lastName))
+                    .map((member) => formatMemberLabel(member.firstName, member.relationship))
                     .join(', ')}
                 </p>
               )}

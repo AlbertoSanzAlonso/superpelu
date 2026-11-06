@@ -1,4 +1,5 @@
-import { formatCustomerDisplayName, splitCustomerName } from '@/lib/customer/name'
+import { splitCustomerName } from '@/lib/customer/name'
+import { formatMemberAppointmentName, formatMemberLabel } from '@/lib/customer/relationship'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type { DayScheduleAppointment } from '@/types/booking'
@@ -7,7 +8,7 @@ import type { AppointmentRecurrenceScope } from '@/types/appointmentSeries'
 export type HouseholdMemberDraft = {
   id: string
   firstName: string
-  lastName: string
+  relationship: string
   /** Esta cita es para esta persona, no para el titular. */
   attendee: boolean
 }
@@ -59,26 +60,23 @@ export const EMPTY_APPOINTMENT_DRAFT: AppointmentDraft = {
 }
 
 export function householdMembersForAppointment(
-  members: { id: string; firstName: string; lastName: string }[],
+  members: { id: string; firstName: string; relationship: string }[],
   attendeeId: string | null | undefined,
   attendeeNameFallback = '',
 ): HouseholdMemberDraft[] {
   const list = members.map((member) => ({
     id: member.id,
     firstName: member.firstName,
-    lastName: member.lastName,
+    relationship: member.relationship,
     attendee: Boolean(attendeeId) && member.id === attendeeId,
   }))
-  if (attendeeId && !list.some((member) => member.attendee)) {
-    const split = splitCustomerName(attendeeNameFallback)
-    if (split.firstName) {
-      list.push({
-        id: attendeeId,
-        firstName: split.firstName,
-        lastName: split.lastName,
-        attendee: true,
-      })
-    }
+  if (attendeeId && !list.some((member) => member.attendee) && attendeeNameFallback.trim()) {
+    list.push({
+      id: attendeeId,
+      firstName: attendeeNameFallback.trim(),
+      relationship: '',
+      attendee: true,
+    })
   }
   return list
 }
@@ -93,21 +91,31 @@ export function appointmentMemberBooking(
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 } {
   const attendee = members.find((member) => member.attendee)
   if (!attendee) return options?.explicitSelf ? { appointmentFor: 'self' } : {}
-  const name = formatCustomerDisplayName(attendee.firstName, attendee.lastName)
+  const name = attendee.firstName.trim()
   if (!name) return options?.explicitSelf ? { appointmentFor: 'self' } : {}
   if (attendee.id.startsWith(NEW_MEMBER_ID_PREFIX)) {
-    return { appointmentFor: 'other', memberName: name }
+    return {
+      appointmentFor: 'other',
+      memberName: name,
+      memberRelationship: attendee.relationship,
+    }
   }
   return { appointmentFor: 'other', memberId: attendee.id }
 }
 
-export function formatHouseholdMembersField(members: HouseholdMemberDraft[]): string {
+export function formatHouseholdMembersField(
+  members: HouseholdMemberDraft[],
+  titularFirstName = '',
+): string {
   return members
     .map((member) => {
-      const name = formatCustomerDisplayName(member.firstName, member.lastName)
+      const name = titularFirstName.trim()
+        ? formatMemberAppointmentName(member.firstName, member.relationship, titularFirstName)
+        : formatMemberLabel(member.firstName, member.relationship)
       if (!name) return ''
       return member.attendee ? `${name} (esta cita)` : name
     })

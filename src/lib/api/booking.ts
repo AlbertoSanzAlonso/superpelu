@@ -82,7 +82,7 @@ export function lookupBookingCustomer(phone: string) {
     found: boolean
     firstName?: string
     locale?: 'es' | 'en'
-    members?: { id: string; firstName: string; lastName: string }[]
+    members?: { id: string; firstName: string; relationship: string }[]
   }>(`/booking/customer-lookup?${params}`)
 }
 

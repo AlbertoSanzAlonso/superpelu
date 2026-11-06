@@ -38,7 +38,7 @@ function overlaps(
 type HouseholdMemberRow = {
   id: string
   firstName: string
-  lastName: string
+  relationship: string
 }
 
 type OccupiedRow = AppointmentRow & {
@@ -56,12 +56,12 @@ function readHouseholdMembers(raw: unknown): HouseholdMemberRow[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((item) => {
     if (!item || typeof item !== 'object') return []
-    const row = item as { id?: unknown; firstName?: unknown; lastName?: unknown }
+    const row = item as { id?: unknown; firstName?: unknown; relationship?: unknown }
     if (typeof row.id !== 'string' || typeof row.firstName !== 'string') return []
     return [{
       id: row.id,
       firstName: row.firstName,
-      lastName: typeof row.lastName === 'string' ? row.lastName : '',
+      relationship: typeof row.relationship === 'string' ? row.relationship : '',
     }]
   })
 }
@@ -84,7 +84,7 @@ async function getOccupiedOnDate(date: string, staffId: string): Promise<Occupie
           json_build_object(
             'id', cm.id,
             'firstName', cm.first_name,
-            'lastName', COALESCE(cm.last_name, '')
+            'relationship', COALESCE(cm.relationship, '')
           )
           ORDER BY cm.created_at ASC, cm.first_name ASC
         )

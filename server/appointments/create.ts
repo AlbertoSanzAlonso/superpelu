@@ -76,6 +76,7 @@ async function createRecurringStaffAppointment(
     appointmentFor: input.appointmentFor,
     memberId: input.memberId,
     memberName: input.memberName,
+    memberRelationship: input.memberRelationship,
   })
   input.memberLink = memberLink
   const createdAt = new Date().toISOString()
@@ -342,6 +343,7 @@ export async function createAppointment(
     appointmentFor: input.appointmentFor,
     memberId: input.memberId,
     memberName: input.memberName,
+    memberRelationship: input.memberRelationship,
   })
   input.memberLink = memberLink
   const createdAt = new Date().toISOString()

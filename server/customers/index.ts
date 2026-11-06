@@ -16,6 +16,7 @@ import {
   listCustomerMembers,
   listMembersForPhones,
   planBookingMember,
+  refreshMemberAppointmentNames,
   type MemberLink,
 } from '@server/customers/members.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
@@ -423,6 +424,9 @@ export async function updateCustomer(
   const rows = await sql<CustomerRow[]>`
     SELECT * FROM customers WHERE phone = ${nextPhone}
   `
+  if (firstName !== existing.first_name) {
+    await refreshMemberAppointmentNames(nextPhone)
+  }
   return rows[0]!
 }
 
@@ -491,6 +495,7 @@ export async function upsertCustomerForBooking(input: {
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 }): Promise<{
   phone: string
   nameSnapshot: string
@@ -559,6 +564,7 @@ export async function upsertCustomerForBooking(input: {
       appointmentFor: input.appointmentFor,
       memberId: input.memberId,
       memberName: input.memberName,
+      memberRelationship: input.memberRelationship,
     })
     return {
       phone: profile.phone,
@@ -604,6 +610,7 @@ export async function upsertCustomerForBooking(input: {
       appointmentFor: input.appointmentFor,
       memberId: input.memberId,
       memberName: input.memberName,
+      memberRelationship: input.memberRelationship,
     })
     return {
       phone: profile.phone,
@@ -656,6 +663,7 @@ export async function upsertCustomerForBooking(input: {
     updateSource: CUSTOMER_UPDATE_SOURCES.agenda,
   })
   const profile = (await getCustomer(customer.phone))!
+  await refreshMemberAppointmentNames(profile.phone)
   const attendee = await planBookingMember({
     phone: profile.phone,
     primaryFirstName: profile.first_name,
@@ -663,6 +671,7 @@ export async function upsertCustomerForBooking(input: {
     appointmentFor: input.appointmentFor,
     memberId: input.memberId,
     memberName: input.memberName,
+    memberRelationship: input.memberRelationship,
   })
   return {
     phone: profile.phone,
@@ -784,7 +793,7 @@ export async function listCustomers(
           row.last_name ?? '',
           row.phone,
           row.email ?? '',
-          ...members.flatMap((member) => [member.firstName, member.lastName]),
+          ...members.flatMap((member) => [member.firstName, member.relationship]),
         ]
           .join(' ')
           .toLowerCase()

@@ -36,7 +36,10 @@ export function AppointmentCustomerFields({
   hideMembers = false,
 }: Props) {
   const phoneOptional = guestWithoutProfile || allowOptionalPhone
-  const membersLabel = formatHouseholdMembersField(draft.householdMembers ?? [])
+  const membersLabel = formatHouseholdMembersField(
+    draft.householdMembers ?? [],
+    draft.customerFirstName,
+  )
 
   return (
     <div className="space-y-3">

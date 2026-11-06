@@ -89,7 +89,7 @@ export type DayScheduleAppointment = {
   /** Miembro del teléfono si la cita no es para el titular. */
   customerMemberId?: string | null
   /** Otras personas del mismo teléfono. */
-  householdMembers?: { id: string; firstName: string; lastName: string }[]
+  householdMembers?: { id: string; firstName: string; relationship: string }[]
   /** Notas en ficha del cliente (`customers.notes`), si existe el teléfono en el listado. */
   customerNotes?: string | null
   /** Idioma en ficha del cliente (`customers.locale`). */
@@ -181,4 +181,5 @@ export type CreateAppointmentPayload = {
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 }

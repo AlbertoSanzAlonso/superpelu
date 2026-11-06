@@ -1,25 +1,29 @@
 import { randomUUID } from 'node:crypto'
 import { sql } from '@server/db.js'
 import type { CustomerMember } from '@/types/customers'
-import { formatCustomerDisplayName, splitCustomerName } from '@/lib/customer/name'
+import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { normalizePhone } from '@/lib/customer/phone'
+import {
+  formatMemberAppointmentName,
+  normalizeMemberRelationship,
+} from '@/lib/customer/relationship'
 
 export type CustomerMemberInput = {
   id?: string
   firstName: string
-  lastName?: string
+  relationship?: string
 }
 
 /** Cómo enlazar la cita con un miembro tras crearla. */
 export type MemberLink =
   | { kind: 'existing'; memberId: string }
-  | { kind: 'new'; firstName: string; lastName: string }
+  | { kind: 'new'; firstName: string; relationship: string }
 
 type MemberRow = {
   id: string
   phone: string
   first_name: string
-  last_name: string | null
+  relationship: string | null
 }
 
 const NAME_MAX = 80
@@ -28,11 +32,11 @@ function clipName(value: string): string {
   return value.trim().slice(0, NAME_MAX)
 }
 
-function rowToMember(row: Pick<MemberRow, 'id' | 'first_name' | 'last_name'>): CustomerMember {
+function rowToMember(row: Pick<MemberRow, 'id' | 'first_name' | 'relationship'>): CustomerMember {
   return {
     id: row.id,
     firstName: row.first_name,
-    lastName: row.last_name ?? '',
+    relationship: row.relationship ?? '',
   }
 }
 
@@ -40,7 +44,7 @@ export async function listCustomerMembers(phone: string): Promise<CustomerMember
   const normalized = normalizePhone(phone)
   if (!normalized) return []
   const rows = await sql<MemberRow[]>`
-    SELECT id, phone, first_name, last_name
+    SELECT id, phone, first_name, relationship
     FROM customer_members
     WHERE phone = ${normalized}
     ORDER BY created_at ASC, first_name ASC
@@ -54,7 +58,7 @@ export async function listMembersForPhones(
   const map = new Map<string, CustomerMember[]>()
   if (phones.length === 0) return map
   const rows = await sql<MemberRow[]>`
-    SELECT id, phone, first_name, last_name
+    SELECT id, phone, first_name, relationship
     FROM customer_members
     WHERE phone = ANY(${phones}::text[])
     ORDER BY created_at ASC, first_name ASC
@@ -98,7 +102,7 @@ export async function getCustomerMember(
   const id = memberId.trim()
   if (!normalized || !id) return undefined
   const rows = await sql<MemberRow[]>`
-    SELECT id, phone, first_name, last_name
+    SELECT id, phone, first_name, relationship
     FROM customer_members
     WHERE id = ${id} AND phone = ${normalized}
     LIMIT 1
@@ -117,11 +121,11 @@ export function readMemberInputs(raw: unknown): CustomerMemberInput[] | undefine
   if (!Array.isArray(raw)) throw new Error('NOMBRE_INVALIDO')
   return raw.map((item) => {
     if (!item || typeof item !== 'object') throw new Error('NOMBRE_INVALIDO')
-    const row = item as { id?: unknown; firstName?: unknown; lastName?: unknown }
+    const row = item as { id?: unknown; firstName?: unknown; relationship?: unknown }
     return {
       id: typeof row.id === 'string' ? row.id : undefined,
       firstName: typeof row.firstName === 'string' ? row.firstName : '',
-      lastName: typeof row.lastName === 'string' ? row.lastName : '',
+      relationship: typeof row.relationship === 'string' ? row.relationship : '',
     }
   })
 }
@@ -136,10 +140,11 @@ export async function syncCustomerMembers(
 
   const cleaned = members.map((member) => {
     const firstName = clipName(member.firstName ?? '')
-    const lastName = clipName(member.lastName ?? '')
+    const relationship = normalizeMemberRelationship(member.relationship ?? '')
     if (!firstName) throw new Error('NOMBRE_INVALIDO')
+    if (!relationship) throw new Error('PARENTESCO_OBLIGATORIO')
     const id = member.id?.trim() || undefined
-    return { id, firstName, lastName }
+    return { id, firstName, relationship }
   })
 
   const now = new Date().toISOString()
@@ -155,7 +160,8 @@ export async function syncCustomerMembers(
         await tx`
           UPDATE customer_members SET
             first_name = ${member.firstName},
-            last_name = ${member.lastName || null},
+            last_name = NULL,
+            relationship = ${member.relationship},
             updated_at = ${now}
           WHERE id = ${member.id} AND phone = ${normalized}
         `
@@ -165,9 +171,9 @@ export async function syncCustomerMembers(
       const id = randomUUID()
       await tx`
         INSERT INTO customer_members (
-          id, phone, first_name, last_name, created_at, updated_at
+          id, phone, first_name, last_name, relationship, created_at, updated_at
         ) VALUES (
-          ${id}, ${normalized}, ${member.firstName}, ${member.lastName || null}, ${now}, ${now}
+          ${id}, ${normalized}, ${member.firstName}, ${null}, ${member.relationship}, ${now}, ${now}
         )
       `
       keep.push(id)
@@ -184,7 +190,31 @@ export async function syncCustomerMembers(
     }
   })
 
-  return listCustomerMembers(normalized)
+  const saved = await listCustomerMembers(normalized)
+  await refreshMemberAppointmentNames(normalized)
+  return saved
+}
+
+/** Reescribe el nombre de las citas del miembro: «Antonio (hijo) de Luis». */
+export async function refreshMemberAppointmentNames(phone: string): Promise<void> {
+  const normalized = normalizePhone(phone)
+  if (!normalized) return
+  const profiles = await sql<{ first_name: string }[]>`
+    SELECT first_name FROM customers WHERE phone = ${normalized}
+  `
+  const titular = profiles[0]?.first_name?.trim() ?? ''
+  if (!titular) return
+  const members = await listCustomerMembers(normalized)
+  for (const member of members) {
+    if (!normalizeMemberRelationship(member.relationship)) continue
+    const name = formatMemberAppointmentName(member.firstName, member.relationship, titular)
+    await sql`
+      UPDATE appointments
+      SET customer_name = ${name}
+      WHERE customer_phone = ${normalized}
+        AND customer_member_id = ${member.id}
+    `
+  }
 }
 
 /**
@@ -193,36 +223,41 @@ export async function syncCustomerMembers(
  * o reutilizar el miembro cuando la cita ya está guardada.
  */
 export async function planBookingMember(input: {
-  forStaffPortal?: boolean
   phone: string
   primaryFirstName: string
   primaryLastName: string
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 }): Promise<{ nameSnapshot: string; memberLink: MemberLink | null }> {
   const primary = formatCustomerDisplayName(input.primaryFirstName, input.primaryLastName)
-  if (input.forStaffPortal || input.appointmentFor !== 'other') {
+  if (input.appointmentFor !== 'other') {
     return { nameSnapshot: primary, memberLink: null }
   }
 
+  const titularFirst = input.primaryFirstName.trim()
   const memberId = input.memberId?.trim() ?? ''
   if (memberId) {
     const member = await getCustomerMember(input.phone, memberId)
     if (!member) throw new Error('MIEMBRO_NO_ENCONTRADO')
     return {
-      nameSnapshot: formatCustomerDisplayName(member.firstName, member.lastName),
+      nameSnapshot: formatMemberAppointmentName(
+        member.firstName,
+        member.relationship,
+        titularFirst,
+      ),
       memberLink: { kind: 'existing', memberId: member.id },
     }
   }
 
-  const split = splitCustomerName(input.memberName ?? '')
-  const firstName = clipName(split.firstName)
-  const lastName = clipName(split.lastName)
+  const firstName = clipName(input.memberName ?? '')
+  const relationship = normalizeMemberRelationship(input.memberRelationship ?? '')
   if (!firstName) throw new Error('MIEMBRO_NOMBRE_OBLIGATORIO')
+  if (!relationship) throw new Error('PARENTESCO_OBLIGATORIO')
   return {
-    nameSnapshot: formatCustomerDisplayName(firstName, lastName),
-    memberLink: { kind: 'new', firstName, lastName },
+    nameSnapshot: formatMemberAppointmentName(firstName, relationship, titularFirst),
+    memberLink: { kind: 'new', firstName, relationship },
   }
 }
 
@@ -242,12 +277,13 @@ export async function linkAppointmentMember(input: {
       memberId = randomUUID()
       await tx`
         INSERT INTO customer_members (
-          id, phone, first_name, last_name, created_at, updated_at
+          id, phone, first_name, last_name, relationship, created_at, updated_at
         ) VALUES (
           ${memberId},
           ${phone},
           ${input.link.firstName},
-          ${input.link.lastName || null},
+          ${null},
+          ${input.link.relationship},
           ${now},
           ${now}
         )

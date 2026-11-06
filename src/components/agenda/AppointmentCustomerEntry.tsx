@@ -109,6 +109,7 @@ export function AppointmentCustomerEntry({
         {hasSelection && (
           <AppointmentMembersField
             titularName={selectedLabel}
+            titularFirstName={draft.customerFirstName}
             members={draft.householdMembers ?? []}
             phone={draft.customerPhone}
             adminToken={adminToken}
@@ -157,6 +158,7 @@ export function AppointmentCustomerEntry({
       />
       <AppointmentMembersField
         titularName={selectedLabel}
+        titularFirstName={draft.customerFirstName}
         members={draft.householdMembers ?? []}
         phone={draft.customerPhone}
         adminToken={adminToken}

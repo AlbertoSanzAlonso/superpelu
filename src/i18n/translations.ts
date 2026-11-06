@@ -338,6 +338,7 @@ const es = {
     appointmentForNewPerson: 'Otra persona',
     memberName: 'Nombre de la persona',
     memberNameHint: 'Se guardará en la ficha al confirmar la cita.',
+    memberRelationship: 'Parentesco',
     returningNotFound:
       'No encontramos ese móvil. Completa tus datos como cliente nuevo o prueba otro número.',
     lookupCustomer: 'Continuar',
@@ -387,6 +388,7 @@ const es = {
       appointmentForRequired: 'Indica si la cita es para ti o para otra persona.',
       memberChoiceRequired: 'Elige la persona o añade una nueva.',
       memberNameRequired: 'Indica el nombre de la persona.',
+      memberRelationshipRequired: 'Elige el parentesco.',
     },
     apiErrors: {
       INCOMPLETE_DATA: 'Faltan datos para completar la reserva.',
@@ -406,6 +408,7 @@ const es = {
       CLIENTE_NO_ENCONTRADO: 'No encontramos un cliente con ese móvil.',
       MIEMBRO_NO_ENCONTRADO: 'Esa persona ya no está en la ficha. Elige otra o añádela de nuevo.',
       MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre de la persona.',
+      PARENTESCO_OBLIGATORIO: 'Elige el parentesco.',
     },
   },
   calendar: {
@@ -984,6 +987,7 @@ const en = {
     appointmentForNewPerson: 'Someone else',
     memberName: 'Their name',
     memberNameHint: 'They will be saved on the profile when you confirm.',
+    memberRelationship: 'Relationship',
     returningNotFound:
       'We could not find that mobile number. Fill in your details as a new client or try another number.',
     lookupCustomer: 'Continue',
@@ -1033,6 +1037,7 @@ const en = {
       appointmentForRequired: 'Say whether the appointment is for you or for someone else.',
       memberChoiceRequired: 'Choose the person or add someone new.',
       memberNameRequired: 'Enter the name of the person.',
+      memberRelationshipRequired: 'Choose how they are related.',
     },
     apiErrors: {
       INCOMPLETE_DATA: 'Some booking details are missing.',
@@ -1052,6 +1057,7 @@ const en = {
       CLIENTE_NO_ENCONTRADO: 'We could not find a client with that mobile number.',
       MIEMBRO_NO_ENCONTRADO: 'That person is no longer on the profile. Choose another or add them again.',
       MIEMBRO_NOMBRE_OBLIGATORIO: 'Enter the name of the person.',
+      PARENTESCO_OBLIGATORIO: 'Choose how they are related.',
     },
   },
   calendar: {

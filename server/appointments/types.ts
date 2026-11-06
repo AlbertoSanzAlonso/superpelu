@@ -67,6 +67,8 @@ export type CreateAppointmentInput = {
   memberId?: string
   /** Nombre de un miembro nuevo, si `appointmentFor` es `other` y no hay `memberId`. */
   memberName?: string
+  /** Parentesco del miembro nuevo respecto al titular. */
+  memberRelationship?: string
   /** Lo rellena el servidor al preparar la ficha; no lo envía el cliente. */
   memberLink?: MemberLink | null
 }
@@ -104,4 +106,5 @@ export type UpdateAppointmentInput = {
   appointmentFor?: 'self' | 'other'
   memberId?: string
   memberName?: string
+  memberRelationship?: string
 }

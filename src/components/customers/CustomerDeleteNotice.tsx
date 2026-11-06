@@ -1,6 +1,7 @@
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberLabel } from '@/lib/customer/relationship'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import type { Appointment } from '@/types/booking'
 import type { Customer, CustomerMember } from '@/types/customers'
@@ -10,7 +11,7 @@ const MAX_APPOINTMENTS = 6
 type Props = {
   titularName: string
   phone: string
-  members: Pick<CustomerMember, 'firstName' | 'lastName'>[]
+  members: Pick<CustomerMember, 'firstName' | 'relationship'>[]
   appointments: Pick<
     Appointment,
     'date' | 'startTime' | 'customerName' | 'serviceName' | 'status' | 'colorGroupRole' | 'customerMemberId'
@@ -27,7 +28,7 @@ export function CustomerDeleteNotice({
   appointmentsUnknown = false,
 }: Props) {
   const memberNames = members
-    .map((member) => formatCustomerDisplayName(member.firstName, member.lastName))
+    .map((member) => formatMemberLabel(member.firstName, member.relationship))
     .filter(Boolean)
   const kept = appointments.filter(
     (appointment) =>
@@ -129,7 +130,7 @@ export function BulkCustomerDeleteNotice({
                 {formatCustomerDisplayName(customer.firstName, customer.lastName)}
                 {': '}
                 {(customer.members ?? [])
-                  .map((member) => formatCustomerDisplayName(member.firstName, member.lastName))
+                  .map((member) => formatMemberLabel(member.firstName, member.relationship))
                   .filter(Boolean)
                   .join(', ')}
               </li>

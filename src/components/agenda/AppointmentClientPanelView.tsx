@@ -35,7 +35,10 @@ export function AppointmentClientPanelView({
     draft.customerFirstName,
     draft.customerLastName,
   )
-  const membersLabel = formatHouseholdMembersField(draft.householdMembers ?? [])
+  const membersLabel = formatHouseholdMembersField(
+    draft.householdMembers ?? [],
+    draft.customerFirstName,
+  )
   const phone = draft.customerPhone
   const showContactActions = Boolean(phone.trim()) && !isGuestCustomerPhone(phone)
   const showOrigin = appointmentOrigin !== undefined

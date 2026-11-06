@@ -304,6 +304,7 @@ export function AppointmentForm({
                   appointmentForNewPerson: b.appointmentForNewPerson,
                   memberName: b.memberName,
                   memberNameHint: b.memberNameHint,
+                  memberRelationship: b.memberRelationship,
                   returningNotFound: b.returningNotFound,
                   lookupCustomer: b.lookupCustomer,
                   lookingUpCustomer: b.lookingUpCustomer,

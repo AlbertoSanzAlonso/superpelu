@@ -8,11 +8,16 @@ import {
 import { deleteCustomerMember } from '@/lib/api/admin'
 import { deleteMyCustomerMember } from '@/lib/api/staff'
 import { ApiError } from '@/lib/api/request'
-import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
+import {
+  formatMemberAppointmentName,
+  normalizeMemberRelationship,
+} from '@/lib/customer/relationship'
 import { typography } from '@/styles/typography'
 
 type Props = {
   titularName: string
+  titularFirstName: string
   members: HouseholdMemberDraft[]
   onChange: (members: HouseholdMemberDraft[]) => void
   phone?: string
@@ -23,6 +28,7 @@ type Props = {
 
 export function AppointmentMembersField({
   titularName,
+  titularFirstName,
   members,
   onChange,
   phone = '',
@@ -33,7 +39,7 @@ export function AppointmentMembersField({
   const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [relationship, setRelationship] = useState('')
   const [error, setError] = useState('')
   const [pendingDelete, setPendingDelete] = useState<HouseholdMemberDraft | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -43,7 +49,7 @@ export function AppointmentMembersField({
   const attendee = members.find((member) => member.attendee)
   const titularLabel = titularName.trim() ? `Titular · ${titularName.trim()}` : 'Titular'
   const selectedLabel = attendee
-    ? formatCustomerDisplayName(attendee.firstName, attendee.lastName)
+    ? formatMemberAppointmentName(attendee.firstName, attendee.relationship, titularFirstName)
     : titularLabel
 
   useEffect(() => {
@@ -73,17 +79,22 @@ export function AppointmentMembersField({
 
   function addMember() {
     const name = firstName.trim()
+    const kinship = normalizeMemberRelationship(relationship)
     if (!name) {
       setError('Indica al menos el nombre')
+      return
+    }
+    if (!kinship) {
+      setError('Elige el parentesco')
       return
     }
     const id = `${NEW_MEMBER_ID_PREFIX}${crypto.randomUUID()}`
     onChange([
       ...members.map((member) => ({ ...member, attendee: false })),
-      { id, firstName: name, lastName: lastName.trim(), attendee: true },
+      { id, firstName: name, relationship: kinship, attendee: true },
     ])
     setFirstName('')
-    setLastName('')
+    setRelationship('')
     setError('')
     setAdding(false)
   }
@@ -119,7 +130,11 @@ export function AppointmentMembersField({
   }
 
   const pendingName = pendingDelete
-    ? formatCustomerDisplayName(pendingDelete.firstName, pendingDelete.lastName)
+    ? formatMemberAppointmentName(
+        pendingDelete.firstName,
+        pendingDelete.relationship,
+        titularFirstName,
+      )
     : ''
 
   return (
@@ -170,7 +185,11 @@ export function AppointmentMembersField({
               </li>
             )}
             {members.map((member) => {
-              const name = formatCustomerDisplayName(member.firstName, member.lastName)
+              const name = formatMemberAppointmentName(
+                member.firstName,
+                member.relationship,
+                titularFirstName,
+              )
               return (
                 <li key={member.id} className="flex items-stretch border-t border-gold/15">
                   <button
@@ -207,18 +226,18 @@ export function AppointmentMembersField({
         <div className="space-y-2 rounded border border-gold/20 p-3">
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
+              id="appointment-member-first-name"
               label="Nombre"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               className={fieldCompact}
               autoComplete="given-name"
             />
-            <Input
-              label="Apellidos"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
+            <MemberRelationshipSelect
+              label="Parentesco"
+              value={relationship}
+              onChange={setRelationship}
               className={fieldCompact}
-              autoComplete="family-name"
             />
           </div>
           <div className="flex flex-wrap gap-2">

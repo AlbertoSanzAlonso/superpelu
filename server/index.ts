@@ -919,6 +919,7 @@ app.post('/api/appointments', async (c) => {
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>()
 
   const serviceIds =
@@ -963,6 +964,7 @@ app.post('/api/appointments', async (c) => {
       appointmentFor: body.appointmentFor === 'other' ? 'other' : 'self',
       memberId: body.memberId,
       memberName: body.memberName,
+      memberRelationship: body.memberRelationship,
     })
     const grouped =
       row.booking_group_id != null
@@ -1047,6 +1049,8 @@ app.post('/api/customers', async (c) => {
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
+      PARENTESCO_OBLIGATORIO: 'Elige el parentesco de cada miembro',
+      PARENTESCO_INVALIDO: 'El parentesco no es válido',
     }
     return c.json({ error: messages[code] ?? 'No se pudo crear el cliente' }, 400)
   }
@@ -1066,7 +1070,7 @@ function customerToJson(
     created_at: string
     updated_at: string
   },
-  members: { id: string; firstName: string; lastName: string }[] = [],
+  members: { id: string; firstName: string; relationship: string }[] = [],
 ) {
   const birthdate =
     customer.birthdate == null
@@ -1187,6 +1191,8 @@ app.patch('/api/customers/:phone', async (c) => {
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
+      PARENTESCO_OBLIGATORIO: 'Elige el parentesco de cada miembro',
+      PARENTESCO_INVALIDO: 'El parentesco no es válido',
     }
     const status = code === 'CLIENTE_NO_ENCONTRADO' ? 404 : 400
     return c.json({ error: messages[code] ?? 'No se pudo actualizar el cliente' }, status)
@@ -1432,6 +1438,7 @@ const adminScheduleErrors: Record<string, string> = {
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
   MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
+  PARENTESCO_OBLIGATORIO: 'Elige el parentesco del miembro',
   RANGO_INVALIDO: 'La hora de fin debe ser posterior al inicio',
   BLOQUEO_SOLAPADO: 'Ya hay un bloqueo en ese tramo',
   FECHA_FIN_INVALIDA: 'La fecha de fin debe ser igual o posterior al inicio',
@@ -1659,6 +1666,7 @@ app.post('/api/schedule/appointments', async (c) => {
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
   if (
@@ -1707,6 +1715,7 @@ app.post('/api/schedule/appointments', async (c) => {
       appointmentFor: body.appointmentFor,
       memberId: body.memberId,
       memberName: body.memberName,
+      memberRelationship: body.memberRelationship,
     })
     const grouped =
       row.booking_group_id != null
@@ -1753,6 +1762,7 @@ app.patch('/api/schedule/appointments/:id', async (c) => {
     appointmentFor?: 'self' | 'other'
     memberId?: string
     memberName?: string
+    memberRelationship?: string
   }>()
   try {
     const row = await updateAppointmentForAdmin(c.req.param('id'), {

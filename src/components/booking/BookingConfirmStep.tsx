@@ -34,6 +34,7 @@ type BookingConfirmStepProps = {
     appointmentForNewPerson: string
     memberName: string
     memberNameHint: string
+    memberRelationship: string
     returningNotFound: string
     lookupCustomer: string
     lookingUpCustomer: string
@@ -52,10 +53,13 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
       members={form.householdMembers}
       selectedMemberId={form.selectedMemberId}
       newMemberName={form.newMemberName}
+      newMemberRelationship={form.newMemberRelationship}
+      locale={locale}
       error={form.fieldErrors.attendee}
       onAppointmentFor={form.setAppointmentFor}
       onSelectMember={form.setSelectedMemberId}
       onNewMemberName={form.setNewMemberName}
+      onNewMemberRelationship={form.setNewMemberRelationship}
       labels={labels}
     />
   )

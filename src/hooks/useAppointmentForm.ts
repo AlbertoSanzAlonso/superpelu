@@ -14,6 +14,7 @@ import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 import { isValidDateString } from '@/lib/core/dates'
 import { capitalizePersonName } from '@/lib/customer/name'
+import { normalizeMemberRelationship } from '@/lib/customer/relationship'
 import { isValidPhone } from '@/lib/customer/phone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
 import type {
@@ -85,6 +86,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [appointmentFor, setAppointmentForState] = useState<'self' | 'other' | null>(null)
   const [selectedMemberId, setSelectedMemberIdState] = useState<string | 'new' | null>(null)
   const [newMemberName, setNewMemberNameState] = useState('')
+  const [newMemberRelationship, setNewMemberRelationshipState] = useState('')
   /** Idioma guardado en ficha tras el lookup de cliente habitual. */
   const [returningLocale, setReturningLocale] = useState<Locale | null>(null)
   const [lookingUpCustomer, setLookingUpCustomer] = useState(false)
@@ -128,6 +130,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setAppointmentForState(null)
     setSelectedMemberIdState(null)
     setNewMemberNameState('')
+    setNewMemberRelationshipState('')
   }, [])
 
   const setCustomerType = useCallback((value: 'returning' | 'new') => {
@@ -164,10 +167,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     if (value === 'self') {
       setSelectedMemberIdState(null)
       setNewMemberNameState('')
+      setNewMemberRelationshipState('')
       return
     }
     setSelectedMemberIdState(householdMembers.length === 0 ? 'new' : null)
     setNewMemberNameState('')
+    setNewMemberRelationshipState('')
   }, [householdMembers.length])
 
   const setSelectedMemberId = useCallback((id: string | 'new') => {
@@ -177,6 +182,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
   const setNewMemberName = useCallback((value: string) => {
     setNewMemberNameState(value)
+    setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
+  }, [])
+
+  const setNewMemberRelationship = useCallback((value: string) => {
+    setNewMemberRelationshipState(value)
     setFieldErrors((prev) => (prev.attendee ? { ...prev, attendee: undefined } : prev))
   }, [])
 
@@ -578,6 +588,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setAppointmentForState(null)
       setSelectedMemberIdState(null)
       setNewMemberNameState('')
+      setNewMemberRelationshipState('')
       setReturningVerified(true)
     } catch {
       setReturningLookupError(errors.serverConnection)
@@ -633,6 +644,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
           next.attendee = errors.memberChoiceRequired
         } else if (!pickedExisting && !newMemberName.trim()) {
           next.attendee = errors.memberNameRequired
+        } else if (!pickedExisting && !normalizeMemberRelationship(newMemberRelationship)) {
+          next.attendee = errors.memberRelationshipRequired
         }
       }
     }
@@ -654,10 +667,12 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     errors.appointmentForRequired,
     errors.memberChoiceRequired,
     errors.memberNameRequired,
+    errors.memberRelationshipRequired,
     householdMembers.length,
     appointmentFor,
     selectedMemberId,
     newMemberName,
+    newMemberRelationship,
   ])
 
   const submit = useCallback(async (opts?: {
@@ -709,7 +724,10 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         ...(appointmentFor === 'other'
           ? selectedMemberId && selectedMemberId !== 'new'
             ? { memberId: selectedMemberId }
-            : { memberName: newMemberName.trim() }
+            : {
+                memberName: newMemberName.trim(),
+                memberRelationship: newMemberRelationship,
+              }
           : {}),
       })
       onSuccess?.(appointment, appointments, manageUrl)
@@ -744,6 +762,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     appointmentFor,
     selectedMemberId,
     newMemberName,
+    newMemberRelationship,
     onSuccess,
     errors.createFailed,
     notificationLocale,
@@ -799,6 +818,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setSelectedMemberId,
     newMemberName,
     setNewMemberName,
+    newMemberRelationship,
+    setNewMemberRelationship,
     lookingUpCustomer,
     returningLookupError,
     lookupReturningCustomer,

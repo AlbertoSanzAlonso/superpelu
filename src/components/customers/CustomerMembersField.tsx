@@ -9,14 +9,15 @@ import {
 } from '@/lib/api/admin'
 import { ApiError } from '@/lib/api/request'
 import { formatDisplayDate } from '@/lib/core/dates'
-import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
+import { formatMemberLabel, normalizeMemberRelationship } from '@/lib/customer/relationship'
 import { typography } from '@/styles/typography'
 
 export type CustomerMemberDraft = {
   key: string
   id?: string
   firstName: string
-  lastName: string
+  relationship: string
 }
 
 type Props = {
@@ -40,7 +41,7 @@ export function CustomerMembersField({
   const [open, setOpen] = useState(false)
   const [adding, setAdding] = useState(false)
   const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
+  const [relationship, setRelationship] = useState('')
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -83,14 +84,19 @@ export function CustomerMembersField({
 
   function addMember() {
     const name = firstName.trim()
+    const kinship = normalizeMemberRelationship(relationship)
     if (!name) {
       setError('Indica al menos el nombre')
       return
     }
+    if (!kinship) {
+      setError('Elige el parentesco')
+      return
+    }
     const key = crypto.randomUUID()
-    onChange([...members, { key, firstName: name, lastName: lastName.trim() }])
+    onChange([...members, { key, firstName: name, relationship: kinship }])
     setFirstName('')
-    setLastName('')
+    setRelationship('')
     setError('')
     setAdding(false)
     setEditingKey(key)
@@ -152,7 +158,7 @@ export function CustomerMembersField({
   }
 
   const pendingName = pendingDelete
-    ? formatCustomerDisplayName(pendingDelete.firstName, pendingDelete.lastName)
+    ? formatMemberLabel(pendingDelete.firstName, pendingDelete.relationship)
     : ''
   const hasPending = (pendingAppointments?.length ?? 0) > 0
 
@@ -193,7 +199,7 @@ export function CustomerMembersField({
               </li>
             )}
             {members.map((member) => {
-              const name = formatCustomerDisplayName(member.firstName, member.lastName)
+              const name = formatMemberLabel(member.firstName, member.relationship)
               return (
                 <li key={member.key} className="flex items-stretch border-t border-gold/15 first:border-t-0">
                   <button
@@ -225,6 +231,7 @@ export function CustomerMembersField({
       {editing && (
         <div className="grid gap-2 sm:grid-cols-2">
           <Input
+            id="member-edit-first-name"
             label="Nombre"
             value={editing.firstName}
             onChange={(e) =>
@@ -235,13 +242,13 @@ export function CustomerMembersField({
               )
             }
           />
-          <Input
-            label="Apellidos"
-            value={editing.lastName}
-            onChange={(e) =>
+          <MemberRelationshipSelect
+            label="Parentesco"
+            value={editing.relationship}
+            onChange={(next) =>
               onChange(
                 members.map((member) =>
-                  member.key === editing.key ? { ...member, lastName: e.target.value } : member,
+                  member.key === editing.key ? { ...member, relationship: next } : member,
                 ),
               )
             }
@@ -253,16 +260,16 @@ export function CustomerMembersField({
         <div className="space-y-2 rounded border border-gold/20 p-3">
           <div className="grid gap-2 sm:grid-cols-2">
             <Input
+              id="member-new-first-name"
               label="Nombre"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               autoComplete="given-name"
             />
-            <Input
-              label="Apellidos"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              autoComplete="family-name"
+            <MemberRelationshipSelect
+              label="Parentesco"
+              value={relationship}
+              onChange={setRelationship}
             />
           </div>
           <div className="flex flex-wrap gap-2">
@@ -381,7 +388,7 @@ export function CustomerMembersField({
                     >
                       {otherMembers.map((member) => (
                         <option key={member.id} value={member.id}>
-                          {formatCustomerDisplayName(member.firstName, member.lastName)}
+                          {formatMemberLabel(member.firstName, member.relationship)}
                         </option>
                       ))}
                     </select>

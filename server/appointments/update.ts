@@ -247,6 +247,7 @@ export async function updateAppointmentForStaff(
         appointmentFor: 'other',
         memberId: input.memberId,
         memberName: input.memberName,
+        memberRelationship: input.memberRelationship,
       })
       nameSnapshot = planned.nameSnapshot
       memberLink = planned.memberLink
@@ -461,6 +462,7 @@ async function replaceAppointment(
     appointmentFor: input.appointmentFor,
     memberId: input.memberId,
     memberName: input.memberName,
+    memberRelationship: input.memberRelationship,
     // Es una modificación: no mandar "cita nueva" ni confundir con cancelación.
     skipCustomerWhatsApp: true,
   })

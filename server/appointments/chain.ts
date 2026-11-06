@@ -353,6 +353,7 @@ export async function createChainedBookingAppointment(
     appointmentFor: input.appointmentFor,
     memberId: input.memberId,
     memberName: input.memberName,
+    memberRelationship: input.memberRelationship,
   })
   input.memberLink = memberLink
   const createdAt = new Date().toISOString()

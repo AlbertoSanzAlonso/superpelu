@@ -7,7 +7,8 @@ import type { CustomerUpdateSource } from '@/lib/customer/updateSource'
 export type CustomerMember = {
   id: string
   firstName: string
-  lastName: string
+  /** Parentesco respecto al titular: hijo, pareja, etc. Vacío en fichas antiguas. */
+  relationship: string
 }
 
 export type Customer = {

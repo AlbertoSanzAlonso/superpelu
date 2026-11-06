@@ -1,6 +1,6 @@
 import type { AppointmentRow } from '@server/db.js'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
-import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberAppointmentName } from '@/lib/customer/relationship'
 import { getCustomer } from '@server/customers/index.js'
 import { getCustomerMember } from '@server/customers/members.js'
 import {
@@ -49,9 +49,15 @@ async function resolveWhatsAppAddressee(row: AppointmentRow): Promise<{
     return { principalFirstName, memberName: null }
   }
 
+  const locale = await resolveCustomerFacingLocale(row.customer_phone, row.locale)
   const member = await getCustomerMember(row.customer_phone, row.customer_member_id)
   const memberName = member
-    ? formatCustomerDisplayName(member.firstName, member.lastName)
+    ? formatMemberAppointmentName(
+        member.firstName,
+        member.relationship,
+        principalFirstName,
+        locale,
+      )
     : row.customer_name.trim()
   return { principalFirstName, memberName: memberName || null }
 }

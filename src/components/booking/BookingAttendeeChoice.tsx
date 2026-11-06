@@ -1,5 +1,7 @@
+import { MemberRelationshipSelect } from '@/components/customers/MemberRelationshipSelect'
 import { Input } from '@/components/ui/Input'
-import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { formatMemberLabel } from '@/lib/customer/relationship'
+import type { Locale } from '@/i18n/types'
 import type { CustomerMember } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -9,10 +11,13 @@ type Props = {
   members: CustomerMember[]
   selectedMemberId: string | 'new' | null
   newMemberName: string
+  newMemberRelationship: string
+  locale: Locale
   error?: string
   onAppointmentFor: (value: 'self' | 'other') => void
   onSelectMember: (id: string | 'new') => void
   onNewMemberName: (value: string) => void
+  onNewMemberRelationship: (value: string) => void
   labels: {
     appointmentForQuestion: string
     appointmentForSelf: string
@@ -21,6 +26,7 @@ type Props = {
     appointmentForNewPerson: string
     memberName: string
     memberNameHint: string
+    memberRelationship: string
   }
 }
 
@@ -37,10 +43,13 @@ export function BookingAttendeeChoice({
   members,
   selectedMemberId,
   newMemberName,
+  newMemberRelationship,
+  locale,
   error,
   onAppointmentFor,
   onSelectMember,
   onNewMemberName,
+  onNewMemberRelationship,
   labels,
 }: Props) {
   const showNewName =
@@ -75,7 +84,7 @@ export function BookingAttendeeChoice({
         <div className="space-y-2">
           <p className={typography.caption}>{labels.appointmentForMembersHint}</p>
           {members.map((member) => {
-            const name = formatCustomerDisplayName(member.firstName, member.lastName)
+            const name = formatMemberLabel(member.firstName, member.relationship, locale)
             const active = selectedMemberId === member.id
             return (
               <button
@@ -107,7 +116,13 @@ export function BookingAttendeeChoice({
             required
             value={newMemberName}
             onChange={(e) => onNewMemberName(e.target.value)}
-            autoComplete="name"
+            autoComplete="given-name"
+          />
+          <MemberRelationshipSelect
+            label={labels.memberRelationship}
+            value={newMemberRelationship}
+            onChange={onNewMemberRelationship}
+            locale={locale}
           />
           <p className={typography.caption}>{labels.memberNameHint}</p>
         </div>
