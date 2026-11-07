@@ -195,7 +195,7 @@ export async function syncCustomerMembers(
   return saved
 }
 
-/** Reescribe el nombre de las citas del miembro: «Antonio (hijo) de Luis». */
+/** Reescribe el nombre de las citas del miembro: «Antonio (hijo de Luis)». */
 export async function refreshMemberAppointmentNames(phone: string): Promise<void> {
   const normalized = normalizePhone(phone)
   if (!normalized) return

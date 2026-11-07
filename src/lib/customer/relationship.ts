@@ -15,20 +15,29 @@ export function formatMemberLabel(firstName: string, relationship: string): stri
   return label ? `${name} (${label})` : name
 }
 
-/** «Antonio (hijo) de Luis». En inglés: «Antonio (hijo) of Luis». */
+/** «Antonio (hijo de Luis)». En inglés: «Antonio (hijo of Luis)». */
 export function formatMemberAppointmentName(
   memberFirstName: string,
   relationship: string,
   titularFirstName: string,
   locale: Locale = 'es',
 ): string {
-  const base = formatMemberLabel(memberFirstName, relationship)
+  const name = memberFirstName.trim()
+  const kinship = clipMemberRelationship(relationship)
   const titular = titularFirstName.trim()
-  if (!base || !titular || !clipMemberRelationship(relationship)) return base
-  return locale === 'en' ? `${base} of ${titular}` : `${base} de ${titular}`
+  if (!name) return ''
+  if (!kinship || !titular) return name
+  const relation = locale === 'en' ? `${kinship} of ${titular}` : `${kinship} de ${titular}`
+  return `${name} (${relation})`
 }
 
-/** «Noa Sanz (hija) de Alberto» → «Noa Sanz». Sin ese formato, el texto tal cual. */
+/**
+ * «Noa Sanz (hija de Alberto)» y el formato antiguo «Noa Sanz (hija) de Alberto»
+ * → «Noa Sanz». Sin parentesco, el texto tal cual.
+ */
 export function memberNameWithoutKinship(displayName: string): string {
-  return displayName.replace(/\s+\([^)]*\)\s+(?:de|of)\s+.+$/i, '').trim()
+  return displayName
+    .replace(/\s+\([^)]*\)\s+(?:de|of)\s+.+$/i, '')
+    .replace(/\s+\([^)]*\s(?:de|of)\s[^)]*\)$/i, '')
+    .trim()
 }
