@@ -42,6 +42,8 @@ export function CustomerMembersField({
   const [firstName, setFirstName] = useState('')
   const [relationship, setRelationship] = useState('')
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editRelationship, setEditRelationship] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<CustomerMemberDraft | null>(null)
@@ -98,6 +100,36 @@ export function CustomerMembersField({
     setRelationship('')
     setError('')
     setAdding(false)
+  }
+
+  function beginEdit(member: CustomerMemberDraft) {
+    setAdding(false)
+    setEditingKey(member.key)
+    setEditFirstName(member.firstName)
+    setEditRelationship(member.relationship)
+    setError('')
+    setOpen(false)
+  }
+
+  function saveEdit() {
+    if (!editing) return
+    const name = editFirstName.trim()
+    const kinship = clipMemberRelationship(editRelationship)
+    if (!name) {
+      setError('Indica al menos el nombre')
+      return
+    }
+    if (!kinship) {
+      setError('Indica el parentesco')
+      return
+    }
+    onChange(
+      members.map((member) =>
+        member.key === editing.key ? { ...member, firstName: name, relationship: kinship } : member,
+      ),
+    )
+    setError('')
+    setEditingKey(null)
   }
 
   function closePending() {
@@ -203,11 +235,7 @@ export function CustomerMembersField({
                   <button
                     type="button"
                     className="min-w-0 flex-1 cursor-pointer px-3 py-2 text-left text-sm text-charcoal hover:bg-gold/10"
-                    onClick={() => {
-                      setAdding(false)
-                      setEditingKey(member.key)
-                      setOpen(false)
-                    }}
+                    onClick={() => beginEdit(member)}
                   >
                     {name || 'Sin nombre'}
                   </button>
@@ -228,43 +256,42 @@ export function CustomerMembersField({
       </div>
 
       {editing && (
-        <div className="space-y-2">
+        <div className="space-y-2 rounded border border-gold/20 p-3">
           <div className="grid gap-2 sm:grid-cols-2">
-          <Input
-            id="member-edit-first-name"
-            label="Nombre"
-            value={editing.firstName}
-            onChange={(e) =>
-              onChange(
-                members.map((member) =>
-                  member.key === editing.key ? { ...member, firstName: e.target.value } : member,
-                ),
-              )
-            }
-          />
-          <Input
-            id="member-edit-relationship"
-            label="Parentesco"
-            value={editing.relationship}
-            placeholder="hijo, pareja…"
-            onChange={(e) =>
-              onChange(
-                members.map((member) =>
-                  member.key === editing.key
-                    ? { ...member, relationship: e.target.value }
-                    : member,
-                ),
-              )
-            }
-          />
-        </div>
-          <button
-            type="button"
-            className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
-            onClick={() => setEditingKey(null)}
-          >
-            Ocultar
-          </button>
+            <Input
+              id="member-edit-first-name"
+              label="Nombre"
+              value={editFirstName}
+              onChange={(e) => setEditFirstName(e.target.value)}
+              autoComplete="given-name"
+            />
+            <Input
+              id="member-edit-relationship"
+              label="Parentesco"
+              value={editRelationship}
+              placeholder="hijo, pareja…"
+              onChange={(e) => setEditRelationship(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="ui-rounded cursor-pointer border border-gold bg-gold/10 px-3 py-1.5 text-sm text-charcoal hover:bg-gold/15 focus:outline-none focus:ring-2 focus:ring-gold/40"
+              onClick={saveEdit}
+            >
+              Guardar
+            </button>
+            <button
+              type="button"
+              className="ui-rounded cursor-pointer border border-gold/30 px-3 py-1.5 text-sm text-charcoal-muted hover:border-gold focus:outline-none focus:ring-2 focus:ring-gold/40"
+              onClick={() => {
+                setEditingKey(null)
+                setError('')
+              }}
+            >
+              Ocultar
+            </button>
+          </div>
         </div>
       )}
 
