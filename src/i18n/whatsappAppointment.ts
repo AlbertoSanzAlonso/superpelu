@@ -54,7 +54,7 @@ export function buildWhatsAppAppointmentMessage(
     groupRows?: AppointmentRow[]
     /** Nombre del titular. Si falta, se usa el de la cita. */
     principalFirstName?: string | null
-    /** Nombre del miembro si la cita no es para el titular. */
+    /** Nombre del miembro, sin parentesco, si la cita no es para el titular. */
     memberName?: string | null
   },
 ): string {

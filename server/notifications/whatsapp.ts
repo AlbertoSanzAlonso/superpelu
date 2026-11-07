@@ -1,6 +1,5 @@
 import type { AppointmentRow } from '@server/db.js'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
-import { formatMemberAppointmentName } from '@/lib/customer/relationship'
 import { getCustomer } from '@server/customers/index.js'
 import { getCustomerMember } from '@server/customers/members.js'
 import {
@@ -33,6 +32,11 @@ async function localizeWhatsAppRows(
   return { row: localizedRow!, groupRows: localizedGroup }
 }
 
+/** «Noa Sanz (hija) de Alberto» → «Noa Sanz». El nombre guardado se deja igual. */
+function memberNameWithoutKinship(name: string): string {
+  return name.replace(/\s+\([^)]*\)\s+(?:de|of)\s+.+$/i, '').trim()
+}
+
 async function resolveWhatsAppAddressee(row: AppointmentRow): Promise<{
   principalFirstName: string
   memberName: string | null
@@ -49,16 +53,8 @@ async function resolveWhatsAppAddressee(row: AppointmentRow): Promise<{
     return { principalFirstName, memberName: null }
   }
 
-  const locale = await resolveCustomerFacingLocale(row.customer_phone, row.locale)
   const member = await getCustomerMember(row.customer_phone, row.customer_member_id)
-  const memberName = member
-    ? formatMemberAppointmentName(
-        member.firstName,
-        member.relationship,
-        principalFirstName,
-        locale,
-      )
-    : row.customer_name.trim()
+  const memberName = member?.firstName.trim() || memberNameWithoutKinship(row.customer_name)
   return { principalFirstName, memberName: memberName || null }
 }
 
