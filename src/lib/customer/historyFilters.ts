@@ -1,6 +1,7 @@
 import { isColorGroupWashRow } from '@/lib/booking/occupancy'
 import {
   customerAppointmentStatusLabel,
+  isPendingCustomerAppointment,
   matchesCustomerAppointmentStatusFilter,
   type CustomerAppointmentStatusFilter,
 } from '@/lib/customer/appointmentStatus'
@@ -79,7 +80,19 @@ export function filterAppointmentHistory(
     if (originFilter && (apt.origin ?? '') !== originFilter) return false
     if (!matchesTextQuery(apt, textQuery)) return false
     return true
-  })
+  }).sort(compareAppointmentHistory)
+}
+
+function compareAppointmentHistory(a: Appointment, b: Appointment): number {
+  const ap = isPendingCustomerAppointment(a) ? 0 : 1
+  const bp = isPendingCustomerAppointment(b) ? 0 : 1
+  if (ap !== bp) return ap - bp
+  if (ap === 0) {
+    if (a.date !== b.date) return a.date.localeCompare(b.date)
+    return a.startTime.localeCompare(b.startTime)
+  }
+  if (a.date !== b.date) return b.date.localeCompare(a.date)
+  return b.startTime.localeCompare(a.startTime)
 }
 
 export function buildServiceFilterOptions(appointments: Appointment[]) {

@@ -58,7 +58,7 @@ export function useSalonAppointmentHistory(adminToken: string) {
   const staffOptions = useMemo(() => buildStaffFilterOptions(appointments), [appointments])
 
   const filteredAppointments = useMemo(
-    () => sortNewestFirst(filterAppointmentHistory(appointments, filters)),
+    () => filterAppointmentHistory(appointments, filters),
     [appointments, filters],
   )
 

@@ -69,6 +69,12 @@ export function getCustomerAppointmentStatusTags(
   return tags
 }
 
+/** Cita confirmada que aún no ha terminado (hoy o más adelante). */
+export function isPendingCustomerAppointment(apt: Appointment): boolean {
+  if (apt.status === 'cancelled' || apt.status === APPOINTMENT_STATUS_NO_SHOW) return false
+  return !getCustomerAppointmentStatusTags(apt).has('completed')
+}
+
 export function matchesCustomerAppointmentStatusFilter(
   apt: Appointment,
   filter: CustomerAppointmentStatusFilter,

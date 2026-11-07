@@ -1,6 +1,9 @@
 import type { Appointment } from '@/types/booking'
 import { formatAppointmentTimeRange, isColorGroupWashRow } from '@/lib/booking/occupancy'
-import { customerAppointmentStatusLabel } from '@/lib/customer/appointmentStatus'
+import {
+  customerAppointmentStatusLabel,
+  isPendingCustomerAppointment,
+} from '@/lib/customer/appointmentStatus'
 import { appointmentOriginLabel } from '@/lib/customer/historyFilters'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
@@ -36,14 +39,24 @@ export function CustomerAppointmentHistoryList({
     )
   }
 
+  const pendingCount = appointments.filter(isPendingCustomerAppointment).length
+
   return (
     <ul className="divide-y divide-gold/10">
-      {appointments.map((apt) => {
+      {appointments.map((apt, index) => {
+        const showPendingHeading = pendingCount > 0 && index === 0
+        const showPastHeading = pendingCount > 0 && index === pendingCount
         const notesPreview = truncateNotesPreview(apt.notes)
         const statusLabel = customerAppointmentStatusLabel(apt)
         const originLabel = appointmentOriginLabel(apt.origin)
         return (
           <li key={apt.id}>
+            {showPendingHeading && (
+              <p className={`${typography.label} bg-cream px-4 py-2 text-gold`}>Pendientes</p>
+            )}
+            {showPastHeading && (
+              <p className={`${typography.label} bg-cream px-4 py-2`}>Anteriores</p>
+            )}
             <button
               type="button"
               onClick={() => onSelect(apt)}

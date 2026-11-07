@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { WhatsAppNotifyDialog } from '@/components/ui/WhatsAppNotifyDialog'
 import { cancelAppointment, deleteAppointment, fetchCustomerDetail, ApiError } from '@/lib/api'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
+import { isPendingCustomerAppointment } from '@/lib/customer/appointmentStatus'
 import { appointmentOriginLabel } from '@/lib/customer/historyFilters'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
@@ -50,6 +51,7 @@ export function CustomerAppointmentDetailModal({
   if (!appointment) return null
 
   const isCancelled = appointment.status === 'cancelled'
+  const canCancel = isPendingCustomerAppointment(appointment)
   const originLabel = appointmentOriginLabel(appointment.origin)
 
   async function handleConfirmDelete() {
@@ -211,15 +213,27 @@ export function CustomerAppointmentDetailModal({
             </p>
           )}
 
-          <footer className="flex shrink-0 justify-center border-t border-gold/15 px-4 py-3">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => setConfirmOpen(true)}
-              className="cursor-pointer text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline disabled:opacity-50"
-            >
-              {isCancelled ? 'Eliminar del historial' : 'Eliminar cita'}
-            </button>
+          <footer className="flex shrink-0 flex-col items-center gap-2 border-t border-gold/15 px-4 py-3">
+            {canCancel && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmOpen(true)}
+                className="ui-rounded w-full cursor-pointer border border-red-300 px-3 py-2 text-sm text-red-800 hover:bg-red-50 disabled:opacity-50"
+              >
+                Cancelar cita
+              </button>
+            )}
+            {!canCancel && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setConfirmOpen(true)}
+                className="cursor-pointer text-sm text-charcoal-muted underline-offset-2 hover:text-red-800 hover:underline disabled:opacity-50"
+              >
+                {isCancelled ? 'Eliminar del historial' : 'Eliminar cita'}
+              </button>
+            )}
           </footer>
         </div>
       </div>
