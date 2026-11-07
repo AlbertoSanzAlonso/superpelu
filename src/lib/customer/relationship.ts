@@ -27,3 +27,8 @@ export function formatMemberAppointmentName(
   if (!base || !titular || !clipMemberRelationship(relationship)) return base
   return locale === 'en' ? `${base} of ${titular}` : `${base} de ${titular}`
 }
+
+/** «Noa Sanz (hija) de Alberto» → «Noa Sanz». Sin ese formato, el texto tal cual. */
+export function memberNameWithoutKinship(displayName: string): string {
+  return displayName.replace(/\s+\([^)]*\)\s+(?:de|of)\s+.+$/i, '').trim()
+}

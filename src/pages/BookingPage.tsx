@@ -6,6 +6,7 @@ import { AddToCalendarButton } from '@/components/booking/AddToCalendarButton'
 import { formatChainedAppointmentTimeRange } from '@/lib/booking/combo'
 import { formatAppointmentTimeRange } from '@/lib/booking/occupancy'
 import { formatDisplayDate } from '@/lib/core/dates'
+import { memberNameWithoutKinship } from '@/lib/customer/relationship'
 import { useTranslation } from '@/i18n/useTranslation'
 import type { Appointment } from '@/types/booking'
 import { typography } from '@/styles/typography'
@@ -75,7 +76,7 @@ export function BookingPage() {
             </div>
             <div>
               <dt className={typography.label}>{labels.name}</dt>
-              <dd>{primary.customerName}</dd>
+              <dd>{memberNameWithoutKinship(primary.customerName)}</dd>
             </div>
           </dl>
           <div className="mt-10 space-y-4">
