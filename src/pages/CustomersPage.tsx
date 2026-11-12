@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type SelectHTMLAttributes } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type SelectHTMLAttributes } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { AgendaWorkspaceShell } from '@/components/layout/AgendaWorkspaceShell'
 import { BirthdayMessageModal } from '@/components/customers/BirthdayMessageModal'
@@ -30,6 +30,7 @@ import {
   type CustomerListSort,
 } from '@/lib/customer/listSort'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
+import { compareCustomersBySearch, customerSearchQuery } from '@/lib/customer/search'
 import { formatMemberLabel } from '@/lib/customer/relationship'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
@@ -155,25 +156,34 @@ export function CustomersPage() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkLocaleConfirm, setBulkLocaleConfirm] = useState<Locale | null>(null)
+  const requestId = useRef(0)
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
+    const id = ++requestId.current
     setLoading(true)
     setError('')
     try {
       const { customers: rows } = await fetchCustomers(adminToken, query)
+      if (id !== requestId.current) return
       setCustomers(rows)
       setSelectedPhones(new Set())
     } catch (err) {
+      if (id !== requestId.current) return
       setError(err instanceof ApiError ? err.message : 'No se pudo cargar la lista')
     } finally {
-      setLoading(false)
+      if (id === requestId.current) setLoading(false)
     }
   }, [adminToken, query])
 
   useEffect(() => {
-    if (authOk) void loadCustomers()
-  }, [authOk, loadCustomers])
+    if (!authOk) return
+    const delay = query.trim() ? 250 : 0
+    const timer = window.setTimeout(() => {
+      void loadCustomers()
+    }, delay)
+    return () => window.clearTimeout(timer)
+  }, [authOk, loadCustomers, query])
 
   const filteredCustomers = useMemo(
     () =>
@@ -185,10 +195,15 @@ export function CustomersPage() {
     [customers, localeFilter, phoneRegionFilter, updatedFilter],
   )
 
-  const sortedCustomers = useMemo(
-    () => sortCustomerList(filteredCustomers, sort),
-    [filteredCustomers, sort],
-  )
+  const search = useMemo(() => customerSearchQuery(query), [query])
+
+  const sortedCustomers = useMemo(() => {
+    const sorted = sortCustomerList(filteredCustomers, sort)
+    if (search.tokens.length === 0 && search.phoneDigits.length === 0) return sorted
+    return [...sorted].sort((a, b) =>
+      compareCustomersBySearch(a, b, search.tokens, search.phoneDigits),
+    )
+  }, [filteredCustomers, sort, search])
 
   const totalPages = Math.max(1, Math.ceil(sortedCustomers.length / CUSTOMERS_PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
@@ -200,7 +215,7 @@ export function CustomersPage() {
   useEffect(() => {
     setPage(1)
     setSelectedPhones(new Set())
-  }, [sort, localeFilter, phoneRegionFilter, updatedFilter])
+  }, [query, sort, localeFilter, phoneRegionFilter, updatedFilter])
 
   useEffect(() => {
     if (updatedFilter !== 'all' && sort === 'name') {
@@ -543,7 +558,11 @@ export function CustomersPage() {
         {loading ? (
           <p className={`${typography.caption} p-6 text-center`}>Cargando…</p>
         ) : customers.length === 0 ? (
-          <p className={`${typography.body} p-6 text-center`}>No hay clientes todavía.</p>
+          <p className={`${typography.body} p-6 text-center`}>
+            {query.trim()
+              ? 'Ningún cliente coincide con la búsqueda.'
+              : 'No hay clientes todavía.'}
+          </p>
         ) : sortedCustomers.length === 0 ? (
           <p className={`${typography.body} p-6 text-center`}>
             {hasActiveFilters
@@ -578,6 +597,11 @@ export function CustomersPage() {
                         onClick={() => navigate(historyHref)}
                       >
                         <p className="font-medium">{label}</p>
+                        {c.matchedAs && (
+                          <p className="mt-0.5 text-xs font-normal text-charcoal-muted">
+                            En citas: {c.matchedAs}
+                          </p>
+                        )}
                         <p className="mt-0.5 tabular-nums text-sm text-charcoal-muted">
                           {formatPhoneDisplay(c.phone)}
                         </p>
@@ -675,6 +699,11 @@ export function CustomersPage() {
                       >
                         <div>
                           {label}
+                          {c.matchedAs && (
+                            <p className="mt-0.5 text-xs font-normal text-charcoal-muted">
+                              En citas: {c.matchedAs}
+                            </p>
+                          )}
                           {(c.members ?? []).length > 0 && (
                             <p className="mt-0.5 text-xs font-normal text-charcoal-muted">
                               {c.members

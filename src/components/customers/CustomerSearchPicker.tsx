@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchCustomerDetail, fetchCustomers, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
-import type { CustomerDetail } from '@/types/customers'
+import { customerSearchHint, customerSearchTokens } from '@/lib/customer/search'
+import type { Customer, CustomerDetail } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
 type Props = {
@@ -13,9 +14,7 @@ type Props = {
 
 export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }: Props) {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<
-    { phone: string; firstName: string; lastName: string }[]
-  >([])
+  const [results, setResults] = useState<Customer[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -43,7 +42,7 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
       setError('')
       try {
         const { customers } = await fetchCustomers(adminToken, trimmed)
-        setResults(customers.slice(0, 8))
+        setResults(customers.slice(0, 20))
       } catch {
         setResults([])
         setError('No se pudo buscar')
@@ -99,7 +98,7 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
       </label>
       {open && (query.trim().length >= 2 || results.length > 0) && (
         <ul
-          className="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto border border-gold/30 bg-cream shadow-md"
+          className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto border border-gold/30 bg-cream shadow-md"
           role="listbox"
         >
           {loading && results.length === 0 && (
@@ -108,23 +107,29 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
           {!loading && results.length === 0 && query.trim().length >= 2 && (
             <li className="px-3 py-2 text-xs text-charcoal-muted">Sin resultados</li>
           )}
-          {results.map((c) => (
-            <li key={c.phone}>
-              <button
-                type="button"
-                role="option"
-                className="flex w-full cursor-pointer flex-col px-3 py-2 text-left text-sm hover:bg-gold/10"
-                onClick={() => void pick(c.phone)}
-              >
-                <span className="font-medium">
-                  {formatCustomerDisplayName(c.firstName, c.lastName)}
-                </span>
-                <span className={`${typography.caption} tabular-nums`}>
-                  {formatPhoneDisplay(c.phone)}
-                </span>
-              </button>
-            </li>
-          ))}
+          {results.map((c) => {
+            const hint = customerSearchHint(c, customerSearchTokens(query))
+            return (
+              <li key={c.phone}>
+                <button
+                  type="button"
+                  role="option"
+                  className="flex w-full cursor-pointer flex-col px-3 py-2 text-left text-sm hover:bg-gold/10"
+                  onClick={() => void pick(c.phone)}
+                >
+                  <span className="font-medium">
+                    {formatCustomerDisplayName(c.firstName, c.lastName)}
+                  </span>
+                  {hint && (
+                    <span className={`${typography.caption} text-charcoal-muted`}>{hint}</span>
+                  )}
+                  <span className={`${typography.caption} tabular-nums`}>
+                    {formatPhoneDisplay(c.phone)}
+                  </span>
+                </button>
+              </li>
+            )
+          })}
         </ul>
       )}
       {error && (

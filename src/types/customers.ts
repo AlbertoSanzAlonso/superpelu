@@ -29,6 +29,8 @@ export type Customer = {
   lastAppointmentDate: string | null
   createdAt: string
   updatedAt: string
+  /** Nombre visto en una cita, si la búsqueda no coincide con el titular. */
+  matchedAs?: string | null
 }
 
 export type CustomerDetail = {

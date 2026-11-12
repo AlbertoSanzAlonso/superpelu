@@ -20,7 +20,13 @@ import {
   type MemberLink,
 } from '@server/customers/members.js'
 import { isValidDateString, todaySalon } from '@/lib/core/dates'
+import { compareCustomersBySearch, customerSearchQuery } from '@/lib/customer/search'
 import type { CustomerMember } from '@/types/customers'
+import {
+  customerSearchWhere,
+  matchedAppointmentNameSelect,
+  matchedAsFromSnapshot,
+} from '@server/customers/search.js'
 
 /** Móvil español (+34): no pasar a inglés sin confirmación explícita. */
 function isSpanishStoredPhone(phone: string): boolean {
@@ -93,6 +99,8 @@ export type PublicCustomer = {
   lastAppointmentDate: string | null
   createdAt: string
   updatedAt: string
+  /** Nombre de cita distinto del titular, solo cuando la búsqueda no coincide con la ficha. */
+  matchedAs?: string | null
 }
 
 /** Normaliza birthdate a YYYY-MM-DD o null; lanza FECHA_NACIMIENTO_INVALIDA. */
@@ -764,45 +772,36 @@ export async function resolveStaffPortalCustomerPatch(input: {
 export async function listCustomers(
   options: { q?: string; limit?: number } = {},
 ): Promise<PublicCustomer[]> {
-  const q = options.q?.trim().toLowerCase() ?? ''
+  const { tokens, phoneDigits } = customerSearchQuery(options.q ?? '')
   const limit = Math.min(Math.max(options.limit ?? 5000, 1), 5000)
+  const where =
+    tokens.length > 0 || phoneDigits.length > 0
+      ? customerSearchWhere(tokens, phoneDigits)
+      : sql`TRUE`
 
   const rows = await sql<
     (CustomerRow & {
       appointment_count: number
       last_appointment_date: string | null
+      matched_appointment_name: string | null
     })[]
   >`
     SELECT c.*,
       (SELECT COUNT(*)::int FROM appointments a
        WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS appointment_count,
       (SELECT MAX(a.appointment_date) FROM appointments a
-       WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS last_appointment_date
+       WHERE a.customer_phone = c.phone AND a.status != 'cancelled') AS last_appointment_date,
+      ${matchedAppointmentNameSelect(tokens)}
     FROM customers c
+    WHERE ${where}
     ORDER BY lower(c.first_name), lower(COALESCE(c.last_name, '')), c.phone
     LIMIT ${limit}
   `
 
   const memberMap = await listMembersForPhones(rows.map((row) => row.phone))
 
-  const filtered = q
-    ? rows.filter((row) => {
-        const members = memberMap.get(row.phone) ?? []
-        const haystack = [
-          row.first_name,
-          row.last_name ?? '',
-          row.phone,
-          row.email ?? '',
-          ...members.flatMap((member) => [member.firstName, member.relationship]),
-        ]
-          .join(' ')
-          .toLowerCase()
-        return haystack.includes(q)
-      })
-    : rows
-
-  return filtered.map((row) =>
-    rowToPublic(
+  const customers = rows.map((row) => ({
+    ...rowToPublic(
       row,
       {
         count: row.appointment_count,
@@ -810,7 +809,17 @@ export async function listCustomers(
       },
       memberMap.get(row.phone) ?? [],
     ),
-  )
+    matchedAs: matchedAsFromSnapshot(
+      row.first_name,
+      row.last_name,
+      row.matched_appointment_name,
+      tokens,
+    ),
+  }))
+
+  if (tokens.length === 0 && phoneDigits.length === 0) return customers
+
+  return customers.sort((a, b) => compareCustomersBySearch(a, b, tokens, phoneDigits))
 }
 
 export async function markCustomerReviewRequestSent(phone: string): Promise<string> {
