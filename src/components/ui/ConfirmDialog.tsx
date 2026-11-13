@@ -7,6 +7,8 @@ export type ConfirmDialogState = {
   message?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
+  /** Solo botón de aceptar (avisos informativos). */
+  alert?: boolean
   /** Etiqueta de una tercera acción secundaria opcional (ej. "Seguir editando"). */
   secondaryLabel?: string
   /** Callback de la acción secundaria. Si no se pasa, `onClose` actúa de backdrop. */
@@ -27,6 +29,7 @@ export function ConfirmDialog({
   message,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Volver',
+  alert = false,
   secondaryLabel,
   onSecondary,
   destructive = false,
@@ -58,18 +61,20 @@ export function ConfirmDialog({
           <div className={`${typography.body} mb-5 text-sm`}>{message}</div>
         )}
         <div className="flex gap-2">
-          <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
-            {cancelLabel}
-          </Button>
+          {!alert && (
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClose} className="flex-1">
+              {cancelLabel}
+            </Button>
+          )}
           <Button
             type="button"
             variant="outline"
             size="sm"
             disabled={busy}
             onClick={() => void onConfirm()}
-            className={`flex-1 ${destructive ? 'border-red-700 text-red-800 hover:bg-red-50' : 'bg-gold/10'}`}
+            className={`${alert ? 'w-full' : 'flex-1'} ${destructive ? 'border-red-700 text-red-800 hover:bg-red-50' : 'bg-gold/10'}`}
           >
-            {busy ? 'Procesando…' : confirmLabel}
+            {busy ? 'Procesando…' : alert ? confirmLabel || 'Aceptar' : confirmLabel}
           </Button>
         </div>
         {secondaryLabel && (

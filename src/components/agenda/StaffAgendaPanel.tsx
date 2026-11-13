@@ -227,6 +227,7 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
         message={agenda.confirmDialog?.message}
         confirmLabel={agenda.confirmDialog?.confirmLabel}
         cancelLabel={agenda.confirmDialog?.cancelLabel}
+        alert={agenda.confirmDialog?.alert}
         destructive={agenda.confirmDialog?.destructive}
         busy={agenda.confirmBusy}
         onClose={agenda.closeConfirmDialog}
@@ -235,8 +236,9 @@ export function StaffAgendaPanel({ token, staff, onLogout }: Props) {
 
       <ForeignPhoneLocaleConfirmDialog
         open={agenda.foreignPhoneLocalePromptOpen}
-        onAccept={() => void agenda.acceptForeignPhoneLocale()}
-        onDecline={() => void agenda.declineForeignPhoneLocale()}
+        allowDontAskAgain
+        onAccept={(dontAskAgain) => void agenda.acceptForeignPhoneLocale(dontAskAgain)}
+        onDecline={(dontAskAgain) => void agenda.declineForeignPhoneLocale(dontAskAgain)}
       />
 
       <GuestCustomerConfirmDialog

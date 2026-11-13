@@ -14,7 +14,10 @@ import {
   type AppointmentSeriesMode,
 } from '@server/appointments/index.js'
 import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
-import { staffPortalBookingHasCustomer } from '@server/appointments/staffBookingValidation.js'
+import {
+  incompleteStaffAppointmentError,
+  staffPortalAppointmentMissingFields,
+} from '@server/appointments/staffBookingValidation.js'
 import type { SeriesScope } from '@server/appointments/seriesDates.js'
 import { getStaffDaySchedule } from '@server/staff/schedule.js'
 import { listServicesForStaff } from '@server/staff/index.js'
@@ -165,8 +168,23 @@ me.post('/me/appointments/preview-series', async (c) => {
     endDate?: string
     guestCustomer?: boolean
   }>().catch(() => null)
-  if (!body || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
+  if (!body) {
     return c.json({ error: 'Datos incompletos' }, 400)
+  }
+  {
+    const missing = staffPortalAppointmentMissingFields({
+      ...body,
+      serviceIds: body.serviceIds ?? [],
+      requireStaffId: false,
+    })
+    // Preview de serie: el tratamiento puede ir vacío en el body tipado; solo exige día/hora/cliente.
+    const previewMissing = missing.filter((field) => field !== 'tratamiento')
+    if (previewMissing.length > 0) {
+      return c.json(
+        { error: incompleteStaffAppointmentError(previewMissing), missing: previewMissing },
+        400,
+      )
+    }
   }
   try {
     const serviceIds = body.serviceIds ?? []
@@ -230,8 +248,13 @@ me.post('/me/appointments', async (c) => {
     memberRelationship?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
-  if (ids.length === 0 || !body.date || !body.startTime || !staffPortalBookingHasCustomer(body)) {
-    return c.json({ error: 'Datos incompletos' }, 400)
+  const missing = staffPortalAppointmentMissingFields({
+    ...body,
+    serviceIds: ids,
+    requireStaffId: false,
+  })
+  if (missing.length > 0) {
+    return c.json({ error: incompleteStaffAppointmentError(missing), missing }, 400)
   }
   const scope = body.scope ?? 'single'
   if (scope !== 'single' && scope !== 'weekly') {

@@ -45,7 +45,10 @@ import {
   updateAppointmentForAdmin,
 } from '@server/appointments/index.js'
 import { previewRecurringChainConflicts } from '@server/appointments/recurringChain.js'
-import { staffPortalBookingHasCustomer } from '@server/appointments/staffBookingValidation.js'
+import {
+  incompleteStaffAppointmentError,
+  staffPortalAppointmentMissingFields,
+} from '@server/appointments/staffBookingValidation.js'
 import {
   buildIcs,
   buildManagePath,
@@ -1678,14 +1681,13 @@ app.post('/api/schedule/appointments', async (c) => {
     memberRelationship?: string
   }>()
   const ids = body.serviceIds?.length ? body.serviceIds : body.serviceId ? [body.serviceId] : []
-  if (
-    !body.staffId ||
-    ids.length === 0 ||
-    !body.date ||
-    !body.startTime ||
-    !staffPortalBookingHasCustomer(body)
-  ) {
-    return c.json({ error: 'Datos incompletos' }, 400)
+  const missing = staffPortalAppointmentMissingFields({
+    ...body,
+    serviceIds: ids,
+    requireStaffId: true,
+  })
+  if (missing.length > 0) {
+    return c.json({ error: incompleteStaffAppointmentError(missing), missing }, 400)
   }
   const scope = body.scope ?? 'single'
   if (scope !== 'single' && scope !== 'weekly') {

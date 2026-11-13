@@ -454,6 +454,7 @@ export function useAdminAgendaAppointments({
     clearSelection,
     load,
     setError,
+    setConfirmDialog,
     setWhatsAppNotifyDialogOpen,
     setWhatsAppNotifyContext,
     setAppointmentFormOpen,

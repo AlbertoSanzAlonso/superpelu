@@ -32,7 +32,8 @@ import { useAgendaConfirm } from '@/hooks/agenda/useAgendaConfirm'
 import { useAgendaGridTimes } from '@/hooks/agenda/useAgendaGridTimes'
 import { useAgendaPendingBlockCreate } from '@/hooks/agenda/useAgendaPendingBlockCreate'
 import { useAgendaBlockDetailView } from '@/hooks/agenda/useAgendaBlockDetailView'
-import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import { shouldAskForeignPhoneLocaleInAgenda } from '@/hooks/useForeignPhoneLocalePrompt'
+import { suppressForeignPhoneLocalePrompt } from '@/lib/agenda/foreignPhoneLocalePrompt'
 import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
 import {
   clearCustomerNotesAcknowledgement,
@@ -40,6 +41,10 @@ import {
   markCustomerNotesAcknowledged,
 } from '@/lib/agenda/customerNotesWarning'
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
+import {
+  incompleteAppointmentMessage,
+  missingStaffAppointmentFields,
+} from '@/lib/agenda/appointmentDraftValidation'
 import type { Locale } from '@/i18n/types'
 import type {
   BookableService,
@@ -469,7 +474,18 @@ export function useStaffAgenda(token: string) {
           })
           return false
         }
-        setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
+        const message = err instanceof ApiError ? err.message : 'No se pudo guardar la cita'
+        if (err instanceof ApiError && /falta|incompleto/i.test(message)) {
+          confirmUi.setConfirmDialog({
+            title: 'Datos incompletos',
+            message,
+            confirmLabel: 'Aceptar',
+            alert: true,
+            onConfirm: () => undefined,
+          })
+        } else {
+          setError(message)
+        }
         return false
       }
     },
@@ -485,19 +501,33 @@ export function useStaffAgenda(token: string) {
     async (e: React.FormEvent): Promise<boolean> => {
       e.preventDefault()
       setError('')
-      if (!aptDraft.customerFirstName.trim()) {
-        setError('Indica el nombre del cliente')
+      const missing = missingStaffAppointmentFields({
+        draft: aptDraft,
+        staffId: schedule?.staffId,
+        agendaDate: date,
+        requirePhone: Boolean(editingId && !editingGuestPhone),
+      })
+      if (missing.length > 0) {
+        confirmUi.setConfirmDialog({
+          title: 'Datos incompletos',
+          message: incompleteAppointmentMessage(missing),
+          confirmLabel: 'Aceptar',
+          alert: true,
+          onConfirm: () => undefined,
+        })
         return false
       }
       if (
         appointmentMemberBooking(aptDraft.householdMembers ?? []).appointmentFor === 'other' &&
         !aptDraft.customerPhone.trim()
       ) {
-        setError('Indica un teléfono para guardar el miembro')
-        return false
-      }
-      if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
-        setError('Indica un teléfono móvil')
+        confirmUi.setConfirmDialog({
+          title: 'Datos incompletos',
+          message: 'Indica un teléfono para guardar el miembro.',
+          confirmLabel: 'Aceptar',
+          alert: true,
+          onConfirm: () => undefined,
+        })
         return false
       }
       if (
@@ -526,7 +556,7 @@ export function useStaffAgenda(token: string) {
       }
       if (
         !editingId &&
-        shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)
+        shouldAskForeignPhoneLocaleInAgenda(aptDraft.customerPhone, aptDraft.customerLocale)
       ) {
         setForeignPhoneLocalePromptOpen(true)
         return false
@@ -544,11 +574,10 @@ export function useStaffAgenda(token: string) {
       doSave,
       editingId,
       editingGuestPhone,
-      aptDraft.customerPhone,
-      aptDraft.customerNotes,
-      aptDraft.customerLocale,
-      aptDraft.customerFirstName,
-      aptDraft.householdMembers,
+      aptDraft,
+      date,
+      schedule?.staffId,
+      confirmUi,
       openWhatsAppNotifyForCreate,
     ],
   )
@@ -565,7 +594,7 @@ export function useStaffAgenda(token: string) {
       setGuestCustomerPromptOpen(true)
       return
     }
-    if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
+    if (shouldAskForeignPhoneLocaleInAgenda(aptDraft.customerPhone, aptDraft.customerLocale)) {
       setForeignPhoneLocalePromptOpen(true)
       return
     }
@@ -654,13 +683,21 @@ export function useStaffAgenda(token: string) {
     [aptDraft.customerPhone, doSave, openWhatsAppNotifyForCreate],
   )
 
-  const acceptForeignPhoneLocale = useCallback(async () => {
-    await continueCreateAfterLocale('en')
-  }, [continueCreateAfterLocale])
+  const acceptForeignPhoneLocale = useCallback(
+    async (dontAskAgain?: boolean) => {
+      if (dontAskAgain) suppressForeignPhoneLocalePrompt()
+      await continueCreateAfterLocale('en')
+    },
+    [continueCreateAfterLocale],
+  )
 
-  const declineForeignPhoneLocale = useCallback(async () => {
-    await continueCreateAfterLocale('es')
-  }, [continueCreateAfterLocale])
+  const declineForeignPhoneLocale = useCallback(
+    async (dontAskAgain?: boolean) => {
+      if (dontAskAgain) suppressForeignPhoneLocalePrompt()
+      await continueCreateAfterLocale('es')
+    },
+    [continueCreateAfterLocale],
+  )
 
   const closeForeignPhoneLocalePrompt = useCallback(() => {
     setForeignPhoneLocalePromptOpen(false)

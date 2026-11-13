@@ -12,7 +12,8 @@ import type {
   SeriesConflictResolution,
 } from '@/lib/api'
 import type { Locale } from '@/i18n/types'
-import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import { shouldAskForeignPhoneLocaleInAgenda } from '@/hooks/useForeignPhoneLocalePrompt'
+import { suppressForeignPhoneLocalePrompt } from '@/lib/agenda/foreignPhoneLocalePrompt'
 import { shouldPromptGuestCustomer, shouldPromptGuestToCustomerConversion } from '@/hooks/useGuestCustomerPrompt'
 import {
   customerNotesNeedWarning,
@@ -21,6 +22,11 @@ import {
 import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import type { EditingScheduleBaseline } from './types'
 import { appointmentScheduleChanged } from './types'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
+import {
+  incompleteAppointmentMessage,
+  missingStaffAppointmentFields,
+} from '@/lib/agenda/appointmentDraftValidation'
 
 function shouldAskCreateWhatsAppNotify(phone: string): boolean {
   const trimmed = phone.trim()
@@ -40,6 +46,7 @@ type PersistDeps = {
   clearSelection: () => void
   load: () => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
+  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   setWhatsAppNotifyDialogOpen: (open: boolean) => void
   setWhatsAppNotifyContext: (context: 'create' | 'edit' | 'move' | 'cancel') => void
   setAppointmentFormOpen: (open: boolean) => void
@@ -59,11 +66,24 @@ export function useAdminAppointmentPersist({
   clearSelection,
   load,
   setError,
+  setConfirmDialog,
   setWhatsAppNotifyDialogOpen,
   setWhatsAppNotifyContext,
   setAppointmentFormOpen,
   resyncAppointmentSnapshots,
 }: PersistDeps) {
+  const showIncompleteAlert = useCallback(
+    (missing: string[], message?: string) => {
+      setConfirmDialog({
+        title: 'Datos incompletos',
+        message: message ?? incompleteAppointmentMessage(missing),
+        confirmLabel: 'Aceptar',
+        alert: true,
+        onConfirm: () => undefined,
+      })
+    },
+    [setConfirmDialog],
+  )
   const [seriesConflictOpen, setSeriesConflictOpen] = useState(false)
   const [seriesConflictPreview, setSeriesConflictPreview] = useState<SeriesPreviewResult | null>(null)
   const [seriesConflictBusy, setSeriesConflictBusy] = useState(false)
@@ -237,7 +257,12 @@ export function useAdminAppointmentPersist({
         await load()
         return true
       } catch (err) {
-        setError(err instanceof ApiError ? err.message : 'No se pudo guardar la cita')
+        const message = err instanceof ApiError ? err.message : 'No se pudo guardar la cita'
+        if (err instanceof ApiError && /falta|incompleto/i.test(message)) {
+          showIncompleteAlert([], message)
+        } else {
+          setError(message)
+        }
         return false
       } finally {
         setIsSubmitting(false)
@@ -256,6 +281,7 @@ export function useAdminAppointmentPersist({
       clearSelection,
       load,
       setError,
+      showIncompleteAlert,
       resyncAppointmentSnapshots,
       setWhatsAppNotifyDialogOpen,
       setAppointmentFormOpen,
@@ -278,19 +304,21 @@ export function useAdminAppointmentPersist({
     async (e: React.FormEvent): Promise<boolean> => {
       e.preventDefault()
       if (!activeStaffId || !adminToken) return false
-      if (!aptDraft.customerFirstName.trim()) {
-        setError('Indica el nombre del cliente')
+      const missing = missingStaffAppointmentFields({
+        draft: aptDraft,
+        staffId: activeStaffId,
+        agendaDate: date,
+        requirePhone: Boolean(editingId && !editingGuestPhone),
+      })
+      if (missing.length > 0) {
+        showIncompleteAlert(missing)
         return false
       }
       if (
         appointmentMemberBooking(aptDraft.householdMembers ?? []).appointmentFor === 'other' &&
         !aptDraft.customerPhone.trim()
       ) {
-        setError('Indica un teléfono para guardar el miembro')
-        return false
-      }
-      if (editingId && !editingGuestPhone && !aptDraft.customerPhone.trim()) {
-        setError('Indica un teléfono móvil')
+        showIncompleteAlert(['teléfono'], 'Indica un teléfono para guardar el miembro.')
         return false
       }
       if (
@@ -330,7 +358,7 @@ export function useAdminAppointmentPersist({
         setGuestCustomerPromptOpen(true)
         return false
       }
-      if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
+      if (shouldAskForeignPhoneLocaleInAgenda(aptDraft.customerPhone, aptDraft.customerLocale)) {
         setForeignPhoneLocalePromptOpen(true)
         return false
       }
@@ -349,17 +377,11 @@ export function useAdminAppointmentPersist({
       editingGuestPhone,
       editingScheduleBaseline,
       date,
-      aptDraft.date,
-      aptDraft.startTime,
-      aptDraft.customerPhone,
-      aptDraft.customerNotes,
-      aptDraft.customerLocale,
-      aptDraft.customerFirstName,
-      aptDraft.householdMembers,
+      aptDraft,
       persistAppointment,
+      showIncompleteAlert,
       setWhatsAppNotifyDialogOpen,
       setWhatsAppNotifyContext,
-      setError,
     ],
   )
 
@@ -375,7 +397,7 @@ export function useAdminAppointmentPersist({
       setGuestCustomerPromptOpen(true)
       return
     }
-    if (shouldAskForeignPhoneLocale(aptDraft.customerPhone, aptDraft.customerLocale)) {
+    if (shouldAskForeignPhoneLocaleInAgenda(aptDraft.customerPhone, aptDraft.customerLocale)) {
       setForeignPhoneLocalePromptOpen(true)
       return
     }
@@ -458,13 +480,21 @@ export function useAdminAppointmentPersist({
     ],
   )
 
-  const acceptForeignPhoneLocale = useCallback(async () => {
-    await continueCreateAfterLocale('en')
-  }, [continueCreateAfterLocale])
+  const acceptForeignPhoneLocale = useCallback(
+    async (dontAskAgain?: boolean) => {
+      if (dontAskAgain) suppressForeignPhoneLocalePrompt()
+      await continueCreateAfterLocale('en')
+    },
+    [continueCreateAfterLocale],
+  )
 
-  const declineForeignPhoneLocale = useCallback(async () => {
-    await continueCreateAfterLocale('es')
-  }, [continueCreateAfterLocale])
+  const declineForeignPhoneLocale = useCallback(
+    async (dontAskAgain?: boolean) => {
+      if (dontAskAgain) suppressForeignPhoneLocalePrompt()
+      await continueCreateAfterLocale('es')
+    },
+    [continueCreateAfterLocale],
+  )
 
   const closeForeignPhoneLocalePrompt = useCallback(() => {
     setForeignPhoneLocalePromptOpen(false)
