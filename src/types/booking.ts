@@ -169,6 +169,8 @@ export type CreateAppointmentPayload = {
   date: string
   startTime: string
   customerName?: string
+  customerFirstName?: string
+  customerLastName?: string
   customerPhone: string
   customerEmail?: string
   notes?: string

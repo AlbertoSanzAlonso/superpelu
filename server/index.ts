@@ -907,6 +907,8 @@ app.post('/api/appointments', async (c) => {
     date: string
     startTime: string
     customerName?: string
+    customerFirstName?: string
+    customerLastName?: string
     customerPhone: string
     customerEmail?: string
     notes?: string
@@ -927,6 +929,10 @@ app.post('/api/appointments', async (c) => {
     (body.serviceId ? [body.serviceId] : [])
 
   const locale = normalizeLocale(body.locale)
+  const hasNewCustomerName = Boolean(
+    (body.customerFirstName?.trim() && body.customerLastName?.trim()) ||
+      body.customerName?.trim(),
+  )
 
   if (
     serviceIds.length === 0 ||
@@ -934,7 +940,7 @@ app.post('/api/appointments', async (c) => {
     !body.date ||
     !body.startTime ||
     !body.customerPhone?.trim() ||
-    (!body.returningCustomer && !body.customerName?.trim())
+    (!body.returningCustomer && !hasNewCustomerName)
   ) {
     return c.json(
       {
@@ -954,6 +960,8 @@ app.post('/api/appointments', async (c) => {
       date: body.date,
       startTime: body.startTime,
       customerName: body.customerName,
+      customerFirstName: body.customerFirstName,
+      customerLastName: body.customerLastName,
       customerPhone: body.customerPhone,
       customerEmail: body.customerEmail,
       notes: body.notes,

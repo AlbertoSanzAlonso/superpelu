@@ -15,7 +15,8 @@ type BookingConfirmStepProps = {
   locale: Locale
   stepTitle: string
   labels: {
-    fullName: string
+    firstName: string
+    lastName: string
     phone: string
     emailOptional: string
     birthdate: string
@@ -51,7 +52,7 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
     <BookingAttendeeChoice
       appointmentFor={form.appointmentFor}
       selfName={
-        customerType === 'returning' ? form.returningFirstName : form.customerName
+        customerType === 'returning' ? form.returningFirstName : form.customerDisplayName
       }
       members={form.householdMembers}
       selectedMemberId={form.selectedMemberId}
@@ -161,14 +162,24 @@ export function BookingConfirmStep({ form, locale, stepTitle, labels }: BookingC
 
       {customerType === 'new' && (
         <>
-          <Input
-            label={labels.fullName}
-            required
-            value={form.customerName}
-            error={form.fieldErrors.name}
-            onChange={(e) => form.setCustomerName(e.target.value)}
-            autoComplete="name"
-          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Input
+              label={labels.firstName}
+              required
+              value={form.customerFirstName}
+              error={form.fieldErrors.firstName}
+              onChange={(e) => form.setCustomerFirstName(e.target.value)}
+              autoComplete="given-name"
+            />
+            <Input
+              label={labels.lastName}
+              required
+              value={form.customerLastName}
+              error={form.fieldErrors.lastName}
+              onChange={(e) => form.setCustomerLastName(e.target.value)}
+              autoComplete="family-name"
+            />
+          </div>
           <p className={`${typography.caption} -mt-2`}>{labels.accountHolderHint}</p>
           <Input
             label={labels.phone}

@@ -13,7 +13,7 @@ import {
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 import { isValidDateString } from '@/lib/core/dates'
-import { capitalizePersonName, hasRequiredLastName } from '@/lib/customer/name'
+import { capitalizePersonName, formatCustomerDisplayName } from '@/lib/customer/name'
 import { clipMemberRelationship } from '@/lib/customer/relationship'
 import { isValidPhone } from '@/lib/customer/phone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
@@ -74,7 +74,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
   const [slotsError, setSlotsError] = useState('')
   const [staffAtSlotError, setStaffAtSlotError] = useState('')
 
-  const [customerName, setCustomerNameState] = useState('')
+  const [customerFirstName, setCustomerFirstNameState] = useState('')
+  const [customerLastName, setCustomerLastNameState] = useState('')
   const [customerPhone, setCustomerPhoneState] = useState('')
   const [customerEmail, setCustomerEmail] = useState('')
   const [notes, setNotes] = useState('')
@@ -102,16 +103,22 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
 
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState<{
-    name?: string
+    firstName?: string
+    lastName?: string
     phone?: string
     birthdate?: string
     attendee?: string
   }>({})
   const [submitting, setSubmitting] = useState(false)
 
-  const setCustomerName = useCallback((value: string) => {
-    setCustomerNameState(value)
-    setFieldErrors((prev) => (prev.name ? { ...prev, name: undefined } : prev))
+  const setCustomerFirstName = useCallback((value: string) => {
+    setCustomerFirstNameState(value)
+    setFieldErrors((prev) => (prev.firstName ? { ...prev, firstName: undefined } : prev))
+  }, [])
+
+  const setCustomerLastName = useCallback((value: string) => {
+    setCustomerLastNameState(value)
+    setFieldErrors((prev) => (prev.lastName ? { ...prev, lastName: undefined } : prev))
   }, [])
 
   const setCustomerPhone = useCallback((value: string) => {
@@ -139,7 +146,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setReturningFirstName('')
     setReturningLocale(null)
     setReturningLookupError('')
-    setCustomerNameState('')
+    setCustomerFirstNameState('')
+    setCustomerLastNameState('')
     setBirthdateState('')
     clearAttendee()
     setFieldErrors({})
@@ -151,7 +159,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     setReturningFirstName('')
     setReturningLocale(null)
     setReturningLookupError('')
-    setCustomerNameState('')
+    setCustomerFirstNameState('')
+    setCustomerLastNameState('')
     setCustomerPhoneState('')
     setCustomerEmail('')
     setBirthdateState('')
@@ -211,7 +220,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     customerType === 'returning'
       ? returningVerified && Boolean(customerPhone.trim())
       : customerType === 'new' &&
-        Boolean(customerName.trim()) &&
+        Boolean(customerFirstName.trim()) &&
+        Boolean(customerLastName.trim()) &&
         Boolean(customerPhone.trim()) &&
         Boolean(birthdate.trim())
 
@@ -552,7 +562,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     resetChainSelection()
     setError('')
     setFieldErrors({})
-    setCustomerNameState('')
+    setCustomerFirstNameState('')
+    setCustomerLastNameState('')
     setCustomerPhoneState('')
     setCustomerEmail('')
     setNotes('')
@@ -586,7 +597,6 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         return
       }
       setReturningFirstName(capitalizePersonName(result.firstName))
-      setCustomerNameState(capitalizePersonName(result.firstName))
       setReturningLocale(normalizeLocale(result.locale))
       setHouseholdMembers(result.members ?? [])
       setAppointmentForState(null)
@@ -615,7 +625,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
       setError(errors.customerTypeRequired)
       return false
     }
-    const next: { name?: string; phone?: string; birthdate?: string; attendee?: string } = {}
+    const next: {
+      firstName?: string
+      lastName?: string
+      phone?: string
+      birthdate?: string
+      attendee?: string
+    } = {}
     if (!customerPhone.trim()) {
       next.phone = errors.phoneRequired
     } else if (!isValidPhone(customerPhone)) {
@@ -628,8 +644,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         return false
       }
     } else {
-      if (!customerName.trim() || !hasRequiredLastName(customerName, 'full')) {
-        next.name = errors.nameRequired
+      if (!customerFirstName.trim()) {
+        next.firstName = errors.firstNameRequired
+      }
+      if (!customerLastName.trim()) {
+        next.lastName = errors.lastNameRequired
       }
       if (!birthdate.trim()) {
         next.birthdate = errors.birthdateRequired
@@ -658,11 +677,13 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     return Object.keys(next).length === 0
   }, [
     customerType,
-    customerName,
+    customerFirstName,
+    customerLastName,
     customerPhone,
     birthdate,
     returningVerified,
-    errors.nameRequired,
+    errors.firstNameRequired,
+    errors.lastNameRequired,
     errors.phoneInvalid,
     errors.phoneRequired,
     errors.birthdateRequired,
@@ -713,7 +734,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         serviceStartTimes,
         date,
         startTime,
-        customerName: isReturning ? undefined : customerName,
+        customerFirstName: isReturning ? undefined : customerFirstName.trim(),
+        customerLastName: isReturning ? undefined : customerLastName.trim(),
         customerPhone,
         customerEmail: isReturning ? undefined : customerEmail || undefined,
         notes: notes || undefined,
@@ -756,7 +778,8 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     hasMultipleServices,
     date,
     startTime,
-    customerName,
+    customerFirstName,
+    customerLastName,
     customerPhone,
     customerEmail,
     notes,
@@ -796,8 +819,11 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
     loadingSlots,
     staffAtSlotError,
     slotsError,
-    customerName,
-    setCustomerName,
+    customerFirstName,
+    setCustomerFirstName,
+    customerLastName,
+    setCustomerLastName,
+    customerDisplayName: formatCustomerDisplayName(customerFirstName, customerLastName),
     customerPhone,
     setCustomerPhone,
     customerEmail,

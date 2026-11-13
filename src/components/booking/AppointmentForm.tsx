@@ -285,7 +285,8 @@ export function AppointmentForm({
                 locale={locale}
                 stepTitle={bookingSteps[CONFIRM_STEP]}
                 labels={{
-                  fullName: b.fullName,
+                  firstName: b.firstName,
+                  lastName: b.lastName,
                   phone: b.phone,
                   emailOptional: b.emailOptional,
                   birthdate: b.birthdate,
