@@ -35,13 +35,14 @@ import { formatMemberLabel } from '@/lib/customer/relationship'
 import { formatDisplayDate } from '@/lib/core/dates'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { useAdminSession } from '@/hooks/useAdminSession'
+import { useIgnoreKeyboardDismissInput } from '@/hooks/useIgnoreKeyboardDismissInput'
 import type { Locale } from '@/i18n/types'
 import type { Customer } from '@/types/customers'
 import { typography } from '@/styles/typography'
 import { customerLocaleLabel } from '@/components/customers/CustomerLocaleSelect'
 
 const searchFieldClass =
-  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
+  'h-9 min-w-0 flex-1 border border-gold/30 bg-cream/40 px-2.5 font-sans text-base text-charcoal outline-none backdrop-blur-[2px] focus:border-gold sm:text-sm'
 
 const selectFieldClass =
   'h-9 w-full cursor-pointer appearance-none border border-gold/30 bg-cream/40 py-0 pl-2.5 pr-9 font-sans text-sm text-charcoal outline-none backdrop-blur-[2px] focus:border-gold'
@@ -157,6 +158,7 @@ export function CustomersPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkLocaleConfirm, setBulkLocaleConfirm] = useState<Locale | null>(null)
   const requestId = useRef(0)
+  const searchGuard = useIgnoreKeyboardDismissInput()
 
   const loadCustomers = useCallback(async () => {
     if (!adminToken) return
@@ -404,11 +406,29 @@ export function CustomersPage() {
           </label>
           <input
             id="customers-search"
-            type="search"
+            type="text"
+            inputMode="search"
+            enterKeyHint="search"
+            role="searchbox"
             placeholder="Buscar nombre, teléfono…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onBlur={(e) => searchGuard.onBlurCapture(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value
+              if (!searchGuard.shouldAcceptChange(query, next)) return
+              setQuery(next)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                ;(e.target as HTMLInputElement).blur()
+              }
+            }}
             className={`${searchFieldClass} sm:min-w-[12rem]`}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
           />
           <FilterSelect
             label="Filtrar por idioma"

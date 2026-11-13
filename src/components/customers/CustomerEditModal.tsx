@@ -15,6 +15,7 @@ import { isGuestCustomerPhone } from '@/lib/customer/guestPhone'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay, isValidPhone, normalizePhone } from '@/lib/customer/phone'
 import { shouldAskForeignPhoneLocale } from '@/hooks/useForeignPhoneLocalePrompt'
+import { useIgnoreKeyboardDismissInput } from '@/hooks/useIgnoreKeyboardDismissInput'
 import type { Appointment } from '@/types/booking'
 import type { Customer, CustomerMember } from '@/types/customers'
 import { typography } from '@/styles/typography'
@@ -98,6 +99,8 @@ export function CustomerEditModal({
   const [phoneConflictName, setPhoneConflictName] = useState('')
   const [error, setError] = useState('')
   const backdropPressed = useRef(false)
+  const firstNameGuard = useIgnoreKeyboardDismissInput()
+  const lastNameGuard = useIgnoreKeyboardDismissInput()
 
   useEffect(() => {
     if (!open) return
@@ -141,6 +144,10 @@ export function CustomerEditModal({
   function validateForm(): boolean {
     if (!firstName.trim()) {
       setError('Indica al menos el nombre')
+      return false
+    }
+    if (!lastName.trim()) {
+      setError('Indica los apellidos')
       return false
     }
     if (!isValidEmail(email)) {
@@ -320,17 +327,38 @@ export function CustomerEditModal({
               <Input
                 label="Nombre"
                 required
-                autoComplete="given-name"
+                inputMode="text"
+                enterKeyHint="done"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onBlur={(e) => firstNameGuard.onBlurCapture(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value
+                  if (!firstNameGuard.shouldAcceptChange(firstName, next)) return
+                  setFirstName(next)
+                }}
                 disabled={busy}
+                className="!text-base sm:!text-sm"
               />
               <Input
                 label="Apellidos"
-                autoComplete="family-name"
+                required
+                inputMode="text"
+                enterKeyHint="done"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onBlur={(e) => lastNameGuard.onBlurCapture(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value
+                  if (!lastNameGuard.shouldAcceptChange(lastName, next)) return
+                  setLastName(next)
+                }}
                 disabled={busy}
+                className="!text-base sm:!text-sm"
               />
             </div>
 

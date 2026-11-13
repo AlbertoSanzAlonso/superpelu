@@ -13,7 +13,7 @@ import {
 import { buildFlexibleServiceStartTimes } from '@/lib/booking/combo'
 import { isHiddenFromPublicBooking } from '@/lib/booking/occupancy'
 import { isValidDateString } from '@/lib/core/dates'
-import { capitalizePersonName } from '@/lib/customer/name'
+import { capitalizePersonName, hasRequiredLastName } from '@/lib/customer/name'
 import { clipMemberRelationship } from '@/lib/customer/relationship'
 import { isValidPhone } from '@/lib/customer/phone'
 import { normalizeLocale, type Locale } from '@/i18n/types'
@@ -628,7 +628,7 @@ export function useAppointmentForm(options: AppointmentFormOptions = {}) {
         return false
       }
     } else {
-      if (!customerName.trim()) {
+      if (!customerName.trim() || !hasRequiredLastName(customerName, 'full')) {
         next.name = errors.nameRequired
       }
       if (!birthdate.trim()) {

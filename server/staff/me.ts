@@ -60,6 +60,7 @@ const errorMessages: Record<string, string> = {
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
   PARENTESCO_OBLIGATORIO: 'Indica el parentesco del miembro',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
+  APELLIDOS_INVALIDO: 'Indica los apellidos',
   CREDENCIALES_INVALIDAS: 'Nombre o contraseña incorrectos',
   SERVICIO_INVALIDO: 'Servicio no válido',
   STAFF_NO_REALIZA_SERVICIO: 'No realizas ese servicio',

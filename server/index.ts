@@ -1047,6 +1047,7 @@ app.post('/api/customers', async (c) => {
     const messages: Record<string, string> = {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
+      APELLIDOS_INVALIDO: 'Indica los apellidos',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
       PARENTESCO_OBLIGATORIO: 'Indica el parentesco de cada miembro',
@@ -1188,6 +1189,7 @@ app.patch('/api/customers/:phone', async (c) => {
       TELEFONO_INVALIDO: 'Teléfono no válido',
       CLIENTE_NO_ENCONTRADO: 'Cliente no encontrado',
       NOMBRE_INVALIDO: 'Indica al menos el nombre',
+      APELLIDOS_INVALIDO: 'Indica los apellidos',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida',
       DEMASIADOS_MIEMBROS: 'Hay demasiados miembros en esta ficha',
       PARENTESCO_OBLIGATORIO: 'Indica el parentesco de cada miembro',
@@ -1434,6 +1436,7 @@ const adminScheduleErrors: Record<string, string> = {
   CITA_NO_ENCONTRADA: 'Cita no encontrada',
   TELEFONO_INVALIDO: 'Teléfono no válido',
   NOMBRE_INVALIDO: 'Indica al menos el nombre',
+  APELLIDOS_INVALIDO: 'Indica los apellidos',
   MIEMBRO_NO_ENCONTRADO: 'Miembro no encontrado',
   MIEMBRO_NOMBRE_OBLIGATORIO: 'Indica el nombre del miembro',
   PARENTESCO_OBLIGATORIO: 'Indica el parentesco del miembro',

@@ -4,8 +4,9 @@ import {
   formatHouseholdMembersField,
   type AppointmentDraft,
 } from '@/components/agenda/staff/types'
+import { useIgnoreKeyboardDismissInput } from '@/hooks/useIgnoreKeyboardDismissInput'
 
-const fieldCompact = '!px-3 !py-2'
+const fieldCompact = '!px-3 !py-2 !text-base sm:!text-sm'
 
 type Props = {
   draft: AppointmentDraft
@@ -40,6 +41,9 @@ export function AppointmentCustomerFields({
     draft.householdMembers ?? [],
     draft.customerFirstName,
   )
+  const firstNameGuard = useIgnoreKeyboardDismissInput()
+  const lastNameGuard = useIgnoreKeyboardDismissInput()
+  const nameFieldClass = compact ? fieldCompact : '!text-base sm:!text-sm'
 
   return (
     <div className="space-y-3">
@@ -57,17 +61,36 @@ export function AppointmentCustomerFields({
         <Input
           label="Nombre"
           required
+          inputMode="text"
+          enterKeyHint="done"
           value={draft.customerFirstName}
-          onChange={(e) => onDraftChange({ customerFirstName: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="given-name"
+          onBlur={(e) => firstNameGuard.onBlurCapture(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value
+            if (!firstNameGuard.shouldAcceptChange(draft.customerFirstName, next)) return
+            onDraftChange({ customerFirstName: next })
+          }}
+          className={nameFieldClass}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <Input
           label="Apellidos"
+          required
+          inputMode="text"
+          enterKeyHint="done"
           value={draft.customerLastName}
-          onChange={(e) => onDraftChange({ customerLastName: e.target.value })}
-          className={compact ? fieldCompact : undefined}
-          autoComplete="family-name"
+          onBlur={(e) => lastNameGuard.onBlurCapture(e.target.value)}
+          onChange={(e) => {
+            const next = e.target.value
+            if (!lastNameGuard.shouldAcceptChange(draft.customerLastName, next)) return
+            onDraftChange({ customerLastName: next })
+          }}
+          className={nameFieldClass}
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
         />
         <Input
           label={phoneLabel}

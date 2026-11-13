@@ -172,9 +172,15 @@ export function resolveCustomerFromInput(input: {
   return { firstName, lastName, phone }
 }
 
+function requireCustomerLastName(lastName: string): void {
+  if (!lastName.trim()) throw new Error('APELLIDOS_INVALIDO')
+}
+
 /** Crea o actualiza ficha de cliente (PK = teléfono normalizado). */
 export async function upsertCustomer(input: CustomerInput): Promise<CustomerRow> {
   const { firstName, lastName, phone } = resolveCustomerFromInput(input)
+  const existingBeforeUpsert = await getCustomer(phone)
+  if (!existingBeforeUpsert) requireCustomerLastName(lastName)
   const now = new Date().toISOString()
   const email = input.email?.trim() || null
   const notes = input.notes?.trim() || null
@@ -284,6 +290,7 @@ async function assertPhoneFreeForReassign(phone: string): Promise<void> {
 /** Crea ficha nueva; falla si el teléfono ya existe. */
 export async function createCustomer(input: CustomerInput): Promise<CustomerRow> {
   const { firstName, lastName, phone } = resolveCustomerFromInput(input)
+  requireCustomerLastName(lastName)
   if (input.replaceExisting) {
     const existing = await getCustomer(phone)
     if (existing) {
@@ -357,6 +364,7 @@ export async function updateCustomer(
   if (!firstName) throw new Error('NOMBRE_INVALIDO')
 
   const lastName = input.lastName?.trim() ?? ''
+  requireCustomerLastName(lastName)
   const email = input.email === undefined ? existing.email : input.email?.trim() || null
   const notes = input.notes === undefined ? existing.notes : input.notes?.trim() || null
   const locale =
@@ -526,6 +534,7 @@ export async function upsertCustomerForBooking(input: {
       lastName = split.lastName
     }
     if (!firstName) throw new Error('NOMBRE_INVALIDO')
+    requireCustomerLastName(lastName)
 
     const phone =
       existingGuest && !phoneInput ? input.existingPhone! : generateGuestCustomerPhone()
@@ -637,6 +646,7 @@ export async function upsertCustomerForBooking(input: {
       lastName = split.lastName
     }
     if (!firstName) throw new Error('NOMBRE_INVALIDO')
+    requireCustomerLastName(lastName)
     return {
       phone: normalizePhone(input.customerPhone),
       nameSnapshot: customerNameSnapshot(firstName, lastName),
@@ -732,6 +742,7 @@ export async function resolveStaffPortalCustomerPatch(input: {
       return { nameSnapshot: input.existingName, customerPhone: input.existingPhone }
     }
     if (!firstName) throw new Error('NOMBRE_INVALIDO')
+    requireCustomerLastName(lastName)
 
     const customerPhone =
       existingGuest && !phoneInput ? input.existingPhone : generateGuestCustomerPhone()

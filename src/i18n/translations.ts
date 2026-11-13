@@ -381,7 +381,7 @@ const es = {
         'Ningún profesional tiene hueco libre para todos los servicios a esa hora. Elige otra hora u otro profesional.',
       loadSlots: 'No se pudieron cargar horarios.',
       createFailed: 'No se pudo crear la cita',
-      nameRequired: 'Indica tu nombre completo.',
+      nameRequired: 'Indica tu nombre y apellidos.',
       phoneRequired: 'Indica un teléfono móvil para contactarte.',
       phoneInvalid:
         'Teléfono no válido. Usa móvil español (6/7/8/9…) o internacional con prefijo (+44…, +33…).',
@@ -406,6 +406,7 @@ const es = {
         'Ya no hay hueco para enlazar todos los servicios a esa hora. Elige otra hora u otro profesional.',
       TELEFONO_INVALIDO: 'Teléfono no válido.',
       NOMBRE_INVALIDO: 'Indica al menos el nombre.',
+      APELLIDOS_INVALIDO: 'Indica los apellidos.',
       FECHA_NACIMIENTO_OBLIGATORIA: 'La fecha de nacimiento es obligatoria.',
       FECHA_NACIMIENTO_INVALIDA: 'Fecha de nacimiento no válida.',
       CLIENTE_NO_ENCONTRADO: 'No encontramos un cliente con ese móvil.',
@@ -1033,7 +1034,7 @@ const en = {
         'No stylist has enough consecutive time for all services at that slot. Choose another time or stylist.',
       loadSlots: 'Could not load available times.',
       createFailed: 'Could not create the appointment',
-      nameRequired: 'Please enter your full name.',
+      nameRequired: 'Please enter your first and last name.',
       phoneRequired: 'Please enter a mobile number so we can reach you.',
       phoneInvalid:
         'Invalid phone. Use a Spanish mobile (6/7/8/9…) or international with country code (+44…, +33…).',
@@ -1058,6 +1059,7 @@ const en = {
         'There is no longer enough time to link all services at that slot. Choose another time or stylist.',
       TELEFONO_INVALIDO: 'Invalid phone number.',
       NOMBRE_INVALIDO: 'Please enter at least a first name.',
+      APELLIDOS_INVALIDO: 'Please enter a last name.',
       FECHA_NACIMIENTO_OBLIGATORIA: 'Date of birth is required.',
       FECHA_NACIMIENTO_INVALIDA: 'Invalid date of birth.',
       CLIENTE_NO_ENCONTRADO: 'We could not find a client with that mobile number.',

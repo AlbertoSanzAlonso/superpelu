@@ -10,6 +10,12 @@ export function formatCustomerDisplayName(firstName: string, lastName: string): 
   return [firstName.trim(), lastName.trim()].filter(Boolean).join(' ')
 }
 
+/** Alta de cliente: hace falta al menos un apellido (campo aparte o en el nombre completo). */
+export function hasRequiredLastName(lastNameOrFullName: string, mode: 'last' | 'full' = 'last'): boolean {
+  if (mode === 'full') return Boolean(splitCustomerName(lastNameOrFullName).lastName)
+  return Boolean(lastNameOrFullName.trim())
+}
+
 export function appointmentCustomerLabel(nameSnapshot: string): string {
   return nameSnapshot.trim()
 }

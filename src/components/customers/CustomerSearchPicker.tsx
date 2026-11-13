@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchCustomerDetail, fetchCustomers, ApiError } from '@/lib/api'
 import { formatCustomerDisplayName } from '@/lib/customer/name'
 import { formatPhoneDisplay } from '@/lib/customer/phone'
 import { customerSearchHint, customerSearchTokens } from '@/lib/customer/search'
+import { useIgnoreKeyboardDismissInput } from '@/hooks/useIgnoreKeyboardDismissInput'
 import type { Customer, CustomerDetail } from '@/types/customers'
 import { typography } from '@/styles/typography'
 
@@ -19,16 +20,18 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const { onBlurCapture, shouldAcceptChange } = useIgnoreKeyboardDismissInput()
 
   useEffect(() => {
     if (!open) return
-    function onDocClick(e: MouseEvent) {
+    function onDocPointerDown(e: PointerEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
       }
     }
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
+    // pointerdown (no mousedown): evita el click fantasma tras cerrar el desplegable en móvil.
+    document.addEventListener('pointerdown', onDocPointerDown)
+    return () => document.removeEventListener('pointerdown', onDocPointerDown)
   }, [open])
 
   const search = useCallback(
@@ -75,6 +78,16 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
     }
   }
 
+  function onSearchKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    // Evita que Enter/Search envíe el formulario de la cita padre.
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation()
+      ;(e.target as HTMLInputElement).blur()
+      setOpen(false)
+    }
+  }
+
   return (
     <div ref={containerRef} className="relative">
       <label className="block text-left">
@@ -82,18 +95,28 @@ export function CustomerSearchPicker({ adminToken, onSelect, disabled = false }:
           Buscar cliente existente
         </span>
         <input
-          type="search"
+          type="text"
+          inputMode="search"
+          enterKeyHint="search"
+          role="searchbox"
           value={query}
           disabled={disabled}
           aria-busy={loading}
           placeholder="Nombre o teléfono…"
           onFocus={() => setOpen(true)}
+          onBlur={(e) => onBlurCapture(e.target.value)}
           onChange={(e) => {
-            setQuery(e.target.value)
+            const next = e.target.value
+            if (!shouldAcceptChange(query, next)) return
+            setQuery(next)
             setOpen(true)
           }}
-          className="w-full border border-gold/30 bg-cream px-2.5 py-1.5 text-sm outline-none focus:border-gold disabled:opacity-50"
+          onKeyDown={onSearchKeyDown}
+          className="w-full border border-gold/30 bg-cream px-2.5 py-1.5 text-base outline-none focus:border-gold disabled:opacity-50 sm:text-sm"
           autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
         />
       </label>
       {open && (query.trim().length >= 2 || results.length > 0) && (
