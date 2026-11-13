@@ -49,6 +49,7 @@ export function useAdminAgenda(adminToken: string, date: string) {
     load: schedule.load,
     setError: schedule.setError,
     clearSelection: selectionState.clearSelection,
+    setConfirmDialog: confirm.setConfirmDialog,
     onMovesCommitted: () => appointments.setWhatsAppNotifyDialogOpen(false),
     resyncAppointmentSnapshots: notifications.resyncAppointmentSnapshots,
   })

@@ -11,7 +11,9 @@ import {
   summarizePendingMoves,
   type AppointmentMoveDraft,
 } from '@/lib/agenda/pendingMoves'
+import { minutesToTime, timeToMinutes } from '@/lib/agenda/adminCalendar'
 import { ApiError, updateAdminAppointment } from '@/lib/api'
+import type { ConfirmDialogState } from '@/components/ui/ConfirmDialog'
 import type { StaffDaySchedule } from '@/types/booking'
 import type { AppointmentDragEndPayload } from '@/components/agenda/admin/DraggableAppointmentBlock'
 
@@ -22,8 +24,25 @@ type MovesDeps = {
   load: (opts?: { silent?: boolean }) => Promise<StaffDaySchedule[] | null>
   setError: (message: string) => void
   clearSelection: () => void
+  setConfirmDialog: (dialog: ConfirmDialogState | null) => void
   onMovesCommitted: () => void
   resyncAppointmentSnapshots?: (options?: { notify?: boolean }) => Promise<void>
+}
+
+function formatTimeRange(startTime: string, durationMinutes: number): string {
+  const end = minutesToTime(timeToMinutes(startTime) + durationMinutes)
+  return `${startTime} – ${end}`
+}
+
+function resizeConfirmMessage(payload: AppointmentDragEndPayload): string {
+  const apt = payload.appointment
+  const newDuration = payload.newDuration!
+  const newRange = formatTimeRange(payload.toStartTime, newDuration)
+  if (payload.toStartTime !== apt.startTime) {
+    const oldRange = formatTimeRange(apt.startTime, apt.durationMinutes)
+    return `La cita de ${apt.customerName} pasará de ${apt.durationMinutes} min (${oldRange}) a ${newDuration} min (${newRange}). ¿Confirmas el cambio?`
+  }
+  return `La cita de ${apt.customerName} pasará de ${apt.durationMinutes} min a ${newDuration} min (${newRange}). ¿Confirmas el cambio?`
 }
 
 export function useAdminAgendaMoves({
@@ -33,6 +52,7 @@ export function useAdminAgendaMoves({
   load,
   setError,
   clearSelection,
+  setConfirmDialog,
   onMovesCommitted,
   resyncAppointmentSnapshots,
 }: MovesDeps) {
@@ -46,24 +66,30 @@ export function useAdminAgendaMoves({
 
   const proposeAppointmentMove = useCallback(
     (payload: AppointmentDragEndPayload) => {
-      // Resize — persistir al momento (hora si se estiró desde arriba + duración).
+      // Resize — pedir confirmación antes de persistir (hora si se estiró desde arriba + duración).
       if (payload.newDuration) {
         const startTimeChanged =
           payload.toStartTime !== payload.appointment.startTime
-        setMoveBusy(true)
-        updateAdminAppointment(payload.appointment.id, adminToken, {
-          serviceDurations: [payload.newDuration],
-          ...(startTimeChanged ? { startTime: payload.toStartTime } : {}),
-          forceSchedule: true,
+        setConfirmDialog({
+          title: '¿Modificar duración de la cita?',
+          message: resizeConfirmMessage(payload),
+          confirmLabel: 'Sí, modificar',
+          cancelLabel: 'No',
+          onConfirm: async () => {
+            try {
+              await updateAdminAppointment(payload.appointment.id, adminToken, {
+                serviceDurations: [payload.newDuration!],
+                ...(startTimeChanged ? { startTime: payload.toStartTime } : {}),
+                forceSchedule: true,
+              })
+              await load({ silent: true })
+              await resyncAppointmentSnapshots?.({ notify: true })
+            } catch (err) {
+              setError(err instanceof ApiError ? err.message : 'Error al cambiar duración')
+              throw err
+            }
+          },
         })
-          .then(async () => {
-            await load({ silent: true })
-            await resyncAppointmentSnapshots?.({ notify: true })
-          })
-          .catch((err) =>
-            setError(err instanceof ApiError ? err.message : 'Error al cambiar duración'),
-          )
-          .finally(() => setMoveBusy(false))
         return
       }
 
@@ -114,7 +140,17 @@ export function useAdminAgendaMoves({
       clearSelection()
       setPendingMoves((prev) => [...prev, ...validation.moves])
     },
-    [schedules, date, pendingMoves, setError, clearSelection, adminToken, load, resyncAppointmentSnapshots],
+    [
+      schedules,
+      date,
+      pendingMoves,
+      setError,
+      clearSelection,
+      setConfirmDialog,
+      adminToken,
+      load,
+      resyncAppointmentSnapshots,
+    ],
   )
 
   const undoLastPendingMove = useCallback(() => {
