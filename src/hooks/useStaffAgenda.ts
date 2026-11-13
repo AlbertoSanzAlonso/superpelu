@@ -489,10 +489,6 @@ export function useStaffAgenda(token: string) {
         setError('Indica el nombre del cliente')
         return false
       }
-      if (!aptDraft.customerLastName.trim()) {
-        setError('Indica los apellidos del cliente')
-        return false
-      }
       if (
         appointmentMemberBooking(aptDraft.householdMembers ?? []).appointmentFor === 'other' &&
         !aptDraft.customerPhone.trim()

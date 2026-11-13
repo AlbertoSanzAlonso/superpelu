@@ -77,7 +77,6 @@ export function AppointmentCustomerFields({
         />
         <Input
           label="Apellidos"
-          required
           inputMode="text"
           enterKeyHint="done"
           value={draft.customerLastName}
