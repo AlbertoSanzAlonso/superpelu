@@ -398,10 +398,13 @@ export const SpecialScheduleSection = forwardRef<
     if (toAdd.length === 0) return
     const filterMonth = toAdd[0]!.slice(0, 7)
     const spanId = `${toAdd[0]!}_${toAdd[toAdd.length - 1]!}`
+    // Personal: un periodo nuevo es baja (sin franjas). Si naciera con 10:00–14:00,
+    // los domingos —salón cerrado— se interpretarían como jornada y pedirían abrir el salón.
+    const initialRanges = scope === 'staff' ? [] : [{ start: '10:00', end: '14:00' }]
     setSpecialDays((prev) => {
       const next = { ...prev }
       for (const date of toAdd) {
-        next[date] = createSpecialDayEntry()
+        next[date] = createSpecialDayEntry(initialRanges)
       }
       return next
     })
@@ -466,7 +469,8 @@ export const SpecialScheduleSection = forwardRef<
       const month = nextFilterMode === 'default' ? todayMonth : nextMonth
       return spanIntersectsMonth(item, month)
     })
-    const index = visible.findIndex((item) => item.id === nextId)
+    const ordered = nextFilterMode === 'all' ? [...visible].reverse() : visible
+    const index = ordered.findIndex((item) => item.id === nextId)
 
     setSpecialDays(draft)
     setEditingSpanId(nextId)
@@ -806,7 +810,8 @@ export const SpecialScheduleSection = forwardRef<
   const sortedDates = Object.keys(specialDays).sort()
   const specialSpans = useMemo(() => groupSpecialDaySpans(specialDays), [specialDays])
   const filteredSpans = useMemo(() => {
-    if (filterMode === 'all') return specialSpans
+    // groupSpecialDaySpans ordena de más antiguo a más reciente.
+    if (filterMode === 'all') return [...specialSpans].reverse()
     const month = filterMode === 'default' ? todaySalon().slice(0, 7) : selectedMonth
     return specialSpans.filter((span) => spanIntersectsMonth(span, month))
   }, [specialSpans, filterMode, selectedMonth])
@@ -988,7 +993,13 @@ export const SpecialScheduleSection = forwardRef<
                         onClick={addDateRange}
                         disabled={!rangeStart || datesToAddCount === 0}
                       >
-                        {datesToAddCount > 1 ? `Añadir ${datesToAddCount} dias` : 'Añadir'}
+                        {datesToAddCount > 1
+                          ? scope === 'staff'
+                            ? `Añadir ${datesToAddCount} dias libres`
+                            : `Añadir ${datesToAddCount} dias`
+                          : scope === 'staff'
+                            ? 'Añadir dia libre'
+                            : 'Añadir'}
                       </Button>
                     </div>
                   </div>,

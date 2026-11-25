@@ -172,17 +172,7 @@ export async function getStaffDaySchedule(
   const windows = rangesToWorkWindows(
     dayWindows.map((w) => ({ start: w.startTime, end: w.endTime })),
   )
-  if (windows.length === 0) {
-    return {
-      staffId: staff.id,
-      staffName: staff.name,
-      working: false,
-      windows: [],
-      appointments: [],
-      blocks: [],
-      freeSlots: [],
-    }
-  }
+  const working = windows.length > 0
 
   const occupied = await getOccupiedOnDate(date, staffId)
   const blockRows = await getBlocksForStaffOnDate(date, staffId)
@@ -273,7 +263,7 @@ export async function getStaffDaySchedule(
   return {
     staffId: staff.id,
     staffName: staff.name,
-    working: true,
+    working,
     windows,
     appointments,
     blocks,

@@ -299,22 +299,7 @@ export function ScheduleManagementPage() {
     setError('')
     try {
       await updateSalonSchedule(adminToken, salonWindows)
-      const synced = cloneWeekly(salonWindows)
-      setSalonBaseline(synced)
-      setStaffWindowsMap((prev) => {
-        const next: Record<string, WeeklyWindows> = {}
-        for (const staffId of Object.keys(prev)) {
-          next[staffId] = cloneWeekly(synced)
-        }
-        return next
-      })
-      setStaffBaselineMap((prev) => {
-        const next: Record<string, WeeklyWindows> = {}
-        for (const staffId of Object.keys(prev)) {
-          next[staffId] = cloneWeekly(synced)
-        }
-        return next
-      })
+      setSalonBaseline(cloneWeekly(salonWindows))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       return true

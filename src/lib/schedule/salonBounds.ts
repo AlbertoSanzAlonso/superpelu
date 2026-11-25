@@ -161,12 +161,12 @@ function specialEntriesEqual(
   a: SpecialDayEntry | undefined,
   b: SpecialDayEntry | undefined,
 ): boolean {
-  const left = a ?? { ranges: [], note: '' }
-  const right = b ?? { ranges: [], note: '' }
-  if ((left.note ?? '') !== (right.note ?? '')) return false
-  if (left.ranges.length !== right.ranges.length) return false
-  return left.ranges.every((range, index) => {
-    const other = right.ranges[index]
+  // Un día presente con franjas vacías es «libre» y no equivale a no tener excepción.
+  if (!a || !b) return !a && !b
+  if ((a.note ?? '') !== (b.note ?? '')) return false
+  if (a.ranges.length !== b.ranges.length) return false
+  return a.ranges.every((range, index) => {
+    const other = b.ranges[index]
     return range.start === other?.start && range.end === other?.end
   })
 }

@@ -221,12 +221,15 @@ function SlotLayer({
     () => buildStaffDayGrid(schedule, date, salonSchedule.slotMinutes, 'fullDisplay'),
     [schedule, date],
   )
+  const dayOff = !schedule.working
   const selectableTimes = useMemo(
     () =>
-      cells
-        .filter((c) => c.status === 'free' || c.status === 'closed' || c.status === 'past')
-        .map((c) => c.time),
-    [cells],
+      dayOff
+        ? []
+        : cells
+            .filter((c) => c.status === 'free' || c.status === 'closed' || c.status === 'past')
+            .map((c) => c.time),
+    [cells, dayOff],
   )
   const selectedTimes =
     selection?.staffId === schedule.staffId ? selection.times : EMPTY_TIMES
@@ -244,7 +247,8 @@ function SlotLayer({
         const isSelected =
           selection?.staffId === schedule.staffId && selection.times.has(cell.time)
         const isBookable =
-          cell.status === 'free' || cell.status === 'closed' || cell.status === 'past'
+          !dayOff &&
+          (cell.status === 'free' || cell.status === 'closed' || cell.status === 'past')
         const isFormSlot =
           formStaffId === schedule.staffId &&
           formSlotTime === cell.time &&
@@ -345,7 +349,10 @@ function StaffColumnHeader({
             </p>
           </div>
         ) : (
-          <span className={`${typography.label} truncate`}>{schedule.staffName}</span>
+          <div className="min-w-0">
+            <p className={`${typography.label} truncate`}>{schedule.staffName}</p>
+            <p className="text-[10px] text-charcoal-muted">Libre</p>
+          </div>
         )}
       </button>
       {onResizeLeft && (
@@ -454,6 +461,7 @@ function StaffColumn({
       if (apt) onEditAppointment(schedule.staffId, apt)
       return
     }
+    if (!schedule.working && cell.status !== 'block') return
     if (cell.status === 'block' && cell.blockId && !shiftKey) {
       const block = schedule.blocks.find((b) => b.id === cell.blockId)
       if (block) onOpenBlock(schedule.staffId, block)

@@ -4,6 +4,7 @@ import { getService } from "@server/catalog/services.js"
 import { serviceDisplayName } from "@/i18n/localeHelpers"
 import { resolveCustomerFacingLocale } from "@server/appointments/bookingLocale.js"
 import { getStaff } from "@server/staff/index.js"
+import { isStaffWorkingOnDate } from "@server/staff/availability.js"
 import {
   resolveStaffPortalCustomerPatch,
 } from "@server/customers/index.js"
@@ -347,6 +348,11 @@ export async function updateAppointmentForStaff(
   }
 
   if (scheduleChanging) {
+    const placingOnAnotherDay =
+      date !== existing.appointment_date || targetStaffId !== existing.staff_id
+    if (placingOnAnotherDay && !(await isStaffWorkingOnDate(targetStaffId, date))) {
+      throw new Error('FECHA_INVALIDA')
+    }
     const lockKeys: Array<{ staffId: string; date: string }> = [
       { staffId: targetStaffId, date },
     ]

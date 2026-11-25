@@ -94,8 +94,8 @@ export async function setSalonSchedule(
 }
 
 export async function getStaffSchedule(staffId: string): Promise<Record<number, ScheduleTimeRange[]>> {
-  const rows = await sql<{ day_of_week: number; start_time: string; end_time: string }[]>`
-    SELECT day_of_week, start_time, end_time FROM staff_availability
+  const rows = await sql<{ day_of_week: number; start_time: string; end_time: string; is_closed: boolean }[]>`
+    SELECT day_of_week, start_time, end_time, is_closed FROM staff_availability
     WHERE staff_id = ${staffId}
     ORDER BY day_of_week ASC, start_time ASC
   `
@@ -103,6 +103,7 @@ export async function getStaffSchedule(staffId: string): Promise<Record<number, 
   const weeklyWindows: Record<number, ScheduleTimeRange[]> = {}
   for (const row of rows) {
     if (!weeklyWindows[row.day_of_week]) weeklyWindows[row.day_of_week] = []
+    if (row.is_closed) continue
     weeklyWindows[row.day_of_week].push({ start: row.start_time, end: row.end_time })
   }
   return weeklyWindows
@@ -116,13 +117,21 @@ export async function setStaffSchedule(
 
   for (const [dayStr, ranges] of Object.entries(weeklyWindows)) {
     const day = Number(dayStr)
-    if (!ranges?.length) continue
+    if (!Number.isInteger(day) || day < 0 || day > 6) continue
+    if (!ranges?.length) {
+      await sql`
+        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time, is_closed)
+        VALUES (${staffId}, ${day}, '00:00', '00:00', TRUE)
+      `
+      continue
+    }
     for (const range of ranges) {
       await sql`
-        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time)
-        VALUES (${staffId}, ${day}, ${range.start}, ${range.end})
+        INSERT INTO staff_availability (staff_id, day_of_week, start_time, end_time, is_closed)
+        VALUES (${staffId}, ${day}, ${range.start}, ${range.end}, FALSE)
         ON CONFLICT (staff_id, day_of_week, start_time) DO UPDATE SET
-          end_time = EXCLUDED.end_time
+          end_time = EXCLUDED.end_time,
+          is_closed = FALSE
       `
     }
   }

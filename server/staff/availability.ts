@@ -83,16 +83,20 @@ export async function getStaffDayWindows(
   if (salonWindows.length === 0) return []
 
   const dayOfWeek = dayOfWeekFromDateString(date)
-  const rows = await sql<{ start_time: string; end_time: string }[]>`
-    SELECT start_time, end_time FROM staff_availability
+  const rows = await sql<{ start_time: string; end_time: string; is_closed: boolean }[]>`
+    SELECT start_time, end_time, is_closed FROM staff_availability
     WHERE staff_id = ${staffId} AND day_of_week = ${dayOfWeek}
     ORDER BY start_time ASC
   `
+
+  if (rows.some((row) => row.is_closed)) return []
 
   if (rows.length === 0) {
     const [{ count }] = await sql<{ count: string }[]>`
       SELECT COUNT(*)::text AS count FROM staff_availability WHERE staff_id = ${staffId}
     `
+    // Sin ninguna fila: horario aún no guardado en /horarios. Si ya hay filas
+    // (aunque sean días libres), un día sin franja no hereda el horario del salón.
     if (Number(count) === 0) {
       return salonWindowsAsStaffWindows(salonWindows)
     }

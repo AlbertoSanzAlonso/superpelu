@@ -213,11 +213,9 @@ export async function createAppointment(
       return row
     }
 
-    if (!input.forceSchedule) {
-      for (const staffId of new Set(staffAssignments)) {
-        if (!(await isStaffWorkingOnDate(staffId, input.date))) {
-          throw new Error('FECHA_INVALIDA')
-        }
+    for (const staffId of new Set(staffAssignments)) {
+      if (!(await isStaffWorkingOnDate(staffId, input.date))) {
+        throw new Error('FECHA_INVALIDA')
       }
     }
 
@@ -297,9 +295,9 @@ export async function createAppointment(
   if (!input.forceSchedule) {
     const dateOk = await isBookingDateAllowed(input.date, { forStaffPortal: input.forStaffPortal })
     if (!dateOk) throw new Error('FECHA_INVALIDA')
-    if (!(await isStaffWorkingOnDate(input.staffId, input.date))) {
-      throw new Error('FECHA_INVALIDA')
-    }
+  }
+  if (!(await isStaffWorkingOnDate(input.staffId, input.date))) {
+    throw new Error('FECHA_INVALIDA')
   }
 
   if (!input.forceSchedule) {
