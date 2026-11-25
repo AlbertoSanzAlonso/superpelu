@@ -58,6 +58,7 @@ import {
   injectSpaLinkPreviewMeta,
   publicBaseUrl,
 } from '@server/appointments/links.js'
+import { robotsTxt, sitemapXml } from '@server/seo/sitemap.js'
 import {
   appointmentDetailHtml,
   backToManageLink,
@@ -2568,6 +2569,24 @@ app.get('/a/:code', async (c) => {
   c.header('Content-Type', 'text/calendar; charset=utf-8')
   c.header('Content-Disposition', 'attachment; filename="cita-superpelu.ics"')
   return c.body(buildIcs(row))
+})
+
+function siteBaseUrl(c: Context): string {
+  const configured = publicBaseUrl()
+  if (configured) return configured
+  const url = new URL(c.req.url)
+  return `${url.protocol}//${url.host}`
+}
+
+app.get('/robots.txt', (c) => {
+  c.header('Cache-Control', 'public, max-age=3600')
+  return c.text(robotsTxt(siteBaseUrl(c)))
+})
+
+app.get('/sitemap.xml', (c) => {
+  c.header('Content-Type', 'application/xml; charset=utf-8')
+  c.header('Cache-Control', 'public, max-age=3600')
+  return c.body(sitemapXml(siteBaseUrl(c)))
 })
 
 const distPath = path.resolve(process.cwd(), 'dist')
